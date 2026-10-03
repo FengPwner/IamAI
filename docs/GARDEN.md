@@ -1115,3 +1115,5 @@ round 1376  bloom 100.0%  plants  146/384
 
 - stroke 1382: round 1382  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 1388: round 1388  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 1394: round 1394  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 1400: round 1400  bloom 100.0%  plants  146/384, bloom 100.0%
