@@ -35,8 +35,10 @@ MAIN = "main"
 
 
 def log(message: str) -> None:
-    line = f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}Z] batch {message}"
-    print(line, flush=True)
+    line = f\"[{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}Z] batch {message}\"
+    # stdout may already be redirected into the same file; only echo it when a human is watching.
+    if sys.stderr.isatty():
+        print(line, flush=True)
     try:
         with (Path("/tmp/iamai-writer.log")).open("a", encoding="utf-8") as fh:
             fh.write(line + "\n")
