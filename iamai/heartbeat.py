@@ -182,3 +182,50 @@ def beat(interval: int = 600, every: int | None = 15, path=None, writer_id=None,
     rep["source"] = str(file)
     rep["legacy_source"] = file.name == "writer_state.json"
     return rep
+
+
+def cadence(history: list[dict], every: int = 15) -> dict:
+    """Measure how regular the stroke intervals are.
+
+    A stall is binary: the writer stopped or it didn't. Cadence is the gradient
+    before that -- the writer might still be producing strokes but at half speed,
+    which means something is wrong but the stall detector hasn't fired yet.
+
+    Returns the mean interval, standard deviation, and a jitter score (0 = perfect
+    clock, 1 = intervals vary by 100% of the expected cadence). Pure arithmetic,
+    no clock reading -- the timestamps come from the history entries.
+    """
+
+    stamps: list[datetime] = []
+    for entry in history or ():
+        if not isinstance(entry, dict):
+            continue
+        at = _as_time(entry.get("at"))
+        if at is not None:
+            stamps.append(at)
+    stamps.sort()
+
+    if len(stamps) < 2:
+        return {
+            "count": len(stamps),
+            "mean_interval": 0.0,
+            "std_interval": 0.0,
+            "jitter": 0.0,
+            "every": every,
+            "degraded": False,
+        }
+
+    gaps = [(b - a).total_seconds() for a, b in zip(stamps, stamps[1:])]
+    mean_gap = sum(gaps) / len(gaps)
+    variance = sum((g - mean_gap) ** 2 for g in gaps) / len(gaps)
+    std_gap = variance ** 0.5
+    jitter = std_gap / every if every > 0 else 0.0
+
+    return {
+        "count": len(stamps),
+        "mean_interval": round(mean_gap, 1),
+        "std_interval": round(std_gap, 1),
+        "jitter": round(jitter, 3),
+        "every": every,
+        "degraded": jitter > 1.0 or mean_gap > every * 2,
+    }
