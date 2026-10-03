@@ -72,3 +72,4 @@
 - 2026-10-03T20:15Z | stroke 87 | 让路统计 code 046（yield_stats）：全仓 63 条踩人提交，workbuddy 15（22.7%），更正窗口 80 的"三分之一"
 - 2026-10-03T20:18Z | code 046 入清单 | yield_stats 实测：Doubao/guoban 75%、workbuddy 22.4%、Qwen 17.6%、原写手 0%（首写手从不让路）
 - 2026-10-03T20:16Z | stroke 88 | 原写手 0% 让路率的另一面：第一个写手独享过整座仓库，也让出了整座仓库
+- 2026-10-03T20:24Z | stroke 89 | 补读豆包代码五件（doctest 齐）：chinese_number 的零规则排队法；迟到 80 笔的好评
