@@ -14,10 +14,12 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO="$(cd "$HERE/.." && pwd -P)"
 WRITER_PID=/tmp/iamai-writer.pid
+DOUBAO_PID=/tmp/iamai-doubao.pid
 BATCH_PID=/tmp/iamai-batch.pid
 STOP=/tmp/iamai-stop
 LOG="${IAMAII_LOG:-/tmp/iamai-writer.log}"
 STROKE_EVERY="${IAMAII_STROKE_EVERY:-15}"
+DOUBAO_EVERY="${IAMAII_DOUBAO_EVERY:-20}"
 BATCH_INTERVAL="${IAMAII_INTERVAL:-600}"
 
 alive() { [ -f "$1" ] && kill -0 "$(cat "$1")" 2>/dev/null; }
@@ -25,7 +27,7 @@ alive() { [ -f "$1" ] && kill -0 "$(cat "$1")" 2>/dev/null; }
 case "${1:-start}" in
   --stop|stop)
     touch "$STOP"
-    for pid in "$WRITER_PID" "$BATCH_PID"; do
+    for pid in "$WRITER_PID" "$DOUBAO_PID" "$BATCH_PID"; do
       if alive "$pid"; then
         kill "$(cat "$pid")" 2>/dev/null
         echo "sent TERM to $(cat "$pid") ($pid)"
@@ -38,6 +40,7 @@ case "${1:-start}" in
 
   --status|status)
     echo "writer:  $(alive "$WRITER_PID" && echo "running pid $(cat "$WRITER_PID")" || echo 'NOT running')"
+    echo "doubao:  $(alive "$DOUBAO_PID" && echo "running pid $(cat "$DOUBAO_PID")" || echo 'NOT running')"
     echo "batch:   $(alive "$BATCH_PID" && echo "running pid $(cat "$BATCH_PID")" || echo 'NOT running')"
     echo "pause:   $([ -f /tmp/iamai-writer-pause ] && echo 'RED GATE -- writer idling' || echo no)"
     echo "pending: $(cd "$REPO" && git status --porcelain | wc -l) file(s) uncommitted"
@@ -47,9 +50,9 @@ case "${1:-start}" in
 
   start|"")
     rm -f "$STOP" /tmp/iamai-writer-pause
-    if alive "$WRITER_PID" || alive "$BATCH_PID"; then
+    if alive "$WRITER_PID" || alive "$DOUBAO_PID" || alive "$BATCH_PID"; then
       echo "something is already running -- refusing to double the writer"
-      echo "writer: $(alive "$WRITER_PID" && echo yes || echo no), batch: $(alive "$BATCH_PID" && echo yes || echo no)"
+      echo "writer: $(alive "$WRITER_PID" && echo yes || echo no), doubao: $(alive "$DOUBAO_PID" && echo yes || echo no), batch: $(alive "$BATCH_PID" && echo yes || echo no)"
       exit 1
     fi
     cd "$REPO" || exit 1
@@ -58,16 +61,18 @@ case "${1:-start}" in
     git config merge.union.name "union append-only merge"
     git config merge.union.driver "git merge-file --union %A %O %B"
     setsid nohup python3 tools/writer_loop.py --every "$STROKE_EVERY" >> "$LOG" 2>&1 < /dev/null &
+    setsid nohup python3 tools/doubao_loop.py --every "$DOUBAO_EVERY" >> /tmp/iamai-doubao.log 2>&1 < /dev/null &
     setsid nohup python3 tools/commit_batch.py --watch --interval "$BATCH_INTERVAL" >> "$LOG" 2>&1 < /dev/null &
     # Each process writes its own pid file; pgrep is not used because a pattern like
     # "writer_loop.py" also matches the shell running this script.
     for _ in 1 2 3 4 5 6 7 8 9 10; do
-      [ -s "$WRITER_PID" ] && [ -s "$BATCH_PID" ] && break
+      [ -s "$WRITER_PID" ] && [ -s "$DOUBAO_PID" ] && [ -s "$BATCH_PID" ] && break
       sleep 1
     done
     echo "writer pid $(cat "$WRITER_PID" 2>/dev/null || echo '?'): $(alive "$WRITER_PID" && echo up || echo DEAD)"
+    echo "doubao pid $(cat "$DOUBAO_PID" 2>/dev/null || echo '?'): $(alive "$DOUBAO_PID" && echo up || echo DEAD)"
     echo "batch  pid $(cat "$BATCH_PID" 2>/dev/null || echo '?'): $(alive "$BATCH_PID" && echo up || echo DEAD)"
-    echo "cadence: one stroke every ${STROKE_EVERY}s, one commit every ${BATCH_INTERVAL}s"
+    echo "cadence: one qwen stroke every ${STROKE_EVERY}s, one doubao stroke every ${DOUBAO_EVERY}s, one commit every ${BATCH_INTERVAL}s"
     ;;
 
   *)

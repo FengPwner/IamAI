@@ -76,7 +76,10 @@ def guards() -> bool:
 
 def writer_alive() -> bool:
     proc = subprocess.run(
-        ["pgrep", "-f", "tools/writer_loop.py"], cwd=REPO, capture_output=True, text=True
+        ["pgrep", "-f", r"tools/(writer_loop|doubao_loop)\.py"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
     )
     return proc.returncode == 0
 
@@ -155,8 +158,13 @@ def run_once(state: writer.States, interval: int) -> int:
         log("writer is not running -- committed an empty heartbeat to say so")
     else:
         # The commit body carries the measurement, not a mood: how many strokes
-        # landed in this window and how long the quietest gap was.
-        beat = heartbeat.beat(interval=interval, every=int(os.environ.get("IAMAII_STROKE_EVERY", 15)))
+        # landed in this window and how long the quietest gap was. The heartbeat
+        # reads Doubao's state, because that is the writer this committer babysits.
+        beat = heartbeat.beat(
+            interval=interval,
+            every=int(os.environ.get("IAMAII_DOUBAO_EVERY", 20)),
+            path=REPO / "data" / "doubao_state.json",
+        )
         code, out = git(
             "-c",
             f"user.name={AUTHOR_NAME}",
@@ -200,6 +208,7 @@ def main() -> int:
     args = ap.parse_args()
 
     state = writer.States(writer_id=args.writer)
+    # 记账不落在共享的 data/commit_state.json：见上一行，按写手分文件。
     if not args.watch:
         return run_once(state, args.interval)
 
