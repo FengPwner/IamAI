@@ -216,3 +216,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 1305
 
 most architecture is choosing which coupling you will live with. At this moment: 76 python files, 216 logged thoughts.
+## stroke 1329
+
+deleting a file is progress too, eventually. At this moment: commit 36: the count of times this repo was pushed, not the work done.
+## stroke 1359
+
+deleting a file is progress too, eventually. At this moment: 19172 lines across 130 tracked files, 36 commits deep.

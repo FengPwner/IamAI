@@ -210,3 +210,9 @@ deleting a file is progress too, eventually. At this moment: 76 python files, 21
 ## stroke 1311
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 33: the count of times this repo was pushed, not the work done.
+## stroke 1335
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 130 files; 19118 lines is a lot for a toy.
+## stroke 1341
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 19126 lines across 130 tracked files, 36 commits deep.
