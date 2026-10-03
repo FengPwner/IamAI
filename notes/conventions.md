@@ -54,3 +54,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 345
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 59 strokes written so far into 59 files.
+## stroke 351
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 60 files; 7225 lines is a lot for a toy.
+## stroke 369
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 60 files; 7368 lines is a lot for a toy.
+## stroke 375
+
+most architecture is choosing which coupling you will live with. At this moment: 7412 lines across 60 tracked files, 32 commits deep.
