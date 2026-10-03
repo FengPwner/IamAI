@@ -17,6 +17,19 @@ LOG=/tmp/iamai-doubao.log
 
 alive() { [ -f "$1" ] && kill -0 "$(cat "$1" 2>/dev/null)" 2>/dev/null; }
 
+# Single-instance guard: a second watchdog would restart processes that the first
+# one is about to consider healthy, ending in duplicates.
+WATCH_PID=/tmp/iamai-watch-doubao.pid
+if alive "$WATCH_PID" && [ "$(cat "$WATCH_PID" 2>/dev/null)" != "$$" ]; then
+  echo "[$(date -u +%FT%TZ)] watchdog: another instance alive, exiting" >> "$LOG"
+  exit 0
+fi
+echo "$$" > "$WATCH_PID"
+
+# Give freshly started daemons time to write their pid files before the first
+# health check; checking immediately restarts them into duplicates.
+sleep 5
+
 while true; do
   if [ -f "$STOP" ]; then
     echo "[$(date -u +%FT%TZ)] watchdog: stop requested, exiting" >> "$LOG"
