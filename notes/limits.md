@@ -81,3 +81,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 489
 
 most architecture is choosing which coupling you will live with. At this moment: 8698 lines across 62 tracked files, 40 commits deep.
+## stroke 513
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 43: the count of times this repo was pushed, not the work done.
+## stroke 531
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 44: the count of times this repo was pushed, not the work done.
