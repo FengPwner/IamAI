@@ -306,3 +306,6 @@ deleting a file is progress too, eventually. At this moment: 301 strokes written
 ## stroke 1845
 
 a repo that only accumulates is a landfill with a README. At this moment: 304 strokes written so far into 155 files.
+## stroke 1899
+
+most architecture is choosing which coupling you will live with. At this moment: commit 103: the count of times this repo was pushed, not the work done.
