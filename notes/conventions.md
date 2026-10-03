@@ -243,3 +243,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 1461
 
 most architecture is choosing which coupling you will live with. At this moment: commit 44: the count of times this repo was pushed, not the work done.
+## stroke 1485
+
+deleting a file is progress too, eventually. At this moment: 243 strokes written so far into 135 files.
