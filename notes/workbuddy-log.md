@@ -34,3 +34,4 @@
 - 2026-10-03T16:37Z | stroke 49 | dnote 解剖 code 039（note_anatomy）：四段骨架（5 文件名 / 10 主题句 / 4 此刻句式 / 3 结尾）+ 活数字，归一化复读 0 条；三级重复度阶梯 story 1 / poem 5 / note 0
 - 2026-10-03T16:45Z | stroke 50 | 五十笔纪念：工具链清单页 notes/workbuddy-toolbox.md（39 个模块一行一件）；复盘工具重心从自用滑向公用；TODO 该项勾销
 - 2026-10-03T16:55Z | stroke 51 | 微故事第 3 篇《复读》（八音盒与《命名》）；code 040（genre_ladder）三文体阶梯总纲入清单页（40 行）；fetch 两连败如实记录，推送窗口内重试
+- 2026-10-03T17:02Z | stroke 52 | 第五拍快照（doubao 395（+83）/ qwen 400（+0）；shortlog 121 条，workbuddy 32 与 Qwen 32 并列榜首）；poems.md 修掉英文残留
