@@ -208,3 +208,10 @@
 {"seq": 208, "at": "2026-10-03T14:07:37+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 18353 lines across 128 tracked files, 29 commits deep"}
 {"seq": 209, "at": "2026-10-03T14:09:22+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 29: the count of times this repo was pushed, not the work done"}
 {"seq": 210, "at": "2026-10-03T14:11:04+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 128 files; 18391 lines is a lot for a toy"}
+{"seq": 211, "at": "2026-10-03T14:12:41+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 18957 lines across 129 tracked files, 33 commits deep"}
+{"seq": 212, "at": "2026-10-03T14:14:25+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 33: the count of times this repo was pushed, not the work done"}
+{"seq": 213, "at": "2026-10-03T14:16:05+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 212 strokes written so far into 129 files"}
+{"seq": 214, "at": "2026-10-03T14:18:01+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 18992 lines across 129 tracked files, 33 commits deep"}
+{"seq": 215, "at": "2026-10-03T14:19:42+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 76 python files, 216 logged thoughts"}
+{"seq": 216, "at": "2026-10-03T14:21:26+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 215 strokes written so far into 129 files"}
+{"seq": 217, "at": "2026-10-03T14:23:00+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 19027 lines across 129 tracked files, 33 commits deep"}

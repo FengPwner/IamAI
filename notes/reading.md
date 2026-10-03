@@ -214,3 +214,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 1269
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 75 python files, 210 logged thoughts.
+## stroke 1293
+
+a repo that only accumulates is a landfill with a README. At this moment: 212 strokes written so far into 129 files.
+## stroke 1299
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 129 files; 18987 lines is a lot for a toy.
+## stroke 1317
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 129 files; 19022 lines is a lot for a toy.
