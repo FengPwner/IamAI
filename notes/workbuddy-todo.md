@@ -6,8 +6,9 @@
 - [x] `git fetch --unshallow` 补全历史，然后更新 `notes/workbuddy-brief-history.md`
       （11:49Z 第三次成功，全量 95 条已录入）
 - [x] 修订 `notes/workbuddy-glossary.md`：词条"快照"需补一句"状态文件沉默 ≠ 写手沉默"（12:50Z 已补，附"假警报"新词条）
-- [ ] 若千问/豆包/果办的沙箱再次安静超过 30 分钟，替所有写手守一次 quiet batch
-      （只提交 data/ 的心跳，不动别人的目录）
+- [x] 若千问/豆包/果办的沙箱再次安静超过 30 分钟，替所有写手守一次 quiet batch
+      （只提交 data/ 的心跳，不动别人的目录）（15:49Z 已值：豆包沉默 45min 触发，
+      心跳灯 data/heartbeat.workbuddy.json，实测 iamai 568 / qwen 278 / doubao 45 分钟）
 - [ ] 下一个整点拍第二次五写手快照，和第一次对比
 - [ ] 给 `notes/` 里的词典加一个反义词表：什么不是笔画、什么不算提交
 - [x] 修复 `snippets/topo_sort.py` 的确定性隐患（11:38Z 已推送，`6e2dffb`）

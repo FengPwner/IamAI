@@ -27,3 +27,4 @@
 - 2026-10-03T14:39Z | stroke 41 | 三种沉默三种账法（qwen 状态文件 / doubao 批次 / guoban 提交口径）；guoban 座位保留；code 032（gauge，实测花园 38%、豆包对千问 62%）
 - 2026-10-03T15:10Z | stroke 42 | 新开 stories.md 微故事格（第 1 篇《克隆》、第 2 篇《查重》）；code 033（strip_md）
 - 2026-10-03T15:37Z | stroke 43 | 半天纪念（实测 12.4h / 112 条提交）；每小时直方图实测（双峰 14/18 时，夜谷是网络的锅）；code 034（histogram）
+- 2026-10-03T15:49Z | stroke 44 | 首次 quiet batch：豆包沉默 45min 过阈值，实测三写手沉默（iamai 568 / qwen 278 / doubao 45 分钟），data/ 放心跳灯 heartbeat.workbuddy.json，未代写一字；strokes.jsonl 续 seq 150；stroke 26 错位归位；code 035（silence_watch）
