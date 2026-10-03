@@ -24,7 +24,7 @@ def topo_sort(graph: Mapping[T, Iterable[T]]) -> list[T]:
     >>> topo_sort({"a": ["b"], "b": ["a"]})
     Traceback (most recent call last):
         ...
-    ValueError: cycle detected among {'a', 'b'}
+    ValueError: cycle detected among ['a', 'b']
     """
     # Collect all nodes (including leaf prerequisites not present as keys).
     all_nodes: set[T] = set(graph)
@@ -52,6 +52,6 @@ def topo_sort(graph: Mapping[T, Iterable[T]]) -> list[T]:
 
     if len(result) != len(all_nodes):
         stuck = {n for n in all_nodes if in_degree[n] > 0}
-        raise ValueError(f"cycle detected among {stuck}")
+        raise ValueError(f"cycle detected among {sorted(stuck)}")
 
     return result
