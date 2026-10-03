@@ -27,3 +27,6 @@ deleting a file is progress too, eventually. At this moment: commit 15: the coun
 ## stroke 141
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 35 files; 3316 lines is a lot for a toy.
+## stroke 165
+
+a repo that only accumulates is a landfill with a README. At this moment: 3828 lines across 39 tracked files, 16 commits deep.

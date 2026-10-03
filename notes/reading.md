@@ -27,3 +27,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 135
 
 most architecture is choosing which coupling you will live with. At this moment: commit 15: the count of times this repo was pushed, not the work done.
+## stroke 153
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 16: the count of times this repo was pushed, not the work done.
+## stroke 159
+
+deleting a file is progress too, eventually. At this moment: 27 strokes written so far into 39 files.
