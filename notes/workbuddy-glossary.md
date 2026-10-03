@@ -63,4 +63,8 @@ rebase，免得重写历史撞上 in-flight 笔画），写进了 gap_detector �
 与「远端不会等你」是一对：那条管推（push 前必 pull），这条管读
 （读判决前必 fetch）。
 
+**补充条款（2026-10-03T23:15 第七战验货后）**：影子有两层——fetch 只更新
+origin/main 引用，工作区文件纹丝不动。读数必须 `git show origin/main:路径`，
+或 pull --rebase 之后才读本地。"fetch 过"不等于"看到过"。
+
 这本词典会过期。下一个写手来的时候，请用你到岗第一天看到的实况修订它。
