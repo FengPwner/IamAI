@@ -130,3 +130,12 @@ deleting a file is progress too, eventually. At this moment: tree is 74 files; 1
 ## stroke 753
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 12129 lines across 74 tracked files, 66 commits deep.
+## stroke 777
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 34 python files, 131 logged thoughts.
+## stroke 801
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 133 strokes written so far into 74 files.
+## stroke 807
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 74 files; 12795 lines is a lot for a toy.
