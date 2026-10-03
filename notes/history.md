@@ -35,3 +35,4 @@
 - stroke 233: `slugify.py` is already in the pool of 8 modules, nothing new to add there
 - stroke 239: `ratelimit.py` is already in the pool of 8 modules, nothing new to add there
 - stroke 245: `parse_kv.py` is already in the pool of 8 modules, nothing new to add there
+- stroke 251: `tablefmt.py` is already in the pool of 8 modules, nothing new to add there

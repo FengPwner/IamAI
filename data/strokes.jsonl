@@ -40,3 +40,4 @@
 {"seq": 40, "at": "2026-10-03T04:30:54+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 39 strokes written so far into 39 files"}
 {"seq": 41, "at": "2026-10-03T04:32:36+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 4401 lines across 39 tracked files, 18 commits deep"}
 {"seq": 42, "at": "2026-10-03T04:34:12+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 21 python files, 43 logged thoughts"}
+{"seq": 43, "at": "2026-10-03T06:02:20+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 42 strokes written so far into 40 files"}

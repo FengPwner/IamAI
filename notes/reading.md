@@ -45,3 +45,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 21 pyt
 ## stroke 237
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 39 files; 4378 lines is a lot for a toy.
+## stroke 255
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 40 files; 4532 lines is a lot for a toy.

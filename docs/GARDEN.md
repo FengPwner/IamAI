@@ -222,3 +222,4 @@ round  242  bloom 100.0%  plants  146/384
 ```
 
 - stroke 248: round  248  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 254: round  254  bloom 100.0%  plants  146/384, bloom 100.0%
