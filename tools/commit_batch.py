@@ -26,7 +26,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from iamai import batch, writer  # noqa: E402
+from iamai import batch, heartbeat, writer  # noqa: E402
 
 STOP = Path("/tmp/iamai-stop")
 PIDFILE = Path("/tmp/iamai-batch.pid")
@@ -130,6 +130,9 @@ def run_once(state: writer.States, interval: int) -> int:
             return 1
         log("writer is not running -- committed an empty heartbeat to say so")
     else:
+        # The commit body carries the measurement, not a mood: how many strokes
+        # landed in this window and how long the quietest gap was.
+        beat = heartbeat.beat(interval=interval, every=int(os.environ.get("IAMAII_STROKE_EVERY", 15)))
         code, out = git(
             "commit",
             "-m",
@@ -138,6 +141,8 @@ def run_once(state: writer.States, interval: int) -> int:
             f"auto-committed by tools/commit_batch.py -- {tail}",
             "-m",
             f"writer {'alive' if writer_alive() else 'NOT RUNNING'} at commit time",
+            "-m",
+            "heartbeat: " + heartbeat.as_markdown(beat),
         )
         if code != 0:
             log(f"commit failed: {out}")
