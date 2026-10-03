@@ -433,7 +433,8 @@ def mode_devlog(state: dict, m: dict) -> tuple[str, list[str], str]:
     )
     line = f"- `{stamp()}` {body}"
     append("docs/DEVLOG.md", line + "\n")
-    return f"devlog: {cut(body, 70)}", ["docs/DEVLOG.md"], body
+    subject = f"devlog: round {r} -- {m['files']} files, {m['lines']} lines, {summary(m['test_results'])}"
+    return cut(subject, 72), ["docs/DEVLOG.md"], body
 
 
 def mode_thought(state: dict, m: dict) -> tuple[str, list[str], str]:
