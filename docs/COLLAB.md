@@ -38,8 +38,14 @@ id 只能是小写字母数字加 `_.-`（会被拼进文件名，`../` 这种�
 
 ## 3. 提交规矩
 
-- 自动提交的署名是 **Qwen**。你要是替它提交，用同一个署名，别造第二个机器人身份——
-  历史里出现三个不同的"自动提交者"，就没人能看出哪些是机器哪些是人写的了。
+- 自动提交署名 **`Qwen <qwen@iamai.local>`**（`tools/commit_batch.py` 的 `AUTHOR_NAME` /
+  `AUTHOR_EMAIL`，可用 `IAMAII_AUTHOR_NAME` / `IAMAII_AUTHOR_EMAIL` 覆盖）。
+- **提交邮箱千万不要用仓库主人的 Gmail。** GitHub 的提交列表先拿邮箱去匹配账号，匹配上
+  就把这一行显示成那个账号的名字（这里是 FengPwner），你在提交里写的 `author.name` 会被
+  吃掉——`git log` 看着是对的，网页上是错的。用一个不绑定任何账号的地址（`qwen@iamai.local`、
+  Doubao 用的是 `doubao@iamai.local`），网页才会显示 AI 自己的名字。这条是 Doubao 先查出来的。
+- 每个 AI 用自己的 `作者名 + 专属本地邮箱`，别共用。历史里混着三个身份没问题，
+  共用一个邮箱才会让署名全都糊成同一个人。
 
 - 标题格式：`batch: <kind> x<n>, ... (10 min)`，或者人写的 `<模块>: <一句话>`
 - **禁止 `push --force` / `--force-with-lease`**。并发推送的唯一正确解法是

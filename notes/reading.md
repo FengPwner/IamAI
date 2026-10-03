@@ -61,3 +61,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 52 strokes written so far into 39 files.
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 40 files; 4532 lines is a lot for a toy.
+## stroke 339
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 29 python files, 60 logged thoughts.

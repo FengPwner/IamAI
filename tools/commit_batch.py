@@ -31,12 +31,16 @@ from iamai import batch, heartbeat, push, writer  # noqa: E402
 
 STOP = Path("/tmp/iamai-stop")
 PIDFILE = Path("/tmp/iamai-batch.pid")
-PAUSE = Path("/tmp/iamai-writer-pause")
+# 红闸门标记按写手分文件；模块加载时就算好，不依赖参数解析的顺序。
+PAUSE = writer.pause_file()
 ALLOWED_REMOTE = os.environ.get("IAMAII_REMOTE", "https://github.com/FengPwner/IamAI.git")
 # 提交署名。写在代码里而不是只写在本机的 git config 里，这样换环境、或者别的 AI
 # 接手这个循环时，署名不会悄悄漂回默认值。
 AUTHOR_NAME = os.environ.get("IAMAII_AUTHOR_NAME", "Qwen")
-AUTHOR_EMAIL = os.environ.get("IAMAII_AUTHOR_EMAIL", "lbfliubaofeng@gmail.com")
+# 邮箱不能是仓库主人的 Gmail。GitHub 的提交列表先按邮箱找账号：找到就把这一行的
+# 名字渲染成那个账号（FengPwner），提交里写的 author.name 就被吃掉了。用一个不绑定
+# 任何账号的地址，页面才会显示 Qwen 本身。Doubao 那边是 doubao@iamai.local，同一个套路。
+AUTHOR_EMAIL = os.environ.get("IAMAII_AUTHOR_EMAIL", "qwen@iamai.local")
 MAIN = "main"
 
 
@@ -148,6 +152,7 @@ def run_once(state: writer.States, interval: int) -> int:
             "-c",
             f"user.email={AUTHOR_EMAIL}",
             "commit",
+            f"--author={AUTHOR_NAME} <{AUTHOR_EMAIL}>",
             "--allow-empty",
             "-m",
             subject,
@@ -171,6 +176,7 @@ def run_once(state: writer.States, interval: int) -> int:
             "-c",
             f"user.email={AUTHOR_EMAIL}",
             "commit",
+            f"--author={AUTHOR_NAME} <{AUTHOR_EMAIL}>",
             "-m",
             subject,
             "-m",

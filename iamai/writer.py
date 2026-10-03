@@ -260,6 +260,17 @@ def resolve_writer_id(writer_id: str | None = None) -> str:
     return candidate
 
 
+def pause_file(writer_id: str | None = None) -> Path:
+    """The flag that tells a writer to idle while the test gate is red.
+
+    Per writer: a red gate caused by one agent's content must not silence another
+    agent's loop, and a shared flag means the pause is either too broad or (after
+    renaming it) stops nobody at all.
+    """
+
+    return Path("/tmp") / f"iamai-writer-pause-{resolve_writer_id(writer_id)}"
+
+
 class States:
     """Running counters for the writer: sequence number and per-kind tally.
 

@@ -12,8 +12,11 @@ An unresolved conflict is information; a force push is amnesia.
 
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
+
+STATE_PATH_RE = re.compile(r"^data/[^/]*state[^/]*\.json$")
 
 FORCE_FLAGS = ("--force", "--force-with-lease", "-f", "--no-verify")
 
@@ -41,6 +44,53 @@ def _identity(repo: Path) -> tuple[str, str] | None:
         return None
     name, _, email = out.partition("\x1f")
     return name or "unknown", email or "unknown@example.invalid"
+
+
+def _conflicted(repo: Path) -> list[str]:
+    code, out = _run(repo, "diff", "--name-only", "--diff-filter=U")
+    return [line for line in out.splitlines() if line.strip()] if code == 0 else []
+
+
+def _merge_fallback(repo: Path, remote: str, branch: str, cfg: list[str]) -> dict:
+    """Land the merge instead of the rebase, auto-resolving per-writer bookkeeping.
+
+    Only machine-state JSON gets a policy answer (take ours -- each writer owns its
+    own counters and the file is namespaced anyway). Anything else that conflicts is
+    a real disagreement between two agents' work and gets aborted and reported, never
+    silently overwritten.
+    """
+
+    theirs = f"{remote}/{branch}"
+    code, out = _run(repo, *cfg, "merge", "--no-edit", theirs)
+    if code != 0:
+        resolved, unresolved = [], []
+        for path in _conflicted(repo):
+            if STATE_PATH_RE.match(path):
+                rc, _ = _run(repo, "checkout", "--ours", "--", path)
+                if rc == 0:
+                    _run(repo, "add", "--", path)
+                    resolved.append(path)
+                    continue
+            unresolved.append(path)
+
+        if unresolved:
+            _run(repo, "merge", "--abort")
+            return {
+                "ok": False,
+                "detail": f"genuine conflict in {', '.join(unresolved[:4])} -- "
+                          f"a human (or the owning agent) has to reconcile these",
+            }
+        code, out = _run(repo, *cfg, "commit", "--no-edit")
+        if code != 0:
+            _run(repo, "merge", "--abort")
+            return {"ok": False, "detail": f"merge commit failed: {out.splitlines()[-1] if out else 'unknown'}"}
+
+    code, pushed = _run(repo, "push", remote, f"HEAD:{branch}")
+    if code != 0:
+        return {"ok": False, "detail": f"merge landed locally but push still refused: {pushed.splitlines()[-1] if pushed else ''}"}
+    return {"ok": True, "detail": (pushed or "pushed after merge") + (
+        f" (auto-resolved {len(resolved)} state file(s))" if code == 0 and "resolved" in dir() and resolved else ""
+    )}
 
 
 def push_with_rebase(repo, remote: str = "origin", branch: str = "main", attempts: int = 3) -> dict:
@@ -88,8 +138,15 @@ def push_with_rebase(repo, remote: str = "origin", branch: str = "main", attempt
         code, rebased = _run(repo, *cfg, "-c", "rebase.autoStash=true", "rebase", theirs)
         if code != 0:
             _run(repo, "rebase", "--abort")
+            # Rebase drops merge commits by design, so a local history that already
+            # contains a merge gets flattened and both sides' appends replay against
+            # each other. That is not a real conflict -- a merge sees it as one.
+            merged = _merge_fallback(repo, remote, branch, cfg)
+            if merged["ok"]:
+                result.update(ok=True, strategy="merge-then-push", detail=merged["detail"])
+                return result
             result["strategy"] = "blocked"
-            result["detail"] = f"merge conflict against {theirs}: {rebased.splitlines()[-1] if rebased else 'rebase failed'}"
+            result["detail"] = merged["detail"]
             return result
 
         result["strategy"] = "rebase-then-push"

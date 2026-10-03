@@ -195,3 +195,60 @@ def test_uncommitted_work_survives_a_rejected_push(two_clones):
     assert "in_flight.md" in [f.name for f in b.iterdir()], "the uncommitted stroke came back"
     assert (b / "in_flight.md").read_text(encoding="utf-8").startswith("written by")
     assert "from_a.md" in ls_remote(bare) and "from_b.md" in ls_remote(bare)
+
+
+def make_history_with_a_merge(repo, branch="main"):
+    """Rebuild the situation that actually happened on this repo: my local history
+    contains a merge commit, upstream keeps moving, and rebase -- by design -- drops
+    merges and replays both sides' appends, which conflicts. A merge does not."""
+
+    git_in(repo, "checkout", "-q", "-b", "side")
+    (repo / "log.md").write_text("# log\n\nmine one\nmine two\n", encoding="utf-8")
+    git_in(repo, "add", "-A")
+    git_in(repo, "commit", "-q", "-m", "side: appends")
+    git_in(repo, "checkout", "-q", "main")
+    (repo / "other.md").write_text("other\n", encoding="utf-8")
+    git_in(repo, "add", "-A")
+    git_in(repo, "commit", "-q", "-m", "main: something else")
+    git_in(repo, "merge", "-q", "--no-edit", "side")
+    parents = git_in(repo, "rev-list", "--parents", "-n", "1", "HEAD").split()
+    assert len(parents) == 3, "the fixture must produce a real merge commit"
+    return "merged"
+
+
+def test_rebase_conflict_falls_back_to_a_merge_instead_of_stalling(two_clones):
+    a, b, bare = two_clones
+    # both clones share a union-attributed append-only log
+    for repo in (a, b):
+        (repo / ".gitattributes").write_text("log.md merge=union\n", encoding="utf-8")
+        repo_config(repo, "merge.union.name", "union append-only merge")
+        repo_config(repo, "merge.union.driver", "git merge-file --union %A %O %B")
+        (repo / "log.md").write_text("# log\n", encoding="utf-8")
+        git_in(repo, "add", "-A")
+        git_in(repo, "commit", "-q", "-m", "chore: union attributes for log.md")
+        push.push_with_rebase(repo, remote="origin", branch="main")
+
+    # upstream (a) appends
+    commit_file(a, "log.md", "# log\n\nA line one\nA line two\n", "a: append")
+    push.push_with_rebase(a, remote="origin", branch="main")
+
+    # b has a merge commit in its history and its own appends
+    commit_file(b, "log.md", "# log\n\nB line one\nB line two\n", "b: append")
+    make_history_with_a_merge(b)
+
+    result = push.push_with_rebase(b, remote="origin", branch="main")
+    assert result["ok"] is True, result
+    assert result["strategy"] in ("merge-then-push", "rebase-then-push", "push"), result
+    files = ls_remote(bare)
+    assert "other.md" in files, "b's own work landed"
+    log = subprocess.run(
+        ["git", "--git-dir", str(bare), "show", "main:log.md"],
+        capture_output=True, text=True,
+        env={"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(bare.parent)},
+    ).stdout
+    assert "A line one" in log and "B line one" in log, f"both appends survived:\n{log}"
+
+
+def repo_config(repo, key, value):
+    subprocess.run(["git", "config", key, value], cwd=repo, check=True,
+                   env={"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(repo)})

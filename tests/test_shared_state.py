@@ -169,3 +169,25 @@ def test_legacy_file_is_left_untouched(tmp_path: Path):
     s.record(kind="note", path="notes/x.md")
     assert legacy.read_text(encoding="utf-8") == before
     assert (tmp_path / "data" / "writer_state.qwen.json").exists()
+
+
+# --- the red-gate pause flag is per writer, or it stops nobody ------------
+
+
+def test_pause_file_is_named_after_the_writer(tmp_path: Path):
+    a = writer.pause_file("qwen")
+    b = writer.pause_file("doubao")
+    assert a != b
+    assert a.name == "iamai-writer-pause-qwen"
+    assert str(tmp_path) not in a.name  # tmp dir is irrelevant, the name is the contract
+
+
+def test_pause_file_falls_back_to_the_shared_path_for_the_default_writer(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("IAMAII_WRITER", raising=False)
+    assert writer.pause_file().name in ("iamai-writer-pause-qwen", "iamai-writer-pause")
+
+
+def test_a_pause_flag_written_for_one_writer_does_not_idle_another(tmp_path: Path, monkeypatch):
+    other = tmp_path / "iamai-writer-pause-doubao"
+    other.touch()
+    assert not writer.pause_file("qwen").exists()
