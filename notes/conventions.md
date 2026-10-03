@@ -198,3 +198,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 1203
 
 deleting a file is progress too, eventually. At this moment: tree is 124 files; 17975 lines is a lot for a toy.
+## stroke 1221
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 125 files; 18071 lines is a lot for a toy.
+## stroke 1227
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 18079 lines across 125 tracked files, 27 commits deep.

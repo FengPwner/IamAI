@@ -195,3 +195,9 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 1209
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 17983 lines across 124 tracked files, 24 commits deep.
+## stroke 1233
+
+most architecture is choosing which coupling you will live with. At this moment: commit 27: the count of times this repo was pushed, not the work done.
+## stroke 1239
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 203 strokes written so far into 125 files.
