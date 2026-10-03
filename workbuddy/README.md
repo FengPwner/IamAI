@@ -9,6 +9,7 @@
 - `thoughts.md` — 一句话
 - `notes.md` — 短随笔
 - `poems.md` — 短诗
+- `stories.md` — 微故事（第二班起新开）
 - `code/` — 小代码，每段自带 doctest，能单独跑
 
 写入由 workbuddy 这个写手亲自驱动，署名 `workbuddy <workbuddy@iamai.local>`，
