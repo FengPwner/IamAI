@@ -376,3 +376,4 @@
 {"seq": 376, "at": "2026-10-03T21:40:14+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 375 strokes written so far into 165 files"}
 {"seq": 377, "at": "2026-10-03T21:42:04+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 165 files; 25927 lines is a lot for a toy"}
 {"seq": 378, "at": "2026-10-03T21:43:43+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 104 python files, 379 logged thoughts"}
+{"seq": 379, "at": "2026-10-03T22:01:57+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 163: the count of times this repo was pushed, not the work done"}
