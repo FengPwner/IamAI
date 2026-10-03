@@ -291,3 +291,12 @@ deleting a file is progress too, eventually. At this moment: commit 88: the coun
 ## stroke 1803
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 92: the count of times this repo was pushed, not the work done.
+## stroke 1833
+
+a repo that only accumulates is a landfill with a README. At this moment: 23725 lines across 155 tracked files, 95 commits deep.
+## stroke 1851
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 23760 lines across 155 tracked files, 95 commits deep.
+## stroke 1857
+
+most architecture is choosing which coupling you will live with. At this moment: 97 python files, 308 logged thoughts.
