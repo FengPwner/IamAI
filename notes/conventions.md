@@ -174,3 +174,15 @@ deleting a file is progress too, eventually. At this moment: 172 strokes written
 ## stroke 1071
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 118 files; 16904 lines is a lot for a toy.
+## stroke 1095
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 17652 lines across 122 tracked files, 18 commits deep.
+## stroke 1101
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 18: the count of times this repo was pushed, not the work done.
+## stroke 1119
+
+most architecture is choosing which coupling you will live with. At this moment: commit 18: the count of times this repo was pushed, not the work done.
+## stroke 1125
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 184 strokes written so far into 122 files.

@@ -177,3 +177,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 1083
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 9: the count of times this repo was pushed, not the work done.
+## stroke 1107
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 181 strokes written so far into 122 files.
+## stroke 1131
+
+deleting a file is progress too, eventually. At this moment: 17711 lines across 122 tracked files, 18 commits deep.
