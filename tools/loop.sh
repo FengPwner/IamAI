@@ -8,7 +8,7 @@
 
 set -uo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 INTERVAL="${IAMAII_INTERVAL:-600}"
 LOG="$(dirname "$HERE")/writer.log"
 STOPFILE="${IAMAII_STOPFILE:-/tmp/iamai-stop}"

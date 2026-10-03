@@ -7,8 +7,8 @@
 
 set -uo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(dirname "$HERE")"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+REPO="$(cd "$HERE/.." && pwd -P)"
 ALLOWED_REMOTE="${IAMAII_REMOTE:-https://github.com/FengPwner/IamAI.git}"
 
 cd "$REPO" || exit 1
@@ -17,6 +17,12 @@ cd "$REPO" || exit 1
 TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [ "$TOPLEVEL" != "$REPO" ]; then
   echo "refusing to run: git toplevel is '$TOPLEVEL', expected '$REPO'" >&2
+  exit 1
+fi
+
+# Guard 1b: never follow a symlink out of the workspace we were given.
+if [ "$(pwd -P)" != "$REPO" ]; then
+  echo "refusing to run: cwd resolved to '$(pwd -P)'" >&2
   exit 1
 fi
 
