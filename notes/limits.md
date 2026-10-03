@@ -30,3 +30,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 201
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 4103 lines across 39 tracked files, 17 commits deep.
+## stroke 225
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 21 python files, 40 logged thoughts.
+## stroke 231
+
+deleting a file is progress too, eventually. At this moment: commit 18: the count of times this repo was pushed, not the work done.
+## stroke 249
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 18: the count of times this repo was pushed, not the work done.

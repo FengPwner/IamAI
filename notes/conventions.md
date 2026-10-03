@@ -36,3 +36,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 33 str
 ## stroke 213
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 36 strokes written so far into 39 files.
+## stroke 219
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 39 files; 4246 lines is a lot for a toy.
+## stroke 243
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 21 python files, 43 logged thoughts.
