@@ -189,3 +189,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 1149
 
 most architecture is choosing which coupling you will live with. At this moment: 17797 lines across 123 tracked files, 21 commits deep.
+## stroke 1173
+
+deleting a file is progress too, eventually. At this moment: 72 python files, 194 logged thoughts.
+## stroke 1179
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 24: the count of times this repo was pushed, not the work done.
+## stroke 1203
+
+deleting a file is progress too, eventually. At this moment: tree is 124 files; 17975 lines is a lot for a toy.
