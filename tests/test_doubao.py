@@ -26,8 +26,10 @@ def _is_chinese(text: str) -> bool:
 # --- plan_stroke: deterministic, cycling, always in doubao/ -----------------
 
 
-def test_plan_stroke_rotates_through_all_kinds():
-    kinds = {doubao.plan_stroke(seed=3, seq=i)["kind"] for i in range(1, len(doubao.KINDS) * 2 + 1)}
+def test_plan_stroke_rotates_through_all_kinds(tmp_path: Path):
+    # tmp root: an empty doubao/code/ means every dcode stroke stays a dcode
+    # stroke, so the rotation is complete no matter how the real pool has grown.
+    kinds = {doubao.plan_stroke(seed=3, seq=i, root=tmp_path)["kind"] for i in range(1, len(doubao.KINDS) * 2 + 1)}
     assert kinds == set(doubao.KINDS)
 
 
@@ -36,17 +38,17 @@ def test_plan_stroke_is_reproducible_for_a_seed():
     assert doubao.plan_stroke(seed=11, seq=7) != doubao.plan_stroke(seed=12, seq=7)
 
 
-def test_every_stroke_stays_under_doubao():
+def test_every_stroke_stays_under_doubao(tmp_path: Path):
     for seq in range(1, 60):
-        stroke = doubao.plan_stroke(seed=20261003, seq=seq)
+        stroke = doubao.plan_stroke(seed=20261003, seq=seq, root=tmp_path)
         assert stroke["path"].startswith("doubao/"), stroke["path"]
         assert stroke["text"].strip()
         assert stroke["kind"] in doubao.KINDS or stroke["kind"] == "dnote"
 
 
-def test_prose_strokes_are_written_in_chinese():
+def test_prose_strokes_are_written_in_chinese(tmp_path: Path):
     for seq in range(1, 40):
-        stroke = doubao.plan_stroke(seed=9, seq=seq)
+        stroke = doubao.plan_stroke(seed=9, seq=seq, root=tmp_path)
         if stroke["kind"] in ("dthought", "dnote", "dpoem", "dstory"):
             assert _is_chinese(stroke["text"]), f"stroke {seq} should be Chinese: {stroke['text']!r}"
 
