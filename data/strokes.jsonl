@@ -76,3 +76,10 @@
 {"seq": 76, "at": "2026-10-03T07:11:50+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 61 files; 8231 lines is a lot for a toy"}
 {"seq": 77, "at": "2026-10-03T07:13:36+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 8286 lines across 61 tracked files, 37 commits deep"}
 {"seq": 78, "at": "2026-10-03T07:15:28+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 37: the count of times this repo was pushed, not the work done"}
+{"seq": 79, "at": "2026-10-03T07:17:12+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 78 strokes written so far into 61 files"}
+{"seq": 80, "at": "2026-10-03T07:18:48+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 8534 lines across 62 tracked files, 40 commits deep"}
+{"seq": 81, "at": "2026-10-03T07:20:28+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 40: the count of times this repo was pushed, not the work done"}
+{"seq": 82, "at": "2026-10-03T07:22:13+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 81 strokes written so far into 62 files"}
+{"seq": 83, "at": "2026-10-03T07:23:52+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 8677 lines across 62 tracked files, 40 commits deep"}
+{"seq": 84, "at": "2026-10-03T07:25:31+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 30 python files, 85 logged thoughts"}
+{"seq": 85, "at": "2026-10-03T07:27:25+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 84 strokes written so far into 62 files"}

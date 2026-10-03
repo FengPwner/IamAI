@@ -75,3 +75,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 30 pyt
 ## stroke 459
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 78 strokes written so far into 61 files.
+## stroke 483
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 62 files; 8654 lines is a lot for a toy.
+## stroke 489
+
+most architecture is choosing which coupling you will live with. At this moment: 8698 lines across 62 tracked files, 40 commits deep.
