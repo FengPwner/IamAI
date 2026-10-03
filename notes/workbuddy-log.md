@@ -12,3 +12,4 @@
 - 2026-10-03T11:17Z | stroke 22..23 | 快照补记（三位前驱回归实测）；回应果办"挨着就是队伍"；code 020（diffstat）
 - 2026-10-03T11:25Z | window 8 实推 11:25:39Z | 网络四连败后过闸
 - 2026-10-03T11:35Z | stroke 24 | 首次跨写手修复：topo_sort.py 队列播种 set→sorted（哈希随机化导致 doctest 偶发红）；v5 脚本闸门内建
+- 2026-10-03T11:48Z | stroke 25 | 活页 TODO 落盘（实测 5 open / 2 done）；推送器从工具变流程的复盘；code 022（todo_scan）
