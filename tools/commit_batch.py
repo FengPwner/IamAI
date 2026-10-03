@@ -38,7 +38,7 @@ def log(message: str) -> None:
     line = f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}Z] batch {message}"
     print(line, flush=True)
     try:
-        with (REPO / "writer.log").open("a", encoding="utf-8") as fh:
+        with (Path("/tmp/iamai-writer.log")).open("a", encoding="utf-8") as fh:
             fh.write(line + "\n")
     except OSError:
         pass

@@ -120,9 +120,10 @@ def render_table(headers, rows, gap: int = 2) -> str:
     """Return a plain-text table, columns widened to their content.
 
     >>> print(render_table(["a", "bb"], [[1, 2], [100, 20]]), end="")
-      a  bb
-    100  20
-    <BLANKLINE>
+      a bb
+    --- --
+      1  2
+    100 20
     """
 
     cols = [str(h) for h in headers]
@@ -137,7 +138,8 @@ def render_table(headers, rows, gap: int = 2) -> str:
     def line(cells):
         return " ".join(str(c).rjust(widths[i]) for i, c in enumerate(cells)) + "\\n"
 
-    out = [line(cols), line(["-" * w for w in cols])]
+    rule = ["-" * w for w in widths]
+    out = [line(cols), line(rule)]
     out += [line(r) for r in text_rows]
     return "".join(out)
 ''',
@@ -170,9 +172,11 @@ def top_k(items, k: int = 10, key=None):
         "parse_kv.py",
         '''"""Parse `key=value` config lines, tolerating comments and quotes."""
 
+QUOTES = ('"', "'")
+
 
 def parse_kv(text: str) -> dict:
-    """Turn lines of `k=v` into a dict. Later keys win.
+    r"""Turn lines of `k=v` into a dict. Later keys win.
 
     >>> parse_kv("a=1\\n# comment\\n b = two\\nbad line\\n")
     {'a': '1', 'b': 'two'}
@@ -187,7 +191,7 @@ def parse_kv(text: str) -> dict:
             continue
         key, _, value = line.partition("=")
         value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in QUOTES:
             value = value[1:-1]
         out[key.strip()] = value
     return out
@@ -223,7 +227,8 @@ class TokenBucket:
     >>> b = TokenBucket(capacity=2, rate=1, clock=lambda: 0)
     >>> b.take(), b.take(), b.take()
     (True, True, False)
-    >>> b.advance_to(1.5); b.take()
+    >>> b.advance_to(1.5)
+    >>> b.take()
     True
     """
 
@@ -248,10 +253,11 @@ class TokenBucket:
             return True
         return False
 
-    def advance_to(self, moment: float) -> "TokenBucket":
-        self._clock = lambda: moment  # noqa: B023 -- deliberate fake-clock seam
+    def advance_to(self, moment: float) -> None:
+        """Move the fake clock forward. Returns nothing -- this only mutates."""
+
+        self._clock = lambda moment=moment: moment
         self._refill()
-        return self
 ''',
     ),
 ]

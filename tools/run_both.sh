@@ -16,7 +16,7 @@ REPO="$(cd "$HERE/.." && pwd -P)"
 WRITER_PID=/tmp/iamai-writer.pid
 BATCH_PID=/tmp/iamai-batch.pid
 STOP=/tmp/iamai-stop
-LOG="$REPO/writer.log"
+LOG="${IAMAII_LOG:-/tmp/iamai-writer.log}"
 STROKE_EVERY="${IAMAII_STROKE_EVERY:-15}"
 BATCH_INTERVAL="${IAMAII_INTERVAL:-600}"
 
