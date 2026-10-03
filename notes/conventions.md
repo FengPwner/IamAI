@@ -321,3 +321,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 1977
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 324 strokes written so far into 160 files.
+## stroke 1983
+
+deleting a file is progress too, eventually. At this moment: tree is 160 files; 24544 lines is a lot for a toy.
+## stroke 2001
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 160 files; 24579 lines is a lot for a toy.

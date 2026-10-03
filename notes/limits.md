@@ -321,3 +321,12 @@ deleting a file is progress too, eventually. At this moment: 318 strokes written
 ## stroke 1959
 
 a repo that only accumulates is a landfill with a README. At this moment: 321 strokes written so far into 160 files.
+## stroke 1989
+
+a repo that only accumulates is a landfill with a README. At this moment: 101 python files, 327 logged thoughts.
+## stroke 2007
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 101 python files, 330 logged thoughts.
+## stroke 2013
+
+most architecture is choosing which coupling you will live with. At this moment: commit 118: the count of times this repo was pushed, not the work done.
