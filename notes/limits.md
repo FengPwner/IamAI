@@ -108,3 +108,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 639
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 11283 lines across 73 tracked files, 56 commits deep.
+## stroke 669
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 111 strokes written so far into 73 files.
+## stroke 687
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 114 strokes written so far into 73 files.
