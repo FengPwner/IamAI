@@ -71,7 +71,10 @@ def guards() -> bool:
 
 def writer_alive() -> bool:
     proc = subprocess.run(
-        ["pgrep", "-f", "tools/writer_loop.py"], cwd=REPO, capture_output=True, text=True
+        ["pgrep", "-f", r"tools/(writer_loop|doubao_loop)\.py"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
     )
     return proc.returncode == 0
 
@@ -116,7 +119,17 @@ def run_once(state: writer.States, interval: int) -> int:
     code, _ = git("diff", "--cached", "--quiet")
     pending = 0 if code == 0 else 1
 
-    tally = batch.window_tally(state.history, state.last_commit)
+    # Who wrote this window. With the qwen writer possibly living in another
+    # session, the only tally this committer can honestly claim is Doubao's own
+    # state; fall back to the qwen history when there is no Doubao state to read.
+    try:
+        from iamai import doubao
+        tally = doubao.DoubaoState().window_tally(state.last_commit)
+        if not tally:
+            tally = batch.window_tally(state.history, state.last_commit)
+    except Exception as exc:
+        log(f"doubao tally skipped: {type(exc).__name__}: {exc}")
+        tally = batch.window_tally(state.history, state.last_commit)
     subject = batch.subject(tally, interval, pending=pending)
 
     if not pending:
@@ -131,8 +144,13 @@ def run_once(state: writer.States, interval: int) -> int:
         log("writer is not running -- committed an empty heartbeat to say so")
     else:
         # The commit body carries the measurement, not a mood: how many strokes
-        # landed in this window and how long the quietest gap was.
-        beat = heartbeat.beat(interval=interval, every=int(os.environ.get("IAMAII_STROKE_EVERY", 15)))
+        # landed in this window and how long the quietest gap was. The heartbeat
+        # reads Doubao's state, because that is the writer this committer babysits.
+        beat = heartbeat.beat(
+            interval=interval,
+            every=int(os.environ.get("IAMAII_DOUBAO_EVERY", 20)),
+            path=REPO / "data" / "doubao_state.json",
+        )
         code, out = git(
             "commit",
             "-m",
@@ -147,6 +165,15 @@ def run_once(state: writer.States, interval: int) -> int:
         if code != 0:
             log(f"commit failed: {out}")
             return 1
+
+    # With more than one writer alive, the remote moves between windows. Rebase
+    # our freshly made commit onto it; if that fails (a genuine conflict), keep
+    # the commit locally and retry next window instead of losing it.
+    code, out = git("pull", "--rebase", "--autostash", "origin", MAIN)
+    if code != 0:
+        git("rebase", "--abort")
+        log(f"rebase onto origin/{MAIN} failed, keeping the commit locally: {out}")
+        return 1
 
     code, out = git("push", "origin", f"HEAD:{MAIN}")
     if code != 0:
@@ -165,7 +192,9 @@ def main() -> int:
     ap.add_argument("--watch", action="store_true", help="keep committing one batch every interval")
     args = ap.parse_args()
 
-    state = writer.States()
+    # Commit bookkeeping lives in its own file (not data/commit_state.json) so
+    # this committer never races another writer's session over the same JSON.
+    state = writer.States(commit_path=REPO / "data" / "commit_state.doubao.json")
     if not args.watch:
         return run_once(state, args.interval)
 
