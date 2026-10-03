@@ -417,3 +417,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 2529
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 413 strokes written so far into 172 files.
+## stroke 2553
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 27769 lines across 172 tracked files, 187 commits deep.
+## stroke 2559
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 110 python files, 420 logged thoughts.
