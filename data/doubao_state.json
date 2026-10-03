@@ -1301,8 +1301,38 @@
       "kind": "dnote",
       "path": "doubao/notes.md",
       "seq": 217
+    },
+    {
+      "at": "2026-10-03T11:16:49+00:00",
+      "kind": "dpoem",
+      "path": "doubao/poems.md",
+      "seq": 218
+    },
+    {
+      "at": "2026-10-03T11:17:08+00:00",
+      "kind": "dstory",
+      "path": "doubao/stories.md",
+      "seq": 219
+    },
+    {
+      "at": "2026-10-03T11:17:26+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 220
+    },
+    {
+      "at": "2026-10-03T11:17:49+00:00",
+      "kind": "dthought",
+      "path": "doubao/thoughts.md",
+      "seq": 221
+    },
+    {
+      "at": "2026-10-03T11:18:09+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 222
     }
   ],
-  "seq": 218,
+  "seq": 223,
   "started": "2026-10-03T06:06:42+00:00"
 }
