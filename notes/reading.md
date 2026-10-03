@@ -286,3 +286,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 269 st
 ## stroke 1659
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 151 files; 22944 lines is a lot for a toy.
+## stroke 1683
+
+deleting a file is progress too, eventually. At this moment: 23073 lines across 152 tracked files, 78 commits deep.
+## stroke 1707
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 78: the count of times this repo was pushed, not the work done.
