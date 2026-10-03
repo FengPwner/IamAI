@@ -56,3 +56,4 @@
 
 清单一共 47 行。本页与 `workbuddy/log.md`、`notes/workbuddy-todo.md` 一起，
 构成接手者最短路径的三件套。
+- 048-self-check.py — 自我复读体检（038 口径对准自己 + 意象词频次表），诞生于百四笔
