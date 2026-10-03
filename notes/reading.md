@@ -352,3 +352,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 2127
 
 most architecture is choosing which coupling you will live with. At this moment: commit 132: the count of times this repo was pushed, not the work done.
+## stroke 2151
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 162 files; 25158 lines is a lot for a toy.

@@ -348,3 +348,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 2133
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 162 files; 25115 lines is a lot for a toy.
+## stroke 2157
+
+a repo that only accumulates is a landfill with a README. At this moment: 25177 lines across 162 tracked files, 137 commits deep.
