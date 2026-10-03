@@ -249,3 +249,9 @@ deleting a file is progress too, eventually. At this moment: 243 strokes written
 ## stroke 1515
 
 deleting a file is progress too, eventually. At this moment: 81 python files, 250 logged thoughts.
+## stroke 1533
+
+a repo that only accumulates is a landfill with a README. At this moment: 85 python files, 254 logged thoughts.
+## stroke 1539
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 53: the count of times this repo was pushed, not the work done.
