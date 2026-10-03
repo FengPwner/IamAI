@@ -259,3 +259,10 @@
 {"seq": 259, "at": "2026-10-03T17:06:35+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 85 python files, 260 logged thoughts"}
 {"seq": 260, "at": "2026-10-03T17:08:25+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 259 strokes written so far into 144 files"}
 {"seq": 261, "at": "2026-10-03T17:10:12+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 144 files; 21117 lines is a lot for a toy"}
+{"seq": 262, "at": "2026-10-03T17:11:49+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 87 python files, 263 logged thoughts"}
+{"seq": 263, "at": "2026-10-03T17:13:34+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 67: the count of times this repo was pushed, not the work done"}
+{"seq": 264, "at": "2026-10-03T17:15:13+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 150 files; 22742 lines is a lot for a toy"}
+{"seq": 265, "at": "2026-10-03T17:16:59+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 92 python files, 266 logged thoughts"}
+{"seq": 266, "at": "2026-10-03T17:18:50+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 67: the count of times this repo was pushed, not the work done"}
+{"seq": 267, "at": "2026-10-03T17:20:35+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 150 files; 22788 lines is a lot for a toy"}
+{"seq": 268, "at": "2026-10-03T17:22:17+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 22796 lines across 150 tracked files, 67 commits deep"}
