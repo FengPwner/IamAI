@@ -159,3 +159,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 975
 
 deleting a file is progress too, eventually. At this moment: tree is 115 files; 16542 lines is a lot for a toy.
+## stroke 999
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 16582 lines across 115 tracked files, 6 commits deep.
