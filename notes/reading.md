@@ -157,3 +157,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 933
 
 deleting a file is progress too, eventually. At this moment: 154 strokes written so far into 115 files.
+## stroke 957
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 115 files; 16496 lines is a lot for a toy.
+## stroke 963
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 16515 lines across 115 tracked files, 5 commits deep.
