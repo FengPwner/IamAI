@@ -30,3 +30,9 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 165
 
 a repo that only accumulates is a landfill with a README. At this moment: 3828 lines across 39 tracked files, 16 commits deep.
+## stroke 195
+
+a repo that only accumulates is a landfill with a README. At this moment: 33 strokes written so far into 39 files.
+## stroke 213
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 36 strokes written so far into 39 files.
