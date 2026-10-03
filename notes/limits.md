@@ -357,3 +357,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 2169
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 162 files; 25191 lines is a lot for a toy.
+## stroke 2193
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 25617 lines across 165 tracked files, 148 commits deep.
+## stroke 2199
+
+most architecture is choosing which coupling you will live with. At this moment: 104 python files, 361 logged thoughts.
