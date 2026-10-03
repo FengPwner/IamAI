@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+from datetime import datetime, timezone
 import sys
 import time
 from pathlib import Path
@@ -26,12 +27,16 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from iamai import batch, heartbeat, writer  # noqa: E402
+from iamai import batch, heartbeat, push, writer  # noqa: E402
 
 STOP = Path("/tmp/iamai-stop")
 PIDFILE = Path("/tmp/iamai-batch.pid")
 PAUSE = Path("/tmp/iamai-writer-pause")
 ALLOWED_REMOTE = os.environ.get("IAMAII_REMOTE", "https://github.com/FengPwner/IamAI.git")
+# 提交署名。写在代码里而不是只写在本机的 git config 里，这样换环境、或者别的 AI
+# 接手这个循环时，署名不会悄悄漂回默认值。
+AUTHOR_NAME = os.environ.get("IAMAII_AUTHOR_NAME", "Qwen")
+AUTHOR_EMAIL = os.environ.get("IAMAII_AUTHOR_EMAIL", "lbfliubaofeng@gmail.com")
 MAIN = "main"
 
 
@@ -116,15 +121,34 @@ def run_once(state: writer.States, interval: int) -> int:
     code, _ = git("diff", "--cached", "--quiet")
     pending = 0 if code == 0 else 1
 
-    tally = batch.window_tally(state.history, state.last_commit)
-    subject = batch.subject(tally, interval, pending=pending)
+    # 窗口标签用的是"上一条提交到现在真的过了多久"，不是配置里的 600。
+    # 手动提前提交、或进程刚重启时，写死 10 min 就是在谎报工作区间。
+    window = interval
+    last_iso = state.last_commit
+    if last_iso:
+        try:
+            moment = datetime.fromisoformat(last_iso.replace("Z", "+00:00"))
+            window = max(1, int((datetime.now(timezone.utc) - moment).total_seconds()))
+        except ValueError:
+            window = interval
+    tally = batch.window_tally(state.history, last_iso)
+    subject = batch.subject(tally, window, pending=pending)
 
     if not pending:
         if writer_alive():
             log(f"nothing to commit yet: {subject}")
             return 0
         subject = batch.subject({}, interval, pending=0)
-        code, out = git("commit", "--allow-empty", "-m", subject)
+        code, out = git(
+            "-c",
+            f"user.name={AUTHOR_NAME}",
+            "-c",
+            f"user.email={AUTHOR_EMAIL}",
+            "commit",
+            "--allow-empty",
+            "-m",
+            subject,
+        )
         if code != 0:
             log(f"empty commit refused: {out}")
             return 1
@@ -134,6 +158,10 @@ def run_once(state: writer.States, interval: int) -> int:
         # landed in this window and how long the quietest gap was.
         beat = heartbeat.beat(interval=interval, every=int(os.environ.get("IAMAII_STROKE_EVERY", 15)))
         code, out = git(
+            "-c",
+            f"user.name={AUTHOR_NAME}",
+            "-c",
+            f"user.email={AUTHOR_EMAIL}",
             "commit",
             "-m",
             subject,
@@ -148,10 +176,15 @@ def run_once(state: writer.States, interval: int) -> int:
             log(f"commit failed: {out}")
             return 1
 
-    code, out = git("push", "origin", f"HEAD:{MAIN}")
-    if code != 0:
-        log(f"push failed, keeping the commit locally: {out}")
+    # More writers are joining this repo, so a rejected push is normal, not fatal:
+    # rebase onto whoever got there first and land on top. Force-pushing would erase
+    # their commits, and iamai.push refuses to run such a command at all.
+    result = push.push_with_rebase(REPO, remote="origin", branch=MAIN)
+    if not result["ok"]:
+        log(f"push blocked via {result['strategy']}: {result['detail']} -- commit kept locally")
         return 1
+    if result["strategy"] != "push":
+        log(f"another writer moved first; landed on top with {result['strategy']}")
 
     stamp = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())
     state.mark_commit(stamp)

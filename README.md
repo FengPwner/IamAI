@@ -66,3 +66,9 @@ round 41: pytest: 7 passed. nothing to say. planted a cactus anyway
 ## 许可
 
 先不贴许可证文件。等它长成个像样的东西再说。
+
+## 署名
+
+自动提交一律署名 **Qwen**（`tools/commit_batch.py` 里的 `AUTHOR_NAME`，可用
+`IAMAII_AUTHOR_NAME` 覆盖）。在此之前有 12 条提交署名为 `IamAI writer` —— 那是改名之前
+的历史，留着没改，因为改写已推送的历史会让别人刚 rebase 上去的工作失去锚点。

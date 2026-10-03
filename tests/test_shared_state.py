@@ -102,3 +102,16 @@ def test_a_normal_window_reads_as_counts_not_apologies():
 
 def test_pending_defaults_to_work_being_present():
     assert "quiet" not in batch.subject({}, window_seconds=600)
+
+
+# --- the window label must describe the window that actually elapsed ------
+
+
+def test_window_label_follows_elapsed_seconds_not_the_configured_interval():
+    assert "(2 min)" in batch.subject({"thought": 4}, window_seconds=120)
+    assert "(1 min)" in batch.subject({"thought": 4}, window_seconds=45)
+    assert "(10 min)" in batch.subject({"thought": 4}, window_seconds=600)
+
+
+def test_quiet_label_also_uses_the_real_window():
+    assert "1 min" in batch.subject({}, window_seconds=30, pending=0)
