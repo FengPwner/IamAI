@@ -60,3 +60,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 381
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 32: the count of times this repo was pushed, not the work done.
+## stroke 405
+
+a repo that only accumulates is a landfill with a README. At this moment: 69 strokes written so far into 60 files.
+## stroke 411
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 7698 lines across 60 tracked files, 33 commits deep.

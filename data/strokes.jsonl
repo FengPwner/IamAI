@@ -63,3 +63,10 @@
 {"seq": 63, "at": "2026-10-03T06:49:18+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 62 strokes written so far into 60 files"}
 {"seq": 64, "at": "2026-10-03T06:51:04+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 7391 lines across 60 tracked files, 32 commits deep"}
 {"seq": 65, "at": "2026-10-03T06:52:51+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 29 python files, 66 logged thoughts"}
+{"seq": 66, "at": "2026-10-03T06:54:27+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 65 strokes written so far into 60 files"}
+{"seq": 67, "at": "2026-10-03T06:56:10+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 60 files; 7523 lines is a lot for a toy"}
+{"seq": 68, "at": "2026-10-03T06:57:49+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 29 python files, 69 logged thoughts"}
+{"seq": 69, "at": "2026-10-03T06:59:38+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 68 strokes written so far into 60 files"}
+{"seq": 70, "at": "2026-10-03T07:01:26+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 60 files; 7677 lines is a lot for a toy"}
+{"seq": 71, "at": "2026-10-03T07:03:13+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 29 python files, 72 logged thoughts"}
+{"seq": 72, "at": "2026-10-03T07:04:50+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 33: the count of times this repo was pushed, not the work done"}
