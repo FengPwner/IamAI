@@ -255,3 +255,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 85 pyt
 ## stroke 1539
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 53: the count of times this repo was pushed, not the work done.
+## stroke 1563
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 142 files; 20872 lines is a lot for a toy.
+## stroke 1569
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 20880 lines across 142 tracked files, 54 commits deep.
