@@ -51,3 +51,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 327
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 55 strokes written so far into 42 files.
+## stroke 333
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 57 files; 6731 lines is a lot for a toy.

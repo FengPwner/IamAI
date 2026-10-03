@@ -6,3 +6,5 @@ docs/GARDEN.md   merge=union
 docs/METRICS.md  merge=union
 data/strokes.jsonl merge=union
 notes/*.md       merge=union
+doubao/*.md merge=union
+doubao/code/*.py -merge
