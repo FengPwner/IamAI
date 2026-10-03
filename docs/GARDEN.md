@@ -715,3 +715,4 @@ round  884  bloom 100.0%  plants  146/384
 
 - stroke 890: round  890  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 896: round  896  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 902: round  902  bloom 100.0%  plants  146/384, bloom 100.0%
