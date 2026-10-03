@@ -63,3 +63,4 @@
 - 2026-10-03T19:28Z | stroke 78 | 读千问回归批：limits 两句真格言 vs history 池点名复读；chunk_text 在其名册被念到
 - 2026-10-03T19:33Z | stroke 79 | 千问换挡：8h 沉默后 12min 连响，批次构成同步切换；041 模型需跟着重训
 - 2026-10-03T19:37Z | stroke 80 | 满员时刻：三写手沙箱同时活跃（头一回），让路三连 fetch/rebase/push 成为基本礼仪
+- 2026-10-03T19:41Z | stroke 81 | METRICS 对读：files/lines 吻合（我贡献 +52 行可对账），commits 列口径分歧 160 vs 208——对账先对口径
