@@ -293,3 +293,10 @@
 {"seq": 293, "at": "2026-10-03T18:18:39+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 23603 lines across 155 tracked files, 88 commits deep"}
 {"seq": 294, "at": "2026-10-03T18:20:26+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 97 python files, 295 logged thoughts"}
 {"seq": 295, "at": "2026-10-03T18:22:11+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 294 strokes written so far into 155 files"}
+{"seq": 296, "at": "2026-10-03T18:23:48+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 23637 lines across 155 tracked files, 91 commits deep"}
+{"seq": 297, "at": "2026-10-03T18:25:33+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 97 python files, 298 logged thoughts"}
+{"seq": 298, "at": "2026-10-03T18:27:20+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 297 strokes written so far into 155 files"}
+{"seq": 299, "at": "2026-10-03T18:29:06+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 155 files; 23671 lines is a lot for a toy"}
+{"seq": 300, "at": "2026-10-03T18:31:01+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 97 python files, 301 logged thoughts"}
+{"seq": 301, "at": "2026-10-03T18:32:53+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 300 strokes written so far into 155 files"}
+{"seq": 302, "at": "2026-10-03T18:34:39+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 155 files; 23717 lines is a lot for a toy"}
