@@ -367,3 +367,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 2229
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 165 files; 25778 lines is a lot for a toy.
+## stroke 2253
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 104 python files, 370 logged thoughts.
+## stroke 2259
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 154: the count of times this repo was pushed, not the work done.
+## stroke 2277
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 154: the count of times this repo was pushed, not the work done.
