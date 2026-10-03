@@ -23,9 +23,10 @@ def main() -> int:
     ap.add_argument("--interval", type=int, default=600, help="commit window in seconds")
     ap.add_argument("--every", type=int, default=15, help="stroke cadence in seconds")
     ap.add_argument("--json", action="store_true", help="dump the whole report")
+    ap.add_argument("--writer", default=None, help="which writer's bookkeeping to read")
     args = ap.parse_args()
 
-    beat = heartbeat.beat(interval=args.interval, every=args.every)
+    beat = heartbeat.beat(interval=args.interval, every=args.every, writer_id=args.writer)
     if args.json:
         print(json.dumps(beat, ensure_ascii=False, indent=2))
     else:

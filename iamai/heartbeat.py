@@ -19,7 +19,25 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-HISTORY_FILE = REPO_ROOT / "data" / "writer_state.json"
+LEGACY_HISTORY_FILE = REPO_ROOT / "data" / "writer_state.json"
+
+
+def state_file(writer_id=None, root=None):
+    """Where THIS writer keeps its bookkeeping.
+
+    Reading the wrong file is what made the probe cry wolf: after state went
+    per-writer, the heartbeat kept watching the abandoned shared file and reported a
+    permanent STALL. A probe must be pointed at the live source.
+    """
+
+    from .writer import States
+
+    data_dir = (Path(root) if root else REPO_ROOT) / "data"
+    state = States(writer_id=writer_id, root=root)
+    if state.path.exists():
+        return state.path
+    legacy = data_dir / "writer_state.json"
+    return legacy if legacy.exists() else state.path
 
 
 def _parse(moment: str) -> datetime | None:
@@ -40,10 +58,10 @@ def _as_time(value) -> datetime | None:
     return _parse(value)
 
 
-def load_history(path: Path | str | None = None) -> list[dict]:
+def load_history(path=None, writer_id=None, root=None) -> list[dict]:
     """The writer's own stroke log, newest last. Missing file means 'not started'."""
 
-    file = Path(path) if path else HISTORY_FILE
+    file = Path(path) if path else state_file(writer_id=writer_id, root=root)
     if not file.exists():
         return []
     try:
@@ -132,24 +150,26 @@ def as_markdown(rep: dict) -> str:
         kinds = ", ".join(f"{k} x{v}" for k, v in rep["kinds"].items())
         head = f"{rep['strokes']} strokes ({kinds})"
     line = f"{head}, gap {rep['gap_seconds']:.0f}s, longest gap {rep['max_gap_seconds']:.0f}s"
+    if rep.get("legacy_source"):
+        line += f" [reading legacy {rep['source'].split('/')[-1]}]"
     if rep.get("stalled"):
         line += " -- STALL: writer silent past 2x its cadence"
     return line
 
 
-def beat(interval: int = 600, every: int | None = 15, path: Path | str | None = None) -> dict:
+def beat(interval: int = 600, every: int | None = 15, path=None, writer_id=None, root=None) -> dict:
     """Read the log and answer now. This is the only part that touches the clock."""
 
-    history = load_history(path)
+    file = Path(path) if path else state_file(writer_id=writer_id, root=root)
+    history = load_history(path, writer_id=writer_id, root=root)
     started = None
-    file = Path(path) if path else HISTORY_FILE
     if file.exists():
         try:
             started = json.loads(file.read_text(encoding="utf-8")).get("started")
         except (ValueError, OSError):
             started = None
     now = datetime.now(timezone.utc)
-    return report(
+    rep = report(
         history,
         since=None,
         interval=interval,
@@ -157,3 +177,8 @@ def beat(interval: int = 600, every: int | None = 15, path: Path | str | None = 
         every=every,
         started=started,
     )
+    # 说清读的是谁的文件：没有 writer_state.doubao.json 时会退回共享旧文件，
+    # 那份历史其实是改名前所有写手共用的，不标出来就会被读成"某个写手很勤快"。
+    rep["source"] = str(file)
+    rep["legacy_source"] = file.name == "writer_state.json"
+    return rep

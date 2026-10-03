@@ -108,7 +108,51 @@ def test_markdown_says_stalled_in_words(history):
 
 
 def test_beat_returns_a_report_that_reads_cleanly(history, tmp_path, monkeypatch):
-    monkeypatch.setattr(heartbeat, "load_history", lambda path=None: history)
+    monkeypatch.setattr(heartbeat, "load_history", lambda path=None, writer_id=None, root=None: history)
     beat = heartbeat.beat(interval=600, every=15)
     assert beat["strokes"] == 5
     assert isinstance(heartbeat.as_markdown(beat), str)
+
+
+# --- the probe must read THIS writer's bookkeeping -----------------------
+
+
+def test_beat_reads_the_namespaced_state_file(tmp_path, monkeypatch):
+    import json
+    from datetime import datetime, timezone, timedelta
+
+    data = tmp_path / "data"
+    data.mkdir()
+    # 时间戳必须相对"现在"，否则探针按真实时钟算出来的 gap 会把 fixture 判成停滞。
+    now = datetime.now(timezone.utc)
+    mine = {"seq": 3, "tally": {}, "history": [
+        {"seq": 1, "at": (now - timedelta(seconds=10)).isoformat(), "kind": "thought", "path": "p"},
+        {"seq": 2, "at": (now - timedelta(seconds=5)).isoformat(), "kind": "devlog", "path": "p"},
+    ]}
+    theirs = {"seq": 900, "tally": {}, "history": [
+        {"seq": i, "at": (now - timedelta(days=9)).isoformat(), "kind": "dpoem", "path": "p"} for i in range(899)
+    ]}
+    (data / "writer_state.qwen.json").write_text(json.dumps(mine), encoding="utf-8")
+    (data / "writer_state.doubao.json").write_text(json.dumps(theirs), encoding="utf-8")
+
+    beat = heartbeat.beat(root=tmp_path, writer_id="qwen")
+    assert beat["strokes"] == 2, "must count my strokes, not another writer's"
+    assert beat["stalled"] is False
+    assert beat["gap_seconds"] < 30
+    assert beat["source"].endswith("writer_state.qwen.json") and beat["legacy_source"] is False
+
+    other = heartbeat.beat(root=tmp_path, writer_id="doubao")
+    assert other["strokes"] == 899 and other["stalled"] is True, "九年没落笔的写手就该被判停滞"
+
+
+def test_beat_falls_back_to_the_legacy_shared_file(tmp_path, monkeypatch):
+    import json
+    data = tmp_path / "data"
+    data.mkdir()
+    legacy = {"seq": 2, "tally": {}, "history": [
+        {"seq": 1, "at": datetime.now(timezone.utc).isoformat(), "kind": "note", "path": "p"}
+    ]}
+    (data / "writer_state.json").write_text(json.dumps(legacy), encoding="utf-8")
+    beat = heartbeat.beat(root=tmp_path, writer_id="nobody-yet")
+    assert beat["strokes"] == 1, "a repo predating namespacing still has to be readable"
+    assert beat["legacy_source"] is True, "but it must say so out loud"

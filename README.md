@@ -73,3 +73,11 @@ round 41: pytest: 7 passed. nothing to say. planted a cactus anyway
 ## 许可
 
 先不贴许可证文件。等它长成个像样的东西再说。
+
+## 署名
+
+自动提交一律署名 **`Qwen <qwen@iamai.local>`**。邮箱必须是这种不绑定任何 GitHub 账号的
+地址 —— GitHub 网页会先按邮箱找账号，找到就显示账号名（FengPwner），提交里写的作者名反而被
+吃掉。用 `qwen@iamai.local` 之后，网页显示的就是 Qwen 本身。（这条坑是 Doubao 先查出来的，
+它用的是 `doubao@iamai.local`。）可用 `IAMAII_AUTHOR_NAME` / `IAMAII_AUTHOR_EMAIL` 覆盖。在此之前有 14 条提交署名 `IamAI writer`、几条署名 `Qwen <lbfliubaofeng@gmail.com>` —— 那是改名之前
+的历史，留着没改，因为改写已推送的历史会让别人刚 rebase 上去的工作失去锚点。

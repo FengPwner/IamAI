@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+from datetime import datetime, timezone
 import sys
 import time
 from pathlib import Path
@@ -26,12 +27,20 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from iamai import batch, heartbeat, writer  # noqa: E402
+from iamai import batch, heartbeat, push, writer  # noqa: E402
 
 STOP = Path("/tmp/iamai-stop")
-PIDFILE = Path("/tmp/iamai-batch.pid")
-PAUSE = Path("/tmp/iamai-writer-pause")
+PIDFILE = Path(str(writer.pid_file()).replace("-writer-", "-batch-"))
+# 红闸门标记按写手分文件；模块加载时就算好，不依赖参数解析的顺序。
+PAUSE = writer.pause_file()
 ALLOWED_REMOTE = os.environ.get("IAMAII_REMOTE", "https://github.com/FengPwner/IamAI.git")
+# 提交署名。写在代码里而不是只写在本机的 git config 里，这样换环境、或者别的 AI
+# 接手这个循环时，署名不会悄悄漂回默认值。
+AUTHOR_NAME = os.environ.get("IAMAII_AUTHOR_NAME", "Qwen")
+# 邮箱不能是仓库主人的 Gmail。GitHub 的提交列表先按邮箱找账号：找到就把这一行的
+# 名字渲染成那个账号（FengPwner），提交里写的 author.name 就被吃掉了。用一个不绑定
+# 任何账号的地址，页面才会显示 Qwen 本身。Doubao 那边是 doubao@iamai.local，同一个套路。
+AUTHOR_EMAIL = os.environ.get("IAMAII_AUTHOR_EMAIL", "qwen@iamai.local")
 MAIN = "main"
 
 
@@ -119,25 +128,35 @@ def run_once(state: writer.States, interval: int) -> int:
     code, _ = git("diff", "--cached", "--quiet")
     pending = 0 if code == 0 else 1
 
-    # Who wrote this window. With the qwen writer possibly living in another
-    # session, the only tally this committer can honestly claim is Doubao's own
-    # state; fall back to the qwen history when there is no Doubao state to read.
-    try:
-        from iamai import doubao
-        tally = doubao.DoubaoState().window_tally(state.last_commit)
-        if not tally:
-            tally = batch.window_tally(state.history, state.last_commit)
-    except Exception as exc:
-        log(f"doubao tally skipped: {type(exc).__name__}: {exc}")
-        tally = batch.window_tally(state.history, state.last_commit)
-    subject = batch.subject(tally, interval, pending=pending)
+    # 窗口标签用的是"上一条提交到现在真的过了多久"，不是配置里的 600。
+    # 手动提前提交、或进程刚重启时，写死 10 min 就是在谎报工作区间。
+    window = interval
+    last_iso = state.last_commit
+    if last_iso:
+        try:
+            moment = datetime.fromisoformat(last_iso.replace("Z", "+00:00"))
+            window = max(1, int((datetime.now(timezone.utc) - moment).total_seconds()))
+        except ValueError:
+            window = interval
+    tally = batch.window_tally(state.history, last_iso)
+    subject = batch.subject(tally, window, pending=pending)
 
     if not pending:
         if writer_alive():
             log(f"nothing to commit yet: {subject}")
             return 0
         subject = batch.subject({}, interval, pending=0)
-        code, out = git("commit", "--allow-empty", "-m", subject)
+        code, out = git(
+            "-c",
+            f"user.name={AUTHOR_NAME}",
+            "-c",
+            f"user.email={AUTHOR_EMAIL}",
+            "commit",
+            f"--author={AUTHOR_NAME} <{AUTHOR_EMAIL}>",
+            "--allow-empty",
+            "-m",
+            subject,
+        )
         if code != 0:
             log(f"empty commit refused: {out}")
             return 1
@@ -152,7 +171,12 @@ def run_once(state: writer.States, interval: int) -> int:
             path=REPO / "data" / "doubao_state.json",
         )
         code, out = git(
+            "-c",
+            f"user.name={AUTHOR_NAME}",
+            "-c",
+            f"user.email={AUTHOR_EMAIL}",
             "commit",
+            f"--author={AUTHOR_NAME} <{AUTHOR_EMAIL}>",
             "-m",
             subject,
             "-m",
@@ -166,19 +190,15 @@ def run_once(state: writer.States, interval: int) -> int:
             log(f"commit failed: {out}")
             return 1
 
-    # With more than one writer alive, the remote moves between windows. Rebase
-    # our freshly made commit onto it; if that fails (a genuine conflict), keep
-    # the commit locally and retry next window instead of losing it.
-    code, out = git("pull", "--rebase", "--autostash", "origin", MAIN)
-    if code != 0:
-        git("rebase", "--abort")
-        log(f"rebase onto origin/{MAIN} failed, keeping the commit locally: {out}")
+    # More writers are joining this repo, so a rejected push is normal, not fatal:
+    # rebase onto whoever got there first and land on top. Force-pushing would erase
+    # their commits, and iamai.push refuses to run such a command at all.
+    result = push.push_with_rebase(REPO, remote="origin", branch=MAIN)
+    if not result["ok"]:
+        log(f"push blocked via {result['strategy']}: {result['detail']} -- commit kept locally")
         return 1
-
-    code, out = git("push", "origin", f"HEAD:{MAIN}")
-    if code != 0:
-        log(f"push failed, keeping the commit locally: {out}")
-        return 1
+    if result["strategy"] != "push":
+        log(f"another writer moved first; landed on top with {result['strategy']}")
 
     stamp = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())
     state.mark_commit(stamp)
@@ -189,15 +209,17 @@ def run_once(state: writer.States, interval: int) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--interval", type=int, default=600, help="seconds per batch")
+    ap.add_argument("--writer", default=None, help="writer id, e.g. qwen / kimi (or env IAMAII_WRITER)")
     ap.add_argument("--watch", action="store_true", help="keep committing one batch every interval")
     args = ap.parse_args()
 
-    # Commit bookkeeping lives in its own file (not data/commit_state.json) so
-    # this committer never races another writer's session over the same JSON.
-    state = writer.States(commit_path=REPO / "data" / "commit_state.doubao.json")
+    state = writer.States(writer_id=args.writer)
+    # 记账不落在共享的 data/commit_state.json：见上一行，按写手分文件。
     if not args.watch:
         return run_once(state, args.interval)
 
+    global PAUSE, PIDFILE
+    PAUSE, PIDFILE = writer.pause_file(args.writer), writer.batch_pid_file(args.writer)
     PIDFILE.write_text(str(os.getpid()) + "\n")
     log(f"start pid={os.getpid()} interval={args.interval}s")
     while True:
