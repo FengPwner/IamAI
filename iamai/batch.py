@@ -36,7 +36,28 @@ def _window(seconds: int) -> str:
     return f"{minutes} min" if minutes != 1 else "1 min"
 
 
-def subject(tally: dict, window_seconds: int = 600) -> str:
+def window_tally(history, since_iso) -> dict:
+    """Count history entries whose timestamp is after ``since_iso``.
+
+    This is the only correct way to describe a batch: the writer keeps appending to
+    one file, and the committer may have been started long before any of that
+    happened. Anything reading a cached copy of the history will report silence.
+    """
+
+    out: dict[str, int] = {}
+    for entry in history or ():
+        if not isinstance(entry, dict):
+            continue
+        at, kind = entry.get("at"), entry.get("kind")
+        if not isinstance(at, str) or not isinstance(kind, str):
+            continue
+        if since_iso is not None and at <= since_iso:
+            continue
+        out[kind] = out.get(kind, 0) + 1
+    return out
+
+
+def subject(tally: dict, window_seconds: int = 600, pending: int = 1) -> str:
     """One line describing a batch: which kinds of strokes, and how many.
 
     Items are ordered by count then name so the busiest work is visible first and
@@ -44,13 +65,16 @@ def subject(tally: dict, window_seconds: int = 600) -> str:
     too long, whole items are dropped -- never half an item.
     """
 
-    if not tally:
+    if not tally or not any(int(count) > 0 for _, count in tally.items()):
+        # Silence is a claim about the world, so it is only allowed when nothing is
+        # staged. Work sitting in the index with no counter behind it means the
+        # bookkeeping broke, and the commit message has to say so.
+        if int(pending) > 0:
+            return f"batch: {int(pending)} file(s) changed, strokes unrecorded ({_window(window_seconds)})"
         return f"quiet batch: nothing new in {_window(window_seconds)}"
 
     ordered = sorted(tally.items(), key=lambda kv: (-int(kv[1]), str(kv[0])))
     items = [f"{name} x{count}" for name, count in ordered if int(count) > 0]
-    if not items:
-        return f"quiet batch: nothing new in {_window(window_seconds)}"
 
     suffix = f" ({_window(window_seconds)})"
     prefix = "batch: "

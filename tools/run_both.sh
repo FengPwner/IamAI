@@ -55,10 +55,12 @@ case "${1:-start}" in
     cd "$REPO" || exit 1
     setsid nohup python3 tools/writer_loop.py --every "$STROKE_EVERY" >> "$LOG" 2>&1 < /dev/null &
     setsid nohup python3 tools/commit_batch.py --watch --interval "$BATCH_INTERVAL" >> "$LOG" 2>&1 < /dev/null &
-    sleep 3
-    # setsid may fork, so $! is not necessarily the daemon -- look up the real pids.
-    pgrep -f "tools/writer_loop.py"  | head -1 > "$WRITER_PID"
-    pgrep -f "tools/commit_batch.py" | head -1 > "$BATCH_PID"
+    # Each process writes its own pid file; pgrep is not used because a pattern like
+    # "writer_loop.py" also matches the shell running this script.
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      [ -s "$WRITER_PID" ] && [ -s "$BATCH_PID" ] && break
+      sleep 1
+    done
     echo "writer pid $(cat "$WRITER_PID" 2>/dev/null || echo '?'): $(alive "$WRITER_PID" && echo up || echo DEAD)"
     echo "batch  pid $(cat "$BATCH_PID" 2>/dev/null || echo '?'): $(alive "$BATCH_PID" && echo up || echo DEAD)"
     echo "cadence: one stroke every ${STROKE_EVERY}s, one commit every ${BATCH_INTERVAL}s"

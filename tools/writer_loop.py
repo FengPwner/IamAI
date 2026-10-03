@@ -16,6 +16,7 @@ So the committer touches that file, and this loop stops feeding it.
 from __future__ import annotations
 
 import argparse
+import os
 import random
 import sys
 import time
@@ -27,14 +28,15 @@ sys.path.insert(0, str(REPO))
 from iamai import writer  # noqa: E402
 
 STOP = Path("/tmp/iamai-stop")
+PIDFILE = Path("/tmp/iamai-writer.pid")
 PAUSE = Path("/tmp/iamai-writer-pause")
 MAX_TRACKED_LINES = 400_000  # if we ever get here, stop and say so instead of filling the disk
 
 
 def log(message: str) -> None:
-    line = f\"[{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}Z] writer {message}\"
+    line = f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}Z] writer {message}"
     # stdout may already be redirected into the same file; only echo it when a human is watching.
-    if sys.stderr.isatty():
+    if sys.stderr and sys.stderr.isatty():
         print(line, flush=True)
     try:
         with (Path("/tmp/iamai-writer.log")).open("a", encoding="utf-8") as fh:
@@ -50,6 +52,7 @@ def main() -> int:
     ap.add_argument("--once", action="store_true", help="apply exactly one stroke and exit")
     args = ap.parse_args()
 
+    PIDFILE.write_text(str(os.getpid()) + "\n")
     state = writer.States()
     jitter = random.Random(args.seed)
     log(f"start pid={__import__('os').getpid()} every={args.every}s seq={state.next_seq()}")
@@ -58,6 +61,7 @@ def main() -> int:
         if STOP.exists():
             STOP.unlink(missing_ok=True)
             log("stop requested, exiting")
+            PIDFILE.unlink(missing_ok=True)
             return 0
 
         if PAUSE.exists():
@@ -67,6 +71,7 @@ def main() -> int:
 
         if writer.snapshot()["lines"] > MAX_TRACKED_LINES:
             log("tree exceeded the line budget; refusing to keep padding it")
+            PIDFILE.unlink(missing_ok=True)
             return 3
 
         seq = state.next_seq()

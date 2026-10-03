@@ -29,15 +29,16 @@ sys.path.insert(0, str(REPO))
 from iamai import batch, writer  # noqa: E402
 
 STOP = Path("/tmp/iamai-stop")
+PIDFILE = Path("/tmp/iamai-batch.pid")
 PAUSE = Path("/tmp/iamai-writer-pause")
 ALLOWED_REMOTE = os.environ.get("IAMAII_REMOTE", "https://github.com/FengPwner/IamAI.git")
 MAIN = "main"
 
 
 def log(message: str) -> None:
-    line = f\"[{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}Z] batch {message}\"
+    line = f"[{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}Z] batch {message}"
     # stdout may already be redirected into the same file; only echo it when a human is watching.
-    if sys.stderr.isatty():
+    if sys.stderr and sys.stderr.isatty():
         print(line, flush=True)
     try:
         with (Path("/tmp/iamai-writer.log")).open("a", encoding="utf-8") as fh:
@@ -97,6 +98,11 @@ def run_once(state: writer.States, interval: int) -> int:
     if not guards():
         return 1
 
+    # The writer rewrites its state file on every stroke. Reading a copy that was
+    # loaded when this process started is exactly how one window of 38 strokes was
+    # committed under the heading "nothing new".
+    state.reload()
+
     ok, tail = gate()
     if not ok:
         PAUSE.touch()
@@ -110,15 +116,14 @@ def run_once(state: writer.States, interval: int) -> int:
     code, _ = git("diff", "--cached", "--quiet")
     pending = 0 if code == 0 else 1
 
-    last = state.last_commit
-    tally = state.since(last) if last else state.tally()
-    subject = batch.subject(tally, interval)
+    tally = batch.window_tally(state.history, state.last_commit)
+    subject = batch.subject(tally, interval, pending=pending)
 
     if not pending:
         if writer_alive():
             log(f"nothing to commit yet: {subject}")
             return 0
-        subject = batch.subject({}, interval)
+        subject = batch.subject({}, interval, pending=0)
         code, out = git("commit", "--allow-empty", "-m", subject)
         if code != 0:
             log(f"empty commit refused: {out}")
@@ -144,7 +149,6 @@ def run_once(state: writer.States, interval: int) -> int:
         return 1
 
     stamp = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())
-    state.data["history"] = state.data.get("history", [])
     state.mark_commit(stamp)
     log(f"pushed: {subject}")
     return 0
@@ -160,11 +164,13 @@ def main() -> int:
     if not args.watch:
         return run_once(state, args.interval)
 
+    PIDFILE.write_text(str(os.getpid()) + "\n")
     log(f"start pid={os.getpid()} interval={args.interval}s")
     while True:
         if STOP.exists():
             STOP.unlink(missing_ok=True)
             log("stop requested, exiting")
+            PIDFILE.unlink(missing_ok=True)
             return 0
         time.sleep(args.interval)
         try:

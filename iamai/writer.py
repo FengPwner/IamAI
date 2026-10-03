@@ -243,16 +243,38 @@ class States:
     at stroke 1 and writing a second stroke 1.
     """
 
-    def __init__(self, path: Path | str | None = None):
+    def __init__(self, path: Path | str | None = None, commit_path: Path | str | None = None):
         self.path = Path(path) if path else REPO_ROOT / "data" / "writer_state.json"
+        # Commit bookkeeping belongs to the committer. Sharing one file between the
+        # writer (which rewrites it every stroke) and the committer (which reads it
+        # once per window) is how a batch of 38 strokes got labelled "nothing new".
+        self.commit_path = (
+            Path(commit_path) if commit_path else self.path.parent / "commit_state.json"
+        )
         self.data = {"seq": 1, "tally": {}, "history": [], "started": now_iso()}
-        if self.path.exists():
+        self.commit_data = {"last_commit": None}
+        self.reload()
+
+    def _read_into(self, file: Path, defaults: dict) -> dict:
+        loaded = dict(defaults)
+        if file.exists():
             try:
-                loaded = json.loads(self.path.read_text(encoding="utf-8"))
-                if isinstance(loaded, dict):
-                    self.data.update(loaded)
+                raw = json.loads(file.read_text(encoding="utf-8"))
+                if isinstance(raw, dict):
+                    loaded.update(raw)
             except ValueError:
-                pass
+                pass  # a torn write is not a reason to lose the run
+        return loaded
+
+    def reload(self) -> "States":
+        """Re-read both files. The committer must do this at the top of every window."""
+
+        self.data = self._read_into(self.path, {"seq": 1, "tally": {}, "history": []})
+        self.commit_data = self._read_into(self.commit_path, {"last_commit": None})
+        legacy = self.data.get("last_commit")
+        if legacy and not self.commit_data.get("last_commit"):
+            self.commit_data["last_commit"] = legacy
+        return self
 
     def next_seq(self) -> int:
         return int(self.data.get("seq", 1))
@@ -273,27 +295,36 @@ class States:
     def tally(self) -> dict:
         return dict(self.data.get("tally", {}))
 
-    def since(self, moment_iso: str) -> dict:
+    def since(self, moment_iso: str | None) -> dict:
         """Counts recorded after `moment_iso` -- what a batch commit should claim."""
 
-        out: dict[str, int] = {}
-        for entry in self.data.get("history", []):
-            if entry.get("at", "") > moment_iso:
-                out[entry["kind"]] = out.get(entry["kind"], 0) + 1
-        return out
+        from . import batch as _batch
+
+        return _batch.window_tally(self.data.get("history", []), moment_iso)
+
+    @property
+    def history(self) -> list:
+        return list(self.data.get("history", []))
 
     def mark_commit(self, iso: str) -> None:
-        self.data["last_commit"] = iso
-        self.data["tally"] = {}
-        self.save()
+        """Owns only the commit file -- never touches the writer's counters."""
+
+        self.commit_data["last_commit"] = iso
+        self.commit_data["commit_seq"] = int(self.commit_data.get("commit_seq", 0)) + 1
+        self.commit_path.parent.mkdir(parents=True, exist_ok=True)
+        self.commit_path.write_text(
+            json.dumps(self.commit_data, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
     @property
     def last_commit(self) -> str | None:
-        return self.data.get("last_commit")
+        return self.commit_data.get("last_commit")
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {k: v for k, v in self.data.items() if k != "last_commit"}
         self.path.write_text(
-            json.dumps(self.data, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
+            json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
             encoding="utf-8",
         )

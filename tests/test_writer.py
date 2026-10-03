@@ -160,7 +160,8 @@ def test_subject_breaks_on_token_boundary_not_midword():
 
 
 def test_subject_handles_zero_work_honestly():
-    assert "quiet" in batch.subject({}, window_seconds=600)
+    # Silence needs both no counts and nothing staged -- see tests/test_shared_state.py.
+    assert "quiet" in batch.subject({}, window_seconds=600, pending=0)
 
 
 def test_order_is_stable_by_count_then_name():

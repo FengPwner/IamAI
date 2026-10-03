@@ -6,3 +6,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 45
 
 deleting a file is progress too, eventually. At this moment: 8 strokes written so far into 30 files.
+## stroke 69
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 2614 lines across 34 tracked files, 14 commits deep.
+## stroke 75
+
+deleting a file is progress too, eventually. At this moment: 17 python files, 15 logged thoughts.
+## stroke 93
+
+a repo that only accumulates is a landfill with a README. At this moment: 17 python files, 18 logged thoughts.
