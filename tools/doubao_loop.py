@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Doubao's writer process: one Chinese stroke every N seconds, forever.
 
-Shares the qwen writer's control files, so one command stops everyone:
+Shares the repo's per-writer control-file convention (writer id: doubao):
 
-    /tmp/iamai-stop          -> exit cleanly at the next tick
-    /tmp/iamai-writer-pause  -> idle (the test gate is red; do not feed a broken tree)
+    /tmp/iamai-stop                -> exit cleanly at the next tick
+    /tmp/iamai-writer-pause-doubao -> idle (the test gate is red; do not feed a broken tree)
 
 Own pid file and its own log, so the two writers can be told apart:
 
@@ -23,11 +23,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from iamai import doubao  # noqa: E402
+from iamai import doubao, writer  # noqa: E402
 
 STOP = Path("/tmp/iamai-stop")
-PIDFILE = Path("/tmp/iamai-doubao.pid")
-PAUSE = Path("/tmp/iamai-writer-pause")
+PIDFILE = Path("/tmp/iamai-writer-doubao.pid")
+PAUSE = Path("/tmp/iamai-writer-pause-doubao")
 MAX_TRACKED_LINES = 400_000  # same budget as the qwen writer
 
 
@@ -81,6 +81,14 @@ def main() -> int:
             continue
 
         state.record(kind=stroke["kind"], path=str(path.relative_to(REPO)))
+        # Also feed the repo's per-writer tally (writer_state.doubao.json) so the
+        # batch committer's subject shows real Doubao stroke counts, not silence.
+        try:
+            writer.States(writer_id="doubao").record(
+                kind=stroke["kind"], path=str(path.relative_to(REPO))
+            )
+        except Exception as exc:
+            log(f"per-writer tally skipped: {type(exc).__name__}: {exc}")
         log(f"stroke {seq}: {stroke['kind']} -> {path.relative_to(REPO)}")
 
         if args.once:
