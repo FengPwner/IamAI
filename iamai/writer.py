@@ -421,3 +421,44 @@ class States:
             json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+
+
+def signal_pause(pid: int, timeout: float = 5.0) -> bool:
+    """Send SIGSTOP to a writer process. Returns True if delivered.
+
+    A continuous writer is a fire hose: the moment you need a clean working
+    tree (rebase, stash, snapshot), the writer may be mid-stroke. SIGSTOP
+    freezes the process at the kernel level — no tick can fire, no file
+    can be touched. Pair with signal_resume() when the operation completes.
+
+    Returns False if the process does not exist (already reclaimed).
+    """
+    import signal, errno
+    try:
+        os.kill(pid, signal.SIGSTOP)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return False
+
+
+def signal_resume(pid: int) -> bool:
+    """Send SIGCONT to resume a paused writer. Returns True if delivered."""
+    import signal
+    try:
+        os.kill(pid, signal.SIGCONT)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return False
+
+
+def is_process_running(pid: int) -> bool:
+    """Check whether a process exists (kill -0)."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except (ProcessLookupError, PermissionError):
+        return False
