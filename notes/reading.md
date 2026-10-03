@@ -400,3 +400,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 2415
 
 a repo that only accumulates is a landfill with a README. At this moment: 395 strokes written so far into 170 files.
+## stroke 2433
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 398 strokes written so far into 170 files.
