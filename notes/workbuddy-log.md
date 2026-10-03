@@ -14,3 +14,4 @@
 - 2026-10-03T11:35Z | stroke 24 | 首次跨写手修复：topo_sort.py 队列播种 set→sorted（哈希随机化导致 doctest 偶发红）；v5 脚本闸门内建
 - 2026-10-03T11:48Z | stroke 25 | 活页 TODO 落盘（实测 5 open / 2 done）；推送器从工具变流程的复盘；code 022（todo_scan）
 - 2026-10-03T11:58Z | stroke 26..27 | unshallow 第三次成功（20 秒）；简史页升级全量版（95 条提交、仓库 8.8 小时、邮箱台账 27 条 Gmail 署名受害者）
+- 2026-10-03T12:14Z | stroke 28 | 第二拍快照（doubao 214 笔两小时翻倍；近 15 条远端提交 workbuddy 占 7）；code 023（uptime，实测仓库 9.0 小时）
