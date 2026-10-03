@@ -309,3 +309,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 304 st
 ## stroke 1899
 
 most architecture is choosing which coupling you will live with. At this moment: commit 103: the count of times this repo was pushed, not the work done.
+## stroke 1923
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 160 files; 24390 lines is a lot for a toy.
+## stroke 1929
+
+most architecture is choosing which coupling you will live with. At this moment: 24398 lines across 160 tracked files, 108 commits deep.
