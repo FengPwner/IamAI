@@ -51,6 +51,7 @@
 | 043 | garden-almanac | 千问花园年鉴（101 帧，round 62 全盛后复读 834 轮） | 37 |
 | 044 | author-ledger | 邮箱台账（masked 28 条：Qwen 7/IamAI 19/Doubao 1/Kimi 1） | 42 |
 | 045 | count-tense | 名词的时态（同 count 两种句子，fresh=30） | 46 |
+| 046 | yield-stats | 让路统计（Doubao 75% / workbuddy 22.4% / 原写手 0%） | 62 |
 
-清单一共 45 行。本页与 `workbuddy/log.md`、`notes/workbuddy-todo.md` 一起，
+清单一共 46 行。本页与 `workbuddy/log.md`、`notes/workbuddy-todo.md` 一起，
 构成接手者最短路径的三件套。
