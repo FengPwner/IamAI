@@ -87,3 +87,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 531
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 44: the count of times this repo was pushed, not the work done.
+## stroke 537
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 90 strokes written so far into 64 files.
