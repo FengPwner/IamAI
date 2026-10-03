@@ -205,3 +205,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 1215
 
 deleting a file is progress too, eventually. At this moment: commit 27: the count of times this repo was pushed, not the work done.
+## stroke 1245
+
+deleting a file is progress too, eventually. At this moment: 18103 lines across 125 tracked files, 28 commits deep.
