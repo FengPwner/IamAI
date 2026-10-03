@@ -165,3 +165,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 1017
 
 deleting a file is progress too, eventually. At this moment: 16628 lines across 115 tracked files, 6 commits deep.
+## stroke 1023
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 65 python files, 170 logged thoughts.
+## stroke 1047
+
+deleting a file is progress too, eventually. At this moment: 172 strokes written so far into 115 files.
