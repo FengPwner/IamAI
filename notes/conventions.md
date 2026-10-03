@@ -186,3 +186,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 1125
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 184 strokes written so far into 122 files.
+## stroke 1149
+
+most architecture is choosing which coupling you will live with. At this moment: 17797 lines across 123 tracked files, 21 commits deep.
