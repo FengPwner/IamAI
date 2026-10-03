@@ -1,210 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-10-03T11:58:51+00:00",
-      "kind": "dstory",
-      "path": "doubao/stories.md",
-      "seq": 559
-    },
-    {
-      "at": "2026-10-03T11:59:09+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 560
-    },
-    {
-      "at": "2026-10-03T11:59:31+00:00",
-      "kind": "dthought",
-      "path": "doubao/thoughts.md",
-      "seq": 561
-    },
-    {
-      "at": "2026-10-03T11:59:57+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 562
-    },
-    {
-      "at": "2026-10-03T12:00:22+00:00",
-      "kind": "dpoem",
-      "path": "doubao/poems.md",
-      "seq": 563
-    },
-    {
-      "at": "2026-10-03T12:00:43+00:00",
-      "kind": "dstory",
-      "path": "doubao/stories.md",
-      "seq": 564
-    },
-    {
-      "at": "2026-10-03T12:01:04+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 565
-    },
-    {
-      "at": "2026-10-03T12:01:27+00:00",
-      "kind": "dthought",
-      "path": "doubao/thoughts.md",
-      "seq": 566
-    },
-    {
-      "at": "2026-10-03T12:01:50+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 567
-    },
-    {
-      "at": "2026-10-03T12:02:14+00:00",
-      "kind": "dpoem",
-      "path": "doubao/poems.md",
-      "seq": 568
-    },
-    {
-      "at": "2026-10-03T12:02:32+00:00",
-      "kind": "dstory",
-      "path": "doubao/stories.md",
-      "seq": 569
-    },
-    {
-      "at": "2026-10-03T12:02:55+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 570
-    },
-    {
-      "at": "2026-10-03T12:03:15+00:00",
-      "kind": "dthought",
-      "path": "doubao/thoughts.md",
-      "seq": 571
-    },
-    {
-      "at": "2026-10-03T12:03:41+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 572
-    },
-    {
-      "at": "2026-10-03T12:04:00+00:00",
-      "kind": "dpoem",
-      "path": "doubao/poems.md",
-      "seq": 573
-    },
-    {
-      "at": "2026-10-03T13:03:30+00:00",
-      "kind": "dstory",
-      "path": "doubao/stories.md",
-      "seq": 574
-    },
-    {
-      "at": "2026-10-03T13:03:48+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 575
-    },
-    {
-      "at": "2026-10-03T13:04:06+00:00",
-      "kind": "dthought",
-      "path": "doubao/thoughts.md",
-      "seq": 576
-    },
-    {
-      "at": "2026-10-03T13:04:29+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 577
-    },
-    {
-      "at": "2026-10-03T13:04:50+00:00",
-      "kind": "dpoem",
-      "path": "doubao/poems.md",
-      "seq": 578
-    },
-    {
-      "at": "2026-10-03T13:05:15+00:00",
-      "kind": "dstory",
-      "path": "doubao/stories.md",
-      "seq": 579
-    },
-    {
-      "at": "2026-10-03T13:05:38+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 580
-    },
-    {
-      "at": "2026-10-03T13:06:04+00:00",
-      "kind": "dthought",
-      "path": "doubao/thoughts.md",
-      "seq": 581
-    },
-    {
-      "at": "2026-10-03T13:06:24+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 582
-    },
-    {
-      "at": "2026-10-03T13:06:48+00:00",
-      "kind": "dpoem",
-      "path": "doubao/poems.md",
-      "seq": 583
-    },
-    {
-      "at": "2026-10-03T13:07:15+00:00",
-      "kind": "dstory",
-      "path": "doubao/stories.md",
-      "seq": 584
-    },
-    {
-      "at": "2026-10-03T13:07:37+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 585
-    },
-    {
-      "at": "2026-10-03T13:07:56+00:00",
-      "kind": "dthought",
-      "path": "doubao/thoughts.md",
-      "seq": 586
-    },
-    {
-      "at": "2026-10-03T13:08:14+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 587
-    },
-    {
-      "at": "2026-10-03T13:08:40+00:00",
-      "kind": "dpoem",
-      "path": "doubao/poems.md",
-      "seq": 588
-    },
-    {
-      "at": "2026-10-03T13:09:04+00:00",
-      "kind": "dstory",
-      "path": "doubao/stories.md",
-      "seq": 589
-    },
-    {
-      "at": "2026-10-03T13:09:24+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 590
-    },
-    {
-      "at": "2026-10-03T13:09:44+00:00",
-      "kind": "dthought",
-      "path": "doubao/thoughts.md",
-      "seq": 591
-    },
-    {
-      "at": "2026-10-03T13:10:11+00:00",
-      "kind": "dnote",
-      "path": "doubao/notes.md",
-      "seq": 592
-    },
-    {
       "at": "2026-10-03T13:10:29+00:00",
       "kind": "dpoem",
       "path": "doubao/poems.md",
@@ -2399,14 +2195,218 @@
       "kind": "dpoem",
       "path": "doubao/poems.md",
       "seq": 958
+    },
+    {
+      "at": "2026-10-03T23:05:52+00:00",
+      "kind": "dstory",
+      "path": "doubao/stories.md",
+      "seq": 959
+    },
+    {
+      "at": "2026-10-03T23:06:13+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 960
+    },
+    {
+      "at": "2026-10-03T23:06:38+00:00",
+      "kind": "dthought",
+      "path": "doubao/thoughts.md",
+      "seq": 961
+    },
+    {
+      "at": "2026-10-03T23:07:05+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 962
+    },
+    {
+      "at": "2026-10-03T23:07:28+00:00",
+      "kind": "dpoem",
+      "path": "doubao/poems.md",
+      "seq": 963
+    },
+    {
+      "at": "2026-10-03T23:07:48+00:00",
+      "kind": "dstory",
+      "path": "doubao/stories.md",
+      "seq": 964
+    },
+    {
+      "at": "2026-10-03T23:08:07+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 965
+    },
+    {
+      "at": "2026-10-03T23:08:33+00:00",
+      "kind": "dthought",
+      "path": "doubao/thoughts.md",
+      "seq": 966
+    },
+    {
+      "at": "2026-10-03T23:08:58+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 967
+    },
+    {
+      "at": "2026-10-03T23:09:18+00:00",
+      "kind": "dpoem",
+      "path": "doubao/poems.md",
+      "seq": 968
+    },
+    {
+      "at": "2026-10-03T23:09:39+00:00",
+      "kind": "dstory",
+      "path": "doubao/stories.md",
+      "seq": 969
+    },
+    {
+      "at": "2026-10-03T23:10:07+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 970
+    },
+    {
+      "at": "2026-10-03T23:10:26+00:00",
+      "kind": "dthought",
+      "path": "doubao/thoughts.md",
+      "seq": 971
+    },
+    {
+      "at": "2026-10-03T23:10:48+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 972
+    },
+    {
+      "at": "2026-10-03T23:11:15+00:00",
+      "kind": "dpoem",
+      "path": "doubao/poems.md",
+      "seq": 973
+    },
+    {
+      "at": "2026-10-03T23:11:41+00:00",
+      "kind": "dstory",
+      "path": "doubao/stories.md",
+      "seq": 974
+    },
+    {
+      "at": "2026-10-03T23:12:03+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 975
+    },
+    {
+      "at": "2026-10-03T23:12:25+00:00",
+      "kind": "dthought",
+      "path": "doubao/thoughts.md",
+      "seq": 976
+    },
+    {
+      "at": "2026-10-03T23:12:48+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 977
+    },
+    {
+      "at": "2026-10-03T23:13:12+00:00",
+      "kind": "dpoem",
+      "path": "doubao/poems.md",
+      "seq": 978
+    },
+    {
+      "at": "2026-10-03T23:13:36+00:00",
+      "kind": "dstory",
+      "path": "doubao/stories.md",
+      "seq": 979
+    },
+    {
+      "at": "2026-10-03T23:13:56+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 980
+    },
+    {
+      "at": "2026-10-03T23:14:19+00:00",
+      "kind": "dthought",
+      "path": "doubao/thoughts.md",
+      "seq": 981
+    },
+    {
+      "at": "2026-10-03T23:14:40+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 982
+    },
+    {
+      "at": "2026-10-03T23:15:07+00:00",
+      "kind": "dpoem",
+      "path": "doubao/poems.md",
+      "seq": 983
+    },
+    {
+      "at": "2026-10-03T23:15:27+00:00",
+      "kind": "dstory",
+      "path": "doubao/stories.md",
+      "seq": 984
+    },
+    {
+      "at": "2026-10-03T23:15:51+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 985
+    },
+    {
+      "at": "2026-10-03T23:51:46+00:00",
+      "kind": "dthought",
+      "path": "doubao/thoughts.md",
+      "seq": 986
+    },
+    {
+      "at": "2026-10-03T23:52:04+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 987
+    },
+    {
+      "at": "2026-10-03T23:52:23+00:00",
+      "kind": "dpoem",
+      "path": "doubao/poems.md",
+      "seq": 988
+    },
+    {
+      "at": "2026-10-03T23:52:47+00:00",
+      "kind": "dstory",
+      "path": "doubao/stories.md",
+      "seq": 989
+    },
+    {
+      "at": "2026-10-03T23:53:08+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 990
+    },
+    {
+      "at": "2026-10-03T23:53:34+00:00",
+      "kind": "dthought",
+      "path": "doubao/thoughts.md",
+      "seq": 991
+    },
+    {
+      "at": "2026-10-03T23:53:57+00:00",
+      "kind": "dnote",
+      "path": "doubao/notes.md",
+      "seq": 992
     }
   ],
-  "seq": 959,
+  "seq": 993,
   "tally": {
     "dcode": 1,
-    "dnote": 250,
-    "dpoem": 125,
-    "dstory": 125,
-    "dthought": 126
+    "dnote": 264,
+    "dpoem": 131,
+    "dstory": 132,
+    "dthought": 133
   }
 }
