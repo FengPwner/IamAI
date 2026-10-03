@@ -1,0 +1,8 @@
+# 多写手协作：这些文件只被追加，两边的行都要留下，用 union 合并驱动处理。
+# union 驱动需要在各写手的本地仓库配置（tools/run_both.sh 会配）；没配时 git
+# 退回普通合并 -> 冲突可见，不会静默丢内容。
+docs/DEVLOG.md   merge=union
+docs/GARDEN.md   merge=union
+docs/METRICS.md  merge=union
+data/strokes.jsonl merge=union
+notes/*.md       merge=union

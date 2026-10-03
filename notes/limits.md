@@ -48,3 +48,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 4724 l
 ## stroke 303
 
 most architecture is choosing which coupling you will live with. At this moment: 21 python files, 53 logged thoughts.
+## stroke 327
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 55 strokes written so far into 42 files.
