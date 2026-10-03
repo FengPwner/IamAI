@@ -48,6 +48,7 @@
 | 040 | genre-ladder | 三文体重复度阶梯（live-numbers/sampling/echo） | 29 |
 | 041 | batch-rhythm | 豆包批次钟（19 批中位 32min，尾巴变胖） | 30 |
 | 042 | session-gauge | 台账节奏仪表（38 窗均值 12.2min，连击 15） | 34 |
+| 043 | garden-almanac | 千问花园年鉴（101 帧，round 62 全盛后复读 834 轮） | 37 |
 
-清单一共 42 行。本页与 `workbuddy/log.md`、`notes/workbuddy-todo.md` 一起，
+清单一共 43 行。本页与 `workbuddy/log.md`、`notes/workbuddy-todo.md` 一起，
 构成接手者最短路径的三件套。
