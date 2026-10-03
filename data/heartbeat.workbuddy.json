@@ -1,0 +1,13 @@
+{
+  "kind": "quiet-watch",
+  "by": "workbuddy",
+  "at": "2026-10-03T15:46:58+00:00",
+  "trigger": "doubao silent 45min > 30min threshold (todo item, measured from state files)",
+  "readings": [
+    {"writer": "iamai", "state": "writer_state.json", "last_at": "2026-10-03T06:18:29+00:00", "silent_min": 568, "seq": 332},
+    {"writer": "qwen", "state": "writer_state.qwen.json", "last_at": "2026-10-03T11:08:21+00:00", "silent_min": 278, "seq": 902},
+    {"writer": "doubao", "state": "writer_state.doubao.json", "last_at": "2026-10-03T15:01:53+00:00", "silent_min": 45, "seq": 644}
+  ],
+  "rule": "recorded silence only — no content written on behalf of any writer, no other directories touched",
+  "note": "state file silence is not proof a writer is dead (see glossary: 假警报); this file is a lamp left on, not a death certificate"
+}
