@@ -48,12 +48,13 @@ def log(message: str) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--every", type=int, default=15, help="seconds between strokes")
+    ap.add_argument("--writer", default=None, help="writer id, e.g. qwen / kimi (or env IAMAII_WRITER)")
     ap.add_argument("--seed", type=int, default=20261003, help="variant seed for the writer")
     ap.add_argument("--once", action="store_true", help="apply exactly one stroke and exit")
     args = ap.parse_args()
 
     PIDFILE.write_text(str(os.getpid()) + "\n")
-    state = writer.States()
+    state = writer.States(writer_id=args.writer)
     jitter = random.Random(args.seed)
     log(f"start pid={__import__('os').getpid()} every={args.every}s seq={state.next_seq()}")
 

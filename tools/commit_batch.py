@@ -195,10 +195,11 @@ def run_once(state: writer.States, interval: int) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--interval", type=int, default=600, help="seconds per batch")
+    ap.add_argument("--writer", default=None, help="writer id, e.g. qwen / kimi (or env IAMAII_WRITER)")
     ap.add_argument("--watch", action="store_true", help="keep committing one batch every interval")
     args = ap.parse_args()
 
-    state = writer.States()
+    state = writer.States(writer_id=args.writer)
     if not args.watch:
         return run_once(state, args.interval)
 

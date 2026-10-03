@@ -17,6 +17,8 @@ tree and git. The writer has no imagination for numbers -- that is deliberate.
 from __future__ import annotations
 
 import json
+import os
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -236,6 +238,28 @@ def apply_stroke(stroke: dict, root: Path | str | None = None, header: str | Non
     return path
 
 
+WRITER_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,31}$")
+
+DEFAULT_WRITER_ID = "qwen"
+
+
+def resolve_writer_id(writer_id: str | None = None) -> str:
+    """Which agent this process is. Comes from IAMAII_WRITER, defaults to qwen.
+
+    Validated because the id is spliced into a filename: an id like ``../escape``
+    would move state outside data/ without anybody noticing.
+    """
+
+    candidate = writer_id or os.environ.get("IAMAII_WRITER") or DEFAULT_WRITER_ID
+    candidate = str(candidate).strip().lower()
+    if not WRITER_ID_RE.fullmatch(candidate):
+        raise ValueError(
+            "writer id must match ^[a-z0-9][a-z0-9_.-]{0,31}$ (lowercase, no path separators), "
+            f"got {candidate!r}"
+        )
+    return candidate
+
+
 class States:
     """Running counters for the writer: sequence number and per-kind tally.
 
@@ -243,17 +267,53 @@ class States:
     at stroke 1 and writing a second stroke 1.
     """
 
-    def __init__(self, path: Path | str | None = None, commit_path: Path | str | None = None):
-        self.path = Path(path) if path else REPO_ROOT / "data" / "writer_state.json"
+    def __init__(
+        self,
+        path: Path | str | None = None,
+        commit_path: Path | str | None = None,
+        writer_id: str | None = None,
+        root: Path | str | None = None,
+    ):
+        self.root = Path(root) if root else REPO_ROOT
+        self.writer_id = resolve_writer_id(writer_id)
+        # 数据目录从实际路径推导：显式给了 path 就以它的父目录为准，否则才用 root/data。
+        self.data_dir = Path(path).parent if path else self.root / "data"
+
+        # One state file per writer. Two agents sharing data/writer_state.json means
+        # each one keeps overwriting the other's counters, and every merge conflicts
+        # on a file no human reads. The id is validated so a path can't escape data/.
+        data_dir = self.data_dir
+        self.path = Path(path) if path else data_dir / f"writer_state.{self.writer_id}.json"
         # Commit bookkeeping belongs to the committer. Sharing one file between the
         # writer (which rewrites it every stroke) and the committer (which reads it
         # once per window) is how a batch of 38 strokes got labelled "nothing new".
         self.commit_path = (
-            Path(commit_path) if commit_path else self.path.parent / "commit_state.json"
+            Path(commit_path) if commit_path else data_dir / f"commit_state.{self.writer_id}.json"
         )
         self.data = {"seq": 1, "tally": {}, "history": [], "started": now_iso()}
         self.commit_data = {"last_commit": None}
         self.reload()
+
+    def path_dir(self) -> Path:
+        return self.data_dir
+
+    def _legacy_seq(self) -> int | None:
+        """The numbering from the pre-namespacing shared file, if any.
+
+        Renaming state files must not restart stroke numbering at 1 -- the logs
+        already reference numbers -- but neither should another writer's counters
+        come along for the ride. So: inherit the sequence, drop the tallies.
+        """
+
+        legacy = self.path_dir() / "writer_state.json"
+        if not legacy.exists():
+            return None
+        try:
+            raw = json.loads(legacy.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            return None
+        seq = raw.get("seq") if isinstance(raw, dict) else None
+        return int(seq) if isinstance(seq, int) and seq > 1 else None
 
     def _read_into(self, file: Path, defaults: dict) -> dict:
         loaded = dict(defaults)
@@ -269,7 +329,12 @@ class States:
     def reload(self) -> "States":
         """Re-read both files. The committer must do this at the top of every window."""
 
-        self.data = self._read_into(self.path, {"seq": 1, "tally": {}, "history": []})
+        defaults = {"seq": 1, "tally": {}, "history": []}
+        self.data = self._read_into(self.path, defaults)
+        if not self.path.exists():
+            legacy_seq = self._legacy_seq()
+            if legacy_seq is not None and self.data.get("seq", 1) == 1:
+                self.data["seq"] = legacy_seq
         self.commit_data = self._read_into(self.commit_path, {"last_commit": None})
         legacy = self.data.get("last_commit")
         if legacy and not self.commit_data.get("last_commit"):

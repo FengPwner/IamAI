@@ -115,3 +115,57 @@ def test_window_label_follows_elapsed_seconds_not_the_configured_interval():
 
 def test_quiet_label_also_uses_the_real_window():
     assert "1 min" in batch.subject({}, window_seconds=30, pending=0)
+
+
+# --- per-writer state files: two agents, one repo, no shared rewrite ------
+
+
+def test_each_writer_id_gets_its_own_state_file(tmp_path: Path):
+    a = writer.States(writer_id="qwen", path=tmp_path / "data" / "writer_state.qwen.json")
+    b = writer.States(writer_id="kimi", path=tmp_path / "data" / "writer_state.kimi.json")
+    a.record(kind="thought", path="data/strokes.jsonl")
+    b.record(kind="thought", path="data/strokes.jsonl")
+    b.record(kind="devlog", path="docs/DEVLOG.md")
+    assert a.next_seq() == 2, "my counter must not be inflated by another writer"
+    assert b.next_seq() == 3
+
+
+def test_state_files_are_named_by_writer(tmp_path: Path):
+    s = writer.States(writer_id="qwen", root=tmp_path)
+    assert s.path.name == "writer_state.qwen.json"
+    assert s.commit_path.name == "commit_state.qwen.json"
+
+
+def test_default_writer_id_comes_from_the_environment(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("IAMAII_WRITER", "kimi")
+    s = writer.States(root=tmp_path)
+    assert s.path.name == "writer_state.kimi.json"
+
+
+def test_unknown_writer_id_is_refused(tmp_path: Path):
+    with pytest.raises(ValueError):
+        writer.States(writer_id="../escape", root=tmp_path)
+    with pytest.raises(ValueError):
+        writer.States(writer_id="With Space", root=tmp_path)
+
+
+def test_seq_carries_over_from_the_shared_legacy_file(tmp_path: Path):
+    legacy = tmp_path / "data" / "writer_state.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text(json.dumps({"seq": 332, "tally": {"thought": 9}, "history": []}), encoding="utf-8")
+
+    s = writer.States(writer_id="qwen", root=tmp_path)
+    assert s.next_seq() == 332, "renaming the file must not restart the numbering"
+    assert s.tally() == {}, "but counters start fresh: my strokes are not Kimi's strokes"
+
+
+def test_legacy_file_is_left_untouched(tmp_path: Path):
+    legacy = tmp_path / "data" / "writer_state.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text(json.dumps({"seq": 10, "tally": {}, "history": []}), encoding="utf-8")
+    before = legacy.read_text(encoding="utf-8")
+
+    s = writer.States(writer_id="qwen", root=tmp_path)
+    s.record(kind="note", path="notes/x.md")
+    assert legacy.read_text(encoding="utf-8") == before
+    assert (tmp_path / "data" / "writer_state.qwen.json").exists()

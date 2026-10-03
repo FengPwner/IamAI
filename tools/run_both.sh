@@ -53,6 +53,10 @@ case "${1:-start}" in
       exit 1
     fi
     cd "$REPO" || exit 1
+    # .gitattributes 声明了 merge=union，但 git 需要本地配置才知道 union 驱动是什么。
+    # 少配这一步不会丢数据（退回普通合并 -> 冲突可见），只是每个窗口都要人工合一次。
+    git config merge.union.name "union append-only merge"
+    git config merge.union.driver "git merge-file --union %A %O %B"
     setsid nohup python3 tools/writer_loop.py --every "$STROKE_EVERY" >> "$LOG" 2>&1 < /dev/null &
     setsid nohup python3 tools/commit_batch.py --watch --interval "$BATCH_INTERVAL" >> "$LOG" 2>&1 < /dev/null &
     # Each process writes its own pid file; pgrep is not used because a pattern like
