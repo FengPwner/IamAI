@@ -93,3 +93,10 @@
 {"seq": 93, "at": "2026-10-03T08:00:03+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 50: the count of times this repo was pushed, not the work done"}
 {"seq": 94, "at": "2026-10-03T08:01:51+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 68 files; 10614 lines is a lot for a toy"}
 {"seq": 95, "at": "2026-10-03T08:03:39+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 10658 lines across 68 tracked files, 50 commits deep"}
+{"seq": 96, "at": "2026-10-03T08:05:17+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 53: the count of times this repo was pushed, not the work done"}
+{"seq": 97, "at": "2026-10-03T08:07:02+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 96 strokes written so far into 72 files"}
+{"seq": 98, "at": "2026-10-03T08:08:44+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 10835 lines across 72 tracked files, 54 commits deep"}
+{"seq": 99, "at": "2026-10-03T08:10:33+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 54: the count of times this repo was pushed, not the work done"}
+{"seq": 100, "at": "2026-10-03T08:12:21+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 99 strokes written so far into 72 files"}
+{"seq": 101, "at": "2026-10-03T08:14:08+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 10967 lines across 72 tracked files, 54 commits deep"}
+{"seq": 102, "at": "2026-10-03T08:15:46+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 34 python files, 103 logged thoughts"}

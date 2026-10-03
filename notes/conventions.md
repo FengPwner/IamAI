@@ -87,3 +87,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 555
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 93 strokes written so far into 68 files.
+## stroke 579
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 72 files; 10812 lines is a lot for a toy.
+## stroke 603
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 34 python files, 103 logged thoughts.
+## stroke 609
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 54: the count of times this repo was pushed, not the work done.
