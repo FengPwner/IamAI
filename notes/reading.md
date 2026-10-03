@@ -295,3 +295,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 1713
 
 deleting a file is progress too, eventually. At this moment: 282 strokes written so far into 152 files.
+## stroke 1737
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 23356 lines across 154 tracked files, 83 commits deep.
