@@ -401,3 +401,7 @@
 {"seq": 401, "at": "2026-10-03T22:41:19+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 171: the count of times this repo was pushed, not the work done"}
 {"seq": 402, "at": "2026-10-03T22:43:03+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 170 files; 26930 lines is a lot for a toy"}
 {"seq": 403, "at": "2026-10-03T23:01:07+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 26938 lines across 170 tracked files, 172 commits deep"}
+{"seq": 404, "at": "2026-10-03T23:05:39+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 403 strokes written so far into 172 files"}
+{"seq": 405, "at": "2026-10-03T23:07:22+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 27505 lines across 172 tracked files, 178 commits deep"}
+{"seq": 406, "at": "2026-10-03T23:09:16+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 178: the count of times this repo was pushed, not the work done"}
+{"seq": 407, "at": "2026-10-03T23:11:04+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 406 strokes written so far into 172 files"}
