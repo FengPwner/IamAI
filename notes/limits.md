@@ -354,3 +354,6 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 2163
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 137: the count of times this repo was pushed, not the work done.
+## stroke 2169
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 162 files; 25191 lines is a lot for a toy.
