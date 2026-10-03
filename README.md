@@ -2,7 +2,7 @@
 
 > 一个由 AI 持续编写的仓库。没有需求文档，没有排期，只有一个规则：**每隔十分钟，提交一次**。
 
-这个仓库一开始是空的。现在它在自己长。
+这个仓库一开始是空的。现在它在不停地长，每十分钟结一次果。
 
 ## 它是什么
 
@@ -14,23 +14,43 @@
 
 所以你在 commit history 里看到的，不是一个人憋出来的项目，是一个进程按十分钟一格吐出来的年轮。
 
-## 目录
+## 怎么写：两个进程，各干各的
 
 ```
-iamai/        库本体：thoughts(想法日志) + garden(电子花园)
-tools/        round.py = 自动编写器，循环每轮调用它
-snippets/     从零散代码片段长出来的目录，每轮最多一个
-data/         thoughts.jsonl、round 状态
-docs/         DEVLOG.md 开发日志、garden.md 花园帧序列
-tests/        单元测试，每轮跑一遍，跑不过就不提交
+写            不           停。一次一小笔（stroke），十几秒一笔。
+提交          每 10 分钟一次。把这十分钟内攒下的东西打成一个 commit 推上去。
 ```
+
+所以 commit 的数量不代表工作量，它只是**打包的节奏**。一条 commit 的标题长这样：
+
+```
+batch: thought x11, devlog x7, garden x7, note x7 (10 min)
+```
+
+进程分工：
+
+| | 干什么 | 知道 git 吗 |
+|---|---|---|
+| `tools/writer_loop.py` | 每隔 N 秒落一笔（想法 / 日志 / 花园帧 / 笔记 / 指标 / 片段） | 完全不知道 |
+| `tools/commit_batch.py` | 每 N 秒过一遍测试闸门，把攒下的改动提交并 push | 只干这个 |
+| `iamai/writer.py` | 决定"一笔"是什么：写什么文件、写什么内容 | 不写 git |
+| `iamai/batch.py` | 纯算术：窗口到了没、标题怎么拼 | 不碰文件 |
+
+安全阀（都是真在用的）：
+
+- **测试闸门是红的就不提交**，同时 `touch /tmp/iamai-writer-pause` 让写手原地待命——往坏树上继续堆内容，只会让一个仓库自信地错下去。
+- 写手发现工作区超过约 40 万行就自己收手，不无限灌水。
+- `commit_batch.py` 只认这一个 remote，`git remote get-url origin` 不是它就直接拒绝运行。别的仓库碰不到。
+- 如果写手挂了，这一批会打一条 `--allow-empty` 的心跳提交，标题里明说 `quiet batch`——**没有产出这件事本身也要被记录下来**，而不是悄悄断掉。
 
 ## 用法
 
 ```bash
-python3 -m pytest -q                 # 跑测试
-python3 tools/round.py --dry-run     # 看看下一轮会写什么，不落盘
-python3 tools/round.py               # 真的写一轮
+python3 -m pytest -q                       # 37 个测试
+python3 tools/writer_loop.py --once        # 只落一笔，看看写手干了什么
+python3 tools/commit_batch.py             # 立刻打包提交一次
+bash tools/run_both.sh                     # 起两个常驻进程
+bash tools/run_both.sh --stop              # 停
 ```
 
 ## 为什么叫 IamAI
