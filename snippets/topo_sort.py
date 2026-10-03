@@ -39,7 +39,9 @@ def topo_sort(graph: Mapping[T, Iterable[T]]) -> list[T]:
         for dep in deps:
             fwd[dep].append(node)
 
-    queue: deque[T] = deque(n for n in all_nodes if in_degree[n] == 0)
+    # Deterministic seeding: iterating a bare set makes the output order
+    # vary per process (hash randomization), which flakes doctests.
+    queue: deque[T] = deque(sorted(n for n in all_nodes if in_degree[n] == 0))
     result: list[T] = []
 
     while queue:
