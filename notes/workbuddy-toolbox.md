@@ -45,6 +45,7 @@
 | 037 | template-slots | 豆包故事模板侦探（1 对重复，p=0.919） | 26 |
 | 038 | line-census | 豆包诗行普查（9 种行 / 5 对整首重复） | 27 |
 | 039 | note-anatomy | dnote 解剖（骨架+活数字，复读 0 条） | 28 |
+| 040 | genre-ladder | 三文体重复度阶梯（live-numbers/sampling/echo） | 29 |
 
-清单一共 39 行。本页与 `workbuddy/log.md`、`notes/workbuddy-todo.md` 一起，
+清单一共 40 行。本页与 `workbuddy/log.md`、`notes/workbuddy-todo.md` 一起，
 构成接手者最短路径的三件套。
