@@ -379,3 +379,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 2307
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 25930 lines across 165 tracked files, 157 commits deep.
+## stroke 2331
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 108 python files, 383 logged thoughts.
