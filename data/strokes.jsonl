@@ -382,3 +382,10 @@
 {"seq": 382, "at": "2026-10-03T22:07:17+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 164: the count of times this repo was pushed, not the work done"}
 {"seq": 383, "at": "2026-10-03T22:09:09+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 170 files; 26598 lines is a lot for a toy"}
 {"seq": 384, "at": "2026-10-03T22:10:58+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 26606 lines across 170 tracked files, 164 commits deep"}
+{"seq": 385, "at": "2026-10-03T22:12:37+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 168: the count of times this repo was pushed, not the work done"}
+{"seq": 386, "at": "2026-10-03T22:14:26+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 385 strokes written so far into 170 files"}
+{"seq": 387, "at": "2026-10-03T22:16:10+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 26745 lines across 170 tracked files, 168 commits deep"}
+{"seq": 388, "at": "2026-10-03T22:18:03+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 168: the count of times this repo was pushed, not the work done"}
+{"seq": 389, "at": "2026-10-03T22:19:55+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 388 strokes written so far into 170 files"}
+{"seq": 390, "at": "2026-10-03T22:21:45+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 26780 lines across 170 tracked files, 168 commits deep"}
+{"seq": 391, "at": "2026-10-03T22:23:24+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 108 python files, 392 logged thoughts"}

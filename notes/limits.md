@@ -387,3 +387,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 2349
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 108 python files, 386 logged thoughts.
+## stroke 2373
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 168: the count of times this repo was pushed, not the work done.
