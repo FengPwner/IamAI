@@ -39,6 +39,25 @@ MODES = ("devlog", "thought", "garden", "snippet", "metrics", "audit")
 # --------------------------------------------------------------------------
 
 
+def summary(test_output: str) -> str:
+    """The line pytest actually means, not the dots it prints first."""
+
+    for line in reversed([x.strip() for x in test_output.splitlines() if x.strip()]):
+        if "passed" in line or "failed" in line or "no tests ran" in line:
+            return line
+    return test_output.strip().splitlines()[-1] if test_output.strip() else "(no output)"
+
+
+def cut(text: str, limit: int) -> str:
+    """Truncate on a word boundary -- a subject that ends mid-word looks broken."""
+
+    text = " ".join(str(text).split())
+    if len(text) <= limit:
+        return text
+    head = text[:limit]
+    return head[: head.rfind(" ")].rstrip(",;:") if " " in head else head
+
+
 def now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -410,11 +429,11 @@ def mode_devlog(state: dict, m: dict) -> tuple[str, list[str], str]:
         lines=m["lines"],
         py=m["py_files"],
         commits=m["commits"],
-        test=m["test_results"].splitlines()[-1] if m["test_results"] else "?",
+        test=summary(m["test_results"]),
     )
     line = f"- `{stamp()}` {body}"
     append("docs/DEVLOG.md", line + "\n")
-    return f"devlog: {body[:70]}", ["docs/DEVLOG.md"], body
+    return f"devlog: {cut(body, 70)}", ["docs/DEVLOG.md"], body
 
 
 def mode_thought(state: dict, m: dict) -> tuple[str, list[str], str]:
@@ -424,7 +443,7 @@ def mode_thought(state: dict, m: dict) -> tuple[str, list[str], str]:
     write("docs/THOUGHTS.md", "# Thoughts\n\n" + t.render_markdown())
     s = t.stats()
     return (
-        f"thought #{s['count']}: {text[:60]}",
+        f"thought #{s['count']}: {cut(text, 58)}",
         ["docs/THOUGHTS.md", "data/thoughts.jsonl"],
         text,
     )
@@ -476,7 +495,7 @@ def mode_metrics(state: dict, m: dict) -> tuple[str, list[str], str]:
 
 
 def mode_audit(state: dict, m: dict) -> tuple[str, list[str], str]:
-    tail = m["test_results"].splitlines()[-1] if m["test_results"] else "(no test output)"
+    tail = summary(m["test_results"]) or "(no test output)"
     honest = (
         f"round {state['round']}: audit. {m['files']} files, {m['lines']} lines, "
         f"{m['commits']} commits. gate: {tail}"
@@ -488,7 +507,7 @@ def mode_audit(state: dict, m: dict) -> tuple[str, list[str], str]:
         append("docs/AUDIT.md", entry)
     else:
         write("docs/AUDIT.md", "# Audit\n\n" + entry)
-    return f"audit: {tail[:50]}", ["docs/AUDIT.md"], honest
+    return f"audit: {cut(tail, 48)}", ["docs/AUDIT.md"], honest
 
 
 HANDLERS = {
