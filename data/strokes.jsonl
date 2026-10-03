@@ -280,3 +280,4 @@
 {"seq": 280, "at": "2026-10-03T17:43:07+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 152 files; 23105 lines is a lot for a toy"}
 {"seq": 281, "at": "2026-10-03T17:45:01+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 94 python files, 282 logged thoughts"}
 {"seq": 282, "at": "2026-10-03T17:46:43+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 78: the count of times this repo was pushed, not the work done"}
+{"seq": 283, "at": "2026-10-03T18:01:08+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 152 files; 23145 lines is a lot for a toy"}
