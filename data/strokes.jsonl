@@ -266,3 +266,10 @@
 {"seq": 266, "at": "2026-10-03T17:18:50+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 67: the count of times this repo was pushed, not the work done"}
 {"seq": 267, "at": "2026-10-03T17:20:35+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 150 files; 22788 lines is a lot for a toy"}
 {"seq": 268, "at": "2026-10-03T17:22:17+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 22796 lines across 150 tracked files, 67 commits deep"}
+{"seq": 269, "at": "2026-10-03T17:23:58+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 71: the count of times this repo was pushed, not the work done"}
+{"seq": 270, "at": "2026-10-03T17:25:38+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 151 files; 22917 lines is a lot for a toy"}
+{"seq": 271, "at": "2026-10-03T17:27:22+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 22925 lines across 151 tracked files, 72 commits deep"}
+{"seq": 272, "at": "2026-10-03T17:29:12+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 72: the count of times this repo was pushed, not the work done"}
+{"seq": 273, "at": "2026-10-03T17:31:06+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 272 strokes written so far into 151 files"}
+{"seq": 274, "at": "2026-10-03T17:32:54+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 22949 lines across 151 tracked files, 72 commits deep"}
+{"seq": 275, "at": "2026-10-03T17:34:41+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 93 python files, 276 logged thoughts"}
