@@ -252,3 +252,55 @@ def test_rebase_conflict_falls_back_to_a_merge_instead_of_stalling(two_clones):
 def repo_config(repo, key, value):
     subprocess.run(["git", "config", key, value], cwd=repo, check=True,
                    env={"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(repo)})
+
+
+# --- the manual stash-rebase-pop path ------------------------------------
+
+
+def test_manual_stash_rebase_pop_preserves_in_flight_stroke(two_clones):
+    """The live recovery path when autoStash is not enough: writer is mid-stroke,
+    push was rejected, and a human (or supervising agent) runs stash-rebase-pop
+    by hand. The in-flight stroke must survive the round trip."""
+
+    a, b, bare = two_clones
+
+    # upstream (a) pushes first
+    commit_file(a, "from_a.md", "A\n", "a: work")
+    push.push_with_rebase(a, remote="origin", branch="main")
+
+    # b has a committed batch plus an uncommitted in-flight stroke
+    commit_file(b, "from_b.md", "B\n", "b: batch commit")
+    (b / "docs" / "DEVLOG.md").parent.mkdir(exist_ok=True)
+    (b / "in_flight_stroke.md").write_text(
+        "stroke 999: written mid-rebase, not yet committed\n", encoding="utf-8"
+    )
+
+    # manual recovery: stash (including untracked), rebase, pop
+    stash_rc = subprocess.run(
+        ["git", "stash", "--include-untracked"], cwd=b, capture_output=True, text=True,
+        env={"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(b)},
+    )
+    assert stash_rc.returncode == 0, stash_rc.stderr
+
+    rebase_rc = subprocess.run(
+        ["git", "rebase", "origin/main"], cwd=b, capture_output=True, text=True,
+        env={"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(b)},
+    )
+    assert rebase_rc.returncode == 0, rebase_rc.stderr
+
+    pop_rc = subprocess.run(
+        ["git", "stash", "pop"], cwd=b, capture_output=True, text=True,
+        env={"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(b)},
+    )
+    assert pop_rc.returncode == 0, pop_rc.stderr
+
+    # the in-flight stroke survived
+    assert (b / "in_flight_stroke.md").exists()
+    content = (b / "in_flight_stroke.md").read_text(encoding="utf-8")
+    assert "stroke 999" in content
+
+    # and the committed batch can now push
+    result = push.push_with_rebase(b, remote="origin", branch="main")
+    assert result["ok"] is True, result
+    files = ls_remote(bare)
+    assert "from_a.md" in files and "from_b.md" in files
