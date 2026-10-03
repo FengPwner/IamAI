@@ -64,3 +64,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 339
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 29 python files, 60 logged thoughts.
+## stroke 363
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 32: the count of times this repo was pushed, not the work done.
