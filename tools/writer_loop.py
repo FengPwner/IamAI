@@ -28,7 +28,7 @@ sys.path.insert(0, str(REPO))
 from iamai import writer  # noqa: E402
 
 STOP = Path("/tmp/iamai-stop")
-PIDFILE = Path("/tmp/iamai-writer.pid")
+PIDFILE = writer.pid_file()
 # 红闸门标记按写手分文件；模块加载时就算好，不依赖参数解析的顺序。
 PAUSE = writer.pause_file()
 MAX_TRACKED_LINES = 400_000  # if we ever get here, stop and say so instead of filling the disk
@@ -54,9 +54,9 @@ def main() -> int:
     ap.add_argument("--once", action="store_true", help="apply exactly one stroke and exit")
     args = ap.parse_args()
 
+    global PAUSE, PIDFILE
+    PAUSE, PIDFILE = writer.pause_file(args.writer), writer.pid_file(args.writer)
     PIDFILE.write_text(str(os.getpid()) + "\n")
-    global PAUSE
-    PAUSE = writer.pause_file(args.writer)
     state = writer.States(writer_id=args.writer)
     jitter = random.Random(args.seed)
     log(f"start pid={__import__('os').getpid()} every={args.every}s seq={state.next_seq()}")

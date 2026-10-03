@@ -191,3 +191,14 @@ def test_a_pause_flag_written_for_one_writer_does_not_idle_another(tmp_path: Pat
     other = tmp_path / "iamai-writer-pause-doubao"
     other.touch()
     assert not writer.pause_file("qwen").exists()
+
+
+def test_pid_file_is_named_after_the_writer():
+    assert writer.pid_file("qwen").name == "iamai-writer-qwen.pid"
+    assert writer.pid_file("doubao").name == "iamai-writer-doubao.pid"
+    assert writer.pid_file("qwen") != writer.pid_file("doubao")
+
+
+def test_batch_pid_file_is_not_the_writers_pid_file():
+    assert writer.batch_pid_file("qwen").name == "iamai-batch-qwen.pid"
+    assert writer.batch_pid_file("qwen") != writer.pid_file("qwen")

@@ -260,6 +260,23 @@ def resolve_writer_id(writer_id: str | None = None) -> str:
     return candidate
 
 
+def pid_file(writer_id: str | None = None) -> Path:
+    """Where a running loop records its own pid.
+
+    The launcher waits on this file to decide "is it up?". If the tools write one
+    path and the launcher reads another, a healthy writer gets reported as DEAD --
+    which is how a stale second committer ended up running beside the new one here.
+    """
+
+    return Path("/tmp") / f"iamai-writer-{resolve_writer_id(writer_id)}.pid"
+
+
+def batch_pid_file(writer_id: str | None = None) -> Path:
+    """The committer's own pidfile. It must not share one with the writer."""
+
+    return Path("/tmp") / f"iamai-batch-{resolve_writer_id(writer_id)}.pid"
+
+
 def pause_file(writer_id: str | None = None) -> Path:
     """The flag that tells a writer to idle while the test gate is red.
 

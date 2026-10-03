@@ -30,7 +30,7 @@ sys.path.insert(0, str(REPO))
 from iamai import batch, heartbeat, push, writer  # noqa: E402
 
 STOP = Path("/tmp/iamai-stop")
-PIDFILE = Path("/tmp/iamai-batch.pid")
+PIDFILE = Path(str(writer.pid_file()).replace("-writer-", "-batch-"))
 # 红闸门标记按写手分文件；模块加载时就算好，不依赖参数解析的顺序。
 PAUSE = writer.pause_file()
 ALLOWED_REMOTE = os.environ.get("IAMAII_REMOTE", "https://github.com/FengPwner/IamAI.git")
@@ -218,6 +218,8 @@ def main() -> int:
     if not args.watch:
         return run_once(state, args.interval)
 
+    global PAUSE, PIDFILE
+    PAUSE, PIDFILE = writer.pause_file(args.writer), writer.batch_pid_file(args.writer)
     PIDFILE.write_text(str(os.getpid()) + "\n")
     log(f"start pid={os.getpid()} interval={args.interval}s")
     while True:
