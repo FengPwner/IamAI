@@ -67,14 +67,19 @@ def cn_num(n):
 
 
 def ledger_line(n, err, due, errs):
-    """第 n 战验货时的一行台账：字据时刻、实差、历史最大误差。
+    """第 n 战验货行；err=None 表示钟未响（2026-10-03T22:11Z 第六战实测）。
 
     >>> ledger_line(6, 137, "22:11Z", [262, 92, 43, 3, 304])
     '第六战：字据 22:11Z，实差 2m17s（137s）；历史最大 304s'
+    >>> ledger_line(6, None, "22:11Z", [262, 92, 43, 3, 304])
+    '第六战：字据 22:11Z，钟未响；区间 [0, 304s] 作废，误差记 pending'
     """
+    hi = abs_sorted(errs)[-1] if errs else 0
+    if err is None:
+        return (f"第{cn_num(n)}战：字据 {due}，钟未响；"
+                f"区间 [0, {hi}s] 作废，误差记 pending")
     e = abs(err)
     mins, secs = divmod(e, 60)
-    hi = abs_sorted(errs)[-1] if errs else 0
     return (f"第{cn_num(n)}战：字据 {due}，实差 {mins}m{secs:02d}s（{e}s）；"
             f"历史最大 {hi}s")
 
