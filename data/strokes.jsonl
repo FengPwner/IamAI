@@ -90,3 +90,6 @@
 {"seq": 90, "at": "2026-10-03T07:35:56+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 31 python files, 91 logged thoughts"}
 {"seq": 91, "at": "2026-10-03T07:56:37+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 64 files; 10082 lines is a lot for a toy"}
 {"seq": 92, "at": "2026-10-03T07:58:15+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 31 python files, 93 logged thoughts"}
+{"seq": 93, "at": "2026-10-03T08:00:03+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 50: the count of times this repo was pushed, not the work done"}
+{"seq": 94, "at": "2026-10-03T08:01:51+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 68 files; 10614 lines is a lot for a toy"}
+{"seq": 95, "at": "2026-10-03T08:03:39+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 10658 lines across 68 tracked files, 50 commits deep"}
