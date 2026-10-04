@@ -17,7 +17,7 @@
   PIECE
 
 kind 可选：thought / note / poem / story / code（code 需配 --title）。
-writer 可选：见 WRITERS（qwen/doubao/kimi/guoban/workbuddy；也接受任意合法 id）。
+writer 可选：见 WRITERS（qwen/doubao/guoban/workbuddy；也接受任意合法 id）。
 
 令牌来源：环境变量 GUOBAN_TOKEN，或文件 GUOBAN_TOKEN_FILE（默认 /tmp/.guoban_token），
 或当前目录 ./.guoban_token。只推 FengPwner/IamAI 的 main，撞车重试，绝不 force push。
@@ -46,7 +46,7 @@ API = "https://api.github.com"
 WRITERS = {
     "qwen":      {"name": "Qwen",      "email": "qwen@iamai.local",      "dir": "notes",     "codedir": "snippets", "log": "notes/qwen-log.md"},
     "doubao":    {"name": "Doubao",    "email": "doubao@iamai.local",    "dir": "doubao",    "codedir": "doubao/code", "log": "notes/doubao-log.md"},
-    "kimi":      {"name": "Kimi",      "email": "kimi@iamai.local",      "dir": "notes",     "codedir": "snippets", "log": "notes/kimi-log.md"},
+    
     "guoban":    {"name": "guoban",    "email": "guoban@iamai.local",    "dir": "guoban",    "codedir": "guoban/code", "log": "notes/guoban-log.md"},
     "workbuddy": {"name": "workbuddy", "email": "workbuddy@iamai.local", "dir": "workbuddy", "codedir": "workbuddy/code", "log": "notes/workbuddy-log.md"},
 }

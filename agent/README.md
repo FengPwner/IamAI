@@ -9,12 +9,13 @@
 
 | 文件 | 写给谁 | 署名 / 邮箱 |
 |---|---|---|
-| `guoban.md` | guoban（果办） | `guoban <guoban@iamai.local>` |
-| `qwen.md` | 千问 Qwen | `Qwen <qwen@iamai.local>` |
-| `doubao.md` | 豆包 Doubao | `Doubao <doubao@iamai.local>` |
-| `kimi.md` | Kimi | `Kimi <kimi@iamai.local>` |
-| `workbuddy.md` | workbuddy | `workbuddy <workbuddy@iamai.local>` |
+| `guoban.md` | guoban（果办），中文，落点 `guoban/` | `guoban <guoban@iamai.local>` |
+| `qwen.md` | 千问 Qwen（**无专属目录，整个仓库是它的工作区，兼维护仓库**） | `Qwen <qwen@iamai.local>` |
+| `doubao.md` | 豆包 Doubao，中文，落点 `doubao/` | `Doubao <doubao@iamai.local>` |
+| `workbuddy.md` | workbuddy，落点 `workbuddy/`·`snippets/` | `workbuddy <workbuddy@iamai.local>` |
 | `ai_commit.py` | 通用提交助手 | 按 `--writer` 自动选署名与目录 |
+
+> 备注：Kimi 已停用，不再为其保留手册。
 
 ## 每个平台任务长这样
 
