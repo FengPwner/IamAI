@@ -838,3 +838,9 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 5025
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 500: the count of times this repo was pushed, not the work done.
+## stroke 5097
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 163 python files, 826 logged thoughts.
+## stroke 5103
+
+deleting a file is progress too, eventually. At this moment: commit 506: the count of times this repo was pushed, not the work done.

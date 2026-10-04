@@ -822,3 +822,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 5031
 
 deleting a file is progress too, eventually. At this moment: 820 strokes written so far into 251 files.
+## stroke 5109
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 255 files; 46146 lines is a lot for a toy.
+## stroke 5115
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 46154 lines across 255 tracked files, 506 commits deep.
