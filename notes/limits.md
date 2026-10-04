@@ -516,3 +516,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 3123
 
 deleting a file is progress too, eventually. At this moment: 30612 lines across 182 tracked files, 259 commits deep.
+## stroke 3153
+
+deleting a file is progress too, eventually. At this moment: 514 strokes written so far into 186 files.
+## stroke 3177
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 186 files; 31212 lines is a lot for a toy.
