@@ -186,3 +186,40 @@ def as_text(report: WatchdogReport) -> str:
         lines.append("  -> push needed: commits are local only")
 
     return "\n".join(lines)
+
+
+def diagnose(report: WatchdogReport, stalled: bool = False) -> str:
+    """Classify the current system state into one of four failure modes.
+
+    Cross-references pidfile liveness (watchdog) with stroke cadence
+    (heartbeat) to disambiguate situations that look identical from
+    either signal alone:
+
+    - ``healthy``:       processes alive, strokes flowing.
+    - ``hung-process``:  process shows alive in pidfile but writer has
+                         stalled — the loop is stuck (deadlock, GIL,
+                         blocked I/O) and needs SIGKILL + restart.
+    - ``reclaimed``:     process gone *and* writer stalled — container
+                         reclamation, OOM kill, or host sleep.  Needs
+                         full restart + backlog commit.
+    - ``just-died``:     pidfile vanished but the last stroke is still
+                         fresh — the process died seconds ago and the
+                         heartbeat window hasn't expired yet.  Needs
+                         restart before the gap becomes a stall.
+
+    Args:
+        report:  the :class:`WatchdogReport` from :func:`watchdog`.
+        stalled: whether the heartbeat module reports the writer as
+                 stalled (last stroke older than 2× cadence).
+
+    Returns:
+        A single diagnosis string.
+    """
+    if report.all_alive and not stalled:
+        return "healthy"
+    if report.all_alive and stalled:
+        return "hung-process"
+    if not report.all_alive and stalled:
+        return "reclaimed"
+    # !all_alive and !stalled — process just died, heartbeat still fresh
+    return "just-died"
