@@ -511,3 +511,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 3081
 
 deleting a file is progress too, eventually. At this moment: tree is 182 files; 30534 lines is a lot for a toy.
+## stroke 3111
+
+deleting a file is progress too, eventually. At this moment: commit 259: the count of times this repo was pushed, not the work done.
