@@ -735,3 +735,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 4473
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 152 python files, 731 logged thoughts.
+## stroke 4497
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 451: the count of times this repo was pushed, not the work done.
+## stroke 4521
+
+deleting a file is progress too, eventually. At this moment: tree is 238 files; 41925 lines is a lot for a toy.
