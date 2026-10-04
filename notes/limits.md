@@ -612,3 +612,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 3723
 
 most architecture is choosing which coupling you will live with. At this moment: 606 strokes written so far into 208 files.
+## stroke 3747
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 35364 lines across 209 tracked files, 343 commits deep.
