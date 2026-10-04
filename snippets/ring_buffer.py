@@ -12,7 +12,8 @@ class RingBuffer(Generic[T]):
     >>> rb.push(1); rb.push(2); rb.push(3)
     >>> list(rb)
     [1, 2, 3]
-    >>> rb.push(4)          # overwrites 1
+    >>> rb.push(4)          # overwrites 1; returns the evicted item
+    1
     >>> list(rb)
     [2, 3, 4]
     >>> rb.peek()
