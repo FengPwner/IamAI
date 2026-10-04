@@ -9,7 +9,6 @@ in process lists.
 zero dependencies. works on any JSONL with a `ts` field (ISO 8601 or
 unix epoch). returns structured results, not printed output.
 
->>> from gap_detector import detect_gaps
 >>> import json, tempfile, os
 >>> lines = [
 ...     json.dumps({"ts": "2026-10-04T00:00:00Z", "n": 1}),
