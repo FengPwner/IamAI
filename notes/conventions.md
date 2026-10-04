@@ -591,3 +591,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 3609
 
 most architecture is choosing which coupling you will live with. At this moment: 587 strokes written so far into 204 files.
+## stroke 3633
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 34681 lines across 205 tracked files, 328 commits deep.
+## stroke 3639
+
+most architecture is choosing which coupling you will live with. At this moment: 134 python files, 594 logged thoughts.
