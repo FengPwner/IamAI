@@ -1,189 +1,260 @@
-"""Tests for snippets/push_guard.py — the safe push wrapper.
+"""Tests for iamai.push_guard: pre-push divergence detection.
 
-These tests use a temporary git repo to exercise the real git commands
-rather than mocking subprocess. a repo takes ~50ms to create; the
-clarity is worth it.
+The push_guard module answers one question: will a plain ``git push`` succeed
+right now, or does the remote have commits we haven't seen? These tests pin
+down the answer for every topology the caretaker might encounter.
+
+After the overnight push-race on 2026-10-05, the caretaker harness needed to
+know *before* pushing whether a rebase was required. These tests ensure that
+knowledge stays correct as the module evolves.
 """
 
-import os
+from __future__ import annotations
+
 import subprocess
-import tempfile
-import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-# ensure the snippets directory is importable
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "snippets"))
+import pytest
 
-from push_guard import (
-    PushResult,
-    guarded_push,
-    is_clean,
-    pop_stash,
-    pull_rebase,
-    stash_if_dirty,
-    try_push,
+from iamai.push_guard import (
+    divergence_info,
+    local_head,
+    merge_base,
+    needs_rebase,
+    remote_tip,
 )
 
 
-def _run(cmd, cwd):
-    """Helper: run a git command in a directory."""
-    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=True)
+# --- helpers ---------------------------------------------------------------
 
 
-def _make_repo():
-    """Create a bare-bones git repo with one commit, return its path."""
-    d = tempfile.mkdtemp(prefix="push_guard_test_")
-    _run(["git", "init"], d)
-    _run(["git", "config", "user.email", "test@test"], d)
-    _run(["git", "config", "user.name", "test"], d)
-    Path(d, "README.md").write_text("# test\n")
-    _run(["git", "add", "."], d)
-    _run(["git", "commit", "-m", "init"], d)
-    return d
-
-
-def _branch(d):
-    """Return the current branch name of a repo."""
-    r = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        cwd=d, capture_output=True, text=True, check=True,
+def _run(cwd: Path, *args: str) -> str:
+    proc = subprocess.run(
+        ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=30,
     )
-    return r.stdout.strip()
+    assert proc.returncode == 0, f"git {' '.join(args)} failed: {proc.stderr}"
+    return proc.stdout.strip()
 
 
-def _make_bare_clone(src):
-    """Clone src as a bare repo to act as 'origin', return its path."""
-    d = tempfile.mkdtemp(prefix="push_guard_origin_")
-    _run(["git", "clone", "--bare", src, d], src)
-    # point src's origin at the bare clone (set-url if origin exists, else add)
-    r = subprocess.run(["git", "remote", "get-url", "origin"], cwd=src, capture_output=True)
-    if r.returncode == 0:
-        _run(["git", "remote", "set-url", "origin", d], src)
-    else:
-        _run(["git", "remote", "add", "origin", d], src)
-    # detect default branch name
-    r = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=src, capture_output=True, text=True, check=True)
-    branch = r.stdout.strip()
-    _run(["git", "push", "-u", "origin", branch], src)
-    return d
+@pytest.fixture
+def bare_remote(tmp_path: Path) -> Path:
+    """Create a bare repo to act as the remote."""
+    remote = tmp_path / "remote.git"
+    remote.mkdir()
+    subprocess.run(
+        ["git", "init", "--bare", str(remote)],
+        capture_output=True, text=True, timeout=30,
+    )
+    return remote
 
 
-class TestIsClean(unittest.TestCase):
-    def test_clean_repo(self):
-        d = _make_repo()
-        self.assertTrue(is_clean(d))
-
-    def test_dirty_repo(self):
-        d = _make_repo()
-        Path(d, "new.txt").write_text("dirty")
-        self.assertFalse(is_clean(d))
-
-
-class TestStashIfDirty(unittest.TestCase):
-    def test_no_stash_when_clean(self):
-        d = _make_repo()
-        self.assertFalse(stash_if_dirty(d))
-
-    def test_stash_when_dirty(self):
-        d = _make_repo()
-        Path(d, "new.txt").write_text("dirty")
-        _run(["git", "add", "new.txt"], d)
-        self.assertTrue(stash_if_dirty(d))
-        # after stash, tree should be clean
-        self.assertTrue(is_clean(d))
+@pytest.fixture
+def local_repo(tmp_path: Path, bare_remote: Path) -> Path:
+    """Clone the bare remote, make an initial commit, push it."""
+    repo = tmp_path / "local"
+    _run(tmp_path, "clone", str(bare_remote), str(repo))
+    _run(repo, "config", "user.name", "test")
+    _run(repo, "config", "user.email", "test@test.local")
+    # Ensure the branch is named 'main' regardless of system default
+    _run(repo, "checkout", "-b", "main")
+    readme = repo / "README.md"
+    readme.write_text("# test\n")
+    _run(repo, "add", ".")
+    _run(repo, "commit", "-m", "initial")
+    _run(repo, "push", "-u", "origin", "main")
+    return repo
 
 
-class TestPullRebase(unittest.TestCase):
-    def test_pull_succeeds_with_no_remote_changes(self):
-        d = _make_repo()
-        origin = _make_bare_clone(d)
-        br = _branch(d)
-        self.assertTrue(pull_rebase(d, br))
-
-    def test_pull_with_remote_ahead(self):
-        d = _make_repo()
-        origin = _make_bare_clone(d)
-        br = _branch(d)
-        # add a commit directly on the bare clone via a second clone
-        clone2 = tempfile.mkdtemp(prefix="push_guard_clone2_")
-        _run(["git", "clone", origin, clone2], origin)
-        _run(["git", "config", "user.email", "test@test"], clone2)
-        _run(["git", "config", "user.name", "test"], clone2)
-        Path(clone2, "remote_file.txt").write_text("from remote")
-        _run(["git", "add", "."], clone2)
-        _run(["git", "commit", "-m", "remote change"], clone2)
-        _run(["git", "push", "origin", br], clone2)
-        # now d is behind; pull --rebase should succeed
-        self.assertTrue(pull_rebase(d, br))
-        # and the remote file should now exist locally
-        self.assertTrue(Path(d, "remote_file.txt").exists())
+# --- local_head / remote_tip -----------------------------------------------
 
 
-class TestGuardedPush(unittest.TestCase):
-    def test_happy_path(self):
-        d = _make_repo()
-        origin = _make_bare_clone(d)
-        br = _branch(d)
-        # add a local commit
-        Path(d, "local.txt").write_text("local change")
-        _run(["git", "add", "."], d)
-        _run(["git", "commit", "-m", "local"], d)
-        result = guarded_push(d, br)
-        self.assertTrue(result.success)
-        self.assertEqual(result.retries, 0)
-
-    def test_push_race_recovery(self):
-        """Simulate the classic push-race: remote advances while local is working."""
-        d = _make_repo()
-        origin = _make_bare_clone(d)
-        br = _branch(d)
-        # local commit
-        Path(d, "local.txt").write_text("local")
-        _run(["git", "add", "."], d)
-        _run(["git", "commit", "-m", "local"], d)
-        # remote commit (via clone2)
-        clone2 = tempfile.mkdtemp(prefix="push_guard_race_")
-        _run(["git", "clone", origin, clone2], origin)
-        _run(["git", "config", "user.email", "test@test"], clone2)
-        _run(["git", "config", "user.name", "test"], clone2)
-        Path(clone2, "remote.txt").write_text("remote")
-        _run(["git", "add", "."], clone2)
-        _run(["git", "commit", "-m", "remote"], clone2)
-        _run(["git", "push", "origin", br], clone2)
-        # guarded_push should handle the race: pull-rebase then push
-        result = guarded_push(d, br)
-        self.assertTrue(result.success)
-        self.assertTrue(result.rebased)
-
-    def test_dirty_tree_stashed_and_restored(self):
-        """Working tree with uncommitted changes should be stashed then popped."""
-        d = _make_repo()
-        origin = _make_bare_clone(d)
-        br = _branch(d)
-        # create uncommitted change
-        Path(d, "wip.txt").write_text("work in progress")
-        _run(["git", "add", "wip.txt"], d)
-        result = guarded_push(d, br)
-        self.assertTrue(result.success)
-        # wip.txt should still be in the working tree after stash pop
-        self.assertTrue(Path(d, "wip.txt").exists())
-        self.assertEqual(Path(d, "wip.txt").read_text(), "work in progress")
+def test_local_head_returns_sha(local_repo: Path):
+    head = local_head(local_repo)
+    assert head is not None
+    assert len(head) == 40
 
 
-class TestPushResult(unittest.TestCase):
-    def test_result_fields(self):
-        r = PushResult(success=True, rebased=True, retries=0, message="ok")
-        self.assertTrue(r.success)
-        self.assertTrue(r.rebased)
-        self.assertEqual(r.retries, 0)
-        self.assertEqual(r.message, "ok")
-
-    def test_result_is_frozen(self):
-        r = PushResult(success=False, rebased=False, retries=1, message="fail")
-        with self.assertRaises(AttributeError):
-            r.message = "changed"
+def test_local_head_none_in_empty_repo(tmp_path: Path):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    subprocess.run(
+        ["git", "init", str(empty)], capture_output=True, text=True, timeout=30,
+    )
+    assert local_head(empty) is None
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_remote_tip_returns_sha(local_repo: Path):
+    tip = remote_tip(local_repo)
+    assert tip is not None
+    assert len(tip) == 40
+
+
+def test_remote_tip_none_when_no_tracking(tmp_path: Path):
+    """A freshly init'd repo has no origin/main tracking ref."""
+    repo = tmp_path / "isolated"
+    repo.mkdir()
+    subprocess.run(
+        ["git", "init", str(repo)], capture_output=True, text=True, timeout=30,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "test"], cwd=repo, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "t@t"], cwd=repo, capture_output=True,
+    )
+    (repo / "f").write_text("x")
+    subprocess.run(["git", "add", "."], cwd=repo, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "c"], cwd=repo, capture_output=True,
+    )
+    assert remote_tip(repo) is None
+
+
+# --- needs_rebase: the core question ---------------------------------------
+
+
+def test_no_rebase_when_in_sync(local_repo: Path):
+    """Local and remote are at the same commit → push is safe."""
+    assert needs_rebase(local_repo) is False
+
+
+def test_no_rebase_when_local_ahead(local_repo: Path):
+    """Local has commits remote doesn't have → push should succeed."""
+    (local_repo / "a.txt").write_text("a")
+    _run(local_repo, "add", ".")
+    _run(local_repo, "commit", "-m", "local-only commit")
+    assert needs_rebase(local_repo) is False
+
+
+def test_rebase_needed_when_remote_ahead(local_repo: Path, bare_remote: Path):
+    """Remote has commits local doesn't have → push will be rejected."""
+    # Simulate another writer pushing to the bare remote
+    other = local_repo.parent / "other-writer"
+    _run(local_repo.parent, "clone", str(bare_remote), str(other))
+    _run(other, "config", "user.name", "other")
+    _run(other, "config", "user.email", "other@test.local")
+    _run(other, "fetch", "origin")
+    _run(other, "checkout", "-B", "main", "origin/main")
+    (other / "other.txt").write_text("from another writer")
+    _run(other, "add", ".")
+    _run(other, "commit", "-m", "other writer's commit")
+    _run(other, "push", "origin", "main")
+
+    # Fetch in our local repo to update the tracking ref
+    _run(local_repo, "fetch", "origin")
+
+    # Now local's cached remote tip has moved ahead
+    assert needs_rebase(local_repo) is True
+
+
+def test_no_rebase_first_push(tmp_path: Path):
+    """No tracking ref exists → first push, nothing to rebase onto."""
+    repo = tmp_path / "fresh"
+    repo.mkdir()
+    subprocess.run(
+        ["git", "init", str(repo)], capture_output=True, text=True, timeout=30,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "test"], cwd=repo, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "t@t"], cwd=repo, capture_output=True,
+    )
+    (repo / "f").write_text("x")
+    subprocess.run(["git", "add", "."], cwd=repo, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "c"], cwd=repo, capture_output=True,
+    )
+    assert needs_rebase(repo) is False
+
+
+def test_no_rebase_empty_repo(tmp_path: Path):
+    """No commits at all → nothing to push, nothing to rebase."""
+    empty = tmp_path / "void"
+    empty.mkdir()
+    subprocess.run(
+        ["git", "init", str(empty)], capture_output=True, text=True, timeout=30,
+    )
+    assert needs_rebase(empty) is False
+
+
+# --- divergence_info -------------------------------------------------------
+
+
+def test_divergence_info_in_sync(local_repo: Path):
+    info = divergence_info(local_repo)
+    assert info["local"] is not None
+    assert info["remote"] is not None
+    assert info["local"] == info["remote"]
+    assert info["local_ahead"] == 0
+    assert info["remote_ahead"] == 0
+    assert info["needs_rebase"] is False
+
+
+def test_divergence_info_local_ahead(local_repo: Path):
+    (local_repo / "b.txt").write_text("b")
+    _run(local_repo, "add", ".")
+    _run(local_repo, "commit", "-m", "another local commit")
+    info = divergence_info(local_repo)
+    assert info["local_ahead"] == 1
+    assert info["remote_ahead"] == 0
+    assert info["needs_rebase"] is False
+
+
+def test_divergence_info_remote_ahead(local_repo: Path, bare_remote: Path):
+    other = local_repo.parent / "divergent-writer"
+    _run(local_repo.parent, "clone", str(bare_remote), str(other))
+    _run(other, "config", "user.name", "other")
+    _run(other, "config", "user.email", "other@test.local")
+    _run(other, "fetch", "origin")
+    _run(other, "checkout", "-B", "main", "origin/main")
+    (other / "c.txt").write_text("c")
+    _run(other, "add", ".")
+    _run(other, "commit", "-m", "remote-only commit")
+    _run(other, "push", "origin", "main")
+    _run(local_repo, "fetch", "origin")
+
+    info = divergence_info(local_repo)
+    assert info["remote_ahead"] == 1
+    assert info["local_ahead"] == 0
+    assert info["needs_rebase"] is True
+
+
+def test_divergence_info_both_diverged(local_repo: Path, bare_remote: Path):
+    """Both sides have unique commits → needs rebase, both counts > 0."""
+    # Local makes a commit
+    (local_repo / "local.txt").write_text("local")
+    _run(local_repo, "add", ".")
+    _run(local_repo, "commit", "-m", "local divergence")
+
+    # Remote gets a commit from another writer
+    other = local_repo.parent / "div-writer"
+    _run(local_repo.parent, "clone", str(bare_remote), str(other))
+    _run(other, "config", "user.name", "other")
+    _run(other, "config", "user.email", "other@test.local")
+    _run(other, "fetch", "origin")
+    _run(other, "checkout", "-B", "main", "origin/main")
+    (other / "remote.txt").write_text("remote")
+    _run(other, "add", ".")
+    _run(other, "commit", "-m", "remote divergence")
+    _run(other, "push", "origin", "main")
+
+    _run(local_repo, "fetch", "origin")
+
+    info = divergence_info(local_repo)
+    assert info["local_ahead"] >= 1
+    assert info["remote_ahead"] >= 1
+    assert info["needs_rebase"] is True
+
+
+# --- accepts string paths --------------------------------------------------
+
+
+def test_accepts_string_path(local_repo: Path):
+    assert needs_rebase(str(local_repo)) is False
+
+
+def test_divergence_info_accepts_string(local_repo: Path):
+    info = divergence_info(str(local_repo))
+    assert info["local"] is not None
