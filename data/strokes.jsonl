@@ -441,3 +441,10 @@
 {"seq": 441, "at": "2026-10-04T02:06:46+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 179 files; 29213 lines is a lot for a toy"}
 {"seq": 442, "at": "2026-10-04T02:08:41+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 29221 lines across 179 tracked files, 226 commits deep"}
 {"seq": 443, "at": "2026-10-04T02:10:32+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 226: the count of times this repo was pushed, not the work done"}
+{"seq": 444, "at": "2026-10-04T02:12:19+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 443 strokes written so far into 179 files"}
+{"seq": 445, "at": "2026-10-04T02:14:06+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 29376 lines across 179 tracked files, 228 commits deep"}
+{"seq": 446, "at": "2026-10-04T02:15:55+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 116 python files, 447 logged thoughts"}
+{"seq": 447, "at": "2026-10-04T02:17:46+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 446 strokes written so far into 179 files"}
+{"seq": 448, "at": "2026-10-04T02:19:51+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 29411 lines across 179 tracked files, 228 commits deep"}
+{"seq": 449, "at": "2026-10-04T02:21:36+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 116 python files, 450 logged thoughts"}
+{"seq": 450, "at": "2026-10-04T02:23:22+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 449 strokes written so far into 179 files"}
