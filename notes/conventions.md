@@ -678,3 +678,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 4101
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 668 strokes written so far into 229 files.
+## stroke 4125
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 229 files; 38934 lines is a lot for a toy.
