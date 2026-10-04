@@ -666,3 +666,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 4059
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 406: the count of times this repo was pushed, not the work done.
+## stroke 4083
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 665 strokes written so far into 229 files.
