@@ -792,3 +792,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 4833
 
 deleting a file is progress too, eventually. At this moment: 159 python files, 790 logged thoughts.
+## stroke 4863
+
+deleting a file is progress too, eventually. At this moment: tree is 247 files; 44512 lines is a lot for a toy.
