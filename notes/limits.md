@@ -765,3 +765,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 4677
 
 deleting a file is progress too, eventually. At this moment: 43357 lines across 243 tracked files, 467 commits deep.
+## stroke 4707
+
+deleting a file is progress too, eventually. At this moment: 767 strokes written so far into 243 files.
