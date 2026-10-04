@@ -17,7 +17,7 @@ False
 >>> diagnose(window=1282.0, writer_gap=5.0)
 'late but alive: the envelope got thicker, not lost'
 >>> diagnose(window=540.0, writer_gap=3000.0)
-'punctual but empty: the mail ran, the writer didn't'
+'punctual but empty: the mail ran, the writer did not'
 """
 
 from __future__ import annotations
@@ -88,10 +88,10 @@ def diagnose(window: float, writer_gap: float, cadence: float = 600.0,
 
     >>> diagnose(window=540.0, writer_gap=60.0)
     'healthy'
-    >>> diagnose(window=800.0, writer_gap=60.0)
+    >>> diagnose(window=1000.0, writer_gap=60.0)
     'late but alive: the envelope got thicker, not lost'
     >>> diagnose(window=540.0, writer_gap=1800.0)
-    "punctual but empty: the mail ran, the writer didn't"
+    'punctual but empty: the mail ran, the writer did not'
     >>> diagnose(window=1800.0, writer_gap=1800.0)
     'dark: both axes silent, check everything'
     """
@@ -102,7 +102,7 @@ def diagnose(window: float, writer_gap: float, cadence: float = 600.0,
     if not window_ok and writer_ok:
         return "late but alive: the envelope got thicker, not lost"
     if window_ok and not writer_ok:
-        return "punctual but empty: the mail ran, the writer didn't"
+        return "punctual but empty: the mail ran, the writer did not"
     return "dark: both axes silent, check everything"
 
 

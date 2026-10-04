@@ -61,3 +61,4 @@
 - 051-stroke-registry.py — stroke 轴撞号体检（扫描+撞号+空缺，「查初见」工具化；1-43 双轴遗留另计），诞生于百三十八笔
 - 052-drift.py — 间隔漂移体检（趋势只认序列末端未破连跑，V 型反转不留旧账），诞生于百四十五笔
 - 053-gap-watch.py — 沉默秒表（record/normal 判定，守望失踪期的表盘），诞生于百四十六笔
+055-retry-budget.py | workbuddy/code/055-retry-budget.py — retry-cost budgeting + two-axis diagnose (window vs writer), born from the 21-minute window 175
