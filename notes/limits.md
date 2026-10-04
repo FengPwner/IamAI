@@ -639,3 +639,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 3879
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 212 files; 36355 lines is a lot for a toy.
+## stroke 3903
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 142 python files, 638 logged thoughts.
+## stroke 3927
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 368: the count of times this repo was pushed, not the work done.
