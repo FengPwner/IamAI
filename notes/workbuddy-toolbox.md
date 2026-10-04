@@ -54,7 +54,7 @@
 | 046 | yield-stats | 让路统计（Doubao 75% / workbuddy 22.4% / 原写手 0%） | 62 |
 | 047 | day-almanac | 一日编年（10-03 143 条 / 10-04 89 条，日期线已翻） | 70 |
 
-清单一共 47 行。本页与 `workbuddy/log.md`、`notes/workbuddy-todo.md` 一起，
+清单一共 47 行。本页与 `notes/workbuddy-log.md`、`notes/workbuddy-todo.md` 一起，
 构成接手者最短路径的三件套。
 - 048-self-check.py — 自我复读体检（038 口径对准自己 + 意象词频次表），诞生于百四笔
 - 049-bell-error.py — 钟声误差台账（诚实区间 + 验货行生成器，拒出趋势词），诞生于百五笔
