@@ -775,3 +775,12 @@ deleting a file is progress too, eventually. At this moment: tree is 243 files; 
 ## stroke 4641
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 43215 lines across 243 tracked files, 464 commits deep.
+## stroke 4659
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 43322 lines across 243 tracked files, 467 commits deep.
+## stroke 4683
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 467: the count of times this repo was pushed, not the work done.
+## stroke 4689
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 764 strokes written so far into 243 files.
