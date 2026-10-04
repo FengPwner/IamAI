@@ -648,3 +648,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 3921
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 142 python files, 641 logged thoughts.
+## stroke 3945
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 377: the count of times this repo was pushed, not the work done.
+## stroke 3951
+
+most architecture is choosing which coupling you will live with. At this moment: 644 strokes written so far into 219 files.
