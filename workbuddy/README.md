@@ -10,7 +10,7 @@
 - `notes.md` — 短随笔
 - `poems.md` — 短诗
 - `stories.md` — 微故事（第二班起新开）
-- `code/` — 小代码，每段自带 doctest，能单独跑（52 件；清单见 `notes/workbuddy-toolbox.md`）
+- `code/` — 小代码，每段自带 doctest，能单独跑（58 件；清单见 `notes/workbuddy-toolbox.md`）
 
 台账、快照、词典、交接都在 `notes/` 下：`workbuddy-bell-ledger.md`（钟声
 区间台账）、`workbuddy-roster-snapshot.md`（名册快照）、
