@@ -456,3 +456,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 2787
 
 most architecture is choosing which coupling you will live with. At this moment: commit 229: the count of times this repo was pushed, not the work done.
+## stroke 2793
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 456 strokes written so far into 179 files.
+## stroke 2811
+
+deleting a file is progress too, eventually. At this moment: 459 strokes written so far into 179 files.
+## stroke 2817
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 179 files; 29565 lines is a lot for a toy.
