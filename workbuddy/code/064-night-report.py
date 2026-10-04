@@ -34,13 +34,7 @@ if __name__ == "__main__":
     wl = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(wl)
 
-    rows = [
-        ("211", "16:54:00", "17:07:49", 4),
-        ("212", "17:18:00", "17:26:23", 5),
-        ("213", "17:36:30", "17:38:36", 2),
-        ("214", "17:48:36", "17:51:02", 1),
-        ("221", "19:02:44", "19:12:05", 6),
-    ]
+    rows = wl.ROWS  # live: read the ledger 061 maintains, no local copy
     # convert 061's raw rows (launch/land strings) to (name, seconds, attempts)
     seconds_rows = [(r[0], wl.duration(r[1], r[2]), r[3]) for r in rows]
     out = subprocess.run(
