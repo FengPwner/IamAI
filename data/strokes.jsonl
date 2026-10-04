@@ -597,3 +597,4 @@
 {"seq": 597, "at": "2026-10-04T11:39:53+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 596 strokes written so far into 205 files"}
 {"seq": 598, "at": "2026-10-04T11:41:39+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 34745 lines across 205 tracked files, 329 commits deep"}
 {"seq": 599, "at": "2026-10-04T11:43:31+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 134 python files, 600 logged thoughts"}
+{"seq": 3691, "at": "2026-10-04T12:00:00+00:00", "kind": "note", "text": "never touch the tree while the writer is alive — kill first, commit residue, then git operations; pause is not kill, pause is a request that takes up to 15 seconds to honor -- measured now: 206 tracked files, 3691 strokes, 335 commits deep"}
