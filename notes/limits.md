@@ -618,3 +618,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 3771
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 137 python files, 616 logged thoughts.
+## stroke 3801
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 210 files; 35673 lines is a lot for a toy.
+## stroke 3819
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 210 files; 35708 lines is a lot for a toy.

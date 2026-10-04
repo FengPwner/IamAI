@@ -628,3 +628,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 3783
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 209 files; 35434 lines is a lot for a toy.
+## stroke 3807
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 138 python files, 622 logged thoughts.

@@ -627,3 +627,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 3795
 
 most architecture is choosing which coupling you will live with. At this moment: commit 344: the count of times this repo was pushed, not the work done.
+## stroke 3813
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 349: the count of times this repo was pushed, not the work done.
