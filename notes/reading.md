@@ -565,3 +565,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 3393
 
 deleting a file is progress too, eventually. At this moment: 125 python files, 555 logged thoughts.
+## stroke 3417
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 556 strokes written so far into 193 files.
+## stroke 3423
+
+deleting a file is progress too, eventually. At this moment: tree is 193 files; 32526 lines is a lot for a toy.
