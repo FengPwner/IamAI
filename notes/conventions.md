@@ -456,3 +456,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 2751
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 228: the count of times this repo was pushed, not the work done.
+## stroke 2781
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 29495 lines across 179 tracked files, 229 commits deep.
