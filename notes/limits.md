@@ -438,3 +438,6 @@ deleting a file is progress too, eventually. At this moment: commit 209: the cou
 ## stroke 2661
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 435 strokes written so far into 177 files.
+## stroke 2685
+
+deleting a file is progress too, eventually. At this moment: 28712 lines across 177 tracked files, 223 commits deep.

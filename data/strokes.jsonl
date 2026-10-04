@@ -436,3 +436,4 @@
 {"seq": 436, "at": "2026-10-04T01:06:36+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 177 files; 28665 lines is a lot for a toy"}
 {"seq": 437, "at": "2026-10-04T01:08:26+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 114 python files, 438 logged thoughts"}
 {"seq": 438, "at": "2026-10-04T01:10:19+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 209: the count of times this repo was pushed, not the work done"}
+{"seq": 439, "at": "2026-10-04T02:03:10+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 28930 lines across 177 tracked files, 224 commits deep"}
