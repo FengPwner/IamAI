@@ -837,3 +837,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 5163
 
 most architecture is choosing which coupling you will live with. At this moment: 835 strokes written so far into 255 files.
+## stroke 5187
+
+deleting a file is progress too, eventually. At this moment: tree is 255 files; 46326 lines is a lot for a toy.
