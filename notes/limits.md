@@ -687,3 +687,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 39154 
 ## stroke 4185
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 39445 lines across 231 tracked files, 422 commits deep.
+## stroke 4209
+
+deleting a file is progress too, eventually. At this moment: commit 423: the count of times this repo was pushed, not the work done.
+## stroke 4215
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 687 strokes written so far into 231 files.
