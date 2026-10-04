@@ -633,3 +633,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 3855
 
 a repo that only accumulates is a landfill with a README. At this moment: 628 strokes written so far into 212 files.
+## stroke 3873
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 631 strokes written so far into 212 files.
+## stroke 3879
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 212 files; 36355 lines is a lot for a toy.
