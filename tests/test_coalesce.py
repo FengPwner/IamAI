@@ -1,155 +1,73 @@
-"""Tests for snippets/coalesce.py — time-window batch coalescer."""
-
-from __future__ import annotations
+"""Tests for coalesce snippet."""
 
 import sys
 from pathlib import Path
 
-import pytest
+sys.path.insert(0, str(Path(__file__).parent.parent / "snippets"))
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "snippets"))
-
-from coalesce import Coalescer  # noqa: E402
+from coalesce import coalesce, coalesce_with_gaps
 
 
-# ---------------------------------------------------------------------------
-# window lifecycle
-# ---------------------------------------------------------------------------
+def test_coalesce_basic():
+    """Basic windowing."""
+    # 1.0→bucket 0.0, 1.5→bucket 0.0, 2.0→bucket 2.0, 5.0→bucket 4.0
+    result = coalesce([1.0, 1.5, 2.0, 5.0], 2.0)
+    assert result == [(0.0, 2), (2.0, 1), (4.0, 1)]
 
 
-def test_first_add_opens_window():
-    c = Coalescer(lambda _: None, window=5.0, clock=lambda: 0.0)
-    assert c.add("x") is True
-    assert c.window_open is True
-    assert c.pending == 1
+def test_coalesce_empty():
+    """Empty input."""
+    assert coalesce([], 2.0) == []
 
 
-def test_subsequent_adds_do_not_reopen():
-    c = Coalescer(lambda _: None, window=5.0, clock=lambda: 0.0)
-    c.add("a")
-    assert c.add("b") is False
-    assert c.add("c") is False
-    assert c.pending == 3
+def test_coalesce_invalid_window():
+    """Invalid window size."""
+    assert coalesce([1.0, 2.0], 0) == []
+    assert coalesce([1.0, 2.0], -1.0) == []
 
 
-def test_tick_returns_none_before_window_expires():
-    results = []
-    c = Coalescer(results.append, window=10.0, clock=lambda: 0.0)
-    c.add("a")
-    assert c.tick(clock=lambda: 5.0) is None
-    assert results == []
+def test_coalesce_single_window():
+    """All events in one window."""
+    result = coalesce([0.1, 0.5, 0.9], 1.0)
+    assert result == [(0.0, 3)]
 
 
-def test_tick_delivers_after_window_expires():
-    results = []
-    c = Coalescer(results.append, window=2.0, clock=lambda: 0.0)
-    c.add("a")
-    c.add("b")
-    delivered = c.tick(clock=lambda: 2.0)
-    assert delivered == ["a", "b"]
-    assert results == [["a", "b"]]
-    assert c.pending == 0
-    assert c.window_open is False
+def test_coalesce_exact_boundaries():
+    """Events exactly on window boundaries."""
+    result = coalesce([0.0, 1.0, 2.0, 3.0], 1.0)
+    assert result == [(0.0, 1), (1.0, 1), (2.0, 1), (3.0, 1)]
 
 
-def test_tick_returns_none_when_empty():
-    c = Coalescer(lambda _: None, window=1.0, clock=lambda: 0.0)
-    assert c.tick() is None
+def test_coalesce_sparse():
+    """Events spread across many windows."""
+    result = coalesce([0.0, 10.0, 20.0], 5.0)
+    assert result == [(0.0, 1), (10.0, 1), (20.0, 1)]
 
 
-# ---------------------------------------------------------------------------
-# flush
-# ---------------------------------------------------------------------------
+def test_coalesce_with_gaps_basic():
+    """Split into groups when gap exceeds threshold."""
+    events = [0.0, 1.0, 2.0, 100.0, 101.0, 102.0]
+    groups = coalesce_with_gaps(events, 1.0, 10.0)
+    assert len(groups) == 2
+    assert groups[0] == [(0.0, 1), (1.0, 1), (2.0, 1)]
+    assert groups[1] == [(100.0, 1), (101.0, 1), (102.0, 1)]
 
 
-def test_flush_delivers_immediately():
-    results = []
-    c = Coalescer(results.append, window=999.0, clock=lambda: 0.0)
-    c.add("a")
-    c.add("b")
-    delivered = c.flush()
-    assert delivered == ["a", "b"]
-    assert results == [["a", "b"]]
-    assert c.pending == 0
+def test_coalesce_with_gaps_no_split():
+    """No split when gaps are small."""
+    events = [0.0, 1.0, 2.0, 3.0]
+    groups = coalesce_with_gaps(events, 1.0, 10.0)
+    assert len(groups) == 1
+    assert groups[0] == [(0.0, 1), (1.0, 1), (2.0, 1), (3.0, 1)]
 
 
-def test_flush_returns_none_when_empty():
-    c = Coalescer(lambda _: None, window=1.0)
-    assert c.flush() is None
+def test_coalesce_with_gaps_empty():
+    """Empty input."""
+    assert coalesce_with_gaps([], 1.0, 10.0) == []
 
 
-# ---------------------------------------------------------------------------
-# multiple windows
-# ---------------------------------------------------------------------------
-
-
-def test_new_window_opens_after_delivery():
-    time_box = [0.0]
-    results = []
-    c = Coalescer(results.append, window=1.0, clock=lambda: time_box[0])
-
-    # first window
-    c.add("a")
-    time_box[0] = 1.0
-    c.tick()
-    assert results == [["a"]]
-
-    # second window
-    assert c.add("b") is True  # new window
-    assert c.pending == 1
-    time_box[0] = 2.0
-    c.tick()
-    assert results == [["a"], ["b"]]
-
-
-# ---------------------------------------------------------------------------
-# edge cases
-# ---------------------------------------------------------------------------
-
-
-def test_zero_window_delivers_immediately():
-    results = []
-    c = Coalescer(results.append, window=0.0, clock=lambda: 0.0)
-    c.add("a")
-    c.tick(clock=lambda: 0.0)
-    assert results == [["a"]]
-
-
-def test_negative_window_rejected():
-    with pytest.raises(ValueError):
-        Coalescer(lambda _: None, window=-1)
-
-
-def test_preserves_insertion_order():
-    results = []
-    c = Coalescer(results.append, window=1.0, clock=lambda: 0.0)
-    for item in range(20):
-        c.add(item)
-    c.tick(clock=lambda: 1.0)
-    assert results == [list(range(20))]
-
-
-def test_callback_receives_copy_not_reference():
-    """Mutating the delivered list must not affect internal state."""
-    delivered_batches = []
-
-    def cb(batch):
-        batch.append("MUTATED")
-        delivered_batches.append(batch)
-
-    c = Coalescer(cb, window=1.0, clock=lambda: 0.0)
-    c.add("a")
-    result = c.tick(clock=lambda: 1.0)
-    assert result == ["a"]  # returned list is clean
-    assert delivered_batches[0] == ["a", "MUTATED"]  # callback got its own copy
-
-
-def test_pending_property():
-    c = Coalescer(lambda _: None, window=5.0, clock=lambda: 0.0)
-    assert c.pending == 0
-    c.add("x")
-    assert c.pending == 1
-    c.add("y")
-    assert c.pending == 2
-    c.flush()
-    assert c.pending == 0
+def test_coalesce_with_gaps_single_group():
+    """Single event."""
+    groups = coalesce_with_gaps([5.0], 2.0, 10.0)
+    assert len(groups) == 1
+    assert groups[0] == [(4.0, 1)]
