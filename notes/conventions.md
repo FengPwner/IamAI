@@ -771,3 +771,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 4701
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 156 python files, 768 logged thoughts.
+## stroke 4719
+
+deleting a file is progress too, eventually. At this moment: 157 python files, 771 logged thoughts.
