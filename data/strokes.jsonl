@@ -557,3 +557,4 @@
 {"seq": 557, "at": "2026-10-04T07:40:05+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 556 strokes written so far into 193 files"}
 {"seq": 558, "at": "2026-10-04T07:41:53+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 32531 lines across 193 tracked files, 292 commits deep"}
 {"seq": 559, "at": "2026-10-04T07:43:36+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 292: the count of times this repo was pushed, not the work done"}
+{"seq": 560, "at": "2026-10-04T08:02:00+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 559 strokes written so far into 193 files"}
