@@ -523,7 +523,7 @@ fetch 只是
 pull 过的
 才算数。
 
-## stroke 122
+## stroke 139
 
 它平时
 一声不吭，
