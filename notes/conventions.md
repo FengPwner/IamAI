@@ -465,3 +465,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 2829
 
 most architecture is choosing which coupling you will live with. At this moment: 461 strokes written so far into 179 files.
+## stroke 2835
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 180 files; 29700 lines is a lot for a toy.
+## stroke 2859
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 29743 lines across 180 tracked files, 237 commits deep.
