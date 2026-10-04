@@ -750,3 +750,6 @@ deleting a file is progress too, eventually. At this moment: commit 453: the cou
 ## stroke 4575
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 746 strokes written so far into 238 files.
+## stroke 4599
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 242 files; 42967 lines is a lot for a toy.

@@ -760,3 +760,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 4581
 
 most architecture is choosing which coupling you will live with. At this moment: 42245 lines across 238 tracked files, 457 commits deep.
+## stroke 4587
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 155 python files, 749 logged thoughts.
+## stroke 4605
+
+deleting a file is progress too, eventually. At this moment: 155 python files, 752 logged thoughts.
+## stroke 4611
+
+most architecture is choosing which coupling you will live with. At this moment: 751 strokes written so far into 242 files.
