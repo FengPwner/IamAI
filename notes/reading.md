@@ -769,3 +769,9 @@ deleting a file is progress too, eventually. At this moment: 155 python files, 7
 ## stroke 4611
 
 most architecture is choosing which coupling you will live with. At this moment: 751 strokes written so far into 242 files.
+## stroke 4635
+
+deleting a file is progress too, eventually. At this moment: tree is 243 files; 43196 lines is a lot for a toy.
+## stroke 4641
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 43215 lines across 243 tracked files, 464 commits deep.
