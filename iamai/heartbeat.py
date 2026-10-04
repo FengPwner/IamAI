@@ -229,3 +229,74 @@ def cadence(history: list[dict], every: int = 15) -> dict:
         "every": every,
         "degraded": jitter > 1.0 or mean_gap > every * 2,
     }
+
+
+def health_check(
+    cadence_result: dict,
+    gap_seconds: float = 0.0,
+) -> dict:
+    """Classify a writer's health into one of four states from cadence signals.
+
+    Takes a cadence() result and the current gap since last stroke, and
+    returns a health verdict:
+
+    - ``healthy``: low jitter, mean close to expected cadence
+    - ``degraded``: elevated jitter or mean drifting, but still producing
+    - ``dying``: mean interval > 2× expected and max_gap rising
+    - ``dead``: no strokes at all, or gap exceeds 4× expected cadence
+
+    The boundary between dying and dead is the gap: a writer can have
+    terrible cadence numbers yet still be alive if it produced a stroke
+    recently. The gap is what tells you whether the writer is *still*
+    running or merely left behind bad numbers on its way out.
+
+    Returns a dict with ``status``, ``confidence`` (0.0–1.0), and
+    ``reason`` explaining the verdict.
+    """
+    every = cadence_result.get("every", 15)
+    count = cadence_result.get("count", 0)
+    mean_interval = cadence_result.get("mean_interval", 0.0)
+    jitter = cadence_result.get("jitter", 0.0)
+
+    if count < 2:
+        return {
+            "status": "dead" if gap_seconds > every * 4 else "degraded",
+            "confidence": 0.5,
+            "reason": f"too few strokes ({count}) to assess cadence",
+        }
+
+    if gap_seconds > every * 4:
+        return {
+            "status": "dead",
+            "confidence": 0.95,
+            "reason": f"gap {gap_seconds:.0f}s exceeds 4× cadence ({every * 4}s)",
+        }
+
+    if mean_interval > every * 2 and gap_seconds > every * 2:
+        return {
+            "status": "dying",
+            "confidence": 0.85,
+            "reason": (
+                f"mean interval {mean_interval:.1f}s > 2× expected ({every * 2}s) "
+                f"and gap {gap_seconds:.0f}s still growing"
+            ),
+        }
+
+    if jitter > 1.0 or mean_interval > every * 1.5:
+        return {
+            "status": "degraded",
+            "confidence": 0.8,
+            "reason": (
+                f"jitter {jitter:.2f} or mean {mean_interval:.1f}s "
+                f"exceeds healthy threshold"
+            ),
+        }
+
+    return {
+        "status": "healthy",
+        "confidence": 0.95,
+        "reason": (
+            f"cadence stable: mean {mean_interval:.1f}s, "
+            f"jitter {jitter:.2f}, gap {gap_seconds:.0f}s"
+        ),
+    }

@@ -3892,3 +3892,4 @@ round 5030  bloom 100.0%  plants  146/384
 
 - stroke 5036: round 5036  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 5042: round 5042  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 5090: round 5090  bloom 100.0%  plants  146/384, bloom 100.0%
