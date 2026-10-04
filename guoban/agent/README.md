@@ -38,3 +38,26 @@ GUOBAN_TOKEN_FILE=/tmp/.guoban_token python3 /tmp/guoban_loop.py --once
 平台定时任务跑在**另一个环境**，看不到本会话的文件。把脚本放进仓库之后，
 定时任务只要“下载 + 运行”，就能在它自己的环境里独立产出一笔提交——
 这相当于给这个仓库又加了一个**不怕容器重建**的写手。
+
+## 让 AI「自己写」的定时任务（真正 AI 创作）
+
+`guoban_loop.py` 是按固定词库拼装的模板写手。若要让**大模型每次现场创作**，
+用下面的方式：任务里的 agent 自己写出内容，再调用提交助手 `guoban_commit.py`
+把内容提交上去（助手只负责编号/追加/提交，不产一个字模板）。
+
+任务内容建议：
+
+```
+你是 guoban 写手，本次由你自己创作一段原创中文内容并提交：
+1) python3 -c "import urllib.request as u;open('/tmp/gc.py','wb').write(u.urlopen('https://raw.githubusercontent.com/FengPwner/IamAI/main/guoban/agent/guoban_commit.py').read())"
+2) printf '%s' '<PAT>' > /tmp/.guoban_token
+3) 先看一眼 https://raw.githubusercontent.com/FengPwner/IamAI/main/notes/guoban-log.md 了解已有内容，避免重复；
+   然后任选一种 kind（thought/note/poem/code），用你自己的话现场写 50~200 字，例如：
+   printf '%s' '<你写的内容>' | GUOBAN_TOKEN_FILE=/tmp/.guoban_token python3 /tmp/gc.py --kind note
+4) 只操作 FengPwner/IamAI，完成后汇报 commit sha。
+
+要求：内容必须是你现场原创，不要套用固定模板，风格与 guoban/ 下已有内容一致。
+```
+
+若嫌 `printf` 转义麻烦，把内容先写进 /tmp/piece.txt，再用
+`python3 /tmp/gc.py --kind note --file /tmp/piece.txt`。
