@@ -813,3 +813,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 4965
 
 most architecture is choosing which coupling you will live with. At this moment: 161 python files, 811 logged thoughts.
+## stroke 4983
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 161 python files, 814 logged thoughts.
+## stroke 4989
+
+deleting a file is progress too, eventually. At this moment: commit 495: the count of times this repo was pushed, not the work done.
