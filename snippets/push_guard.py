@@ -21,9 +21,10 @@ retrying harder won't help. one retry covers 99% of real cases.
 >>> import tempfile, subprocess
 >>> # push_guard is designed to be called from scripts, not imported
 >>> # as a library. the functions below are the building blocks.
->>> is_clean("/tmp")  # any directory is either clean or dirty
-True
->>> # doctest intentionally minimal: real testing needs a git repo
+>>> # is_clean("/tmp") returns False outside a git repo: "not a
+>>> # repository" is neither clean nor dirty.
+>>> # doctest intentionally minimal: real testing needs a git repo,
+>>> # which lives in tests/test_push_race.py instead.
 """
 
 import os
