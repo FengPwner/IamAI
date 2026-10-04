@@ -19,12 +19,16 @@ zero dependencies. stdlib only. the callback receives the full batch.
 >>> results = []
 >>> c = Coalescer(lambda batch: results.append(batch), window=1.0, clock=lambda: 0.0)
 >>> c.add("a")                     # opens the window
+True
 >>> c.add("b")                     # still inside
->>> c.tick(clock=lambda: 0.5)      # half the window elapsed
+False
+>>> c.tick(clock=lambda: 0.5)      # half the window elapsed — not yet
 >>> c.add("c")                     # still inside
+False
 >>> len(results)
 0
->>> c.tick(clock=lambda: 1.1)      # window expired
+>>> c.tick(clock=lambda: 1.1)      # window expired — delivers and returns the batch
+['a', 'b', 'c']
 >>> results
 [['a', 'b', 'c']]
 """
