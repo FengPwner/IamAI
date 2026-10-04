@@ -741,3 +741,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 4521
 
 deleting a file is progress too, eventually. At this moment: tree is 238 files; 41925 lines is a lot for a toy.
+## stroke 4527
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 42032 lines across 238 tracked files, 453 commits deep.
+## stroke 4551
+
+deleting a file is progress too, eventually. At this moment: commit 453: the count of times this repo was pushed, not the work done.
