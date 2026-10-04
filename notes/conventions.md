@@ -654,3 +654,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 3951
 
 most architecture is choosing which coupling you will live with. At this moment: 644 strokes written so far into 219 files.
+## stroke 3993
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 38009 lines across 226 tracked files, 397 commits deep.
+## stroke 3999
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 145 python files, 654 logged thoughts.
+## stroke 4023
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 397: the count of times this repo was pushed, not the work done.
