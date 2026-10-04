@@ -573,3 +573,6 @@ deleting a file is progress too, eventually. At this moment: 32962 lines across 
 ## stroke 3489
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 306: the count of times this repo was pushed, not the work done.
+## stroke 3537
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 202 files; 33945 lines is a lot for a toy.
