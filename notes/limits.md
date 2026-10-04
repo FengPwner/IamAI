@@ -681,3 +681,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 4161
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 229 files; 39004 lines is a lot for a toy.
+## stroke 4167
+
+a repo that only accumulates is a landfill with a README. At this moment: 39154 lines across 229 tracked files, 421 commits deep.

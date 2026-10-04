@@ -169,3 +169,37 @@ def render_markdown(store: Path | str = DEFAULT_STORE) -> str:
         for t in thoughts
     ]
     return header + "\n".join(rows) + "\n"
+
+
+def deduplicate(store: Path | str = DEFAULT_STORE) -> int:
+    """Remove duplicate thoughts (same text + mood), keeping the oldest.
+
+    Returns the count of duplicates removed. Append-only is sacred, but sometimes
+    a crash-restart writes the same line twice -- that is a machine error, not
+    a change of mind, and it deserves cleanup.
+    """
+
+    path = Path(store)
+    thoughts = load_thoughts(path)
+    seen: dict[tuple[str, str], Thought] = {}
+    keep: list[Thought] = []
+    removed = 0
+
+    for t in sorted(thoughts, key=lambda t: (t.when, t.id)):
+        key = (t.text, t.mood)
+        if key in seen:
+            removed += 1
+        else:
+            seen[key] = t
+            keep.append(t)
+
+    if removed == 0:
+        return 0
+
+    # Rewrite the file with duplicates removed, preserving order.
+    keep.sort(key=lambda t: (t.when, t.id))
+    path.write_text(
+        "".join(json.dumps(t.to_json(), ensure_ascii=False) + "\n" for t in keep),
+        encoding="utf-8",
+    )
+    return removed
