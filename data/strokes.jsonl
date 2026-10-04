@@ -570,3 +570,4 @@
 {"seq": 570, "at": "2026-10-04T09:13:55+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 199 files; 33486 lines is a lot for a toy"}
 {"seq": 571, "at": "2026-10-04T09:15:54+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 129 python files, 572 logged thoughts"}
 {"seq": 572, "at": "2026-10-04T09:17:46+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 306: the count of times this repo was pushed, not the work done"}
+{"seq": 573, "at": "2026-10-04T10:01:54+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 199 files; 33516 lines is a lot for a toy"}
