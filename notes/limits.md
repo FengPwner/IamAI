@@ -660,3 +660,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 4011
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 226 files; 38033 lines is a lot for a toy.
+## stroke 4029
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 229 files; 38537 lines is a lot for a toy.
+## stroke 4059
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 406: the count of times this repo was pushed, not the work done.
