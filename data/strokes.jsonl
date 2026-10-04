@@ -671,3 +671,4 @@
 {"seq": 671, "at": "2026-10-04T15:32:38+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 229 files; 38920 lines is a lot for a toy"}
 {"seq": 672, "at": "2026-10-04T15:34:38+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 38939 lines across 229 tracked files, 414 commits deep"}
 {"seq": 673, "at": "2026-10-04T15:36:35+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 414: the count of times this repo was pushed, not the work done"}
+{"seq": 674, "at": "2026-10-04T15:40:13+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 673 strokes written so far into 229 files"}
