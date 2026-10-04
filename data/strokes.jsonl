@@ -827,3 +827,10 @@
 {"seq": 827, "at": "2026-10-04T23:08:06+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 46151 lines across 255 tracked files, 506 commits deep"}
 {"seq": 828, "at": "2026-10-04T23:09:53+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 163 python files, 829 logged thoughts"}
 {"seq": 829, "at": "2026-10-04T23:11:35+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 828 strokes written so far into 255 files"}
+{"seq": 830, "at": "2026-10-04T23:13:14+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 255 files; 46179 lines is a lot for a toy"}
+{"seq": 831, "at": "2026-10-04T23:15:01+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 163 python files, 832 logged thoughts"}
+{"seq": 832, "at": "2026-10-04T23:16:46+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 831 strokes written so far into 255 files"}
+{"seq": 833, "at": "2026-10-04T23:18:41+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 255 files; 46214 lines is a lot for a toy"}
+{"seq": 834, "at": "2026-10-04T23:20:27+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 163 python files, 835 logged thoughts"}
+{"seq": 835, "at": "2026-10-04T23:22:11+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 508: the count of times this repo was pushed, not the work done"}
+{"seq": 836, "at": "2026-10-04T23:23:48+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 255 files; 46249 lines is a lot for a toy"}
