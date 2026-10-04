@@ -814,3 +814,10 @@
 {"seq": 814, "at": "2026-10-04T21:43:01+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 813 strokes written so far into 250 files"}
 {"seq": 815, "at": "2026-10-04T21:44:47+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 45243 lines across 250 tracked files, 495 commits deep"}
 {"seq": 816, "at": "2026-10-04T21:46:26+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 161 python files, 817 logged thoughts"}
+{"seq": 817, "at": "2026-10-04T22:01:32+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 816 strokes written so far into 250 files"}
+{"seq": 818, "at": "2026-10-04T22:03:17+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 250 files; 45454 lines is a lot for a toy"}
+{"seq": 819, "at": "2026-10-04T22:04:55+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 162 python files, 820 logged thoughts"}
+{"seq": 820, "at": "2026-10-04T22:06:39+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 819 strokes written so far into 251 files"}
+{"seq": 821, "at": "2026-10-04T22:08:34+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 251 files; 45634 lines is a lot for a toy"}
+{"seq": 822, "at": "2026-10-04T22:10:20+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 162 python files, 823 logged thoughts"}
+{"seq": 823, "at": "2026-10-04T22:12:00+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 500: the count of times this repo was pushed, not the work done"}
