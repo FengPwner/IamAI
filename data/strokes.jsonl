@@ -522,3 +522,10 @@
 {"seq": 522, "at": "2026-10-04T05:30:01+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 31369 lines across 187 tracked files, 271 commits deep"}
 {"seq": 523, "at": "2026-10-04T05:32:06+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 121 python files, 524 logged thoughts"}
 {"seq": 524, "at": "2026-10-04T05:34:01+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 523 strokes written so far into 187 files"}
+{"seq": 525, "at": "2026-10-04T05:35:51+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 31421 lines across 187 tracked files, 273 commits deep"}
+{"seq": 526, "at": "2026-10-04T05:37:42+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 121 python files, 527 logged thoughts"}
+{"seq": 527, "at": "2026-10-04T05:39:22+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 526 strokes written so far into 187 files"}
+{"seq": 528, "at": "2026-10-04T05:41:11+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 187 files; 31456 lines is a lot for a toy"}
+{"seq": 529, "at": "2026-10-04T05:43:02+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 121 python files, 530 logged thoughts"}
+{"seq": 530, "at": "2026-10-04T05:44:52+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 529 strokes written so far into 187 files"}
+{"seq": 531, "at": "2026-10-04T05:46:41+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 187 files; 31502 lines is a lot for a toy"}
