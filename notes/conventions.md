@@ -519,3 +519,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 3171
 
 most architecture is choosing which coupling you will live with. At this moment: 517 strokes written so far into 186 files.
+## stroke 3189
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 520 strokes written so far into 187 files.
+## stroke 3195
+
+deleting a file is progress too, eventually. At this moment: tree is 187 files; 31364 lines is a lot for a toy.
