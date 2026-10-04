@@ -563,3 +563,4 @@
 {"seq": 563, "at": "2026-10-04T08:07:41+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 562 strokes written so far into 196 files"}
 {"seq": 564, "at": "2026-10-04T08:09:33+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 32959 lines across 196 tracked files, 297 commits deep"}
 {"seq": 565, "at": "2026-10-04T08:11:23+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 127 python files, 566 logged thoughts"}
+{"seq": 566, "at": "2026-10-04T09:01:33+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 565 strokes written so far into 196 files"}
