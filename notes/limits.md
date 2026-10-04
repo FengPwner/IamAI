@@ -627,3 +627,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 3825
 
 a repo that only accumulates is a landfill with a README. At this moment: 35714 lines across 210 tracked files, 352 commits deep.
+## stroke 3849
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 357: the count of times this repo was pushed, not the work done.
+## stroke 3855
+
+a repo that only accumulates is a landfill with a README. At this moment: 628 strokes written so far into 212 files.
