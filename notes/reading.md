@@ -820,3 +820,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 4923
 
 most architecture is choosing which coupling you will live with. At this moment: 45029 lines across 250 tracked files, 490 commits deep.
+## stroke 4941
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 45083 lines across 250 tracked files, 493 commits deep.
+## stroke 4947
+
+deleting a file is progress too, eventually. At this moment: 161 python files, 808 logged thoughts.
