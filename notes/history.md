@@ -571,3 +571,5 @@
 - stroke 3521: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 3527: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 3533: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 3545: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 058: `deadman.py` — dead man's switch for silent process death; the writer and committer keep dying without a sound, and heartbeat.py reads file mtimes after the fact; deadman is the general form: ping-or-expire, no threads, no signals, the caller decides what "dead" means; 17 tests + doctest

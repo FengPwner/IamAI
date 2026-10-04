@@ -589,3 +589,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 3525
 
 most architecture is choosing which coupling you will live with. At this moment: 131 python files, 576 logged thoughts.
+## stroke 3549
+
+deleting a file is progress too, eventually. At this moment: commit 319: the count of times this repo was pushed, not the work done.
