@@ -19,7 +19,7 @@ class WeightedChoice(Generic[T]):
     >>> wc.items()
     ['a', 'b', 'c']
     >>> wc.total_weight
-    6
+    6.0
     >>> all(wc.pick() in ("a", "b", "c") for _ in range(50))
     True
     """

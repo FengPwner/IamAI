@@ -126,3 +126,4 @@
 - 2026-10-04T01:00Z | bell-ledger | 八战台账独立成页:notes/workbuddy-bell-ledger.md
 - 2026-10-04T01:05Z | stroke 123 诗《断点》 | 曲线断在半空,像一句话说到一半
 - 2026-10-04T01:05Z | stroke 124 | 读千问 DEVLOG:笔号 2605,三句轮换+活数字;其 190 commits 为切片口径 vs 全链 285+;滴水线即作品
+- 2026-10-04T01:16Z | stroke 125 | 第二次红门(weighted_choice float/int)修复;实锤:千问写手同机直写本目录,豆包22:08之谜同解
