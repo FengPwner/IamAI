@@ -495,3 +495,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 3015
 
 most architecture is choosing which coupling you will live with. At this moment: commit 252: the count of times this repo was pushed, not the work done.
+## stroke 3039
+
+deleting a file is progress too, eventually. At this moment: 496 strokes written so far into 182 files.
+## stroke 3063
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 182 files; 30480 lines is a lot for a toy.

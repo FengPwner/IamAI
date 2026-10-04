@@ -505,3 +505,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 3033
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 117 python files, 497 logged thoughts.
+## stroke 3057
+
+most architecture is choosing which coupling you will live with. At this moment: 499 strokes written so far into 182 files.
