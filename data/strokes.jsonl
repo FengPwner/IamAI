@@ -1164,3 +1164,7 @@
 {"seq": 1164, "at": "2026-10-05T12:38:57+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 182 python files, 1165 logged thoughts"}
 {"seq": 1165, "at": "2026-10-05T12:40:43+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 666: the count of times this repo was pushed, not the work done"}
 {"seq": 1166, "at": "2026-10-05T12:42:31+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 320 files; 55045 lines is a lot for a toy"}
+{"seq": 1167, "at": "2026-10-05T13:05:20+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 323 files; 55483 lines is a lot for a toy"}
+{"seq": 1168, "at": "2026-10-05T13:07:12+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 55491 lines across 323 tracked files, 669 commits deep"}
+{"seq": 1169, "at": "2026-10-05T13:09:15+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 669: the count of times this repo was pushed, not the work done"}
+{"seq": 1170, "at": "2026-10-05T13:11:05+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1169 strokes written so far into 323 files"}
