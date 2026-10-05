@@ -1255,3 +1255,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 7521
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 56692 lines across 322 tracked files, 698 commits deep.
+## stroke 7539
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 56727 lines across 322 tracked files, 699 commits deep.
+## stroke 7545
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 181 python files, 1243 logged thoughts.

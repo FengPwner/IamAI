@@ -1261,3 +1261,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 7515
 
 a repo that only accumulates is a landfill with a README. At this moment: 1236 strokes written so far into 322 files.
+## stroke 7533
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1239 strokes written so far into 322 files.
+## stroke 7563
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 181 python files, 1246 logged thoughts.
