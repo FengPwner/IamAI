@@ -924,3 +924,9 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 5661
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 268 files; 48105 lines is a lot for a toy.
+## stroke 5685
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 166 python files, 923 logged thoughts.
+## stroke 5691
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 551: the count of times this repo was pushed, not the work done.
