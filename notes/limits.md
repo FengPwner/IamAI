@@ -1194,3 +1194,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 7245
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 677: the count of times this repo was pushed, not the work done.
+## stroke 7263
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 678: the count of times this repo was pushed, not the work done.
+## stroke 7269
+
+most architecture is choosing which coupling you will live with. At this moment: 1197 strokes written so far into 324 files.

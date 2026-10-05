@@ -1213,3 +1213,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 7251
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 324 files; 55924 lines is a lot for a toy.
+## stroke 7275
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 55967 lines across 324 tracked files, 678 commits deep.
