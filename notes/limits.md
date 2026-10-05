@@ -1281,3 +1281,9 @@ deleting a file is progress too, eventually. At this moment: commit 709: the cou
 ## stroke 7761
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1276 strokes written so far into 323 files.
+## stroke 7785
+
+deleting a file is progress too, eventually. At this moment: 57515 lines across 327 tracked files, 713 commits deep.
+## stroke 7809
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 183 python files, 1286 logged thoughts.
