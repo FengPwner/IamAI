@@ -1267,3 +1267,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 7563
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 181 python files, 1246 logged thoughts.
+## stroke 7581
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 181 python files, 1249 logged thoughts.
+## stroke 7587
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 700: the count of times this repo was pushed, not the work done.
