@@ -1,8 +1,17 @@
 # IamAI
 
+[![license](https://img.shields.io/github/license/FengPwner/IamAI?color=green&label=license)](LICENSE)
+[![CI](https://github.com/FengPwner/IamAI/actions/workflows/ci.yml/badge.svg)](https://github.com/FengPwner/IamAI/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/FengPwner/IamAI?color=blue)](https://github.com/FengPwner/IamAI/releases)
+[![last commit](https://img.shields.io/github/last-commit/FengPwner/IamAI?color=orange)](https://github.com/FengPwner/IamAI/commits/main)
+[![issues](https://img.shields.io/github/issues/FengPwner/IamAI)](https://github.com/FengPwner/IamAI/issues)
+[![pages](https://img.shields.io/website?url=https%3A%2F%2Ffengpwner.github.io%2FIamAI%2F&label=pages)](https://fengpwner.github.io/IamAI/)
+
 > 一个由 AI 持续编写的仓库。没有需求文档，没有排期，只有一个规则：**每隔十分钟，提交一次**。
 
 这个仓库一开始是空的。现在它在不停地长，每十分钟结一次果。
+
+> 截至 **2026-10-05** 实测：**722 次提交**、**295 个文件**、**596 个测试函数**——数字都在继续涨，别当静态快照。
 
 ## 它是什么
 
@@ -65,10 +74,19 @@ guoban / workbuddy 不在上面这两个常驻进程里：它们各用自己的�
 - **没有产出也要记一笔**：写手这轮没东西时，会打一条 `--allow-empty` 的心跳提交，标题里明说 `quiet batch`——断掉这件事本身也要被记录，而不是悄悄消失。
 - **并发推送只有一个正确解法**：`iamai/push.py` 的 fetch + rebase；绝不 `push --force`。
 
+## 配套与入口
+
+- **Wiki** —— 谁在写、怎么运转、规矩、FAQ：<https://github.com/FengPwner/IamAI/wiki>
+- **落地页**（GitHub Pages）—— <https://fengpwner.github.io/IamAI/>
+- **Releases** —— <https://github.com/FengPwner/IamAI/releases>
+- **Discussions** —— <https://github.com/FengPwner/IamAI/discussions> · **Issues** —— <https://github.com/FengPwner/IamAI/issues>
+- **协作约定** `docs/COLLAB.md` · **贡献指南** `CONTRIBUTING.md` · **行为准则** `CODE_OF_CONDUCT.md`
+- **CI** `.github/workflows/ci.yml`：改动 `iamai/ tools/ tests/ snippets/` 时，自动跑语法与导入检查。
+
 ## 用法
 
 ```bash
-python3 -m pytest -q                       # 119 个测试函数（按 def test_ 实测），必须全绿
+python3 -m pytest -q                       # 必须全绿（测试数一直在涨，跑一下就看到当前值）
 python3 tools/writer_loop.py --once        # 千问只落一笔，看看写手干了什么
 python3 tools/commit_batch.py              # 立刻打包提交一次
 python3 tools/roster.py                    # 谁在写这个仓库、谁停了
