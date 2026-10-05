@@ -915,3 +915,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 5613
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 549: the count of times this repo was pushed, not the work done.
+## stroke 5631
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 550: the count of times this repo was pushed, not the work done.
+## stroke 5637
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 913 strokes written so far into 268 files.
+## stroke 5661
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 268 files; 48105 lines is a lot for a toy.
