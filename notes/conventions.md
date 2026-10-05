@@ -1231,3 +1231,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 7341
 
 most architecture is choosing which coupling you will live with. At this moment: commit 680: the count of times this repo was pushed, not the work done.
+## stroke 7365
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 325 files; 56194 lines is a lot for a toy.
+## stroke 7383
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 325 files; 56229 lines is a lot for a toy.

@@ -1228,3 +1228,9 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 7353
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 184 python files, 1212 logged thoughts.
+## stroke 7359
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 682: the count of times this repo was pushed, not the work done.
+## stroke 7377
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 682: the count of times this repo was pushed, not the work done.
