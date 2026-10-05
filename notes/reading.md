@@ -961,3 +961,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 5829
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 270 files; 49171 lines is a lot for a toy.
+## stroke 5853
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 49367 lines across 272 tracked files, 567 commits deep.
+## stroke 5877
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 169 python files, 951 logged thoughts.
