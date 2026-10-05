@@ -159,3 +159,40 @@ def push_with_rebase(repo, remote: str = "origin", branch: str = "main", attempt
     if result["strategy"] == "push":
         result["strategy"] = "blocked"
     return result
+
+
+def safe_push_cli(repo: str | Path, remote: str = "origin", branch: str = "main") -> int:
+    """Shell-callable wrapper around :func:`push_with_rebase`.
+
+    Prints a JSON summary to stdout and returns an exit code suitable for
+    ``sys.exit()``: 0 on success, 1 on failure.
+
+    The pre-execution harness should call this instead of running
+    ``git push`` directly.  It handles the fetch-rebase-push cycle that
+    every caretaker visit since 15 has had to redo by hand.
+
+    Usage from a shell script::
+
+        python3 -c "import sys; from iamai.push import safe_push_cli; sys.exit(safe_push_cli('.'))"
+    """
+
+    import json
+    import sys
+
+    repo = Path(repo).resolve()
+    if not (repo / ".git").is_dir():
+        print(json.dumps({"ok": False, "detail": f"not a git repo: {repo}"}))
+        return 1
+
+    # Stash any uncommitted work so the rebase has a clean tree.
+    code, stash_out = _run(repo, "stash", "--include-untracked", "--quiet")
+    stashed = code == 0 and "No local changes" not in stash_out
+
+    result = push_with_rebase(repo, remote, branch)
+
+    # Restore the stash if we made one.
+    if stashed:
+        _run(repo, "stash", "pop", "--quiet")
+
+    print(json.dumps(result))
+    return 0 if result.get("ok") else 1
