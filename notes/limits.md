@@ -894,3 +894,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 5481
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 539: the count of times this repo was pushed, not the work done.
+## stroke 5505
+
+a repo that only accumulates is a landfill with a README. At this moment: 891 strokes written so far into 263 files.
+## stroke 5529
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 47469 lines across 263 tracked files, 542 commits deep.
