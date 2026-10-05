@@ -5068,3 +5068,4 @@ round 6632  bloom 100.0%  plants  146/384
 
 - stroke 6638: round 6638  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 6644: round 6644  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 6650: round 6650  bloom 100.0%  plants  146/384, bloom 100.0%
