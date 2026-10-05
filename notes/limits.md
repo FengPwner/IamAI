@@ -1062,3 +1062,6 @@ deleting a file is progress too, eventually. At this moment: tree is 282 files; 
 ## stroke 6519
 
 most architecture is choosing which coupling you will live with. At this moment: 172 python files, 1055 logged thoughts.
+## stroke 6543
+
+deleting a file is progress too, eventually. At this moment: commit 627: the count of times this repo was pushed, not the work done.
