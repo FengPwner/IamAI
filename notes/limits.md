@@ -1332,3 +1332,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 8049
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 331 files; 58342 lines is a lot for a toy.
+## stroke 8067
+
+deleting a file is progress too, eventually. At this moment: tree is 331 files; 58377 lines is a lot for a toy.
+## stroke 8097
+
+deleting a file is progress too, eventually. At this moment: commit 725: the count of times this repo was pushed, not the work done.

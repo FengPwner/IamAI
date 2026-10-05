@@ -1342,3 +1342,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 8055
 
 deleting a file is progress too, eventually. At this moment: 185 python files, 1327 logged thoughts.
+## stroke 8073
+
+a repo that only accumulates is a landfill with a README. At this moment: 185 python files, 1330 logged thoughts.
+## stroke 8079
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 725: the count of times this repo was pushed, not the work done.
+## stroke 8103
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1333 strokes written so far into 331 files.
