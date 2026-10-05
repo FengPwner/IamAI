@@ -903,3 +903,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 5535
 
 a repo that only accumulates is a landfill with a README. At this moment: 164 python files, 898 logged thoughts.
+## stroke 5559
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 900 strokes written so far into 265 files.
+## stroke 5583
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 268 files; 47946 lines is a lot for a toy.
+## stroke 5589
+
+most architecture is choosing which coupling you will live with. At this moment: 47954 lines across 268 tracked files, 548 commits deep.
