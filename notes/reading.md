@@ -883,3 +883,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 5361
 
 most architecture is choosing which coupling you will live with. At this moment: 46867 lines across 256 tracked files, 525 commits deep.
+## stroke 5391
+
+most architecture is choosing which coupling you will live with. At this moment: 871 strokes written so far into 256 files.
