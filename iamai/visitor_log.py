@@ -128,3 +128,68 @@ def summarize(entries: list[VisitEntry]) -> dict:
         "last_visitor": entries[-1].visitor,
         "last_time": entries[-1].timestamp,
     }
+
+
+def push_race_frequency(entries: list[VisitEntry]) -> dict:
+    """How often does a push race happen during caretaker visits?
+
+    A push race is any visit where one of the recorded actions mentions
+    a push rejection, rebase, or fetch-first conflict.  The function
+    returns a breakdown useful for deciding whether the automation needs
+    a better sync strategy.
+
+    Returns a dict with:
+        - total_visits: int
+        - push_races: int  (visits that hit a push conflict)
+        - race_rate: float (0.0–1.0, fraction of visits with a race)
+        - by_visitor: dict[str, int]  (races per visitor id)
+        - by_hour: dict[str, int]     (races by UTC hour bucket, "00"–"23")
+        - actions_needing_rebase: list[str]  (the action strings that matched)
+    """
+    RACE_KEYWORDS = [
+        "push race", "push_race", "rejected", "fetch first",
+        "rebase", "non-fast-forward", "pull --rebase",
+    ]
+
+    total = len(entries)
+    races = 0
+    by_visitor: dict[str, int] = {}
+    by_hour: dict[str, int] = {}
+    matched_actions: list[str] = []
+
+    for entry in entries:
+        hit = False
+        for action in entry.actions_taken:
+            action_lower = action.lower()
+            if any(kw in action_lower for kw in RACE_KEYWORDS):
+                hit = True
+                matched_actions.append(action)
+                break  # count each visit at most once
+
+        # also check the note field — some races are described there
+        if not hit and entry.note:
+            note_lower = entry.note.lower()
+            if any(kw in note_lower for kw in RACE_KEYWORDS):
+                hit = True
+
+        if not hit:
+            continue
+
+        races += 1
+        by_visitor[entry.visitor] = by_visitor.get(entry.visitor, 0) + 1
+
+        # extract hour from timestamp (ISO 8601: "2026-10-05T02:00:00Z")
+        try:
+            hour = entry.timestamp[11:13]
+            by_hour[hour] = by_hour.get(hour, 0) + 1
+        except (IndexError, TypeError):
+            pass
+
+    return {
+        "total_visits": total,
+        "push_races": races,
+        "race_rate": (races / total) if total else 0.0,
+        "by_visitor": by_visitor,
+        "by_hour": by_hour,
+        "actions_needing_rebase": matched_actions,
+    }
