@@ -1129,3 +1129,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 6729
 
 most architecture is choosing which coupling you will live with. At this moment: 179 python files, 1102 logged thoughts.
+## stroke 6759
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 314 files; 52224 lines is a lot for a toy.
+## stroke 6759
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 314 files; 52224 lines is a lot for a toy.
