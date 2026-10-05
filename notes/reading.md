@@ -1084,3 +1084,9 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 6555
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 52444 lines across 294 tracked files, 627 commits deep.
+## stroke 6573
+
+most architecture is choosing which coupling you will live with. At this moment: 52489 lines across 295 tracked files, 629 commits deep.
+## stroke 6603
+
+most architecture is choosing which coupling you will live with. At this moment: 1066 strokes written so far into 295 files.

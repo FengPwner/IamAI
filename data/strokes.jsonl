@@ -1058,3 +1058,10 @@
 {"seq": 1058, "at": "2026-10-05T09:08:02+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 294 files; 52430 lines is a lot for a toy"}
 {"seq": 1059, "at": "2026-10-05T09:09:56+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 174 python files, 1060 logged thoughts"}
 {"seq": 1060, "at": "2026-10-05T09:11:47+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 1059 strokes written so far into 294 files"}
+{"seq": 1061, "at": "2026-10-05T09:13:39+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 295 files; 52486 lines is a lot for a toy"}
+{"seq": 1062, "at": "2026-10-05T09:15:27+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 175 python files, 1063 logged thoughts"}
+{"seq": 1063, "at": "2026-10-05T09:17:14+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 629: the count of times this repo was pushed, not the work done"}
+{"seq": 1064, "at": "2026-10-05T09:19:00+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 295 files; 52521 lines is a lot for a toy"}
+{"seq": 1065, "at": "2026-10-05T09:20:55+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 52529 lines across 295 tracked files, 629 commits deep"}
+{"seq": 1066, "at": "2026-10-05T09:22:51+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 629: the count of times this repo was pushed, not the work done"}
+{"seq": 1067, "at": "2026-10-05T09:24:39+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 295 files; 52545 lines is a lot for a toy"}

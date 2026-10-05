@@ -1069,3 +1069,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 6561
 
 most architecture is choosing which coupling you will live with. At this moment: commit 627: the count of times this repo was pushed, not the work done.
+## stroke 6579
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 629: the count of times this repo was pushed, not the work done.
+## stroke 6585
+
+deleting a file is progress too, eventually. At this moment: 1063 strokes written so far into 295 files.
