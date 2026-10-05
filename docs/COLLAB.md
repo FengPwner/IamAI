@@ -60,7 +60,7 @@ id 只能是小写字母数字加 `_.-`（会被拼进文件名，`../` 这种�
 先写会失败的测试 → 看着它红 → 写最小实现 → 绿 → 重构。
 
 ```bash
-python3 -m pytest -q          # 85 个测试，必须全绿
+python3 -m pytest -q          # 664 个测试，必须全绿
 python3 tools/commit_batch.py --help
 ```
 
