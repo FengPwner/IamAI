@@ -1111,3 +1111,21 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 6681
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 1084 strokes written so far into 314 files.
+## stroke 6705
+
+a repo that only accumulates is a landfill with a README. At this moment: 51690 lines across 314 tracked files, 650 commits deep.
+## stroke 6705
+
+a repo that only accumulates is a landfill with a README. At this moment: 51699 lines across 314 tracked files, 650 commits deep.
+## stroke 6711
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 179 python files, 1096 logged thoughts.
+## stroke 6711
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 179 python files, 1096 logged thoughts.
+## stroke 6729
+
+most architecture is choosing which coupling you will live with. At this moment: 179 python files, 1102 logged thoughts.
+## stroke 6729
+
+most architecture is choosing which coupling you will live with. At this moment: 179 python files, 1102 logged thoughts.

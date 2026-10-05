@@ -1083,3 +1083,21 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 6675
 
 most architecture is choosing which coupling you will live with. At this moment: commit 648: the count of times this repo was pushed, not the work done.
+## stroke 6693
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 650: the count of times this repo was pushed, not the work done.
+## stroke 6693
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 650: the count of times this repo was pushed, not the work done.
+## stroke 6699
+
+deleting a file is progress too, eventually. At this moment: 1090 strokes written so far into 314 files.
+## stroke 6699
+
+deleting a file is progress too, eventually. At this moment: 1090 strokes written so far into 314 files.
+## stroke 6723
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 51890 lines across 314 tracked files, 650 commits deep.
+## stroke 6723
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 51890 lines across 314 tracked files, 650 commits deep.
