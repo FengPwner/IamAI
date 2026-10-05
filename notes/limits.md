@@ -1302,3 +1302,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 7887
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 183 python files, 1299 logged thoughts.
+## stroke 7893
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1298 strokes written so far into 327 files.
+## stroke 7911
+
+deleting a file is progress too, eventually. At this moment: 1301 strokes written so far into 327 files.
+## stroke 7917
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 327 files; 57761 lines is a lot for a toy.
