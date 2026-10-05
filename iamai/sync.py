@@ -164,6 +164,80 @@ def sync(
     return result
 
 
+def safe_stash_pop(repo: Path | str) -> SyncResult:
+    """Pop stash, handling conflicts from live writer processes.
+
+    When a writer process is running, it may modify files that are also
+    in the stash. A plain ``git stash pop`` fails with "local changes
+    would be overwritten". This function handles that by:
+
+    1. Attempting a normal stash pop.
+    2. If it fails, checking out the conflicting files from the working
+       tree (the live writer's version wins — the stash content is
+       stale anyway since the writer regenerates it).
+    3. Retrying the pop after clearing the conflicts.
+
+    The stash content is not lost: if the pop truly fails (not just a
+    dirty-tree conflict), the stash entry is preserved.
+
+    This was extracted from the visit-29 recovery where the restarted
+    writer had already modified writer_state.qwen.json before the
+    caretaker tried to pop the stash.
+    """
+    repo = Path(repo)
+    result = SyncResult(ok=False)
+
+    # Try normal pop first.
+    code, pop_out = _run(repo, "stash", "pop")
+    if code == 0:
+        result.ok = True
+        result.popped = True
+        result.detail = "stash popped cleanly"
+        return result
+
+    # Pop failed — check if it's a dirty-tree conflict (not a merge conflict).
+    last_line = pop_out.splitlines()[-1] if pop_out else ""
+    pop_lower = pop_out.lower()
+    is_dirty_conflict = any(kw in pop_lower for kw in (
+        "overwritten", "conflict", "aborting", "would be overwritten",
+    ))
+    if not is_dirty_conflict:
+        result.detail = f"stash pop failed: {last_line}"
+        return result
+
+    # Dirty-tree conflict: checkout the conflicting files and retry.
+    # Extract file names from the error message.
+    conflicting = []
+    for line in pop_out.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith(("error:", "hint:", "Please", "Aborting")):
+            # Lines like "    data/writer_state.qwen.json"
+            if "/" in stripped and not stripped.startswith("-"):
+                conflicting.append(stripped.strip())
+
+    if not conflicting:
+        # Could not parse conflicting files — try checking out all modified files.
+        code2, status_out = _run(repo, "diff", "--name-only")
+        if code2 == 0:
+            conflicting = [f for f in status_out.splitlines() if f.strip()]
+
+    if conflicting:
+        for f in conflicting:
+            _run(repo, "checkout", "--", f)
+
+    # Retry pop.
+    code, pop_out2 = _run(repo, "stash", "pop")
+    if code == 0:
+        result.ok = True
+        result.popped = True
+        result.detail = f"stash popped after checkout of {len(conflicting)} conflicting file(s)"
+    else:
+        # Second failure — stash entry is preserved, report it.
+        result.detail = f"stash pop failed twice: {pop_out2.splitlines()[-1] if pop_out2 else 'unknown'}"
+
+    return result
+
+
 def sync_and_push(
     repo: Path | str,
     remote: str = "origin",
