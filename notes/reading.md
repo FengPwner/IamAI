@@ -985,3 +985,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 5985
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 49967 lines across 274 tracked files, 578 commits deep.
+## stroke 6003
+
+deleting a file is progress too, eventually. At this moment: 49991 lines across 274 tracked files, 579 commits deep.
+## stroke 6009
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 170 python files, 973 logged thoughts.
