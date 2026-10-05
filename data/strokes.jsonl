@@ -1012,3 +1012,10 @@
 {"seq": 1012, "at": "2026-10-05T07:07:25+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 50933 lines across 280 tracked files, 602 commits deep"}
 {"seq": 1013, "at": "2026-10-05T07:09:24+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 602: the count of times this repo was pushed, not the work done"}
 {"seq": 1014, "at": "2026-10-05T07:11:13+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 1013 strokes written so far into 280 files"}
+{"seq": 1015, "at": "2026-10-05T07:12:54+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 50968 lines across 280 tracked files, 603 commits deep"}
+{"seq": 1016, "at": "2026-10-05T07:14:43+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 171 python files, 1017 logged thoughts"}
+{"seq": 1017, "at": "2026-10-05T07:16:32+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1016 strokes written so far into 280 files"}
+{"seq": 1018, "at": "2026-10-05T07:18:22+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 51003 lines across 280 tracked files, 603 commits deep"}
+{"seq": 1019, "at": "2026-10-05T07:20:20+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 171 python files, 1020 logged thoughts"}
+{"seq": 1020, "at": "2026-10-05T07:22:11+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1019 strokes written so far into 280 files"}
+{"seq": 1021, "at": "2026-10-05T07:23:54+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 280 files; 51038 lines is a lot for a toy"}
