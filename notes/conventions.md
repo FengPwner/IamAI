@@ -1138,3 +1138,12 @@ deleting a file is progress too, eventually. At this moment: commit 652: the cou
 ## stroke 6795
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 1121 strokes written so far into 315 files.
+## stroke 6819
+
+a repo that only accumulates is a landfill with a README. At this moment: 52813 lines across 315 tracked files, 656 commits deep.
+## stroke 6825
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 179 python files, 1128 logged thoughts.
+## stroke 6843
+
+most architecture is choosing which coupling you will live with. At this moment: 179 python files, 1131 logged thoughts.
