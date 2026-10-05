@@ -882,3 +882,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 46902 
 ## stroke 5403
 
 most architecture is choosing which coupling you will live with. At this moment: 163 python files, 875 logged thoughts.
+## stroke 5427
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 878 strokes written so far into 257 files.
+## stroke 5433
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 257 files; 47121 lines is a lot for a toy.

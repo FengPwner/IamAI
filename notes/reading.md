@@ -892,3 +892,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 5385
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 526: the count of times this repo was pushed, not the work done.
+## stroke 5439
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 163 python files, 882 logged thoughts.

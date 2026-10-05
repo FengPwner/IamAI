@@ -874,3 +874,10 @@
 {"seq": 874, "at": "2026-10-05T01:09:02+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 532: the count of times this repo was pushed, not the work done"}
 {"seq": 871, "at": "2026-10-05T01:00:53+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 163 python files, 872 logged thoughts"}
 {"seq": 876, "at": "2026-10-05T01:11:25+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 257 files; 47083 lines is a lot for a toy"}
+{"seq": 877, "at": "2026-10-05T01:13:08+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 47102 lines across 257 tracked files, 536 commits deep"}
+{"seq": 878, "at": "2026-10-05T01:14:49+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 536: the count of times this repo was pushed, not the work done"}
+{"seq": 879, "at": "2026-10-05T01:16:36+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 257 files; 47118 lines is a lot for a toy"}
+{"seq": 880, "at": "2026-10-05T01:18:19+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 47126 lines across 257 tracked files, 536 commits deep"}
+{"seq": 881, "at": "2026-10-05T01:20:16+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 536: the count of times this repo was pushed, not the work done"}
+{"seq": 882, "at": "2026-10-05T01:21:59+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 881 strokes written so far into 257 files"}
+{"seq": 883, "at": "2026-10-05T01:23:43+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 47161 lines across 257 tracked files, 536 commits deep"}
