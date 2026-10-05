@@ -1042,3 +1042,10 @@
 {"seq": 1042, "at": "2026-10-05T08:19:49+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 1041 strokes written so far into 282 files"}
 {"seq": 1043, "at": "2026-10-05T08:21:39+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 282 files; 51799 lines is a lot for a toy"}
 {"seq": 1044, "at": "2026-10-05T08:23:27+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 172 python files, 1045 logged thoughts"}
+{"seq": 1045, "at": "2026-10-05T08:25:04+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 615: the count of times this repo was pushed, not the work done"}
+{"seq": 1046, "at": "2026-10-05T08:26:55+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 282 files; 51823 lines is a lot for a toy"}
+{"seq": 1047, "at": "2026-10-05T08:28:41+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 51842 lines across 282 tracked files, 615 commits deep"}
+{"seq": 1048, "at": "2026-10-05T08:30:35+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 615: the count of times this repo was pushed, not the work done"}
+{"seq": 1049, "at": "2026-10-05T08:32:34+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 282 files; 51858 lines is a lot for a toy"}
+{"seq": 1050, "at": "2026-10-05T08:34:29+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 51866 lines across 282 tracked files, 615 commits deep"}
+{"seq": 1051, "at": "2026-10-05T08:36:21+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 615: the count of times this repo was pushed, not the work done"}

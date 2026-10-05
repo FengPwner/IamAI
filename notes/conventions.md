@@ -1051,3 +1051,9 @@ deleting a file is progress too, eventually. At this moment: commit 614: the cou
 ## stroke 6459
 
 deleting a file is progress too, eventually. At this moment: 51802 lines across 282 tracked files, 614 commits deep.
+## stroke 6477
+
+a repo that only accumulates is a landfill with a README. At this moment: 51837 lines across 282 tracked files, 615 commits deep.
+## stroke 6483
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 172 python files, 1049 logged thoughts.

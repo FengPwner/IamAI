@@ -1069,3 +1069,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 6453
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1042 strokes written so far into 282 files.
+## stroke 6471
+
+deleting a file is progress too, eventually. At this moment: 1045 strokes written so far into 282 files.
+## stroke 6501
+
+deleting a file is progress too, eventually. At this moment: 172 python files, 1052 logged thoughts.
