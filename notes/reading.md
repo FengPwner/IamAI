@@ -1186,3 +1186,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 7095
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1169 strokes written so far into 323 files.
+## stroke 7119
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 323 files; 55545 lines is a lot for a toy.

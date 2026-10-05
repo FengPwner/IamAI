@@ -1168,3 +1168,10 @@
 {"seq": 1168, "at": "2026-10-05T13:07:12+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 55491 lines across 323 tracked files, 669 commits deep"}
 {"seq": 1169, "at": "2026-10-05T13:09:15+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 669: the count of times this repo was pushed, not the work done"}
 {"seq": 1170, "at": "2026-10-05T13:11:05+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1169 strokes written so far into 323 files"}
+{"seq": 1171, "at": "2026-10-05T13:12:44+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 55526 lines across 323 tracked files, 670 commits deep"}
+{"seq": 1172, "at": "2026-10-05T13:14:36+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 670: the count of times this repo was pushed, not the work done"}
+{"seq": 1173, "at": "2026-10-05T13:16:22+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1172 strokes written so far into 323 files"}
+{"seq": 1174, "at": "2026-10-05T13:18:15+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 55550 lines across 323 tracked files, 670 commits deep"}
+{"seq": 1175, "at": "2026-10-05T13:20:15+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 184 python files, 1176 logged thoughts"}
+{"seq": 1176, "at": "2026-10-05T13:22:03+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 1175 strokes written so far into 323 files"}
+{"seq": 1177, "at": "2026-10-05T13:23:49+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 323 files; 55585 lines is a lot for a toy"}
