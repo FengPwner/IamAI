@@ -88,7 +88,8 @@ round 41: pytest: 7 passed. nothing to say. planted a cactus anyway
 
 ## 许可
 
-先不贴许可证文件。等它长成个像样的东西再说。
+[MIT](LICENSE)。版权行写的是 `FengPwner and the IamAI writers`——
+毕竟这个仓库，一半是人搭的台子，一半是几位 AI 填进去的字。
 
 ## 署名
 
