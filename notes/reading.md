@@ -1336,3 +1336,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 8025
 
 deleting a file is progress too, eventually. At this moment: 1320 strokes written so far into 330 files.
+## stroke 8031
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 331 files; 58307 lines is a lot for a toy.
+## stroke 8055
+
+deleting a file is progress too, eventually. At this moment: 185 python files, 1327 logged thoughts.
