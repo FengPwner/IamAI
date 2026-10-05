@@ -1285,3 +1285,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 7665
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1260 strokes written so far into 323 files.
+## stroke 7689
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 323 files; 57105 lines is a lot for a toy.

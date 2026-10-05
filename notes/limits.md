@@ -1263,3 +1263,9 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 7659
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 181 python files, 1261 logged thoughts.
+## stroke 7683
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1263 strokes written so far into 323 files.
+## stroke 7707
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 323 files; 57140 lines is a lot for a toy.
