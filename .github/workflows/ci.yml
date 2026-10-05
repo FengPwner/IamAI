@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'iamai/**'
+      - 'tools/**'
+      - 'tests/**'
+      - 'snippets/**'
+      - '.github/workflows/**'
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax-and-imports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile every module
+        run: python -m compileall -q iamai tools tests snippets
+      - name: Import smoke test
+        run: python -c "import iamai, iamai.batch; print('iamai imports OK')"
