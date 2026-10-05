@@ -1,127 +1,198 @@
-"""Tests for snippets/token_bucket.py — capacity, refill, burst, and edges."""
-
-from __future__ import annotations
-
-import sys
-from pathlib import Path
+"""Tests for snippets/token_bucket.py — token bucket rate limiter."""
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "snippets"))
-
-from token_bucket import TokenBucket  # noqa: E402
+from snippets.token_bucket import TokenBucket
 
 
-class TestBasicConsumption:
-    """Bucket starts full and drains on take()."""
+class FakeClock:
+    """A clock that advances only when told to."""
 
-    def test_starts_full(self):
-        b = TokenBucket(capacity=10, refill_rate=1.0, now=lambda: 0.0)
-        assert b.tokens == 10.0
+    def __init__(self, start: float = 0.0):
+        self._now = start
 
-    def test_take_reduces_tokens(self):
-        b = TokenBucket(capacity=10, refill_rate=0.0, now=lambda: 0.0)
-        assert b.take(3) is True
-        assert b.tokens == 7.0
+    def __call__(self) -> float:
+        return self._now
 
-    def test_take_returns_false_when_empty(self):
-        b = TokenBucket(capacity=2, refill_rate=0.0, now=lambda: 0.0)
-        assert b.take(2) is True
-        assert b.take(1) is False
+    def advance(self, seconds: float) -> None:
+        self._now += seconds
 
-    def test_take_exact_amount(self):
-        b = TokenBucket(capacity=5, refill_rate=0.0, now=lambda: 0.0)
-        assert b.take(5) is True
-        assert b.tokens == 0.0
 
-    def test_take_zero_always_succeeds(self):
-        b = TokenBucket(capacity=1, refill_rate=0.0, now=lambda: 0.0)
-        b.take(1)  # drain
-        assert b.take(0) is True
+# ── basic consume ──────────────────────────────────────────────────────
+
+
+class TestConsume:
+    def test_full_bucket_allows(self):
+        b = TokenBucket(capacity=3, refill_rate=1.0, clock=FakeClock())
+        # Use real clock for simple cases
+        b2 = TokenBucket(capacity=3, refill_rate=1.0)
+        assert b2.consume() is True
+
+    def test_empty_bucket_denies(self):
+        clk = FakeClock()
+        b = TokenBucket(capacity=2, refill_rate=1.0, clock=clk)
+        assert b.consume() is True
+        assert b.consume() is True
+        assert b.consume() is False
+
+    def test_consume_multiple_at_once(self):
+        clk = FakeClock()
+        b = TokenBucket(capacity=5, refill_rate=1.0, clock=clk)
+        assert b.consume(3) is True
+        assert b.consume(3) is False
+        assert b.consume(2) is True
+
+    def test_consume_zero_raises(self):
+        b = TokenBucket(capacity=1, refill_rate=1.0, clock=FakeClock())
+        with pytest.raises(ValueError):
+            b.consume(0)
+
+    def test_consume_negative_raises(self):
+        b = TokenBucket(capacity=1, refill_rate=1.0, clock=FakeClock())
+        with pytest.raises(ValueError):
+            b.consume(-1)
+
+
+# ── refill ─────────────────────────────────────────────────────────────
 
 
 class TestRefill:
-    """Tokens refill over time, capped at capacity."""
+    def test_partial_refill(self):
+        clk = FakeClock()
+        b = TokenBucket(capacity=10, refill_rate=2.0, clock=clk)
+        # Drain all tokens
+        assert b.consume(10) is True
+        assert b.consume() is False
+        # Advance 1 second -> 2 tokens
+        clk.advance(1.0)
+        assert b.consume(2) is True
+        assert b.consume() is False
 
-    def test_refill_after_time(self):
-        t = [100.0]
-        b = TokenBucket(capacity=10, refill_rate=2.0, now=lambda: t[0])
-        b.take(6)  # 4 remaining
-        t[0] = 102.0  # 2s * 2/s = 4 refilled → 8
-        assert b.tokens == pytest.approx(8.0)
-
-    def test_refill_capped_at_capacity(self):
-        t = [0.0]
-        b = TokenBucket(capacity=5, refill_rate=100.0, now=lambda: t[0])
-        b.take(2)  # 3 remaining
-        t[0] = 999.0  # huge elapsed time
-        assert b.tokens == 5.0  # capped
-
-    def test_zero_refill_rate_never_refills(self):
-        t = [0.0]
-        b = TokenBucket(capacity=3, refill_rate=0.0, now=lambda: t[0])
-        b.take(3)
-        t[0] = 1e9
-        assert b.tokens == 0.0
-
-    def test_partial_token_refill(self):
-        t = [0.0]
-        b = TokenBucket(capacity=10, refill_rate=1.0, now=lambda: t[0])
-        b.take(10)  # empty
-        t[0] = 0.5  # half a second → 0.5 tokens
-        assert b.tokens == pytest.approx(0.5)
-
-
-class TestBurst:
-    """Bursts up to capacity are allowed."""
-
-    def test_full_burst(self):
-        b = TokenBucket(capacity=100, refill_rate=1.0, now=lambda: 0.0)
-        assert b.take(100) is True
-        assert b.tokens == 0.0
-
-    def test_burst_then_drip(self):
-        t = [0.0]
-        b = TokenBucket(capacity=10, refill_rate=1.0, now=lambda: t[0])
-        b.take(10)  # burst all 10
-        # wait 5 seconds
-        t[0] = 5.0
+    def test_full_refill(self):
+        clk = FakeClock()
+        b = TokenBucket(capacity=5, refill_rate=10.0, clock=clk)
+        assert b.consume(5) is True
+        # Advance 1 second -> 10 tokens, capped at 5
+        clk.advance(1.0)
         assert b.tokens == pytest.approx(5.0)
-        assert b.take(5) is True
+
+    def test_no_overfill(self):
+        clk = FakeClock()
+        b = TokenBucket(capacity=3, refill_rate=100.0, clock=clk)
+        assert b.consume() is True
+        clk.advance(10.0)
+        # Should be capped at capacity
+        assert b.tokens == pytest.approx(3.0)
+
+    def test_zero_elapsed_no_refill(self):
+        clk = FakeClock()
+        b = TokenBucket(capacity=2, refill_rate=10.0, clock=clk)
+        assert b.consume(2) is True
+        # No time advance
+        assert b.consume() is False
+
+
+# ── wait_time ──────────────────────────────────────────────────────────
+
+
+class TestWaitTime:
+    def test_zero_when_available(self):
+        clk = FakeClock()
+        b = TokenBucket(capacity=5, refill_rate=1.0, clock=clk)
+        assert b.wait_time() == 0.0
+
+    def test_correct_wait_when_empty(self):
+        clk = FakeClock()
+        b = TokenBucket(capacity=1, refill_rate=2.0, clock=clk)
+        b.consume()
+        assert b.wait_time() == pytest.approx(0.5)
+
+    def test_wait_for_multiple_tokens(self):
+        clk = FakeClock()
+        b = TokenBucket(capacity=10, refill_rate=5.0, clock=clk)
+        b.consume(10)
+        # Need 3 tokens at 5/sec = 0.6s
+        assert b.wait_time(3) == pytest.approx(0.6)
+
+    def test_wait_zero_raises(self):
+        b = TokenBucket(capacity=1, refill_rate=1.0, clock=FakeClock())
+        with pytest.raises(ValueError):
+            b.wait_time(0)
+
+
+# ── properties ─────────────────────────────────────────────────────────
+
+
+class TestProperties:
+    def test_capacity(self):
+        b = TokenBucket(capacity=7, refill_rate=1.0, clock=FakeClock())
+        assert b.capacity == 7
+
+    def test_refill_rate(self):
+        b = TokenBucket(capacity=1, refill_rate=3.14, clock=FakeClock())
+        assert b.refill_rate == pytest.approx(3.14)
+
+    def test_tokens_after_consume(self):
+        clk = FakeClock()
+        b = TokenBucket(capacity=5, refill_rate=1.0, clock=clk)
+        b.consume(2)
+        assert b.tokens == pytest.approx(3.0)
+
+
+# ── reset ──────────────────────────────────────────────────────────────
 
 
 class TestReset:
-    """reset() refills to capacity and resets the clock."""
-
     def test_reset_refills(self):
-        t = [0.0]
-        b = TokenBucket(capacity=5, refill_rate=1.0, now=lambda: t[0])
-        b.take(5)
-        assert b.tokens == 0.0
+        clk = FakeClock()
+        b = TokenBucket(capacity=5, refill_rate=1.0, clock=clk)
+        b.consume(5)
+        assert b.consume() is False
         b.reset()
-        assert b.tokens == 5.0
+        assert b.tokens == pytest.approx(5.0)
+        assert b.consume(5) is True
 
 
-class TestEdges:
-    """Constructor validation and edge cases."""
+# ── validation ─────────────────────────────────────────────────────────
 
-    def test_zero_capacity_rejected(self):
-        with pytest.raises(ValueError, match="capacity"):
+
+class TestValidation:
+    def test_capacity_zero_raises(self):
+        with pytest.raises(ValueError):
             TokenBucket(capacity=0, refill_rate=1.0)
 
-    def test_negative_capacity_rejected(self):
-        with pytest.raises(ValueError, match="capacity"):
+    def test_capacity_negative_raises(self):
+        with pytest.raises(ValueError):
             TokenBucket(capacity=-1, refill_rate=1.0)
 
-    def test_negative_refill_rate_rejected(self):
-        with pytest.raises(ValueError, match="refill_rate"):
-            TokenBucket(capacity=5, refill_rate=-0.1)
+    def test_refill_rate_zero_raises(self):
+        with pytest.raises(ValueError):
+            TokenBucket(capacity=1, refill_rate=0)
 
-    def test_negative_take_rejected(self):
-        b = TokenBucket(capacity=5, refill_rate=1.0, now=lambda: 0.0)
-        with pytest.raises(ValueError, match="n must be"):
-            b.take(-1)
+    def test_refill_rate_negative_raises(self):
+        with pytest.raises(ValueError):
+            TokenBucket(capacity=1, refill_rate=-1.0)
 
-    def test_capacity_property(self):
-        b = TokenBucket(capacity=42, refill_rate=1.0, now=lambda: 0.0)
-        assert b.capacity == 42
+
+# ── burst pattern ──────────────────────────────────────────────────────
+
+
+class TestBurstPattern:
+    """Realistic scenario: burst then throttle."""
+
+    def test_burst_then_throttle(self):
+        clk = FakeClock()
+        # Allow 5 bursts, refill 1 per second
+        b = TokenBucket(capacity=5, refill_rate=1.0, clock=clk)
+        # Burst: 5 immediate calls
+        results = [b.consume() for _ in range(5)]
+        assert all(results)
+        # 6th is denied
+        assert b.consume() is False
+        # Wait 1 second, get 1 token back
+        clk.advance(1.0)
+        assert b.consume() is True
+        assert b.consume() is False
+        # Wait 3 seconds, get 3 tokens
+        clk.advance(3.0)
+        assert b.consume(3) is True
+        assert b.consume() is False
