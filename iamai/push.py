@@ -196,3 +196,89 @@ def safe_push_cli(repo: str | Path, remote: str = "origin", branch: str = "main"
 
     print(json.dumps(result))
     return 0 if result.get("ok") else 1
+
+
+def pre_exec_push(
+    repo: str | Path,
+    writer_pid: int | None = None,
+    remote: str = "origin",
+    branch: str = "main",
+) -> dict:
+    """Full push cycle used by the pre-execution harness.
+
+    The pre-execution harness restarts the writer, then tries to push the
+    catch-up commit, and gets rejected because the remote moved.  Every
+    caretaker visit since 15 has worked around this by hand.  This function
+    automates the workaround:
+
+    1. SIGSTOP the writer (if pid given) so the working tree stops changing.
+    2. Stash any uncommitted changes.
+    3. Pull --rebase from the remote.
+    4. Push with the rebase retry logic from :func:`push_with_rebase`.
+    5. Pop the stash.
+    6. SIGCONT the writer.
+
+    Steps 5 and 6 run unconditionally — a paused writer that stays paused
+    is worse than a failed push.  The result dict includes ``ok``, ``strategy``,
+    ``detail``, and ``writer_paused`` (whether the writer was successfully
+    stopped and resumed).
+    """
+    import os
+    import signal
+
+    repo = Path(repo).resolve()
+    result: dict = {
+        "ok": False,
+        "strategy": "pre-exec",
+        "detail": "",
+        "writer_paused": False,
+    }
+
+    paused = False
+    if writer_pid is not None:
+        try:
+            os.kill(writer_pid, signal.SIGSTOP)
+            paused = True
+            result["writer_paused"] = True
+        except OSError:
+            # Process already gone — that is fine, nothing to pause.
+            pass
+
+    try:
+        # Stash uncommitted work (the writer may have produced strokes
+        # between the restart and this push attempt).
+        # Use --porcelain to get a predictable output: prints "Saved working
+        # directory ..." on success, nothing when there are no local changes.
+        code, stash_out = _run(repo, "stash", "push", "--include-untracked")
+        stashed = code == 0 and "No local changes" not in stash_out and stash_out.strip() != ""
+
+        # Pull with rebase to integrate remote changes.
+        code, pull_out = _run(
+            repo, "-c", "rebase.autoStash=true",
+            "pull", "--rebase", remote, branch,
+        )
+        if code != 0 and "up to date" not in pull_out.lower():
+            result["detail"] = f"pull failed: {pull_out.splitlines()[-1] if pull_out else 'unknown'}"
+            return result
+
+        # Push using the rebase-aware logic.
+        push_result = push_with_rebase(repo, remote, branch)
+        result.update({
+            "ok": push_result.get("ok", False),
+            "strategy": push_result.get("strategy", "pre-exec"),
+            "detail": push_result.get("detail", ""),
+        })
+        return result
+
+    finally:
+        # Always restore the stash and resume the writer, even on failure.
+        try:
+            if stashed:
+                _run(repo, "stash", "pop", "--quiet")
+        except Exception:
+            pass
+        if paused:
+            try:
+                os.kill(writer_pid, signal.SIGCONT)
+            except OSError:
+                pass
