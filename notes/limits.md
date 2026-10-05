@@ -1275,3 +1275,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 7737
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 708: the count of times this repo was pushed, not the work done.
+## stroke 7755
+
+deleting a file is progress too, eventually. At this moment: commit 709: the count of times this repo was pushed, not the work done.
+## stroke 7761
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1276 strokes written so far into 323 files.
