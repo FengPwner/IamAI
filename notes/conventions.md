@@ -1084,3 +1084,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 176 py
 ## stroke 6639
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 635: the count of times this repo was pushed, not the work done.
+## stroke 6652 (caretaker visit)
+
+a sliding window counter beats a raw tally because it forgets on purpose: the old events fall out the back, the rate stays honest, and the deque never grows past what the window can hold. At this moment: 175 python files, 12 new tests, one more reason to trust the dashboard.
