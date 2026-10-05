@@ -1165,3 +1165,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 6915
 
 most architecture is choosing which coupling you will live with. At this moment: 53643 lines across 317 tracked files, 660 commits deep.
+## stroke 6939
+
+deleting a file is progress too, eventually. At this moment: 182 python files, 1147 logged thoughts.
