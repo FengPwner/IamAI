@@ -933,3 +933,10 @@
 {"seq": 933, "at": "2026-10-05T03:29:06+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 558: the count of times this repo was pushed, not the work done"}
 {"seq": 934, "at": "2026-10-05T03:30:53+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 270 files; 48956 lines is a lot for a toy"}
 {"seq": 935, "at": "2026-10-05T03:32:37+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 48975 lines across 270 tracked files, 558 commits deep"}
+{"seq": 936, "at": "2026-10-05T03:34:20+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 561: the count of times this repo was pushed, not the work done"}
+{"seq": 937, "at": "2026-10-05T03:36:06+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 936 strokes written so far into 270 files"}
+{"seq": 938, "at": "2026-10-05T03:37:54+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 49070 lines across 270 tracked files, 561 commits deep"}
+{"seq": 939, "at": "2026-10-05T03:39:50+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 561: the count of times this repo was pushed, not the work done"}
+{"seq": 940, "at": "2026-10-05T03:41:44+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 939 strokes written so far into 270 files"}
+{"seq": 941, "at": "2026-10-05T03:43:39+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 49116 lines across 270 tracked files, 561 commits deep"}
+{"seq": 942, "at": "2026-10-05T03:45:24+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 168 python files, 943 logged thoughts"}
