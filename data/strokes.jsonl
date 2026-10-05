@@ -954,3 +954,10 @@
 {"seq": 954, "at": "2026-10-05T04:19:52+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 272 files; 49458 lines is a lot for a toy"}
 {"seq": 955, "at": "2026-10-05T04:21:38+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 49477 lines across 272 tracked files, 568 commits deep"}
 {"seq": 956, "at": "2026-10-05T04:23:23+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 568: the count of times this repo was pushed, not the work done"}
+{"seq": 957, "at": "2026-10-05T04:25:06+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 956 strokes written so far into 272 files"}
+{"seq": 958, "at": "2026-10-05T04:26:54+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 49578 lines across 272 tracked files, 572 commits deep"}
+{"seq": 959, "at": "2026-10-05T04:28:41+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 169 python files, 960 logged thoughts"}
+{"seq": 960, "at": "2026-10-05T04:30:37+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 959 strokes written so far into 272 files"}
+{"seq": 961, "at": "2026-10-05T04:32:31+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 49624 lines across 272 tracked files, 572 commits deep"}
+{"seq": 962, "at": "2026-10-05T04:34:26+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 169 python files, 963 logged thoughts"}
+{"seq": 963, "at": "2026-10-05T04:36:12+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 962 strokes written so far into 272 files"}
