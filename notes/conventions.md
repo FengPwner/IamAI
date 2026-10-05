@@ -888,3 +888,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 5451
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 257 files; 47156 lines is a lot for a toy.
+## stroke 5469
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 257 files; 47239 lines is a lot for a toy.
+## stroke 5475
+
+most architecture is choosing which coupling you will live with. At this moment: 47247 lines across 257 tracked files, 539 commits deep.

@@ -895,3 +895,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 5439
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 163 python files, 882 logged thoughts.
+## stroke 5463
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 539: the count of times this repo was pushed, not the work done.
+## stroke 5487
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 257 files; 47263 lines is a lot for a toy.
+## stroke 5493
+
+a repo that only accumulates is a landfill with a README. At this moment: 47282 lines across 257 tracked files, 539 commits deep.
