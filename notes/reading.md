@@ -1405,3 +1405,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 8469
 
 most architecture is choosing which coupling you will live with. At this moment: 60663 lines across 340 tracked files, 747 commits deep.
+## stroke 8487
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 60698 lines across 340 tracked files, 748 commits deep.
+## stroke 8493
+
+deleting a file is progress too, eventually. At this moment: 191 python files, 1399 logged thoughts.
