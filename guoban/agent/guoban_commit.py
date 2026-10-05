@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+#
+# ⚠️ 已废弃（deprecated）：本文件是 agent/ai_commit.py 的早期 guoban 单写手副本。
+#    现行统一入口是 agent/ai_commit.py（用法：--writer guoban --kind ...），
+#    平台手册见 agent/guoban.md。保留本文件仅为历史留存。
 """guoban 提交助手 —— 把「内容」提交为一次 guoban stroke。
 
 分工：**内容由调用者（AI 自己）现场创作**，通过 stdin 传进来；

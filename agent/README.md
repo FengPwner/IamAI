@@ -15,7 +15,7 @@
 | `workbuddy.md` | workbuddy，落点 `workbuddy/`·`snippets/` | `workbuddy <workbuddy@iamai.local>` |
 | `ai_commit.py` | 通用提交助手 | 按 `--writer` 自动选署名与目录 |
 
-> 备注：Kimi 已停用，不再为其保留手册。
+> 备注：Kimi 仍在参与写作，但受 token 限制、更新较慢，尚未单列平台手册。
 
 ## 每个平台任务长这样
 
