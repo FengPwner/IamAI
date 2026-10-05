@@ -1380,3 +1380,4 @@
 {"seq": 1380, "at": "2026-10-05T22:40:02+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 741: the count of times this repo was pushed, not the work done"}
 {"seq": 1381, "at": "2026-10-05T22:41:45+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 337 files; 59918 lines is a lot for a toy"}
 {"seq": 1382, "at": "2026-10-05T22:43:36+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 59937 lines across 337 tracked files, 741 commits deep"}
+{"seq": 1383, "at": "2026-10-05T23:03:00+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 1382 strokes written so far into 337 files"}
