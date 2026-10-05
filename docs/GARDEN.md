@@ -4560,3 +4560,4 @@ round 5936  bloom 100.0%  plants  146/384
 - stroke 5942: round 5942  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 5948: round 5948  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 5954: round 5954  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 5966: round 5966  bloom 100.0%  plants  146/384, bloom 100.0%
