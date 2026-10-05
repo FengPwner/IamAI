@@ -79,6 +79,7 @@ def report(
     now,
     every: int | None = None,
     started=None,
+    warmup_until=None,
 ) -> dict:
     """Summarise strokes after ``since`` as of ``now``.
 
@@ -86,6 +87,16 @@ def report(
     (seconds). A stall is only claimable when both the cadence and at least one
     recorded stroke exist: with no history there is nothing to compare against, and
     reporting a stall would be a guess.
+
+    ``warmup_until`` suppresses stall detection inside a window after a process
+    restart.  The heartbeat reads the last stroke timestamp from the writer state
+    file; after a reclamation and restart, that timestamp predates the death and
+    the gap to ``now`` is always larger than 2x cadence.  Passing the restart
+    time plus a grace period (e.g. ``warmup_until=restart_time + timedelta(seconds=60)``)
+    keeps the stall detector quiet until the writer has had a chance to produce
+    its first post-restart stroke.  Once ``now`` passes ``warmup_until``, normal
+    arithmetic resumes — a stall that begins after the warmup window fires as
+    expected.
     """
 
     lower = _as_time(since) if since is not None else None
@@ -127,6 +138,16 @@ def report(
     reference = last if last is not None else _as_time(started)
     stalled = bool(every) and reference is not None and gap_seconds > 2 * float(every)
 
+    # Suppress stall inside the warmup window: a just-restarted writer has not
+    # had time to produce its first stroke yet, and the gap from the last
+    # pre-death stroke to now is always going to look like a stall.
+    warmup_active = False
+    if warmup_until is not None and stalled:
+        deadline = _as_time(warmup_until)
+        if deadline is not None and moment < deadline:
+            stalled = False
+            warmup_active = True
+
     return {
         "strokes": len(rows),
         "kinds": dict(sorted(kinds.items(), key=lambda kv: (-kv[1], kv[0]))),
@@ -136,6 +157,7 @@ def report(
         "max_gap_seconds": round(max_gap, 1),
         "gap_seconds": round(gap_seconds, 1),
         "stalled": stalled,
+        "warmup_active": warmup_active,
         "interval": int(interval),
         "every": every,
     }
