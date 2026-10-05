@@ -1000,3 +1000,9 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 6063
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 50198 lines across 274 tracked files, 582 commits deep.
+## stroke 6087
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 585: the count of times this repo was pushed, not the work done.
+## stroke 6105
+
+most architecture is choosing which coupling you will live with. At this moment: commit 585: the count of times this repo was pushed, not the work done.
