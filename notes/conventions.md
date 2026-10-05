@@ -1237,3 +1237,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 7383
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 325 files; 56229 lines is a lot for a toy.
+## stroke 7389
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 56168 lines across 319 tracked files, 688 commits deep.
+## stroke 7413
+
+a repo that only accumulates is a landfill with a README. At this moment: 180 python files, 1222 logged thoughts.
