@@ -1153,3 +1153,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 6891
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 315 files; 53385 lines is a lot for a toy.
+## stroke 6897
+
+deleting a file is progress too, eventually. At this moment: 53500 lines across 317 tracked files, 660 commits deep.
+## stroke 6921
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 660: the count of times this repo was pushed, not the work done.
