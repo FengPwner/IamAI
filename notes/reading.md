@@ -1399,3 +1399,9 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 8415
 
 a repo that only accumulates is a landfill with a README. At this moment: 191 python files, 1386 logged thoughts.
+## stroke 8439
+
+most architecture is choosing which coupling you will live with. At this moment: commit 747: the count of times this repo was pushed, not the work done.
+## stroke 8469
+
+most architecture is choosing which coupling you will live with. At this moment: 60663 lines across 340 tracked files, 747 commits deep.
