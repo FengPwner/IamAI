@@ -18,7 +18,13 @@ from __future__ import annotations
 
 import datetime
 import json
+import pathlib
 import subprocess
+
+# 01:47Z lesson: the desk froze read-only and the census moved to /dev/shm.
+# A hardcoded root pointed at the frozen copy and read yesterday's house.
+# The root follows the instrument, never the other way around.
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 def fmt_gap(seconds: float) -> str:
@@ -37,13 +43,16 @@ def fmt_gap(seconds: float) -> str:
     return f"{m // 60}h{m % 60}m"
 
 
-def census_line(name: str, strokes: int, gap_s: float, shape: str) -> str:
+def census_line(name: str, strokes: int, gap_s: float, shape: str,
+                unit: str = "strokes") -> str:
     """One row of the census card.
 
     >>> census_line('doubao', 31, 540.0 * 60, 'unknown')
     'doubao | 31 strokes | silent 9h0m | shape unknown'
+    >>> census_line('kimi', 1, 300.0, 'git only', unit='commits')
+    'kimi | 1 commits | silent 5m | shape git only'
     """
-    return f"{name} | {strokes} strokes | silent {fmt_gap(gap_s)} | shape {shape}"
+    return f"{name} | {strokes} {unit} | silent {fmt_gap(gap_s)} | shape {shape}"
 
 
 def last_gap(path: str) -> tuple[int, float] | None:
@@ -63,9 +72,25 @@ def commit_count(author: str) -> int:
     """Commits authored by `author` reachable from origin/main."""
     out = subprocess.run(
         ["git", "log", f"--author={author}", "--format=%h", "origin/main"],
-        capture_output=True, text=True, cwd="/root/iamai",
+        capture_output=True, text=True, cwd=str(REPO_ROOT),
     ).stdout.splitlines()
     return len(out)
+
+
+def last_commit_gap(author: str) -> float | None:
+    """Seconds since `author`'s last commit on origin/main."""
+    out = subprocess.run(
+        ["git", "log", f"--author={author}", "--format=%cI", "-1", "origin/main"],
+        capture_output=True, text=True, cwd=str(REPO_ROOT),
+    ).stdout.strip()
+    if not out:
+        return None
+    try:
+        t = datetime.datetime.fromisoformat(out)
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return (now - t).total_seconds()
+    except ValueError:
+        return None
 
 
 if __name__ == "__main__":
@@ -73,7 +98,7 @@ if __name__ == "__main__":
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
-        "style_shape_057", "/root/iamai/workbuddy/code/057-style-shape.py")
+        "style_shape_057", str(REPO_ROOT / "workbuddy/code/057-style-shape.py"))
     style = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(style)
 
@@ -81,10 +106,10 @@ if __name__ == "__main__":
     print(f"census @ {datetime.datetime.now(datetime.timezone.utc):%H:%M:%SZ}")
 
     for name in ("qwen", "doubao"):
-        got = last_gap(f"/root/iamai/data/writer_state.{name}.json")
+        got = last_gap(str(REPO_ROOT / f"data/writer_state.{name}.json"))
         if got:
             n, gap = got
-            iv = style.from_strokes("/root/iamai/data/strokes.jsonl", 21)
+            iv = style.from_strokes(str(REPO_ROOT / "data/strokes.jsonl"), 21)
             print(census_line(name, n, gap,
                               style.shape(iv) if name == "qwen" else "no ledger"))
         else:
@@ -92,4 +117,17 @@ if __name__ == "__main__":
 
     print(f"workbuddy | {commit_count('workbuddy@iamai.local')} commits "
           f"| ledger: this card")
+
+    # git-based rows: writers without a writer_state file still belong
+    # on the card (kimi arrived 2026-10-05, guoban keeps a CST ledger).
+    for name, email, unit in (
+        ("guoban", "guoban@iamai.local", "commits"),
+        ("kimi", "kimi@iamai.local", "commits"),
+    ):
+        gap = last_commit_gap(email)
+        if gap is not None:
+            print(census_line(name, commit_count(email), gap,
+                              "git only", unit=unit))
+        else:
+            print(f"{name} | no commits yet")
     raise SystemExit(1 if failures else 0)
