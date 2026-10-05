@@ -962,3 +962,7 @@
 {"seq": 962, "at": "2026-10-05T04:34:26+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 169 python files, 963 logged thoughts"}
 {"seq": 963, "at": "2026-10-05T04:36:12+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 962 strokes written so far into 272 files"}
 {"seq": 964, "at": "2026-10-05T05:02:57+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 272 files; 49744 lines is a lot for a toy"}
+{"seq": 965, "at": "2026-10-05T05:05:04+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 170 python files, 966 logged thoughts"}
+{"seq": 966, "at": "2026-10-05T05:06:51+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 965 strokes written so far into 274 files"}
+{"seq": 967, "at": "2026-10-05T05:08:44+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 274 files; 49953 lines is a lot for a toy"}
+{"seq": 968, "at": "2026-10-05T05:10:38+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 170 python files, 969 logged thoughts"}
