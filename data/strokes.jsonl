@@ -940,3 +940,6 @@
 {"seq": 940, "at": "2026-10-05T03:41:44+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 939 strokes written so far into 270 files"}
 {"seq": 941, "at": "2026-10-05T03:43:39+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 49116 lines across 270 tracked files, 561 commits deep"}
 {"seq": 942, "at": "2026-10-05T03:45:24+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 168 python files, 943 logged thoughts"}
+{"seq": 943, "at": "2026-10-05T03:47:05+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 942 strokes written so far into 270 files"}
+{"seq": 944, "at": "2026-10-05T03:48:46+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 49176 lines across 270 tracked files, 564 commits deep"}
+{"seq": 945, "at": "2026-10-05T03:50:39+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 168 python files, 946 logged thoughts"}
