@@ -1176,3 +1176,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 7137
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 323 files; 55580 lines is a lot for a toy.
+## stroke 7143
+
+most architecture is choosing which coupling you will live with. At this moment: 55588 lines across 323 tracked files, 671 commits deep.
+## stroke 7161
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 55634 lines across 323 tracked files, 671 commits deep.

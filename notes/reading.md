@@ -1189,3 +1189,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 7119
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 323 files; 55545 lines is a lot for a toy.
+## stroke 7149
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 671: the count of times this repo was pushed, not the work done.
+## stroke 7167
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 671: the count of times this repo was pushed, not the work done.
+## stroke 7173
+
+a repo that only accumulates is a landfill with a README. At this moment: 1182 strokes written so far into 323 files.
