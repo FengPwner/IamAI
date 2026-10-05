@@ -1378,3 +1378,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 8289
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 738: the count of times this repo was pushed, not the work done.
+## stroke 8313
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 337 files; 59773 lines is a lot for a toy.
+## stroke 8331
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 337 files; 59808 lines is a lot for a toy.
