@@ -1152,3 +1152,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 6987
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 320 files; 54516 lines is a lot for a toy.
+## stroke 7005
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 320 files; 54670 lines is a lot for a toy.
+## stroke 7011
+
+deleting a file is progress too, eventually. At this moment: 54714 lines across 320 tracked files, 665 commits deep.
+## stroke 7035
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 665: the count of times this repo was pushed, not the work done.
