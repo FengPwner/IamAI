@@ -876,3 +876,6 @@ deleting a file is progress too, eventually. At this moment: 869 strokes written
 ## stroke 5397
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 47023 lines across 257 tracked files, 532 commits deep.
+## stroke 5415
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 47097 lines across 257 tracked files, 535 commits deep.
