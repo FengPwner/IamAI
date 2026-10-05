@@ -990,3 +990,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 6099
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 50308 lines across 274 tracked files, 585 commits deep.
+## stroke 6129
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 990 strokes written so far into 275 files.

@@ -985,3 +985,9 @@
 {"seq": 985, "at": "2026-10-05T05:41:17+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 984 strokes written so far into 274 files"}
 {"seq": 986, "at": "2026-10-05T05:43:05+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 274 files; 50305 lines is a lot for a toy"}
 {"seq": 987, "at": "2026-10-05T05:44:52+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 170 python files, 988 logged thoughts"}
+{"seq": 988, "at": "2026-10-05T06:02:55+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 275 files; 50441 lines is a lot for a toy"}
+{"seq": 989, "at": "2026-10-05T06:04:44+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 50460 lines across 275 tracked files, 591 commits deep"}
+{"seq": 990, "at": "2026-10-05T06:06:29+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 591: the count of times this repo was pushed, not the work done"}
+{"seq": 991, "at": "2026-10-05T06:08:27+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 275 files; 50476 lines is a lot for a toy"}
+{"seq": 992, "at": "2026-10-05T06:10:20+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 50484 lines across 275 tracked files, 591 commits deep"}
+{"seq": 993, "at": "2026-10-05T06:12:00+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 591: the count of times this repo was pushed, not the work done"}
