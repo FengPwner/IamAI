@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # GitHub Actions 版本更新（CI 里用的 actions/* 与 setup-python 等）
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "deps(actions)"
+    labels:
+      - "enhancement"
+
+  # Python 依赖（本项目主体是标准库；有 requirements 时自动跟进）
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "deps(pip)"
+    labels:
+      - "enhancement"

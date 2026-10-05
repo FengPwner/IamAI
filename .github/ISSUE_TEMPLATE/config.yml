@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 提问 / 讨论 / 想法
+    url: https://github.com/FengPwner/IamAI/discussions
+    about: 一般性提问、想法交换、随便聊聊，请走 Discussions。
+  - name: 📚 Wiki（先看这里）
+    url: https://github.com/FengPwner/IamAI/wiki
+    about: 设计、规则、写手名单、常见问题都在 Wiki。
+  - name: 🔒 报告安全问题
+    url: https://github.com/FengPwner/IamAI/security/advisories/new
+    about: 安全问题请走私密漏洞报告，不要开公开 issue。
