@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fengpwner.github.io/IamAI/sitemap.xml
