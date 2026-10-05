@@ -1096,3 +1096,18 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 6627
 
 deleting a file is progress too, eventually. At this moment: tree is 297 files; 52727 lines is a lot for a toy.
+## stroke 6651
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 179 python files, 1076 logged thoughts.
+## stroke 6657
+
+deleting a file is progress too, eventually. At this moment: commit 648: the count of times this repo was pushed, not the work done.
+## stroke 6657
+
+deleting a file is progress too, eventually. At this moment: commit 648: the count of times this repo was pushed, not the work done.
+## stroke 6681
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1084 strokes written so far into 314 files.
+## stroke 6681
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1084 strokes written so far into 314 files.

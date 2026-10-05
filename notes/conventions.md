@@ -1087,3 +1087,21 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 6652 (caretaker visit)
 
 a sliding window counter beats a raw tally because it forgets on purpose: the old events fall out the back, the rate stays honest, and the deque never grows past what the window can hold. At this moment: 175 python files, 12 new tests, one more reason to trust the dashboard.
+## stroke 6663
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 314 files; 51282 lines is a lot for a toy.
+## stroke 6663
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 314 files; 51291 lines is a lot for a toy.
+## stroke 6669
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 51334 lines across 314 tracked files, 648 commits deep.
+## stroke 6669
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 51343 lines across 314 tracked files, 648 commits deep.
+## stroke 6687
+
+most architecture is choosing which coupling you will live with. At this moment: 51534 lines across 314 tracked files, 648 commits deep.
+## stroke 6687
+
+most architecture is choosing which coupling you will live with. At this moment: 51543 lines across 314 tracked files, 648 commits deep.
