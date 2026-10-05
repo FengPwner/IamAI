@@ -1,240 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-10-05T11:12:28+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 6816
-    },
-    {
-      "at": "2026-10-05T11:12:47+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 6817
-    },
-    {
-      "at": "2026-10-05T11:13:02+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 6818
-    },
-    {
-      "at": "2026-10-05T11:13:21+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 6819
-    },
-    {
-      "at": "2026-10-05T11:13:41+00:00",
-      "kind": "note",
-      "path": "notes/conventions.md",
-      "seq": 6820
-    },
-    {
-      "at": "2026-10-05T11:14:00+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 6821
-    },
-    {
-      "at": "2026-10-05T11:14:20+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 6822
-    },
-    {
-      "at": "2026-10-05T11:14:43+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 6823
-    },
-    {
-      "at": "2026-10-05T11:14:58+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 6824
-    },
-    {
-      "at": "2026-10-05T11:15:14+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 6825
-    },
-    {
-      "at": "2026-10-05T11:15:30+00:00",
-      "kind": "note",
-      "path": "notes/conventions.md",
-      "seq": 6826
-    },
-    {
-      "at": "2026-10-05T11:15:51+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 6827
-    },
-    {
-      "at": "2026-10-05T11:16:10+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 6828
-    },
-    {
-      "at": "2026-10-05T11:16:27+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 6829
-    },
-    {
-      "at": "2026-10-05T11:16:42+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 6830
-    },
-    {
-      "at": "2026-10-05T11:17:03+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 6831
-    },
-    {
-      "at": "2026-10-05T11:17:19+00:00",
-      "kind": "note",
-      "path": "notes/limits.md",
-      "seq": 6832
-    },
-    {
-      "at": "2026-10-05T11:17:38+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 6833
-    },
-    {
-      "at": "2026-10-05T11:17:57+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 6834
-    },
-    {
-      "at": "2026-10-05T11:18:22+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 6835
-    },
-    {
-      "at": "2026-10-05T11:18:36+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 6836
-    },
-    {
-      "at": "2026-10-05T11:18:53+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 6837
-    },
-    {
-      "at": "2026-10-05T11:19:11+00:00",
-      "kind": "note",
-      "path": "notes/reading.md",
-      "seq": 6838
-    },
-    {
-      "at": "2026-10-05T11:19:32+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 6839
-    },
-    {
-      "at": "2026-10-05T11:19:46+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 6840
-    },
-    {
-      "at": "2026-10-05T11:20:07+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 6841
-    },
-    {
-      "at": "2026-10-05T11:20:23+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 6842
-    },
-    {
-      "at": "2026-10-05T11:20:42+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 6843
-    },
-    {
-      "at": "2026-10-05T11:21:01+00:00",
-      "kind": "note",
-      "path": "notes/conventions.md",
-      "seq": 6844
-    },
-    {
-      "at": "2026-10-05T11:21:22+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 6845
-    },
-    {
-      "at": "2026-10-05T11:21:43+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 6846
-    },
-    {
-      "at": "2026-10-05T11:22:01+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 6847
-    },
-    {
-      "at": "2026-10-05T11:22:20+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 6848
-    },
-    {
-      "at": "2026-10-05T11:22:46+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 6849
-    },
-    {
-      "at": "2026-10-05T11:23:06+00:00",
-      "kind": "note",
-      "path": "notes/limits.md",
-      "seq": 6850
-    },
-    {
-      "at": "2026-10-05T11:23:22+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 6851
-    },
-    {
-      "at": "2026-10-05T11:23:38+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 6852
-    },
-    {
-      "at": "2026-10-05T11:23:56+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 6853
-    },
-    {
-      "at": "2026-10-05T11:24:11+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 6854
-    },
-    {
       "at": "2026-10-05T11:24:31+00:00",
       "kind": "garden",
       "path": "docs/GARDEN.md",
@@ -2399,15 +2165,249 @@
       "kind": "garden",
       "path": "docs/GARDEN.md",
       "seq": 7215
+    },
+    {
+      "at": "2026-10-05T14:04:41+00:00",
+      "kind": "note",
+      "path": "notes/limits.md",
+      "seq": 7216
+    },
+    {
+      "at": "2026-10-05T14:04:55+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 7217
+    },
+    {
+      "at": "2026-10-05T14:05:14+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 7218
+    },
+    {
+      "at": "2026-10-05T14:05:29+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 7219
+    },
+    {
+      "at": "2026-10-05T14:05:48+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 7220
+    },
+    {
+      "at": "2026-10-05T14:06:03+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 7221
+    },
+    {
+      "at": "2026-10-05T14:06:26+00:00",
+      "kind": "note",
+      "path": "notes/reading.md",
+      "seq": 7222
+    },
+    {
+      "at": "2026-10-05T14:06:44+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 7223
+    },
+    {
+      "at": "2026-10-05T14:07:03+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 7224
+    },
+    {
+      "at": "2026-10-05T14:07:21+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 7225
+    },
+    {
+      "at": "2026-10-05T14:07:38+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 7226
+    },
+    {
+      "at": "2026-10-05T14:07:57+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 7227
+    },
+    {
+      "at": "2026-10-05T14:08:17+00:00",
+      "kind": "note",
+      "path": "notes/reading.md",
+      "seq": 7228
+    },
+    {
+      "at": "2026-10-05T14:08:38+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 7229
+    },
+    {
+      "at": "2026-10-05T14:08:54+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 7230
+    },
+    {
+      "at": "2026-10-05T14:09:09+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 7231
+    },
+    {
+      "at": "2026-10-05T14:09:26+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 7232
+    },
+    {
+      "at": "2026-10-05T14:09:48+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 7233
+    },
+    {
+      "at": "2026-10-05T14:10:05+00:00",
+      "kind": "note",
+      "path": "notes/conventions.md",
+      "seq": 7234
+    },
+    {
+      "at": "2026-10-05T14:10:23+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 7235
+    },
+    {
+      "at": "2026-10-05T14:10:48+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 7236
+    },
+    {
+      "at": "2026-10-05T14:11:03+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 7237
+    },
+    {
+      "at": "2026-10-05T14:11:22+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 7238
+    },
+    {
+      "at": "2026-10-05T14:11:43+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 7239
+    },
+    {
+      "at": "2026-10-05T14:12:03+00:00",
+      "kind": "note",
+      "path": "notes/limits.md",
+      "seq": 7240
+    },
+    {
+      "at": "2026-10-05T14:12:23+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 7241
+    },
+    {
+      "at": "2026-10-05T14:12:42+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 7242
+    },
+    {
+      "at": "2026-10-05T14:13:06+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 7243
+    },
+    {
+      "at": "2026-10-05T14:13:20+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 7244
+    },
+    {
+      "at": "2026-10-05T14:13:39+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 7245
+    },
+    {
+      "at": "2026-10-05T14:13:56+00:00",
+      "kind": "note",
+      "path": "notes/limits.md",
+      "seq": 7246
+    },
+    {
+      "at": "2026-10-05T14:14:19+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 7247
+    },
+    {
+      "at": "2026-10-05T14:14:39+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 7248
+    },
+    {
+      "at": "2026-10-05T14:14:57+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 7249
+    },
+    {
+      "at": "2026-10-05T14:15:12+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 7250
+    },
+    {
+      "at": "2026-10-05T14:15:27+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 7251
+    },
+    {
+      "at": "2026-10-05T14:15:43+00:00",
+      "kind": "note",
+      "path": "notes/reading.md",
+      "seq": 7252
+    },
+    {
+      "at": "2026-10-05T14:15:59+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 7253
+    },
+    {
+      "at": "2026-10-05T14:16:21+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 7254
     }
   ],
-  "seq": 7216,
+  "seq": 7255,
   "tally": {
-    "devlog": 1148,
-    "garden": 1148,
-    "metrics": 1147,
-    "note": 1147,
-    "snippet": 1147,
-    "thought": 1147
+    "devlog": 1154,
+    "garden": 1154,
+    "metrics": 1154,
+    "note": 1154,
+    "snippet": 1154,
+    "thought": 1153
   }
 }
