@@ -1227,3 +1227,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 7449
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 180 python files, 1228 logged thoughts.
+## stroke 7473
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 692: the count of times this repo was pushed, not the work done.
