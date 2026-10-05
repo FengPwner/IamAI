@@ -1035,3 +1035,6 @@ deleting a file is progress too, eventually. At this moment: 1026 strokes writte
 ## stroke 6363
 
 most architecture is choosing which coupling you will live with. At this moment: 51113 lines across 280 tracked files, 605 commits deep.
+## stroke 6387
+
+deleting a file is progress too, eventually. At this moment: 171 python files, 1033 logged thoughts.
