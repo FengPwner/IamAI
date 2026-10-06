@@ -1506,3 +1506,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 9129
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 353 files; 64016 lines is a lot for a toy.
+## stroke 9159
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 784: the count of times this repo was pushed, not the work done.
