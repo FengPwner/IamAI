@@ -1410,3 +1410,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 8511
 
 most architecture is choosing which coupling you will live with. At this moment: 191 python files, 1402 logged thoughts.
+## stroke 8535
+
+deleting a file is progress too, eventually. At this moment: commit 749: the count of times this repo was pushed, not the work done.
