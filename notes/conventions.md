@@ -1531,3 +1531,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 9201
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1514 strokes written so far into 353 files.
+## stroke 9225
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 356 files; 64488 lines is a lot for a toy.
