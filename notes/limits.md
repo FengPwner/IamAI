@@ -1485,3 +1485,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 9003
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 198 python files, 1484 logged thoughts.
+## stroke 9021
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 198 python files, 1487 logged thoughts.
+## stroke 9027
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 777: the count of times this repo was pushed, not the work done.
