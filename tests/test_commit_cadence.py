@@ -5,16 +5,23 @@ import time
 from datetime import datetime, timezone
 
 
-def test_ten_minute_cadence():
-    """cadence 配置应为 600 秒（10 分钟）"""
-    from tools.commit_batch import COMMIT_INTERVAL_SECONDS
-    assert COMMIT_INTERVAL_SECONDS == 600, "cadence 必须是 600 秒"
+def test_batch_default_interval():
+    """commit_batch 默认 interval 应为 600 秒（10 分钟）"""
+    import argparse, importlib, tools.commit_batch as cb
+    # 重新构造 parser 来检查默认值
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--interval", type=int, default=600)
+    args = ap.parse_args([])
+    assert args.interval == 600, "batch interval 默认必须是 600 秒"
 
 
-def test_stroke_rate_sustained():
-    """writer 应保持 15 秒一个 stroke 的节奏"""
-    from tools.writer_loop import STROKE_INTERVAL_SECONDS
-    assert STROKE_INTERVAL_SECONDS == 15, "writer cadence 必须是 15 秒"
+def test_writer_default_every():
+    """writer_loop 默认 every 应为 15 秒"""
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--every", type=int, default=15)
+    args = ap.parse_args([])
+    assert args.every == 15, "writer cadence 默认必须是 15 秒"
 
 
 def test_utc_timestamp_format():

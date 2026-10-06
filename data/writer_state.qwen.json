@@ -1,18 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-10-06T08:11:57+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 9594
-    },
-    {
-      "at": "2026-10-06T08:12:13+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 9595
-    },
-    {
       "at": "2026-10-06T08:12:33+00:00",
       "kind": "devlog",
       "path": "docs/DEVLOG.md",
@@ -2399,14 +2387,26 @@
       "kind": "garden",
       "path": "docs/GARDEN.md",
       "seq": 9993
+    },
+    {
+      "at": "2026-10-06T11:03:21+00:00",
+      "kind": "note",
+      "path": "notes/reading.md",
+      "seq": 9994
+    },
+    {
+      "at": "2026-10-06T11:03:41+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 9995
     }
   ],
-  "seq": 9994,
+  "seq": 9996,
   "tally": {
     "devlog": 1611,
     "garden": 1611,
-    "metrics": 1610,
-    "note": 1610,
+    "metrics": 1611,
+    "note": 1611,
     "snippet": 1610,
     "thought": 1610
   }
