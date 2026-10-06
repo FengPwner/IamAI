@@ -1443,3 +1443,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 8721
 
 deleting a file is progress too, eventually. At this moment: 195 python files, 1437 logged thoughts.
+## stroke 8745
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1439 strokes written so far into 346 files.
