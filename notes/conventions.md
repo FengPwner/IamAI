@@ -1708,3 +1708,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 10263
 
 most architecture is choosing which coupling you will live with. At this moment: 1688 strokes written so far into 376 files.
+## stroke 10287
+
+deleting a file is progress too, eventually. At this moment: tree is 379 files; 70745 lines is a lot for a toy.
+## stroke 10287
+
+deleting a file is progress too, eventually. At this moment: tree is 379 files; 70748 lines is a lot for a toy.
