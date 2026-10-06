@@ -1543,3 +1543,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 9273
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 790: the count of times this repo was pushed, not the work done.
+## stroke 9291
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 793: the count of times this repo was pushed, not the work done.
+## stroke 9297
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1530 strokes written so far into 359 files.
