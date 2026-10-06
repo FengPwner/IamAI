@@ -1759,3 +1759,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 10521
 
 a repo that only accumulates is a landfill with a README. At this moment: 228 python files, 1741 logged thoughts.
+## stroke 10545
+
+most architecture is choosing which coupling you will live with. At this moment: commit 862: the count of times this repo was pushed, not the work done.
