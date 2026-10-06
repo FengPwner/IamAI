@@ -1486,3 +1486,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 8931
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 772: the count of times this repo was pushed, not the work done.
+## stroke 8937
+
+most architecture is choosing which coupling you will live with. At this moment: 1471 strokes written so far into 349 files.
+## stroke 8955
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1474 strokes written so far into 351 files.
+## stroke 8961
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 63450 lines across 351 tracked files, 775 commits deep.
