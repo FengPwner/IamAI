@@ -1677,3 +1677,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 1672 s
 ## stroke 10191
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 376 files; 69880 lines is a lot for a toy.
+## stroke 10221
+
+most architecture is choosing which coupling you will live with. At this moment: commit 837: the count of times this repo was pushed, not the work done.
