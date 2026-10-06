@@ -1425,3 +1425,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 8613
 
 a repo that only accumulates is a landfill with a README. At this moment: 1417 strokes written so far into 343 files.
+## stroke 8637
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 343 files; 61585 lines is a lot for a toy.

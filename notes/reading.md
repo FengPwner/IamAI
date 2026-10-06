@@ -1426,3 +1426,15 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 8595
 
 most architecture is choosing which coupling you will live with. At this moment: 1414 strokes written so far into 343 files.
+## stroke 8619
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 61550 lines across 343 tracked files, 757 commits deep.
+## stroke 8625
+
+most architecture is choosing which coupling you will live with. At this moment: 193 python files, 1421 logged thoughts.
+## stroke 8643
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 193 python files, 1424 logged thoughts.
+## stroke 8649
+
+deleting a file is progress too, eventually. At this moment: commit 757: the count of times this repo was pushed, not the work done.
