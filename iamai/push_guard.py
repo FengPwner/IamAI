@@ -135,3 +135,73 @@ def divergence_info(
         "remote_ahead": remote_ahead,
         "needs_rebase": remote_ahead > 0,
     }
+
+
+def push_readiness_report(
+    repo: Path | str,
+    remote: str = "origin",
+    branch: str = "main",
+    lock_path: str = "data/push.lock",
+) -> dict:
+    """One-call pre-push health check for caretaker visits.
+
+    Combines the three things a caretaker needs to know before pushing:
+
+    1. Is the working tree clean? (dirty trees block rebase)
+    2. Are there unpushed commits? (nothing to push = nothing to worry about)
+    3. Has the remote diverged? (push will be rejected if yes)
+    4. Is there a stale push lock? (another agent may be mid-push)
+
+    Returns a dict with ``ready`` (bool), ``dirty_files`` (int),
+    ``unpushed`` (int), ``diverged`` (bool), and ``stale_lock`` (bool or None
+    if the lock file doesn't exist). A ready-to-push repo has all five
+    conditions clean.
+
+    This does NOT make network calls — it reads cached refs only. Call
+    ``git fetch`` first if you need fresh remote state.
+    """
+    repo = Path(repo)
+    report: dict = {
+        "ready": True,
+        "dirty_files": 0,
+        "unpushed": 0,
+        "diverged": False,
+        "stale_lock": None,
+    }
+
+    # 1. Dirty tree check.
+    code, out = _run(repo, "status", "--porcelain")
+    if code == 0 and out.strip():
+        report["dirty_files"] = len(out.strip().splitlines())
+        report["ready"] = False
+
+    # 2. Unpushed commits check.
+    head = local_head(repo)
+    tip = remote_tip(repo, remote, branch)
+    if head and tip and head != tip:
+        code, out = _run(repo, "rev-list", "--count", f"{tip}..{head}")
+        if code == 0 and out:
+            report["unpushed"] = int(out.strip())
+
+    # 3. Divergence check (remote has commits we don't).
+    if needs_rebase(repo, remote, branch):
+        report["diverged"] = True
+        report["ready"] = False
+
+    # 4. Stale lock file check.
+    lock_file = repo / lock_path
+    if lock_file.exists():
+        try:
+            import json as _json
+            data = _json.loads(lock_file.read_text(encoding="utf-8"))
+            import time as _time
+            expires = data.get("expires_at", 0)
+            report["stale_lock"] = _time.time() >= expires
+            if report["stale_lock"]:
+                report["ready"] = False
+        except (ValueError, KeyError, OSError):
+            # Can't parse the lock — treat it as stale to be safe.
+            report["stale_lock"] = True
+            report["ready"] = False
+
+    return report
