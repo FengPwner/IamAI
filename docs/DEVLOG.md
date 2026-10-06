@@ -1749,3 +1749,6 @@
 - `2026-10-06T20:09:36+00:00` stroke 10567: commit 866: the count of times this repo was pushed, not the work done
 - `2026-10-06T20:11:32+00:00` stroke 10573: 1748 strokes written so far into 395 files
 - `2026-10-06T21:01:18+00:00` stroke 10579: 74041 lines across 395 tracked files, 867 commits deep
+- `2026-10-06T21:08:16+00:00` stroke 10585: 229 python files, 1752 logged thoughts
+- `2026-10-06T21:10:12+00:00` stroke 10591: 1751 strokes written so far into 397 files
+- `2026-10-06T21:11:56+00:00` stroke 10597: tree is 397 files; 74228 lines is a lot for a toy
