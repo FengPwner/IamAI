@@ -1777,3 +1777,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 10593
 
 a repo that only accumulates is a landfill with a README. At this moment: 74222 lines across 397 tracked files, 869 commits deep.
+## stroke 10611
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 74374 lines across 399 tracked files, 872 commits deep.
+## stroke 10617
+
+most architecture is choosing which coupling you will live with. At this moment: 230 python files, 1757 logged thoughts.

@@ -1751,3 +1751,7 @@
 {"seq": 1751, "at": "2026-10-06T21:09:49+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 397 files; 74219 lines is a lot for a toy"}
 {"seq": 1752, "at": "2026-10-06T21:11:38+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 229 python files, 1753 logged thoughts"}
 {"seq": 1753, "at": "2026-10-06T22:01:29+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 870: the count of times this repo was pushed, not the work done"}
+{"seq": 1754, "at": "2026-10-06T22:04:07+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 399 files; 74371 lines is a lot for a toy"}
+{"seq": 1755, "at": "2026-10-06T22:06:04+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 230 python files, 1756 logged thoughts"}
+{"seq": 1756, "at": "2026-10-06T22:07:57+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 872: the count of times this repo was pushed, not the work done"}
+{"seq": 1757, "at": "2026-10-06T22:10:02+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 399 files; 74417 lines is a lot for a toy"}
