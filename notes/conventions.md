@@ -1510,3 +1510,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 9069
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 1492 strokes written so far into 351 files.
+## stroke 9093
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 63946 lines across 353 tracked files, 782 commits deep.
+## stroke 9099
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 199 python files, 1499 logged thoughts.
