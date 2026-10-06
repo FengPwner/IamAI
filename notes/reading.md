@@ -1513,3 +1513,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 9087
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1495 strokes written so far into 353 files.
+## stroke 9111
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 353 files; 63981 lines is a lot for a toy.
+## stroke 9117
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 199 python files, 1502 logged thoughts.
+## stroke 9135
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 199 python files, 1505 logged thoughts.
