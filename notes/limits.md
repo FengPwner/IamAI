@@ -1479,3 +1479,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 8973
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1477 strokes written so far into 351 files.
+## stroke 8979
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 351 files; 63474 lines is a lot for a toy.
+## stroke 9003
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 198 python files, 1484 logged thoughts.
