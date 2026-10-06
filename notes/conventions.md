@@ -1549,3 +1549,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 9309
 
 a repo that only accumulates is a landfill with a README. At this moment: 203 python files, 1534 logged thoughts.
+## stroke 9327
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 203 python files, 1537 logged thoughts.
+## stroke 9351
+
+deleting a file is progress too, eventually. At this moment: 1539 strokes written so far into 359 files.
