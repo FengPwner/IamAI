@@ -1585,3 +1585,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 9537
 
 deleting a file is progress too, eventually. At this moment: commit 802: the count of times this repo was pushed, not the work done.
+## stroke 9561
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1573 strokes written so far into 362 files.
+## stroke 9591
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 205 python files, 1580 logged thoughts.
