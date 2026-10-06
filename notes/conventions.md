@@ -1591,3 +1591,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 9591
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 205 python files, 1580 logged thoughts.
+## stroke 9609
+
+most architecture is choosing which coupling you will live with. At this moment: 207 python files, 1583 logged thoughts.
