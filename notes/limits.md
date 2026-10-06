@@ -1614,3 +1614,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 9777
 
 deleting a file is progress too, eventually. At this moment: 67897 lines across 368 tracked files, 812 commits deep.
+## stroke 9783
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 209 python files, 1611 logged thoughts.
+## stroke 9807
+
+deleting a file is progress too, eventually. At this moment: 1613 strokes written so far into 368 files.
