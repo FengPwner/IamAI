@@ -205,3 +205,43 @@ def push_readiness_report(
             report["ready"] = False
 
     return report
+
+
+def divergence_summary(
+    repo: Path | str,
+    remote: str = "origin",
+    branch: str = "main",
+) -> str:
+    """One-line human-readable push status for caretaker dashboards.
+
+    Returns one of:
+    - ``"clean"`` — local and remote are in sync, nothing to push.
+    - ``"ahead N"`` — local has N unpushed commits, push should succeed.
+    - ``"behind N"`` — remote has N commits local doesn't, pull first.
+    - ``"diverged (L local, R remote)"`` — both sides moved, pull+rebase needed.
+    - ``"no remote"`` — no tracking ref exists (first push or deleted remote).
+    - ``"no commits"`` — repo has no commits yet.
+
+    This is a thin wrapper over ``divergence_info`` that trades detail for
+    readability. Use the full report when you need SHAs for logging.
+    """
+    repo = Path(repo)
+    head = local_head(repo)
+    if head is None:
+        return "no commits"
+
+    tip = remote_tip(repo, remote, branch)
+    if tip is None:
+        return "no remote"
+
+    info = divergence_info(repo, remote, branch)
+    local_ahead = info["local_ahead"]
+    remote_ahead = info["remote_ahead"]
+
+    if local_ahead == 0 and remote_ahead == 0:
+        return "clean"
+    if remote_ahead == 0:
+        return f"ahead {local_ahead}"
+    if local_ahead == 0:
+        return f"behind {remote_ahead}"
+    return f"diverged ({local_ahead} local, {remote_ahead} remote)"
