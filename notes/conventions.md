@@ -1717,3 +1717,6 @@ deleting a file is progress too, eventually. At this moment: tree is 379 files; 
 ## stroke 10317
 
 deleting a file is progress too, eventually. At this moment: commit 844: the count of times this repo was pushed, not the work done.
+## stroke 10341
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 381 files; 71231 lines is a lot for a toy.

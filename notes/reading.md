@@ -1723,3 +1723,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 10305
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 379 files; 70818 lines is a lot for a toy.
+## stroke 10329
+
+deleting a file is progress too, eventually. At this moment: 71204 lines across 381 tracked files, 845 commits deep.
+## stroke 10335
+
+most architecture is choosing which coupling you will live with. At this moment: commit 845: the count of times this repo was pushed, not the work done.

@@ -1701,3 +1701,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 216 py
 ## stroke 10293
 
 a repo that only accumulates is a landfill with a README. At this moment: 216 python files, 1698 logged thoughts.
+## stroke 10323
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 381 files; 71196 lines is a lot for a toy.
+## stroke 10347
+
+most architecture is choosing which coupling you will live with. At this moment: 71239 lines across 381 tracked files, 845 commits deep.
