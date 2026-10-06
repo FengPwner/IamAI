@@ -1483,3 +1483,6 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 8907
 
 most architecture is choosing which coupling you will live with. At this moment: 63060 lines across 349 tracked files, 771 commits deep.
+## stroke 8931
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 772: the count of times this repo was pushed, not the work done.
