@@ -1657,3 +1657,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 211 py
 ## stroke 9993
 
 most architecture is choosing which coupling you will live with. At this moment: commit 826: the count of times this repo was pushed, not the work done.
+## stroke 9999
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1645 strokes written so far into 373 files.
+## stroke 10017
+
+deleting a file is progress too, eventually. At this moment: 1648 strokes written so far into 373 files.
