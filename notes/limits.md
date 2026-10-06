@@ -1560,3 +1560,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 9441
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 205 python files, 1555 logged thoughts.
+## stroke 9465
+
+deleting a file is progress too, eventually. At this moment: 1557 strokes written so far into 362 files.
+## stroke 9471
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 362 files; 65872 lines is a lot for a toy.
+## stroke 9489
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 362 files; 65907 lines is a lot for a toy.
