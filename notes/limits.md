@@ -1557,3 +1557,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 9417
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 65333 lines across 359 tracked files, 796 commits deep.
+## stroke 9441
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 205 python files, 1555 logged thoughts.
