@@ -8151,3 +8151,4 @@ round 10490  bloom 100.0%  plants  146/384
 - stroke 10496: round 10496  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 10502: round 10502  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 10502: round 10502  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 10508: round 10508  bloom 100.0%  plants  146/384, bloom 100.0%
