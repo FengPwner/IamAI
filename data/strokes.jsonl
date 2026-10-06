@@ -1700,3 +1700,4 @@
 {"seq": 1700, "at": "2026-10-06T13:15:22+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 1699 strokes written so far into 379 files"}
 {"seq": 1701, "at": "2026-10-06T13:16:57+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 70825 lines across 379 tracked files, 841 commits deep"}
 {"seq": 1702, "at": "2026-10-06T13:17:05+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 70826 lines across 379 tracked files, 841 commits deep"}
+{"seq": 1703, "at": "2026-10-06T14:02:02+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 844: the count of times this repo was pushed, not the work done"}
