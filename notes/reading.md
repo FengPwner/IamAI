@@ -1558,3 +1558,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 9375
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 359 files; 65244 lines is a lot for a toy.
+## stroke 9393
+
+deleting a file is progress too, eventually. At this moment: tree is 359 files; 65279 lines is a lot for a toy.
+## stroke 9399
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 65298 lines across 359 tracked files, 796 commits deep.
