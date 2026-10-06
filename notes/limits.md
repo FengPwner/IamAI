@@ -1533,3 +1533,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 9267
 
 a repo that only accumulates is a landfill with a README. At this moment: 64555 lines across 356 tracked files, 790 commits deep.
+## stroke 9285
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 64595 lines across 356 tracked files, 792 commits deep.
