@@ -1740,3 +1740,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 10503
 
 most architecture is choosing which coupling you will live with. At this moment: 226 python files, 1739 logged thoughts.
+## stroke 10527
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1740 strokes written so far into 394 files.
+## stroke 10533
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 394 files; 73915 lines is a lot for a toy.
