@@ -1601,3 +1601,4 @@
 {"seq": 1601, "at": "2026-10-06T08:54:47+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 207 python files, 1602 logged thoughts"}
 {"seq": 1602, "at": "2026-10-06T08:56:33+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1601 strokes written so far into 365 files"}
 {"seq": 1603, "at": "2026-10-06T08:58:32+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 67196 lines across 365 tracked files, 809 commits deep"}
+{"seq": 1604, "at": "2026-10-06T09:02:03+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 207 python files, 1605 logged thoughts"}
