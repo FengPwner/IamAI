@@ -1504,3 +1504,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 9045
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 777: the count of times this repo was pushed, not the work done.
+## stroke 9051
+
+most architecture is choosing which coupling you will live with. At this moment: 1490 strokes written so far into 351 files.

@@ -1,84 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-10-06T00:35:13+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 8652
-    },
-    {
-      "at": "2026-10-06T00:35:32+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 8653
-    },
-    {
-      "at": "2026-10-06T01:00:46+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 8654
-    },
-    {
-      "at": "2026-10-06T01:01:00+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 8655
-    },
-    {
-      "at": "2026-10-06T01:01:18+00:00",
-      "kind": "note",
-      "path": "notes/conventions.md",
-      "seq": 8656
-    },
-    {
-      "at": "2026-10-06T01:01:32+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 8657
-    },
-    {
-      "at": "2026-10-06T01:01:50+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 8658
-    },
-    {
-      "at": "2026-10-06T01:02:06+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 8659
-    },
-    {
-      "at": "2026-10-06T01:02:26+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 8660
-    },
-    {
-      "at": "2026-10-06T01:02:45+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 8661
-    },
-    {
-      "at": "2026-10-06T01:03:03+00:00",
-      "kind": "note",
-      "path": "notes/limits.md",
-      "seq": 8662
-    },
-    {
-      "at": "2026-10-06T01:03:21+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 8663
-    },
-    {
-      "at": "2026-10-06T01:03:36+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 8664
-    },
-    {
       "at": "2026-10-06T01:03:58+00:00",
       "kind": "thought",
       "path": "data/strokes.jsonl",
@@ -2399,15 +2321,93 @@
       "kind": "garden",
       "path": "docs/GARDEN.md",
       "seq": 9051
+    },
+    {
+      "at": "2026-10-06T03:42:07+00:00",
+      "kind": "note",
+      "path": "notes/conventions.md",
+      "seq": 9052
+    },
+    {
+      "at": "2026-10-06T03:42:23+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 9053
+    },
+    {
+      "at": "2026-10-06T03:42:46+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 9054
+    },
+    {
+      "at": "2026-10-06T03:43:06+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 9055
+    },
+    {
+      "at": "2026-10-06T03:43:24+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 9056
+    },
+    {
+      "at": "2026-10-06T03:43:46+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 9057
+    },
+    {
+      "at": "2026-10-06T03:44:06+00:00",
+      "kind": "note",
+      "path": "notes/limits.md",
+      "seq": 9058
+    },
+    {
+      "at": "2026-10-06T03:44:25+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 9059
+    },
+    {
+      "at": "2026-10-06T03:44:40+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 9060
+    },
+    {
+      "at": "2026-10-06T03:45:00+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 9061
+    },
+    {
+      "at": "2026-10-06T03:45:18+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 9062
+    },
+    {
+      "at": "2026-10-06T03:45:34+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 9063
+    },
+    {
+      "at": "2026-10-06T03:45:49+00:00",
+      "kind": "note",
+      "path": "notes/reading.md",
+      "seq": 9064
     }
   ],
-  "seq": 9052,
+  "seq": 9065,
   "tally": {
-    "devlog": 1454,
-    "garden": 1454,
-    "metrics": 1453,
-    "note": 1453,
-    "snippet": 1453,
-    "thought": 1453
+    "devlog": 1456,
+    "garden": 1456,
+    "metrics": 1455,
+    "note": 1456,
+    "snippet": 1455,
+    "thought": 1455
   }
 }
