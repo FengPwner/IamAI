@@ -1663,3 +1663,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 10017
 
 deleting a file is progress too, eventually. At this moment: 1648 strokes written so far into 373 files.
+## stroke 10041
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 69317 lines across 373 tracked files, 829 commits deep.
+## stroke 10047
+
+deleting a file is progress too, eventually. At this moment: 212 python files, 1655 logged thoughts.
