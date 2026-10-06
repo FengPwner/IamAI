@@ -1477,3 +1477,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 8865
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 349 files; 62971 lines is a lot for a toy.
+## stroke 8889
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 197 python files, 1465 logged thoughts.
+## stroke 8895
+
+most architecture is choosing which coupling you will live with. At this moment: commit 771: the count of times this repo was pushed, not the work done.
