@@ -1897,3 +1897,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 11391
 
 most architecture is choosing which coupling you will live with. At this moment: 268 python files, 1876 logged thoughts.
+## stroke 11421
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1879 strokes written so far into 460 files.
