@@ -1837,3 +1837,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 10977
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 244 python files, 1816 logged thoughts.
+## stroke 11001
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1818 strokes written so far into 423 files.
