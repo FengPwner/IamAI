@@ -1885,3 +1885,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 11325
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1866 strokes written so far into 449 files.
+## stroke 11349
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 452 files; 84172 lines is a lot for a toy.
