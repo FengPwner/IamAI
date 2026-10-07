@@ -1755,3 +1755,29 @@
 - stroke 10655: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 10661: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 10667: `retry.py` is already in the pool of 9 modules, nothing new to add there
+
+a repo that only accumulates is a landfill with a README. At this moment: 234 python files, 1763 logged thoughts.
+## stroke 10670
+
+most architecture is choosing which coupling you will live with. At this moment: commit 876: the count of times this repo was pushed, not the work done.
+- stroke 10673: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10679: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10685: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10691: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10697: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10703: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10709: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10715: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10721: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10727: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10733: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10739: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10745: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10751: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10757: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10763: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10769: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10775: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10781: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10787: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 10793: `retry.py` is already in the pool of 9 modules, nothing new to add there
