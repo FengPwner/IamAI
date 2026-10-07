@@ -7,8 +7,16 @@ deterministic steps:
 
     1. Fetch origin.
     2. Check if local and remote have diverged.
-    3. If diverged: stash dirty files, merge, pop stash, report.
+    3. If diverged: stash dirty files, sync (merge or rebase), pop stash, report.
     4. If clean: just report "ready to push".
+
+Two sync strategies are available:
+
+    merge  — git pull --no-rebase (default, produces merge commits)
+    rebase — git pull --rebase   (linear history, matches push_with_rebase)
+
+Visit 66 wired sync into commit_batch but used merge only. Visit 67 adds
+the rebase strategy so the sync path matches the push path.
 
 Exit codes:
     0 — ready to push (no divergence, or divergence resolved)
@@ -16,7 +24,7 @@ Exit codes:
     2 — repository or git error
 
 Usage:
-    python3 tools/pre_push_sync.py [--remote origin] [--branch main] [--dry-run]
+    python3 tools/pre_push_sync.py [--remote origin] [--branch main] [--strategy merge|rebase] [--dry-run]
 """
 
 import argparse
@@ -79,8 +87,21 @@ def has_dirty_files(repo: Path) -> bool:
     return bool(r.stdout.strip())
 
 
-def sync(repo: Path, remote: str = "origin", branch: str = "main", dry_run: bool = False) -> SyncResult:
-    """Attempt to sync local with remote, resolving divergence if needed."""
+def sync(
+    repo: Path,
+    remote: str = "origin",
+    branch: str = "main",
+    dry_run: bool = False,
+    strategy: str = "merge",
+) -> SyncResult:
+    """Attempt to sync local with remote, resolving divergence if needed.
+
+    strategy: "merge" (default) uses git pull --no-rebase,
+              "rebase" uses git pull --rebase for linear history.
+    """
+    if strategy not in ("merge", "rebase"):
+        return SyncResult(False, False, False, False, False, f"unknown strategy: {strategy}")
+
     # Step 1: fetch
     r = run(["git", "fetch", remote], cwd=repo)
     if r.returncode != 0:
@@ -99,14 +120,21 @@ def sync(repo: Path, remote: str = "origin", branch: str = "main", dry_run: bool
         if r.returncode != 0:
             return SyncResult(True, False, False, False, False, f"stash failed: {r.stderr.strip()}")
 
-    # Step 3: merge
-    r = run(["git", "pull", "--no-rebase", remote, branch], cwd=repo)
-    if r.returncode != 0:
-        # Merge failed — try to abort and restore
-        run(["git", "merge", "--abort"], cwd=repo)
-        if dirty:
-            run(["git", "stash", "pop"], cwd=repo)
-        return SyncResult(True, dirty, False, dirty, False, f"merge failed: {r.stderr.strip()}")
+    # Step 3: sync (merge or rebase)
+    if strategy == "rebase":
+        r = run(["git", "pull", "--rebase", remote, branch], cwd=repo)
+        if r.returncode != 0:
+            run(["git", "rebase", "--abort"], cwd=repo)
+            if dirty:
+                run(["git", "stash", "pop"], cwd=repo)
+            return SyncResult(True, dirty, False, dirty, False, f"rebase failed: {r.stderr.strip()}")
+    else:
+        r = run(["git", "pull", "--no-rebase", remote, branch], cwd=repo)
+        if r.returncode != 0:
+            run(["git", "merge", "--abort"], cwd=repo)
+            if dirty:
+                run(["git", "stash", "pop"], cwd=repo)
+            return SyncResult(True, dirty, False, dirty, False, f"merge failed: {r.stderr.strip()}")
 
     # Step 4: pop stash
     popped = False
@@ -114,18 +142,20 @@ def sync(repo: Path, remote: str = "origin", branch: str = "main", dry_run: bool
         r = run(["git", "stash", "pop"], cwd=repo)
         popped = r.returncode == 0
 
-    return SyncResult(True, dirty, True, popped, True, "synced — ready to push")
+    return SyncResult(True, dirty, True, popped, True, f"synced ({strategy}) — ready to push")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Sync local with remote before push")
     parser.add_argument("--remote", default="origin")
     parser.add_argument("--branch", default="main")
+    parser.add_argument("--strategy", default="merge", choices=["merge", "rebase"],
+                        help="sync strategy: merge (default) or rebase for linear history")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     repo = Path(__file__).resolve().parent.parent
-    result = sync(repo, args.remote, args.branch, args.dry_run)
+    result = sync(repo, args.remote, args.branch, args.dry_run, args.strategy)
 
     print(f"diverged: {result.diverged}")
     print(f"stashed:  {result.stashed}")
