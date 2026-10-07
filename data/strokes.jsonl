@@ -1797,3 +1797,7 @@
 {"seq": 1797, "at": "2026-10-07T03:06:25+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 886: the count of times this repo was pushed, not the work done"}
 {"seq": 1798, "at": "2026-10-07T03:08:20+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 414 files; 77643 lines is a lot for a toy"}
 {"seq": 1799, "at": "2026-10-07T03:10:30+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 77662 lines across 414 tracked files, 886 commits deep"}
+{"seq": 1800, "at": "2026-10-07T04:03:47+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 892: the count of times this repo was pushed, not the work done"}
+{"seq": 1801, "at": "2026-10-07T04:05:41+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 1800 strokes written so far into 415 files"}
+{"seq": 1802, "at": "2026-10-07T04:07:40+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 77731 lines across 415 tracked files, 892 commits deep"}
+{"seq": 1803, "at": "2026-10-07T04:09:49+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 892: the count of times this repo was pushed, not the work done"}

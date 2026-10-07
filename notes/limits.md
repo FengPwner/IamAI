@@ -1799,3 +1799,9 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 10869
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1797 strokes written so far into 414 files.
+## stroke 10887
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1800 strokes written so far into 415 files.
+## stroke 10893
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 415 files; 77726 lines is a lot for a toy.
