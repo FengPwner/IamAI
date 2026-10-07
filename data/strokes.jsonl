@@ -1806,3 +1806,4 @@
 {"seq": 1806, "at": "2026-10-07T05:05:40+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 242 python files, 1807 logged thoughts"}
 {"seq": 1807, "at": "2026-10-07T05:07:38+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 1806 strokes written so far into 418 files"}
 {"seq": 1808, "at": "2026-10-07T05:09:46+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 418 files; 78103 lines is a lot for a toy"}
+{"seq": 1809, "at": "2026-10-07T06:03:24+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 1808 strokes written so far into 418 files"}
