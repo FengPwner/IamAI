@@ -1,199 +1,321 @@
-"""Tests for tools/pre_push_sync.py"""
+"""Tests for iamai.pre_push_sync -- atomic sync-before-push protocol."""
 
-import sys
+from __future__ import annotations
+
+import json
+import subprocess
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+import pytest
 
-from pre_push_sync import (
+from iamai.pre_push_sync import (
+    Phase,
     SyncResult,
-    has_diverged,
-    has_dirty_files,
-    sync,
-    get_local_sha,
-    get_remote_sha,
-    get_merge_base,
+    _ahead_count,
+    _dirty_files,
+    _has_divergence,
+    sync_and_push,
 )
 
 
-def _ok(stdout="", stderr=""):
-    m = MagicMock()
-    m.returncode = 0
-    m.stdout = stdout
-    m.stderr = stderr
-    return m
+# ---------------------------------------------------------------------------
+# Helpers: create tiny git repos in tmp_path for integration-style tests
+# ---------------------------------------------------------------------------
 
 
-def _fail(stderr=""):
-    m = MagicMock()
-    m.returncode = 1
-    m.stdout = ""
-    m.stderr = stderr
-    return m
+def _init_repo(p: Path, *, bare: bool = False) -> Path:
+    """Initialise a git repo at *p* with one commit."""
+    p.mkdir(parents=True, exist_ok=True)
+    if bare:
+        subprocess.run(
+            ["git", "init", "--bare"],
+            cwd=p, capture_output=True, check=True,
+        )
+        return p
+    subprocess.run(["git", "init"], cwd=p, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@test.local"],
+        cwd=p, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Tester"],
+        cwd=p, capture_output=True,
+    )
+    # Rename default branch to main
+    subprocess.run(
+        ["git", "checkout", "-b", "main"],
+        cwd=p, capture_output=True,
+    )
+    # Initial commit so HEAD exists
+    (p / "README.md").write_text("# test\n")
+    subprocess.run(["git", "add", "."], cwd=p, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "init"],
+        cwd=p, capture_output=True,
+    )
+    return p
 
 
-class TestGetShas:
-    @patch("pre_push_sync.run")
-    def test_local_sha_success(self, mock_run):
-        mock_run.return_value = _ok("abc123\n")
-        assert get_local_sha(Path("/tmp"), "main") == "abc123"
+def _make_bare_origin(tmp_path: Path, name: str = "origin") -> Path:
+    """Create a bare origin repo initialised with one commit.
 
-    @patch("pre_push_sync.run")
-    def test_local_sha_failure(self, mock_run):
-        mock_run.return_value = _fail()
-        assert get_local_sha(Path("/tmp"), "main") == ""
-
-    @patch("pre_push_sync.run")
-    def test_remote_sha_success(self, mock_run):
-        mock_run.return_value = _ok("def456\n")
-        assert get_remote_sha(Path("/tmp"), "origin", "main") == "def456"
-
-    @patch("pre_push_sync.run")
-    def test_merge_base_success(self, mock_run):
-        mock_run.return_value = _ok("base789\n")
-        assert get_merge_base(Path("/tmp"), "abc", "def") == "base789"
-
-
-class TestHasDiverged:
-    @patch("pre_push_sync.run")
-    def test_no_divergence_same_sha(self, mock_run):
-        mock_run.return_value = _ok("abc123\n")
-        assert has_diverged(Path("/tmp")) is False
-
-    @patch("pre_push_sync.get_merge_base")
-    @patch("pre_push_sync.get_remote_sha")
-    @patch("pre_push_sync.get_local_sha")
-    def test_no_divergence_fast_forward(self, mock_local, mock_remote, mock_base):
-        mock_local.return_value = "abc"
-        mock_remote.return_value = "def"
-        mock_base.return_value = "abc"  # base == local means remote is ahead, not diverged
-        assert has_diverged(Path("/tmp")) is False
-
-    @patch("pre_push_sync.get_merge_base")
-    @patch("pre_push_sync.get_remote_sha")
-    @patch("pre_push_sync.get_local_sha")
-    def test_diverged(self, mock_local, mock_remote, mock_base):
-        mock_local.return_value = "abc"
-        mock_remote.return_value = "def"
-        mock_base.return_value = "older"  # base != local means true divergence
-        assert has_diverged(Path("/tmp")) is True
-
-    @patch("pre_push_sync.get_remote_sha")
-    @patch("pre_push_sync.get_local_sha")
-    def test_no_divergence_missing_sha(self, mock_local, mock_remote):
-        mock_local.return_value = ""
-        mock_remote.return_value = "def"
-        assert has_diverged(Path("/tmp")) is False
+    Uses a temporary working repo to create the initial commit, then
+    clones it bare. This avoids the 'refusing to update checked out
+    branch' error when tests push to the origin.
+    """
+    work = tmp_path / f"{name}_work"
+    work.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init"], cwd=work, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@test.local"],
+        cwd=work, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Tester"],
+        cwd=work, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "checkout", "-b", "main"],
+        cwd=work, capture_output=True,
+    )
+    (work / "README.md").write_text("# test\n")
+    subprocess.run(["git", "add", "."], cwd=work, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "init"],
+        cwd=work, capture_output=True,
+    )
+    bare = tmp_path / name
+    subprocess.run(
+        ["git", "clone", "--bare", str(work), str(bare)],
+        capture_output=True, check=True,
+    )
+    return bare
 
 
-class TestHasDirtyFiles:
-    @patch("pre_push_sync.run")
-    def test_clean(self, mock_run):
-        mock_run.return_value = _ok("")
-        assert has_dirty_files(Path("/tmp")) is False
+def _clone(src: Path, dst: Path) -> Path:
+    """Clone *src* into *dst*."""
+    subprocess.run(
+        ["git", "clone", str(src), str(dst)],
+        capture_output=True, check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@test.local"],
+        cwd=dst, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Tester"],
+        cwd=dst, capture_output=True,
+    )
+    return dst
 
-    @patch("pre_push_sync.run")
-    def test_dirty(self, mock_run):
-        mock_run.return_value = _ok(" M file.txt\n")
-        assert has_dirty_files(Path("/tmp")) is True
+
+# ---------------------------------------------------------------------------
+# _has_divergence
+# ---------------------------------------------------------------------------
 
 
-class TestSync:
-    @patch("pre_push_sync.run")
-    def test_fetch_failure(self, mock_run):
-        mock_run.return_value = _fail("fatal: could not resolve host")
-        result = sync(Path("/tmp"))
-        assert result.ready is False
-        assert "fetch failed" in result.message
+def test_no_divergence_after_clone(tmp_path: Path):
+    origin = _make_bare_origin(tmp_path)
+    clone = _clone(origin, tmp_path / "clone")
+    assert _has_divergence(clone) is False
 
-    @patch("pre_push_sync.has_diverged")
-    @patch("pre_push_sync.run")
-    def test_no_divergence(self, mock_run, mock_diverged):
-        # First call is fetch (success), then has_diverged returns False
-        mock_run.return_value = _ok()
-        mock_diverged.return_value = False
-        result = sync(Path("/tmp"))
-        assert result.ready is True
-        assert "no divergence" in result.message
 
-    @patch("pre_push_sync.has_dirty_files")
-    @patch("pre_push_sync.has_diverged")
-    @patch("pre_push_sync.run")
-    def test_diverged_clean_merge(self, mock_run, mock_diverged, mock_dirty):
-        mock_diverged.return_value = True
-        mock_dirty.return_value = False
+def test_divergence_after_local_commit(tmp_path: Path):
+    origin = _make_bare_origin(tmp_path)
+    clone = _clone(origin, tmp_path / "clone")
+    # Add a local commit
+    (clone / "new.txt").write_text("hello\n")
+    subprocess.run(["git", "add", "."], cwd=clone, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "local change"],
+        cwd=clone, capture_output=True,
+    )
+    assert _has_divergence(clone) is True
 
-        def side_effect(cmd, **kwargs):
-            if cmd[:2] == ["git", "fetch"]:
-                return _ok()
-            if cmd[:2] == ["git", "pull"]:
-                return _ok("Merge made by the 'ort' strategy.")
-            return _ok()
 
-        mock_run.side_effect = side_effect
-        result = sync(Path("/tmp"))
-        assert result.diverged is True
-        assert result.merged is True
-        assert result.stashed is False
-        assert result.ready is True
+def test_no_divergence_after_push(tmp_path: Path):
+    origin = _make_bare_origin(tmp_path)
+    clone = _clone(origin, tmp_path / "clone")
+    (clone / "new.txt").write_text("hello\n")
+    subprocess.run(["git", "add", "."], cwd=clone, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "local change"],
+        cwd=clone, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "main"],
+        cwd=clone, capture_output=True,
+    )
+    assert _has_divergence(clone) is False
 
-    @patch("pre_push_sync.has_dirty_files")
-    @patch("pre_push_sync.has_diverged")
-    @patch("pre_push_sync.run")
-    def test_diverged_dirty_full_cycle(self, mock_run, mock_diverged, mock_dirty):
-        mock_diverged.return_value = True
-        mock_dirty.return_value = True
 
-        call_log = []
+# ---------------------------------------------------------------------------
+# _dirty_files
+# ---------------------------------------------------------------------------
 
-        def side_effect(cmd, **kwargs):
-            call_log.append(cmd)
-            if cmd[:2] == ["git", "fetch"]:
-                return _ok()
-            if cmd[:2] == ["git", "stash"] and "pop" not in cmd:
-                return _ok("Saved working directory")
-            if cmd[:2] == ["git", "pull"]:
-                return _ok("Merge made by the 'ort' strategy.")
-            if cmd[:3] == ["git", "stash", "pop"]:
-                return _ok("On branch main")
-            return _ok()
 
-        mock_run.side_effect = side_effect
-        result = sync(Path("/tmp"))
-        assert result.diverged is True
-        assert result.stashed is True
-        assert result.merged is True
-        assert result.stash_popped is True
-        assert result.ready is True
+def test_clean_repo_no_dirty_files(tmp_path: Path):
+    repo = _init_repo(tmp_path / "repo")
+    assert _dirty_files(repo) == []
 
-    @patch("pre_push_sync.has_dirty_files")
-    @patch("pre_push_sync.has_diverged")
-    @patch("pre_push_sync.run")
-    def test_diverged_merge_failure_aborts(self, mock_run, mock_diverged, mock_dirty):
-        mock_diverged.return_value = True
-        mock_dirty.return_value = False
 
-        def side_effect(cmd, **kwargs):
-            if cmd[:2] == ["git", "fetch"]:
-                return _ok()
-            if cmd[:2] == ["git", "pull"]:
-                return _fail("CONFLICT (content): Merge conflict in file.txt")
-            if cmd[:2] == ["git", "merge"]:
-                return _ok()
-            return _ok()
+def test_dirty_after_modification(tmp_path: Path):
+    repo = _init_repo(tmp_path / "repo")
+    (repo / "README.md").write_text("changed\n")
+    dirty = _dirty_files(repo)
+    assert len(dirty) >= 1
 
-        mock_run.side_effect = side_effect
-        result = sync(Path("/tmp"))
-        assert result.ready is False
-        assert "merge failed" in result.message
 
-    @patch("pre_push_sync.has_diverged")
-    @patch("pre_push_sync.run")
-    def test_dry_run(self, mock_run, mock_diverged):
-        mock_diverged.return_value = True
-        mock_run.return_value = _ok()  # fetch succeeds
-        result = sync(Path("/tmp"), dry_run=True)
-        assert result.diverged is True
-        assert result.ready is False
-        assert "dry-run" in result.message
+def test_dirty_after_new_untracked(tmp_path: Path):
+    repo = _init_repo(tmp_path / "repo")
+    (repo / "new_file.txt").write_text("untracked\n")
+    dirty = _dirty_files(repo)
+    assert any("new_file.txt" in d for d in dirty)
+
+
+# ---------------------------------------------------------------------------
+# _ahead_count
+# ---------------------------------------------------------------------------
+
+
+def test_ahead_count_zero_initially(tmp_path: Path):
+    origin = _make_bare_origin(tmp_path)
+    clone = _clone(origin, tmp_path / "clone")
+    assert _ahead_count(clone) == 0
+
+
+def test_ahead_count_after_local_commit(tmp_path: Path):
+    origin = _make_bare_origin(tmp_path)
+    clone = _clone(origin, tmp_path / "clone")
+    (clone / "x.txt").write_text("x\n")
+    subprocess.run(["git", "add", "."], cwd=clone, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "ahead"],
+        cwd=clone, capture_output=True,
+    )
+    assert _ahead_count(clone) == 1
+
+
+# ---------------------------------------------------------------------------
+# sync_and_push: happy path (no divergence)
+# ---------------------------------------------------------------------------
+
+
+def test_sync_no_divergence_pushes_cleanly(tmp_path: Path):
+    origin = _make_bare_origin(tmp_path)
+    clone = _clone(origin, tmp_path / "clone")
+    result = sync_and_push(clone, message="test sync")
+    assert result.ok is True
+    assert result.divergence is False
+    assert result.pushed is True
+
+
+def test_sync_commits_pending_files(tmp_path: Path):
+    origin = _make_bare_origin(tmp_path)
+    clone = _clone(origin, tmp_path / "clone")
+    (clone / "pending.txt").write_text("pending content\n")
+    result = sync_and_push(clone, message="commit pending")
+    assert result.ok is True
+    assert result.pushed is True
+    # Verify the file was committed
+    dirty = _dirty_files(clone)
+    assert dirty == []
+
+
+# ---------------------------------------------------------------------------
+# sync_and_push: with divergence
+# ---------------------------------------------------------------------------
+
+
+def test_sync_with_divergence_rebases_and_pushes(tmp_path: Path):
+    origin = _make_bare_origin(tmp_path)
+    clone_a = _clone(origin, tmp_path / "clone_a")
+    clone_b = _clone(origin, tmp_path / "clone_b")
+
+    # clone_a pushes a commit
+    (clone_a / "a.txt").write_text("from a\n")
+    subprocess.run(["git", "add", "."], cwd=clone_a, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "from a"],
+        cwd=clone_a, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "main"],
+        cwd=clone_a, capture_output=True,
+    )
+
+    # clone_b makes a local commit (now diverged)
+    (clone_b / "b.txt").write_text("from b\n")
+    subprocess.run(["git", "add", "."], cwd=clone_b, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "from b"],
+        cwd=clone_b, capture_output=True,
+    )
+
+    # sync_and_push should detect divergence, rebase, and push
+    result = sync_and_push(clone_b, message="sync with divergence")
+    assert result.divergence is True
+    assert result.rebased is True
+    assert result.ok is True
+    assert result.pushed is True
+
+
+def test_sync_with_divergence_and_dirty_tree(tmp_path: Path):
+    origin = _make_bare_origin(tmp_path)
+    clone_a = _clone(origin, tmp_path / "clone_a")
+    clone_b = _clone(origin, tmp_path / "clone_b")
+
+    # clone_a pushes
+    (clone_a / "a.txt").write_text("from a\n")
+    subprocess.run(["git", "add", "."], cwd=clone_a, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "from a"],
+        cwd=clone_a, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "main"],
+        cwd=clone_a, capture_output=True,
+    )
+
+    # clone_b has both committed and uncommitted changes
+    (clone_b / "b.txt").write_text("from b\n")
+    subprocess.run(["git", "add", "."], cwd=clone_b, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "from b"],
+        cwd=clone_b, capture_output=True,
+    )
+    (clone_b / "dirty.txt").write_text("uncommitted\n")
+
+    result = sync_and_push(clone_b, message="sync dirty + diverged")
+    assert result.divergence is True
+    assert result.stashed is True
+    assert result.ok is True
+
+
+# ---------------------------------------------------------------------------
+# sync_and_push: error handling
+# ---------------------------------------------------------------------------
+
+
+def test_sync_nonexistent_path():
+    result = sync_and_push("/nonexistent/path/to/repo")
+    assert result.ok is False
+    assert result.phase == Phase.PROBE
+    assert result.detail == "not a git repository"
+
+
+# ---------------------------------------------------------------------------
+# SyncResult
+# ---------------------------------------------------------------------------
+
+
+def test_sync_result_as_dict():
+    r = SyncResult(
+        ok=True, phase=Phase.DONE, divergence=False,
+        stashed=False, rebased=False, pushed=True, detail="",
+    )
+    d = r.as_dict()
+    assert d["ok"] is True
+    assert d["phase"] == "done"
+    assert d["pushed"] is True
