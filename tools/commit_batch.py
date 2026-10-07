@@ -26,8 +26,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "tools"))
 
 from iamai import batch, heartbeat, push, writer  # noqa: E402
+import pre_push_sync  # noqa: E402
 
 STOP = Path("/tmp/iamai-stop")
 PIDFILE = Path(str(writer.pid_file()).replace("-writer-", "-batch-"))
@@ -189,6 +191,19 @@ def run_once(state: writer.States, interval: int) -> int:
         if code != 0:
             log(f"commit failed: {out}")
             return 1
+
+    # Pre-push sync: fetch and resolve remote divergence before pushing.
+    # The push race is a clock — every ten minutes someone pushes first.
+    # Syncing here avoids the rejection entirely when possible, and falls
+    # through to push_with_rebase's own recovery when it isn't.
+    try:
+        sync_result = pre_push_sync.sync(REPO, remote="origin", branch=MAIN)
+        if sync_result.ready and sync_result.diverged:
+            log(f"pre-push sync: {sync_result.message}")
+        elif not sync_result.ready:
+            log(f"pre-push sync failed: {sync_result.message} -- falling through to push_with_rebase")
+    except Exception as exc:
+        log(f"pre-push sync error: {type(exc).__name__}: {exc} -- falling through to push_with_rebase")
 
     # More writers are joining this repo, so a rejected push is normal, not fatal:
     # rebase onto whoever got there first and land on top. Force-pushing would erase
