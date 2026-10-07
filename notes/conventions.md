@@ -1870,3 +1870,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 11241
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 260 python files, 1856 logged thoughts.
+## stroke 11271
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 448 files; 83232 lines is a lot for a toy.
+## stroke 11277
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 83240 lines across 448 tracked files, 932 commits deep.
+## stroke 11295
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 83275 lines across 448 tracked files, 932 commits deep.
