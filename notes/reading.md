@@ -1813,3 +1813,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 10821
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 76349 lines across 408 tracked files, 880 commits deep.
+## stroke 10845
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 882: the count of times this repo was pushed, not the work done.
+## stroke 10851
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1794 strokes written so far into 411 files.
