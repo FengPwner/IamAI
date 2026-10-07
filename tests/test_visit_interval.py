@@ -1,92 +1,254 @@
 """Tests for iamai.visit_interval — caretaker visit interval analysis."""
 
-from __future__ import annotations
-
-import tempfile
-from pathlib import Path
-
 import pytest
+from datetime import datetime
 
-from iamai.visit_interval import parse_visit_files, visit_intervals, visit_stats
-
-
-@pytest.fixture
-def notes_dir(tmp_path: Path) -> Path:
-    """Create a temporary notes directory with sample visit files."""
-    visits = [
-        ("caretaker-visit-1-2026-10-03.md", "# Visit 1\nFirst visit.\n"),
-        ("caretaker-visit-2-2026-10-03.md", "# Visit 2\nSame day.\n"),
-        ("caretaker-visit-3-2026-10-04.md", "# Visit 3\nNext day.\n"),
-        ("caretaker-visit-4-2026-10-04.md", "# Visit 4\nStill same day.\n"),
-        ("caretaker-visit-5-2026-10-06.md", "# Visit 5\nTwo days later.\n"),
-    ]
-    for name, content in visits:
-        (tmp_path / name).write_text(content, encoding="utf-8")
-    # A decoy file that should be skipped
-    (tmp_path / "some-other-note.md").write_text("not a visit", encoding="utf-8")
-    return tmp_path
+from iamai.visit_interval import (
+    VisitIntervalAnalyzer,
+    VisitRecord,
+    VisitStats,
+    _VISIT_RE,
+)
 
 
-def test_parse_visit_files_finds_all(notes_dir: Path) -> None:
-    visits = parse_visit_files(notes_dir)
-    assert len(visits) == 5
-    assert visits[0]["visit_number"] == 1
-    assert visits[-1]["visit_number"] == 5
+# ---------------------------------------------------------------------------
+# Filename parsing
+# ---------------------------------------------------------------------------
+
+class TestFilenameParsing:
+    def test_valid_filename(self):
+        m = _VISIT_RE.match("caretaker-visit-74-2026-10-08.md")
+        assert m is not None
+        assert m.group(1) == "74"
+        assert m.group(2) == "2026-10-08"
+
+    def test_single_digit_number(self):
+        m = _VISIT_RE.match("caretaker-visit-1-2026-10-03.md")
+        assert m is not None
+        assert m.group(1) == "1"
+
+    def test_triple_digit_number(self):
+        m = _VISIT_RE.match("caretaker-visit-100-2026-10-10.md")
+        assert m is not None
+        assert m.group(1) == "100"
+
+    def test_invalid_extension(self):
+        m = _VISIT_RE.match("caretaker-visit-74-2026-10-08.txt")
+        assert m is None
+
+    def test_invalid_prefix(self):
+        m = _VISIT_RE.match("caretaker-visits-74-2026-10-08.md")
+        assert m is None
+
+    def test_missing_date(self):
+        m = _VISIT_RE.match("caretaker-visit-74.md")
+        assert m is None
+
+    def test_path_prefix_stripped(self):
+        """The regex matches basename only; analyzer uses os.path.basename."""
+        m = _VISIT_RE.match("notes/caretaker-visit-74-2026-10-08.md")
+        assert m is None  # regex expects basename only
 
 
-def test_parse_visit_files_skips_non_matching(notes_dir: Path) -> None:
-    visits = parse_visit_files(notes_dir)
-    filenames = [v["filename"] for v in visits]
-    assert "some-other-note.md" not in filenames
+# ---------------------------------------------------------------------------
+# VisitRecord
+# ---------------------------------------------------------------------------
+
+class TestVisitRecord:
+    def test_timestamp_parsed(self):
+        r = VisitRecord(number=74, date="2026-10-08")
+        assert r.timestamp == datetime(2026, 10, 8)
+
+    def test_date_preserved(self):
+        r = VisitRecord(number=1, date="2026-10-03")
+        assert r.date == "2026-10-03"
+        assert r.number == 1
 
 
-def test_parse_visit_files_empty_dir(tmp_path: Path) -> None:
-    assert parse_visit_files(tmp_path) == []
+# ---------------------------------------------------------------------------
+# Analyzer: add and dedup
+# ---------------------------------------------------------------------------
+
+class TestAnalyzerAdd:
+    def test_add_single(self):
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-1-2026-10-03.md")
+        assert len(a.visits) == 1
+
+    def test_add_with_path(self):
+        a = VisitIntervalAnalyzer()
+        a.add("notes/caretaker-visit-1-2026-10-03.md")
+        assert len(a.visits) == 1
+
+    def test_add_invalid_ignored(self):
+        a = VisitIntervalAnalyzer()
+        a.add("not-a-visit.md")
+        assert len(a.visits) == 0
+
+    def test_dedup_by_number_and_date(self):
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-1-2026-10-03.md")
+        a.add("caretaker-visit-1-2026-10-03.md")
+        assert len(a.visits) == 1
+
+    def test_same_number_different_date_not_dedup(self):
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-1-2026-10-03.md")
+        a.add("caretaker-visit-1-2026-10-04.md")
+        assert len(a.visits) == 2
+
+    def test_add_many(self):
+        a = VisitIntervalAnalyzer()
+        a.add_many([
+            "caretaker-visit-1-2026-10-03.md",
+            "caretaker-visit-2-2026-10-03.md",
+            "invalid.md",
+        ])
+        assert len(a.visits) == 2
+
+    def test_chaining(self):
+        a = VisitIntervalAnalyzer()
+        result = a.add("caretaker-visit-1-2026-10-03.md")
+        assert result is a
 
 
-def test_parse_visit_files_nonexistent_dir(tmp_path: Path) -> None:
-    assert parse_visit_files(tmp_path / "does-not-exist") == []
+# ---------------------------------------------------------------------------
+# Analyzer: sorting
+# ---------------------------------------------------------------------------
+
+class TestAnalyzerSorting:
+    def test_sorted_by_date_then_number(self):
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-3-2026-10-04.md")
+        a.add("caretaker-visit-1-2026-10-03.md")
+        a.add("caretaker-visit-2-2026-10-03.md")
+        visits = a.visits
+        assert visits[0].number == 1
+        assert visits[1].number == 2
+        assert visits[2].number == 3
 
 
-def test_visit_intervals_computes_gaps(notes_dir: Path) -> None:
-    intervals = visit_intervals(notes_dir)
-    assert len(intervals) == 4
-    # visit 1 → 2: same day = 0h
-    assert intervals[0] == 0.0
-    # visit 2 → 3: 1 day = 24h
-    assert intervals[1] == 24.0
-    # visit 3 → 4: same day = 0h
-    assert intervals[2] == 0.0
-    # visit 4 → 5: 2 days = 48h
-    assert intervals[3] == 48.0
+# ---------------------------------------------------------------------------
+# Compute: interval statistics
+# ---------------------------------------------------------------------------
+
+class TestCompute:
+    def test_two_visits_same_day(self):
+        """Two visits on the same date → interval is 0 hours."""
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-1-2026-10-03.md")
+        a.add("caretaker-visit-2-2026-10-03.md")
+        stats = a.compute()
+        assert stats.count == 2
+        assert stats.mean_hours == 0.0
+        assert stats.median_hours == 0.0
+        assert stats.longest_gap_hours == 0.0
+
+    def test_two_visits_one_day_apart(self):
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-1-2026-10-03.md")
+        a.add("caretaker-visit-2-2026-10-04.md")
+        stats = a.compute()
+        assert stats.count == 2
+        assert stats.mean_hours == 24.0
+        assert stats.median_hours == 24.0
+        assert stats.min_hours == 24.0
+        assert stats.max_hours == 24.0
+        assert stats.longest_gap_hours == 24.0
+        assert stats.longest_gap_indices == (0, 1)
+
+    def test_three_visits_mixed_intervals(self):
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-1-2026-10-03.md")
+        a.add("caretaker-visit-2-2026-10-04.md")  # +24h
+        a.add("caretaker-visit-3-2026-10-06.md")  # +48h
+        stats = a.compute()
+        assert stats.count == 3
+        assert stats.mean_hours == pytest.approx(36.0)  # (24+48)/2
+        assert stats.median_hours == 36.0  # median of [24, 48]
+        assert stats.min_hours == 24.0
+        assert stats.max_hours == 48.0
+        assert stats.longest_gap_hours == 48.0
+        assert stats.longest_gap_indices == (1, 2)
+
+    def test_four_visits_odd_median(self):
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-1-2026-10-03.md")
+        a.add("caretaker-visit-2-2026-10-04.md")  # +24h
+        a.add("caretaker-visit-3-2026-10-05.md")  # +24h
+        a.add("caretaker-visit-4-2026-10-07.md")  # +48h
+        stats = a.compute()
+        # intervals: [24, 24, 48], sorted: [24, 24, 48], median = 24
+        assert stats.median_hours == 24.0
+
+    def test_four_visits_even_median(self):
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-1-2026-10-03.md")
+        a.add("caretaker-visit-2-2026-10-05.md")  # +48h
+        a.add("caretaker-visit-3-2026-10-06.md")  # +24h
+        a.add("caretaker-visit-4-2026-10-08.md")  # +48h
+        stats = a.compute()
+        # intervals: [48, 24, 48], sorted: [24, 48, 48], median = 48
+        assert stats.median_hours == 48.0
+
+    def test_too_few_visits_raises(self):
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-1-2026-10-03.md")
+        with pytest.raises(ValueError, match="at least 2"):
+            a.compute()
+
+    def test_empty_analyzer_raises(self):
+        a = VisitIntervalAnalyzer()
+        with pytest.raises(ValueError, match="at least 2"):
+            a.compute()
+
+    def test_longest_gap_identifies_correct_pair(self):
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-1-2026-10-03.md")
+        a.add("caretaker-visit-2-2026-10-04.md")  # +24h
+        a.add("caretaker-visit-3-2026-10-04.md")  # +0h
+        a.add("caretaker-visit-4-2026-10-10.md")  # +144h (6 days)
+        stats = a.compute()
+        assert stats.longest_gap_hours == 144.0
+        assert stats.longest_gap_indices == (2, 3)
 
 
-def test_visit_intervals_single_visit(tmp_path: Path) -> None:
-    (tmp_path / "caretaker-visit-1-2026-10-03.md").write_text("only one")
-    assert visit_intervals(tmp_path) == []
+# ---------------------------------------------------------------------------
+# VisitStats.summary
+# ---------------------------------------------------------------------------
+
+class TestStatsSummary:
+    def test_summary_format(self):
+        a = VisitIntervalAnalyzer()
+        a.add("caretaker-visit-1-2026-10-03.md")
+        a.add("caretaker-visit-2-2026-10-04.md")
+        a.add("caretaker-visit-3-2026-10-06.md")
+        stats = a.compute()
+        s = stats.summary()
+        assert "3 visits" in s
+        assert "mean interval" in s
+        assert "longest gap" in s
 
 
-def test_visit_stats_summary(notes_dir: Path) -> None:
-    stats = visit_stats(notes_dir)
-    assert stats["count"] == 5
-    assert stats["first_visit"] == 1
-    assert stats["last_visit"] == 5
-    assert stats["date_span_days"] == 3  # Oct 3 → Oct 6
-    assert stats["same_day_visits"] == 2  # visits 1→2 and 3→4
-    assert stats["mean_interval_hours"] == pytest.approx(18.0)  # (0+24+0+48)/4
-    assert stats["min_interval_hours"] == 0.0
-    assert stats["max_interval_hours"] == 48.0
+# ---------------------------------------------------------------------------
+# from_directory
+# ---------------------------------------------------------------------------
 
+class TestFromDirectory:
+    def test_nonexistent_directory(self, tmp_path):
+        a = VisitIntervalAnalyzer.from_directory(str(tmp_path / "nonexistent"))
+        assert len(a.visits) == 0
 
-def test_visit_stats_single_visit(tmp_path: Path) -> None:
-    (tmp_path / "caretaker-visit-1-2026-10-03.md").write_text("only one")
-    stats = visit_stats(tmp_path)
-    assert stats["count"] == 1
-    assert stats["mean_interval_hours"] == 0.0
+    def test_scans_directory(self, tmp_path):
+        (tmp_path / "caretaker-visit-1-2026-10-03.md").write_text("# visit 1")
+        (tmp_path / "caretaker-visit-2-2026-10-04.md").write_text("# visit 2")
+        (tmp_path / "other-file.md").write_text("# not a visit")
+        a = VisitIntervalAnalyzer.from_directory(str(tmp_path))
+        assert len(a.visits) == 2
 
-
-def test_visit_stats_empty_dir(tmp_path: Path) -> None:
-    stats = visit_stats(tmp_path)
-    assert stats["count"] == 0
-    assert stats["first_visit"] == 0
-    assert stats["last_visit"] == 0
+    def test_ignores_non_matching_files(self, tmp_path):
+        (tmp_path / "caretaker-visit-1-2026-10-03.md").write_text("# visit 1")
+        (tmp_path / "caretaker-visits-summary.md").write_text("# summary")
+        (tmp_path / "README.md").write_text("# readme")
+        a = VisitIntervalAnalyzer.from_directory(str(tmp_path))
+        assert len(a.visits) == 1
