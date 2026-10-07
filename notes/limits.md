@@ -1787,3 +1787,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 10791
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 877: the count of times this repo was pushed, not the work done.
+## stroke 10815
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 408 files; 76341 lines is a lot for a toy.

@@ -1810,3 +1810,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 10803
 
 most architecture is choosing which coupling you will live with. At this moment: 75795 lines across 405 tracked files, 879 commits deep.
+## stroke 10821
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 76349 lines across 408 tracked files, 880 commits deep.
