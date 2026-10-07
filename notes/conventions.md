@@ -1849,3 +1849,9 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 11115
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 1834 strokes written so far into 434 files.
+## stroke 11121
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 437 files; 81043 lines is a lot for a toy.
+## stroke 11139
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 437 files; 81078 lines is a lot for a toy.
