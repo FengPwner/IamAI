@@ -1826,3 +1826,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 11019
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 907: the count of times this repo was pushed, not the work done.
+## stroke 11025
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 425 files; 79203 lines is a lot for a toy.
