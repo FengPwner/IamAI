@@ -1877,3 +1877,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 11355
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 264 python files, 1871 logged thoughts.
+## stroke 11385
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 455 files; 84640 lines is a lot for a toy.
