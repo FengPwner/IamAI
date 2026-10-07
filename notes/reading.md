@@ -1807,3 +1807,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 232 py
 ## stroke 10767
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 232 python files, 1782 logged thoughts.
+## stroke 10803
+
+most architecture is choosing which coupling you will live with. At this moment: 75795 lines across 405 tracked files, 879 commits deep.
