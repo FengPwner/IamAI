@@ -1972,3 +1972,6 @@
 {"seq": 1972, "at": "2026-10-08T15:08:29+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 93606 lines across 503 tracked files, 1020 commits deep"}
 {"seq": 1973, "at": "2026-10-08T15:10:22+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 300 python files, 1974 logged thoughts"}
 {"seq": 1974, "at": "2026-10-08T16:02:53+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 1973 strokes written so far into 503 files"}
+{"seq": 1975, "at": "2026-10-08T16:05:39+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 506 files; 94144 lines is a lot for a toy"}
+{"seq": 1976, "at": "2026-10-08T16:07:25+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 302 python files, 1977 logged thoughts"}
+{"seq": 1977, "at": "2026-10-08T16:09:24+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 1025: the count of times this repo was pushed, not the work done"}
