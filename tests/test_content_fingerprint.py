@@ -1,202 +1,359 @@
-"""Tests for snippets/content_fingerprint.py — near-duplicate detection."""
+"""Tests for iamai.content_fingerprint module."""
+
+from __future__ import annotations
+
+import json
+import tempfile
+from pathlib import Path
 
 import pytest
-from snippets.content_fingerprint import (
-    shingle,
+
+from iamai.content_fingerprint import (
+    DEFAULT_N,
+    DEFAULT_THRESHOLD,
+    _char_ngrams,
+    _load_stroke_texts,
+    _tokenise,
+    cross_kind_similarity,
     fingerprint,
-    jaccard,
-    similarity,
-    find_duplicates,
-    nearest,
+    find_near_duplicates,
+    jaccard_similarity,
+    kind_fingerprints,
+    near_duplicate_summary,
 )
 
 
-# ── shingle ──────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Tokeniser
+# ---------------------------------------------------------------------------
 
 
-class TestShingle:
+class TestTokenise:
     def test_basic(self):
-        assert shingle("abcd", n=2) == {"ab", "bc", "cd"}
+        assert _tokenise("Hello World") == ["hello", "world"]
 
-    def test_n_equals_1(self):
-        assert shingle("abc", n=1) == {"a", "b", "c"}
+    def test_punctuation(self):
+        assert _tokenise("it's a test!") == ["it", "s", "a", "test"]
 
-    def test_text_shorter_than_n(self):
-        assert shingle("ab", n=4) == set()
+    def test_numbers_stripped(self):
+        assert _tokenise("stroke 42 done") == ["stroke", "done"]
 
-    def test_empty_string(self):
-        assert shingle("", n=3) == set()
+    def test_empty(self):
+        assert _tokenise("") == []
 
-    def test_whitespace_normalization(self):
-        # "a  b" and "a b" should produce the same shingles after normalization
-        assert shingle("hello  world", n=3) == shingle("hello world", n=3)
+    def test_unicode(self):
+        # Non-ASCII letters are treated as separators (only a-z kept)
+        assert _tokenise("café latte") == ["caf", "latte"]
 
-    def test_case_insensitive(self):
-        assert shingle("Hello World", n=3) == shingle("hello world", n=3)
+    def test_multiple_spaces(self):
+        assert _tokenise("  hello   world  ") == ["hello", "world"]
+
+
+# ---------------------------------------------------------------------------
+# Character n-grams
+# ---------------------------------------------------------------------------
+
+
+class TestCharNgrams:
+    def test_basic_trigram(self):
+        assert _char_ngrams("hello", 3) == {"hel", "ell", "llo"}
+
+    def test_short_token(self):
+        # Token shorter than n returns the token itself
+        assert _char_ngrams("hi", 3) == {"hi"}
+
+    def test_single_char(self):
+        assert _char_ngrams("a", 3) == {"a"}
 
     def test_exact_length(self):
-        assert shingle("abcd", n=4) == {"abcd"}
+        assert _char_ngrams("abc", 3) == {"abc"}
+
+    def test_bigram(self):
+        assert _char_ngrams("hello", 2) == {"he", "el", "ll", "lo"}
 
 
-# ── fingerprint ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Fingerprint
+# ---------------------------------------------------------------------------
 
 
 class TestFingerprint:
-    def test_returns_frozenset(self):
-        assert isinstance(fingerprint("test"), frozenset)
+    def test_returns_set(self):
+        fp = fingerprint("the quick brown fox")
+        assert isinstance(fp, set)
+        assert len(fp) > 0
 
-    def test_empty(self):
-        assert fingerprint("") == frozenset()
+    def test_empty_text(self):
+        assert fingerprint("") == set()
 
-    def test_identical_texts_same_fingerprint(self):
-        assert fingerprint("hello world") == fingerprint("hello world")
+    def test_single_word(self):
+        fp = fingerprint("hello")
+        assert "hel" in fp
+        assert "ell" in fp
+        assert "llo" in fp
 
-    def test_different_texts_different_fingerprint(self):
-        assert fingerprint("hello world") != fingerprint("goodbye moon")
+    def test_inter_token_bridge(self):
+        # "hello world" should produce a bridge ngram like "o w"
+        fp = fingerprint("hello world", n=3)
+        assert isinstance(fp, set)
+        assert len(fp) > 4  # more than just intra-word ngrams
+
+    def test_deterministic(self):
+        assert fingerprint("abc def") == fingerprint("abc def")
+
+    def test_case_insensitive(self):
+        assert fingerprint("Hello World") == fingerprint("hello world")
+
+    def test_different_n(self):
+        fp2 = fingerprint("hello world", n=2)
+        fp3 = fingerprint("hello world", n=3)
+        # Different n values should produce different fingerprint sizes
+        assert fp2 != fp3
 
 
-# ── jaccard ──────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Jaccard similarity
+# ---------------------------------------------------------------------------
 
 
-class TestJaccard:
-    def test_identical_sets(self):
-        assert jaccard({1, 2, 3}, {1, 2, 3}) == 1.0
+class TestJaccardSimilarity:
+    def test_identical(self):
+        s = {"a", "b", "c"}
+        assert jaccard_similarity(s, s) == 1.0
 
-    def test_disjoint_sets(self):
-        assert jaccard({1, 2}, {3, 4}) == 0.0
+    def test_disjoint(self):
+        assert jaccard_similarity({"a", "b"}, {"c", "d"}) == 0.0
 
     def test_partial_overlap(self):
-        # {1,2,3} & {2,3,4} = {2,3} → 2/4 = 0.5
-        assert jaccard({1, 2, 3}, {2, 3, 4}) == 0.5
+        a = {"a", "b", "c", "d"}
+        b = {"c", "d", "e", "f"}
+        # intersection=2, union=6
+        assert abs(jaccard_similarity(a, b) - 2 / 6) < 1e-9
 
     def test_both_empty(self):
-        assert jaccard(set(), set()) == 0.0
+        assert jaccard_similarity(set(), set()) == 0.0
 
     def test_one_empty(self):
-        assert jaccard({1, 2}, set()) == 0.0
+        assert jaccard_similarity({"a"}, set()) == 0.0
 
-    def test_subset(self):
-        # {1} ⊂ {1,2,3} → 1/3
-        assert abs(jaccard({1}, {1, 2, 3}) - 1 / 3) < 1e-9
-
-
-# ── similarity ───────────────────────────────────────────────────────────────
+    def test_symmetric(self):
+        a = {"x", "y"}
+        b = {"y", "z"}
+        assert jaccard_similarity(a, b) == jaccard_similarity(b, a)
 
 
-class TestSimilarity:
-    def test_identical(self):
-        assert similarity("hello world", "hello world") == 1.0
-
-    def test_completely_different(self):
-        assert similarity("abcxyz", "mnopqr") == 0.0
-
-    def test_partial_overlap(self):
-        sim = similarity("the quick brown fox", "the quick brown dog")
-        assert 0.3 < sim < 0.9
-
-    def test_empty_texts(self):
-        assert similarity("", "") == 0.0
-
-    def test_one_empty(self):
-        assert similarity("hello world", "") == 0.0
-
-    def test_symmetry(self):
-        a = "the quick brown fox jumps"
-        b = "the quick brown dog jumps"
-        assert similarity(a, b) == similarity(b, a)
-
-    def test_custom_n(self):
-        sim_2 = similarity("abcdef", "abcxyz", n=2)
-        sim_4 = similarity("abcdef", "abcxyz", n=4)
-        # larger n → fewer shared n-grams → lower similarity
-        assert sim_2 >= sim_4
+# ---------------------------------------------------------------------------
+# Stroke loading
+# ---------------------------------------------------------------------------
 
 
-# ── find_duplicates ──────────────────────────────────────────────────────────
+class TestLoadStrokeTexts:
+    def test_missing_file(self, tmp_path):
+        result = _load_stroke_texts(tmp_path / "nonexistent.jsonl")
+        assert result == []
+
+    def test_valid_strokes(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        p.write_text(
+            json.dumps({"seq": 1, "kind": "thought", "text": "hello world"}) + "\n"
+            + json.dumps({"seq": 2, "kind": "garden", "text": "green grass"}) + "\n"
+        )
+        entries = _load_stroke_texts(p)
+        assert len(entries) == 2
+        assert entries[0]["seq"] == 1
+        assert entries[0]["kind"] == "thought"
+        assert isinstance(entries[0]["fp"], set)
+
+    def test_malformed_line(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        p.write_text("not json\n" + json.dumps({"seq": 1, "kind": "x", "text": "ok"}) + "\n")
+        entries = _load_stroke_texts(p)
+        assert len(entries) == 1
+
+    def test_uses_seed_fallback(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        p.write_text(json.dumps({"seq": 1, "kind": "t", "seed": "fallback text"}) + "\n")
+        entries = _load_stroke_texts(p)
+        assert len(entries) == 1
+        assert len(entries[0]["fp"]) > 0
 
 
-class TestFindDuplicates:
-    def test_finds_near_duplicates(self):
-        texts = [
-            "the quick brown fox jumps over the lazy dog today",
-            "the quick brown fox leaps over the lazy dog today",
-            "nothing in common with the others at all here today",
+# ---------------------------------------------------------------------------
+# Near-duplicate detection
+# ---------------------------------------------------------------------------
+
+
+class TestFindNearDuplicates:
+    def test_identical_strokes(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = []
+        for i in range(3):
+            lines.append(json.dumps({"seq": i, "kind": "thought", "text": "the same thought repeated here"}))
+        p.write_text("\n".join(lines) + "\n")
+        pairs = find_near_duplicates(threshold=0.5, path=p)
+        # 3 identical strokes → 3 pairs (0-1, 0-2, 1-2)
+        assert len(pairs) == 3
+        for seq_a, seq_b, sim in pairs:
+            assert sim > 0.9
+
+    def test_distinct_strokes(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = [
+            json.dumps({"seq": 0, "kind": "thought", "text": "alpha beta gamma"}),
+            json.dumps({"seq": 1, "kind": "thought", "text": "xyz one two three"}),
+            json.dumps({"seq": 2, "kind": "garden", "text": "purple elephant"}),
         ]
-        pairs = find_duplicates(texts, threshold=0.4)
-        assert len(pairs) >= 1
-        assert pairs[0][0] == 0
-        assert pairs[0][1] == 1
-
-    def test_no_duplicates_below_threshold(self):
-        texts = [
-            "alpha beta gamma delta epsilon zeta eta theta iota",
-            "completely different text about something else entirely",
-        ]
-        pairs = find_duplicates(texts, threshold=0.9)
+        p.write_text("\n".join(lines) + "\n")
+        pairs = find_near_duplicates(threshold=0.8, path=p)
         assert len(pairs) == 0
 
-    def test_empty_list(self):
-        assert find_duplicates([], threshold=0.5) == []
+    def test_max_pairs_cap(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = []
+        for i in range(20):
+            lines.append(json.dumps({"seq": i, "kind": "t", "text": "repeated content here always"}))
+        p.write_text("\n".join(lines) + "\n")
+        pairs = find_near_duplicates(threshold=0.5, max_pairs=5, path=p)
+        assert len(pairs) <= 5
 
-    def test_single_text(self):
-        assert find_duplicates(["just one text here today"], threshold=0.5) == []
-
-    def test_min_length_filter(self):
-        texts = ["short", "also short", "this one is long enough to pass the filter"]
-        pairs = find_duplicates(texts, threshold=0.1, min_length=20)
-        # first two are too short, so no pairs involving them
-        assert all(2 in p[:2] for p in pairs) or len(pairs) == 0
-
-    def test_sorted_by_similarity_desc(self):
-        texts = [
-            "the quick brown fox jumps over the lazy dog again and again today",
-            "the quick brown fox leaps over the lazy dog again and again today",
-            "the quick brown fox something completely different from others",
-            "the quick brown fox jumps over the lazy dog again but different",
+    def test_sorted_by_similarity(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = [
+            json.dumps({"seq": 0, "kind": "t", "text": "exact same content"}),
+            json.dumps({"seq": 1, "kind": "t", "text": "exact same content"}),
+            json.dumps({"seq": 2, "kind": "t", "text": "exact same different"}),
         ]
-        pairs = find_duplicates(texts, threshold=0.2)
-        if len(pairs) > 1:
-            for i in range(len(pairs) - 1):
-                assert pairs[i][2] >= pairs[i + 1][2]
+        p.write_text("\n".join(lines) + "\n")
+        pairs = find_near_duplicates(threshold=0.3, path=p)
+        if len(pairs) >= 2:
+            # First pair should have highest similarity
+            assert pairs[0][2] >= pairs[1][2]
 
-    def test_all_identical(self):
-        texts = ["same text here today"] * 4
-        pairs = find_duplicates(texts, threshold=0.9)
-        # C(4,2) = 6 pairs, all with similarity 1.0
-        assert len(pairs) == 6
-        assert all(sim == 1.0 for _, _, sim in pairs)
-
-
-# ── nearest ──────────────────────────────────────────────────────────────────
+    def test_empty_file(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        p.write_text("")
+        assert find_near_duplicates(path=p) == []
 
 
-class TestNearest:
-    def test_basic(self):
-        corpus = [
-            "hello world foo bar baz qux",
-            "goodbye moon something else entirely different",
-            "hello world foo bar baz different ending",
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+
+
+class TestNearDuplicateSummary:
+    def test_format(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = [
+            json.dumps({"seq": 0, "kind": "t", "text": "unique alpha beta"}),
+            json.dumps({"seq": 1, "kind": "t", "text": "unique gamma delta"}),
         ]
-        results = nearest("hello world foo bar baz qux ending", corpus, top_k=2)
-        assert len(results) == 2
-        # first result should be most similar
-        assert results[0][1] >= results[1][1]
+        p.write_text("\n".join(lines) + "\n")
+        s = near_duplicate_summary(threshold=0.9, path=p)
+        assert "0 near-duplicate pairs" in s
+        assert "2 strokes" in s
 
-    def test_empty_corpus(self):
-        assert nearest("hello", [], top_k=3) == []
+    def test_with_duplicates(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = [
+            json.dumps({"seq": 0, "kind": "t", "text": "same text here"}),
+            json.dumps({"seq": 1, "kind": "t", "text": "same text here"}),
+        ]
+        p.write_text("\n".join(lines) + "\n")
+        s = near_duplicate_summary(threshold=0.5, path=p)
+        assert "1 near-duplicate pair" in s
 
-    def test_empty_query(self):
-        assert nearest("", ["hello world foo bar"], top_k=3) == []
 
-    def test_top_k_larger_than_corpus(self):
-        corpus = ["one text here today", "another text here today"]
-        results = nearest("some query text here today please", corpus, top_k=10)
-        assert len(results) == 2
+# ---------------------------------------------------------------------------
+# Kind fingerprints & cross-kind
+# ---------------------------------------------------------------------------
 
-    def test_returns_index_and_score(self):
-        corpus = ["hello world this is a test of the system"]
-        results = nearest("hello world this is also a test", corpus)
-        assert len(results) == 1
-        idx, score = results[0]
-        assert idx == 0
-        assert 0.0 <= score <= 1.0
+
+class TestKindFingerprints:
+    def test_basic(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = [
+            json.dumps({"seq": 0, "kind": "thought", "text": "alpha beta"}),
+            json.dumps({"seq": 1, "kind": "garden", "text": "green leaves"}),
+            json.dumps({"seq": 2, "kind": "thought", "text": "gamma delta"}),
+        ]
+        p.write_text("\n".join(lines) + "\n")
+        kfps = kind_fingerprints(p)
+        assert "thought" in kfps
+        assert "garden" in kfps
+        assert isinstance(kfps["thought"], set)
+
+    def test_union_across_kind(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = [
+            json.dumps({"seq": 0, "kind": "t", "text": "hello world"}),
+            json.dumps({"seq": 1, "kind": "t", "text": "goodbye moon"}),
+        ]
+        p.write_text("\n".join(lines) + "\n")
+        kfps = kind_fingerprints(p)
+        # Should contain ngrams from both strokes
+        assert len(kfps["t"]) > 3
+
+
+class TestCrossKindSimilarity:
+    def test_same_kind(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = [
+            json.dumps({"seq": 0, "kind": "thought", "text": "hello world"}),
+        ]
+        p.write_text("\n".join(lines) + "\n")
+        assert cross_kind_similarity("thought", "thought", p) == 1.0
+
+    def test_missing_kind(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        p.write_text(json.dumps({"seq": 0, "kind": "t", "text": "hi"}) + "\n")
+        assert cross_kind_similarity("t", "nonexistent", p) == 0.0
+
+    def test_different_kinds(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = [
+            json.dumps({"seq": 0, "kind": "a", "text": "alpha beta gamma delta"}),
+            json.dumps({"seq": 1, "kind": "b", "text": "epsilon zeta eta theta"}),
+        ]
+        p.write_text("\n".join(lines) + "\n")
+        sim = cross_kind_similarity("a", "b", p)
+        assert 0.0 <= sim <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# Edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestEdgeCases:
+    def test_very_short_text(self):
+        fp = fingerprint("a")
+        assert isinstance(fp, set)
+
+    def test_only_punctuation(self):
+        fp = fingerprint("!!! ??? ...")
+        assert fp == set() or len(fp) == 0
+
+    def test_long_text_performance(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = []
+        for i in range(100):
+            lines.append(
+                json.dumps({"seq": i, "kind": "t", "text": f"stroke number {i} with some padding text here"})
+            )
+        p.write_text("\n".join(lines) + "\n")
+        pairs = find_near_duplicates(threshold=0.3, path=p)
+        assert isinstance(pairs, list)
+
+    def test_threshold_boundary(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        lines = [
+            json.dumps({"seq": 0, "kind": "t", "text": "abc def ghi"}),
+            json.dumps({"seq": 1, "kind": "t", "text": "abc def xyz"}),
+        ]
+        p.write_text("\n".join(lines) + "\n")
+        # At threshold 1.0, partial overlap should not match
+        pairs_strict = find_near_duplicates(threshold=1.0, path=p)
+        assert len(pairs_strict) == 0
+        # At threshold 0.0, everything matches
+        pairs_loose = find_near_duplicates(threshold=0.0, path=p)
+        assert len(pairs_loose) >= 1
