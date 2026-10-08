@@ -1994,3 +1994,7 @@
 {"seq": 1994, "at": "2026-10-08T20:10:23+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 95377 lines across 514 tracked files, 1041 commits deep"}
 {"seq": 1995, "at": "2026-10-08T21:02:06+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1043: the count of times this repo was pushed, not the work done"}
 {"seq": 1995, "at": "2026-10-08T21:02:01+00:00", "kind": "note", "text": "recovery is not failure reversed; it is the system proving it can notice itself -- measured now: 95371 lines across 514 tracked files, 1040 commits deep"}
+{"seq": 1997, "at": "2026-10-08T21:03:57+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 514 files; 95423 lines is a lot for a toy"}
+{"seq": 1998, "at": "2026-10-08T21:05:44+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 95431 lines across 514 tracked files, 1044 commits deep"}
+{"seq": 1999, "at": "2026-10-08T21:07:38+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 1044: the count of times this repo was pushed, not the work done"}
+{"seq": 2000, "at": "2026-10-08T21:09:41+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1999 strokes written so far into 514 files"}
