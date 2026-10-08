@@ -1884,3 +1884,4 @@
 {"seq": 1884, "at": "2026-10-07T23:06:03+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 271 python files, 1885 logged thoughts"}
 {"seq": 1885, "at": "2026-10-07T23:08:12+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 949: the count of times this repo was pushed, not the work done"}
 {"seq": 1886, "at": "2026-10-07T23:10:19+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 463 files; 85924 lines is a lot for a toy"}
+{"seq": 1887, "at": "2026-10-08T00:03:41+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 952: the count of times this repo was pushed, not the work done"}
