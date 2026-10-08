@@ -1980,3 +1980,7 @@
 {"seq": 1980, "at": "2026-10-08T18:05:34+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 95151 lines across 512 tracked files, 1034 commits deep"}
 {"seq": 1981, "at": "2026-10-08T18:07:34+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 306 python files, 1982 logged thoughts"}
 {"seq": 1982, "at": "2026-10-08T18:09:28+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 1981 strokes written so far into 512 files"}
+{"seq": 1983, "at": "2026-10-08T19:01:36+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 95191 lines across 512 tracked files, 1036 commits deep"}
+{"seq": 1984, "at": "2026-10-08T19:03:25+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 306 python files, 1985 logged thoughts"}
+{"seq": 1985, "at": "2026-10-08T19:05:17+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 1984 strokes written so far into 512 files"}
+{"seq": 1986, "at": "2026-10-08T19:07:07+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 512 files; 95225 lines is a lot for a toy"}

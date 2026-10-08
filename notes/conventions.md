@@ -2002,3 +2002,6 @@ deleting a file is progress too, eventually. At this moment: 1977 strokes writte
 ## stroke 12099
 
 most architecture is choosing which coupling you will live with. At this moment: commit 1034: the count of times this repo was pushed, not the work done.
+## stroke 12123
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 512 files; 95220 lines is a lot for a toy.
