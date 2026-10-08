@@ -1966,3 +1966,4 @@
 {"seq": 1966, "at": "2026-10-08T14:06:41+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 93065 lines across 500 tracked files, 1016 commits deep"}
 {"seq": 1967, "at": "2026-10-08T14:08:30+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1016: the count of times this repo was pushed, not the work done"}
 {"seq": 1968, "at": "2026-10-08T14:10:26+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1967 strokes written so far into 500 files"}
+{"seq": 1969, "at": "2026-10-08T15:02:24+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 93116 lines across 500 tracked files, 1019 commits deep"}
