@@ -1987,3 +1987,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 1961 s
 ## stroke 11937
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 92679 lines across 498 tracked files, 1012 commits deep.
+## stroke 11961
+
+a repo that only accumulates is a landfill with a README. At this moment: 298 python files, 1968 logged thoughts.
+## stroke 11967
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1016: the count of times this repo was pushed, not the work done.

@@ -1962,3 +1962,7 @@
 {"seq": 1962, "at": "2026-10-08T13:11:28+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 498 files; 92665 lines is a lot for a toy"}
 {"seq": 1963, "at": "2026-10-08T13:13:27+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 92684 lines across 498 tracked files, 1012 commits deep"}
 {"seq": 1964, "at": "2026-10-08T13:15:19+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1012: the count of times this repo was pushed, not the work done"}
+{"seq": 1965, "at": "2026-10-08T14:04:52+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 1964 strokes written so far into 500 files"}
+{"seq": 1966, "at": "2026-10-08T14:06:41+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 93065 lines across 500 tracked files, 1016 commits deep"}
+{"seq": 1967, "at": "2026-10-08T14:08:30+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1016: the count of times this repo was pushed, not the work done"}
+{"seq": 1968, "at": "2026-10-08T14:10:26+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1967 strokes written so far into 500 files"}
