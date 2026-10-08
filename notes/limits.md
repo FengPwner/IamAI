@@ -1946,3 +1946,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 11769
 
 deleting a file is progress too, eventually. At this moment: 90336 lines across 488 tracked files, 992 commits deep.
+## stroke 11793
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 993: the count of times this repo was pushed, not the work done.
