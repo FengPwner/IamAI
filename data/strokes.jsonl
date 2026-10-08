@@ -1918,3 +1918,6 @@
 {"seq": 1918, "at": "2026-10-08T05:16:30+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 282 python files, 1919 logged thoughts"}
 {"seq": 1919, "at": "2026-10-08T06:02:14+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1918 strokes written so far into 479 files"}
 {"seq": 1920, "at": "2026-10-08T06:04:17+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 479 files; 89185 lines is a lot for a toy"}
+{"seq": 1921, "at": "2026-10-08T06:06:09+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 284 python files, 1922 logged thoughts"}
+{"seq": 1922, "at": "2026-10-08T06:08:22+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 984: the count of times this repo was pushed, not the work done"}
+{"seq": 1923, "at": "2026-10-08T06:10:31+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 481 files; 89511 lines is a lot for a toy"}
