@@ -1922,3 +1922,6 @@ resilience is not the absence of failure, it is the speed of recovery. At this m
 ## stroke 11613
 
 deleting a file is progress too, eventually. At this moment: tree is 477 files; 88675 lines is a lot for a toy.
+## stroke 11643
+
+deleting a file is progress too, eventually. At this moment: commit 979: the count of times this repo was pushed, not the work done.
