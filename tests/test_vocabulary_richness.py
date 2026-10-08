@@ -186,8 +186,8 @@ class TestRichnessReport:
         texts = ["word " + str(i) for i in range(200)]
         path = self._make_strokes_file(texts, tmp_path)
         report = richness_report(window_strokes=50, strokes_path=path)
-        # Should only analyze last 50 strokes
-        assert report["total_tokens"] == 50
+        # Each stroke has 2 tokens ("word" + number), last 50 strokes = 100 tokens
+        assert report["total_tokens"] == 100
 
     def test_empty_file(self, tmp_path):
         path = self._make_strokes_file([], tmp_path)
@@ -210,10 +210,16 @@ class TestRichnessReport:
         assert report["total_tokens"] > 0
 
     def test_high_diversity_gets_good_grade(self, tmp_path):
-        # Each stroke has unique words
-        texts = [f"unique words batch {i} alpha beta gamma" for i in range(100)]
+        # Each stroke has mostly unique words; high type-token ratio
+        import random
+        rng = random.Random(42)
+        word_pool = [f"w{i}" for i in range(500)]
+        texts = []
+        for _ in range(50):
+            stroke_words = rng.sample(word_pool, 10)
+            texts.append(" ".join(stroke_words))
         path = self._make_strokes_file(texts, tmp_path)
-        report = richness_report(strokes_path=path)
+        report = richness_report(window_strokes=None, strokes_path=path)
         assert report["grade"] in ("A", "B")
 
     def test_low_diversity_gets_bad_grade(self, tmp_path):
