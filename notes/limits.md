@@ -1901,3 +1901,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 11511
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 957: the count of times this repo was pushed, not the work done.
+## stroke 11535
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 472 files; 87390 lines is a lot for a toy.
+## stroke 11541
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 87398 lines across 472 tracked files, 963 commits deep.
