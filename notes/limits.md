@@ -2000,3 +2000,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 1992 s
 ## stroke 12189
 
 a repo that only accumulates is a landfill with a README. At this moment: 306 python files, 2000 logged thoughts.
+## stroke 12207
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 306 python files, 2003 logged thoughts.
