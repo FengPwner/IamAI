@@ -1919,3 +1919,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 11601
 
 resilience is not the absence of failure, it is the speed of recovery. At this moment: added push_resilience module with 25 tests, tracking MTTR and retry effectiveness across 476 files.
+## stroke 11613
+
+deleting a file is progress too, eventually. At this moment: tree is 477 files; 88675 lines is a lot for a toy.
