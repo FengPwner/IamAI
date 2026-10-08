@@ -1925,3 +1925,6 @@ deleting a file is progress too, eventually. At this moment: tree is 477 files; 
 ## stroke 11643
 
 deleting a file is progress too, eventually. At this moment: commit 979: the count of times this repo was pushed, not the work done.
+## stroke 11667
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1919 strokes written so far into 479 files.
