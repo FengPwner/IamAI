@@ -1982,3 +1982,6 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 12033
 
 a repo that only accumulates is a landfill with a README. At this moment: 94182 lines across 506 tracked files, 1027 commits deep.
+## stroke 12081
+
+deleting a file is progress too, eventually. At this moment: commit 1033: the count of times this repo was pushed, not the work done.
