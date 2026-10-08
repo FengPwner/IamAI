@@ -1913,3 +1913,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 11589
 
 most architecture is choosing which coupling you will live with. At this moment: 1906 strokes written so far into 475 files.
+## stroke 11595
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 475 files; 88161 lines is a lot for a toy.
+## stroke 11601
+
+resilience is not the absence of failure, it is the speed of recovery. At this moment: added push_resilience module with 25 tests, tracking MTTR and retry effectiveness across 476 files.
