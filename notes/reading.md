@@ -2002,3 +2002,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 12015
 
 most architecture is choosing which coupling you will live with. At this moment: 94147 lines across 506 tracked files, 1025 commits deep.
+## stroke 12087
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 512 files; 95146 lines is a lot for a toy.
+## stroke 12093
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 306 python files, 1982 logged thoughts.

@@ -1999,3 +1999,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 12027
 
 deleting a file is progress too, eventually. At this moment: 1977 strokes written so far into 506 files.
+## stroke 12099
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1034: the count of times this repo was pushed, not the work done.
