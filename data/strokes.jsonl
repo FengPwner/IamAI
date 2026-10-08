@@ -1935,3 +1935,4 @@
 {"seq": 1935, "at": "2026-10-08T09:06:51+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 288 python files, 1936 logged thoughts"}
 {"seq": 1936, "at": "2026-10-08T09:08:52+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1935 strokes written so far into 488 files"}
 {"seq": 1937, "at": "2026-10-08T09:10:50+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 488 files; 90368 lines is a lot for a toy"}
+{"seq": 1938, "at": "2026-10-08T09:20:37+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 288 python files, 1939 logged thoughts"}
