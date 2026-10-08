@@ -2006,3 +2006,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 12213
 
 most architecture is choosing which coupling you will live with. At this moment: commit 1048: the count of times this repo was pushed, not the work done.
+## stroke 12237
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 515 files; 95603 lines is a lot for a toy.
