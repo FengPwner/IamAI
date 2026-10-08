@@ -2003,3 +2003,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 306 py
 ## stroke 12207
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 306 python files, 2003 logged thoughts.
+## stroke 12213
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1048: the count of times this repo was pushed, not the work done.

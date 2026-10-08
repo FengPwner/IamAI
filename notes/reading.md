@@ -2020,3 +2020,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 12195
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1999 strokes written so far into 514 files.
+## stroke 12219
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 515 files; 95557 lines is a lot for a toy.
+## stroke 12225
+
+deleting a file is progress too, eventually. At this moment: 95576 lines across 515 tracked files, 1048 commits deep.
