@@ -1907,3 +1907,6 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 11541
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 87398 lines across 472 tracked files, 963 commits deep.
+## stroke 11565
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 277 python files, 1904 logged thoughts.
