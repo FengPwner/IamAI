@@ -1993,3 +1993,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 298 py
 ## stroke 11967
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1016: the count of times this repo was pushed, not the work done.
+## stroke 11985
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1020: the count of times this repo was pushed, not the work done.

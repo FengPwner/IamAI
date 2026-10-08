@@ -1973,3 +1973,6 @@ deleting a file is progress too, eventually. At this moment: 296 python files, 1
 ## stroke 11955
 
 deleting a file is progress too, eventually. At this moment: tree is 500 files; 93060 lines is a lot for a toy.
+## stroke 11979
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 300 python files, 1971 logged thoughts.
