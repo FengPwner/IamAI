@@ -1942,3 +1942,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 11685
 
 deleting a file is progress too, eventually. At this moment: 1922 strokes written so far into 481 files.
+## stroke 11715
+
+deleting a file is progress too, eventually. At this moment: 286 python files, 1928 logged thoughts.
