@@ -1955,3 +1955,4 @@
 {"seq": 1955, "at": "2026-10-08T12:05:52+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 1954 strokes written so far into 495 files"}
 {"seq": 1956, "at": "2026-10-08T12:07:42+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 495 files; 92112 lines is a lot for a toy"}
 {"seq": 1957, "at": "2026-10-08T12:09:36+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 294 python files, 1958 logged thoughts"}
+{"seq": 1958, "at": "2026-10-08T13:00:59+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1006: the count of times this repo was pushed, not the work done"}
