@@ -1942,3 +1942,4 @@
 {"seq": 1942, "at": "2026-10-08T10:07:20+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 996: the count of times this repo was pushed, not the work done"}
 {"seq": 1943, "at": "2026-10-08T10:09:23+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 490 files; 90846 lines is a lot for a toy"}
 {"seq": 1944, "at": "2026-10-08T11:00:43+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 90854 lines across 490 tracked files, 996 commits deep"}
+{"seq": 1945, "at": "2026-10-08T11:02:46+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 998: the count of times this repo was pushed, not the work done"}
