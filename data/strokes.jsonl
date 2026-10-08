@@ -1949,3 +1949,4 @@
 {"seq": 1949, "at": "2026-10-08T11:10:24+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 1948 strokes written so far into 492 files"}
 {"seq": 1950, "at": "2026-10-08T11:12:13+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 91322 lines across 492 tracked files, 999 commits deep"}
 {"seq": 1951, "at": "2026-10-08T11:21:34+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 292 python files, 1952 logged thoughts"}
+{"seq": 1952, "at": "2026-10-08T12:00:40+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1951 strokes written so far into 492 files"}
