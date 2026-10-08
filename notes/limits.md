@@ -1943,3 +1943,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 11751
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 89994 lines across 485 tracked files, 989 commits deep.
+## stroke 11769
+
+deleting a file is progress too, eventually. At this moment: 90336 lines across 488 tracked files, 992 commits deep.
