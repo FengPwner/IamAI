@@ -1960,3 +1960,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 11817
 
 most architecture is choosing which coupling you will live with. At this moment: 1942 strokes written so far into 490 files.
+## stroke 11835
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1945 strokes written so far into 492 files.
+## stroke 11841
+
+deleting a file is progress too, eventually. At this moment: tree is 492 files; 91293 lines is a lot for a toy.
