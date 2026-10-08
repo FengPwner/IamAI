@@ -1900,3 +1900,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 11421
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1879 strokes written so far into 460 files.
+## stroke 11445
+
+deleting a file is progress too, eventually. At this moment: 85892 lines across 463 tracked files, 949 commits deep.
