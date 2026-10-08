@@ -1906,3 +1906,6 @@ deleting a file is progress too, eventually. At this moment: 85892 lines across 
 ## stroke 11469
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 271 python files, 1888 logged thoughts.
+## stroke 11499
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 466 files; 86391 lines is a lot for a toy.

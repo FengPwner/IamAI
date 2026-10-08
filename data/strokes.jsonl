@@ -1888,3 +1888,5 @@
 {"seq": 1888, "at": "2026-10-08T00:05:33+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 1887 strokes written so far into 466 files"}
 {"seq": 1889, "at": "2026-10-08T00:07:28+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 86356 lines across 466 tracked files, 954 commits deep"}
 {"seq": 1890, "at": "2026-10-08T00:09:39+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 954: the count of times this repo was pushed, not the work done"}
+{"seq": 1891, "at": "2026-10-08T01:06:03+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1890 strokes written so far into 466 files"}
+{"seq": 1892, "at": "2026-10-08T01:08:11+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 86396 lines across 466 tracked files, 956 commits deep"}
