@@ -1,12 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-10-08T03:05:28+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 11573
-    },
-    {
       "at": "2026-10-08T03:05:46+00:00",
       "kind": "snippet",
       "path": "notes/history.md",
@@ -2399,12 +2393,18 @@
       "kind": "devlog",
       "path": "docs/DEVLOG.md",
       "seq": 11972
+    },
+    {
+      "at": "2026-10-08T15:00:50+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 11973
     }
   ],
-  "seq": 11973,
+  "seq": 11974,
   "tally": {
     "devlog": 1941,
-    "garden": 1940,
+    "garden": 1941,
     "metrics": 1940,
     "note": 1940,
     "snippet": 1940,
