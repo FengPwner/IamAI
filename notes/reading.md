@@ -2014,3 +2014,6 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 12141
 
 most architecture is choosing which coupling you will live with. At this moment: 1988 strokes written so far into 513 files.
+## stroke 12165
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 95372 lines across 514 tracked files, 1041 commits deep.

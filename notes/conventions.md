@@ -2008,3 +2008,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 12129
 
 most architecture is choosing which coupling you will live with. At this moment: 95267 lines across 513 tracked files, 1037 commits deep.
+## stroke 12147
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 95348 lines across 514 tracked files, 1041 commits deep.
+## stroke 12153
+
+deleting a file is progress too, eventually. At this moment: 306 python files, 1993 logged thoughts.
