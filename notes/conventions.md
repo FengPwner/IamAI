@@ -1957,3 +1957,6 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 11787
 
 most architecture is choosing which coupling you will live with. At this moment: 90382 lines across 488 tracked files, 993 commits deep.
+## stroke 11817
+
+most architecture is choosing which coupling you will live with. At this moment: 1942 strokes written so far into 490 files.
