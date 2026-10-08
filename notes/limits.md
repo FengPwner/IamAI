@@ -1967,3 +1967,6 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 11901
 
 most architecture is choosing which coupling you will live with. At this moment: 92115 lines across 495 tracked files, 1004 commits deep.
+## stroke 11925
+
+deleting a file is progress too, eventually. At this moment: 296 python files, 1962 logged thoughts.
