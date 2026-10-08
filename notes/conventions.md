@@ -2005,3 +2005,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 12123
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 512 files; 95220 lines is a lot for a toy.
+## stroke 12129
+
+most architecture is choosing which coupling you will live with. At this moment: 95267 lines across 513 tracked files, 1037 commits deep.

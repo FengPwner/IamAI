@@ -1984,3 +1984,5 @@
 {"seq": 1984, "at": "2026-10-08T19:03:25+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 306 python files, 1985 logged thoughts"}
 {"seq": 1985, "at": "2026-10-08T19:05:17+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 1984 strokes written so far into 512 files"}
 {"seq": 1986, "at": "2026-10-08T19:07:07+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 512 files; 95225 lines is a lot for a toy"}
+{"seq": 1987, "at": "2026-10-08T19:09:04+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 306 python files, 1988 logged thoughts"}
+{"seq": 1988, "at": "2026-10-08T19:10:56+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1987 strokes written so far into 513 files"}
