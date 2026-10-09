@@ -2105,3 +2105,9 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 12717
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 104882 lines across 558 tracked files, 1104 commits deep.
+## stroke 12477
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1076: the count of times this repo was pushed, not the work done.
+## stroke 12477
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1076: the count of times this repo was pushed, not the work done.
