@@ -1,220 +1,249 @@
-"""Tests for the BacklogMonitor module.
+#!/usr/bin/env python3
+"""Tests for tools/backlog_monitor.py — uncommitted file accumulation monitor."""
 
-Covers: recording snapshots, loading with limits, current count,
-trend analysis (growing/stable/shrinking/insufficient), peak detection,
-and summary generation.
-"""
+from __future__ import annotations
 
 import json
-import tempfile
+import subprocess
+import sys
+import time
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 import pytest
 
-from iamai.backlog_monitor import BacklogMonitor
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "tools"))
+
+from backlog_monitor import (
+    BacklogSnapshot,
+    BacklogState,
+    count_uncommitted,
+    evaluate,
+    load_state,
+    save_state,
+    STATE_FILE,
+)
 
 
 @pytest.fixture
-def monitor(tmp_path):
-    """Create a monitor with a temporary log file."""
-    return BacklogMonitor(tmp_path / "backlog.jsonl")
+def tmp_repo(tmp_path: Path) -> Path:
+    """Create a minimal git repo for testing."""
+    subprocess.run(["git", "init", str(tmp_path)], capture_output=True, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@test.local"],
+        cwd=str(tmp_path), capture_output=True, check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test"],
+        cwd=str(tmp_path), capture_output=True, check=True,
+    )
+    return tmp_path
 
 
-class TestRecord:
-    def test_record_creates_file(self, monitor):
-        snap = monitor.record(count=5)
-        assert monitor.filepath.exists()
-        assert snap["count"] == 5
-
-    def test_record_with_tag(self, monitor):
-        snap = monitor.record(count=3, tag="post-restart")
-        assert snap["tag"] == "post-restart"
-
-    def test_record_appends(self, monitor):
-        monitor.record(count=1)
-        monitor.record(count=2)
-        monitor.record(count=3)
-        snapshots = monitor.load()
-        assert len(snapshots) == 3
-        assert [s["count"] for s in snapshots] == [1, 2, 3]
-
-    def test_record_has_timestamp(self, monitor):
-        snap = monitor.record(count=10)
-        assert "timestamp" in snap
-        assert "T" in snap["timestamp"]  # ISO format
-
-    def test_record_empty_tag(self, monitor):
-        snap = monitor.record(count=7)
-        assert snap["tag"] == ""
+@pytest.fixture
+def tmp_state(tmp_path: Path) -> Path:
+    """Redirect STATE_FILE to a temporary location."""
+    state_file = tmp_path / "backlog_state.json"
+    with patch("backlog_monitor.STATE_FILE", state_file):
+        yield state_file
 
 
-class TestLoad:
-    def test_load_empty(self, monitor):
-        assert monitor.load() == []
+# --- BacklogSnapshot ---
 
-    def test_load_all(self, monitor):
-        for i in range(10):
-            monitor.record(count=i)
-        snapshots = monitor.load()
-        assert len(snapshots) == 10
+class TestBacklogSnapshot:
+    def test_basic_creation(self) -> None:
+        snap = BacklogSnapshot(count=5, at=1728500000.0, files=["a.md", "b.md"])
+        assert snap.count == 5
+        assert snap.at == 1728500000.0
+        assert len(snap.files) == 2
 
-    def test_load_with_limit(self, monitor):
-        for i in range(10):
-            monitor.record(count=i)
-        snapshots = monitor.load(limit=3)
-        assert len(snapshots) == 3
-        # Should be the last 3
-        assert [s["count"] for s in snapshots] == [7, 8, 9]
+    def test_at_iso_format(self) -> None:
+        snap = BacklogSnapshot(count=0, at=1728500000.0, files=[])
+        iso = snap.at_iso
+        assert "2024-10-09" in iso or "2024" in iso
+        assert iso.endswith("+00:00") or "Z" in iso or "+00" in iso
 
-    def test_load_limit_larger_than_data(self, monitor):
-        monitor.record(count=1)
-        monitor.record(count=2)
-        snapshots = monitor.load(limit=100)
-        assert len(snapshots) == 2
-
-    def test_load_malformed_lines_skipped(self, monitor):
-        monitor.record(count=1)
-        # Write a bad line
-        with open(monitor.filepath, "a") as f:
-            f.write("not valid json\n")
-        monitor.record(count=2)
-        # load should handle malformed lines
-        with pytest.raises(json.JSONDecodeError):
-            monitor.load()
+    def test_empty_files_list(self) -> None:
+        snap = BacklogSnapshot(count=0, at=time.time(), files=[])
+        assert snap.count == 0
+        assert snap.files == []
 
 
-class TestCurrent:
-    def test_current_empty(self, monitor):
-        assert monitor.current() == 0
+# --- BacklogState ---
 
-    def test_current_returns_latest(self, monitor):
-        monitor.record(count=5)
-        monitor.record(count=12)
-        monitor.record(count=3)
-        assert monitor.current() == 3
+class TestBacklogState:
+    def test_empty_state(self) -> None:
+        state = BacklogState.empty()
+        assert state.first_exceeded is None
+        assert state.last_count == 0
+        assert state.consecutive_exceeded == 0
 
-    def test_current_single_entry(self, monitor):
-        monitor.record(count=42)
-        assert monitor.current() == 42
+    def test_round_trip(self) -> None:
+        state = BacklogState(
+            first_exceeded=1728500000.0,
+            last_count=7,
+            last_check=1728500100.0,
+            consecutive_exceeded=3,
+        )
+        d = state.to_dict()
+        restored = BacklogState.from_dict(d)
+        assert restored.first_exceeded == state.first_exceeded
+        assert restored.last_count == state.last_count
+        assert restored.consecutive_exceeded == state.consecutive_exceeded
 
+    def test_persistence(self, tmp_state: Path) -> None:
+        state = BacklogState(
+            first_exceeded=1728500000.0,
+            last_count=3,
+            last_check=1728500050.0,
+            consecutive_exceeded=2,
+        )
+        save_state(state)
+        assert tmp_state.exists()
+        loaded = load_state()
+        assert loaded.last_count == 3
+        assert loaded.consecutive_exceeded == 2
 
-class TestTrend:
-    def test_trend_insufficient_data(self, monitor):
-        monitor.record(count=5)
-        monitor.record(count=6)
-        assert monitor.trend() == "insufficient_data"
+    def test_load_missing_returns_empty(self, tmp_state: Path) -> None:
+        state = load_state()
+        assert state.first_exceeded is None
+        assert state.last_count == 0
 
-    def test_trend_stable(self, monitor):
-        # 10 snapshots needed for default window=5
-        # First 5: counts around 10
-        for _ in range(5):
-            monitor.record(count=10)
-        # Last 5: also around 10
-        for _ in range(5):
-            monitor.record(count=10)
-        assert monitor.trend() == "stable"
-
-    def test_trend_growing(self, monitor):
-        # Earlier 5: low counts
-        for _ in range(5):
-            monitor.record(count=5)
-        # Recent 5: high counts (>20% increase)
-        for _ in range(5):
-            monitor.record(count=10)
-        assert monitor.trend() == "growing"
-
-    def test_trend_shrinking(self, monitor):
-        # Earlier 5: high counts
-        for _ in range(5):
-            monitor.record(count=20)
-        # Recent 5: low counts (>20% decrease)
-        for _ in range(5):
-            monitor.record(count=5)
-        assert monitor.trend() == "shrinking"
-
-    def test_trend_custom_window(self, monitor):
-        # window=2: need 4 snapshots
-        monitor.record(count=10)
-        monitor.record(count=10)
-        monitor.record(count=20)
-        monitor.record(count=20)
-        assert monitor.trend(window=2) == "growing"
-
-    def test_trend_from_zero(self, monitor):
-        # Earlier all zeros, recent has counts
-        for _ in range(5):
-            monitor.record(count=0)
-        for _ in range(5):
-            monitor.record(count=5)
-        assert monitor.trend() == "growing"
-
-    def test_trend_both_zero(self, monitor):
-        for _ in range(10):
-            monitor.record(count=0)
-        assert monitor.trend() == "stable"
-
-    def test_trend_slight_change_is_stable(self, monitor):
-        # 10% change should be "stable" (threshold is 20%)
-        for _ in range(5):
-            monitor.record(count=10)
-        for _ in range(5):
-            monitor.record(count=11)
-        assert monitor.trend() == "stable"
+    def test_load_corrupt_returns_empty(self, tmp_state: Path) -> None:
+        tmp_state.write_text("not valid json{{{", encoding="utf-8")
+        state = load_state()
+        assert state.first_exceeded is None
 
 
-class TestPeak:
-    def test_peak_empty(self, monitor):
-        assert monitor.peak() == 0
+# --- count_uncommitted ---
 
-    def test_peak_all(self, monitor):
-        for count in [3, 7, 2, 15, 4]:
-            monitor.record(count=count)
-        assert monitor.peak() == 15
+class TestCountUncommitted:
+    def test_clean_repo(self, tmp_repo: Path) -> None:
+        snap = count_uncommitted(tmp_repo)
+        assert snap.count == 0
+        assert snap.files == []
 
-    def test_peak_with_window(self, monitor):
-        for count in [20, 5, 3, 2, 1]:
-            monitor.record(count=count)
-        # Only look at last 3
-        assert monitor.peak(window=3) == 3
+    def test_untracked_files(self, tmp_repo: Path) -> None:
+        (tmp_repo / "new_file.md").write_text("hello")
+        (tmp_repo / "another.md").write_text("world")
+        snap = count_uncommitted(tmp_repo)
+        assert snap.count == 2
+        assert "new_file.md" in snap.files
+        assert "another.md" in snap.files
 
-    def test_peak_single(self, monitor):
-        monitor.record(count=99)
-        assert monitor.peak() == 99
+    def test_modified_tracked_files(self, tmp_repo: Path) -> None:
+        f = tmp_repo / "tracked.md"
+        f.write_text("initial")
+        subprocess.run(["git", "add", "."], cwd=str(tmp_repo), capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"],
+            cwd=str(tmp_repo), capture_output=True,
+        )
+        f.write_text("modified")
+        snap = count_uncommitted(tmp_repo)
+        assert snap.count == 1
+        assert "tracked.md" in snap.files
 
-
-class TestSummary:
-    def test_summary_empty(self, monitor):
-        s = monitor.summary()
-        assert s["current"] == 0
-        assert s["peak"] == 0
-        assert s["sample_count"] == 0
-        assert s["trend"] == "insufficient_data"
-
-    def test_summary_populated(self, monitor):
-        for i in range(12):
-            monitor.record(count=i)
-        s = monitor.summary()
-        assert s["current"] == 11
-        assert s["peak"] == 11
-        assert s["sample_count"] == 12
-        assert s["trend"] in ("growing", "stable", "shrinking", "insufficient_data")
-
-    def test_summary_keys(self, monitor):
-        monitor.record(count=5)
-        s = monitor.summary()
-        assert set(s.keys()) == {"current", "trend", "peak", "sample_count"}
+    def test_invalid_repo_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(RuntimeError):
+            count_uncommitted(tmp_path / "nonexistent")
 
 
-class TestEdgeCases:
-    def test_creates_parent_dirs(self, tmp_path):
-        deep = BacklogMonitor(tmp_path / "a" / "b" / "c" / "backlog.jsonl")
-        deep.record(count=1)
-        assert deep.filepath.exists()
+# --- evaluate ---
 
-    def test_concurrent_appends(self, monitor):
-        """Multiple record calls don't corrupt the file."""
-        for i in range(50):
-            monitor.record(count=i, tag=f"batch-{i}")
-        snapshots = monitor.load()
-        assert len(snapshots) == 50
-        assert snapshots[-1]["count"] == 49
+class TestEvaluate:
+    def test_healthy_below_threshold(self) -> None:
+        snap = BacklogSnapshot(count=2, at=time.time(), files=["a", "b"])
+        state = BacklogState.empty()
+        result = evaluate(snap, state, threshold=5, grace=1800)
+        assert result["healthy"] is True
+        assert result["count"] == 2
+
+    def test_exceeded_within_grace(self) -> None:
+        snap = BacklogSnapshot(count=7, at=time.time(), files=[])
+        state = BacklogState.empty()
+        result = evaluate(snap, state, threshold=5, grace=1800)
+        assert result["healthy"] is True  # still within grace
+        assert result["count"] == 7
+        assert state.first_exceeded is not None
+
+    def test_exceeded_past_grace(self) -> None:
+        now = time.time()
+        state = BacklogState(
+            first_exceeded=now - 2000,  # exceeded 2000s ago
+            last_count=8,
+            last_check=now - 100,
+            consecutive_exceeded=5,
+        )
+        snap = BacklogSnapshot(count=8, at=now, files=[])
+        result = evaluate(snap, state, threshold=5, grace=1800)
+        assert result["healthy"] is False
+        assert result["exceeded_duration"] >= 2000
+
+    def test_recovery_resets_state(self) -> None:
+        now = time.time()
+        state = BacklogState(
+            first_exceeded=now - 500,
+            last_count=10,
+            last_check=now - 60,
+            consecutive_exceeded=3,
+        )
+        snap = BacklogSnapshot(count=2, at=now, files=[])  # below threshold
+        result = evaluate(snap, state, threshold=5, grace=1800)
+        assert result["healthy"] is True
+        assert state.first_exceeded is None
+        assert state.consecutive_exceeded == 0
+
+    def test_consecutive_counter_increments(self) -> None:
+        now = time.time()
+        state = BacklogState(
+            first_exceeded=now - 100,
+            last_count=7,
+            last_check=now - 50,
+            consecutive_exceeded=2,
+        )
+        snap = BacklogSnapshot(count=7, at=now, files=[])
+        evaluate(snap, state, threshold=5, grace=1800)
+        assert state.consecutive_exceeded == 3
+
+    def test_grace_remaining_decreases(self) -> None:
+        now = time.time()
+        state = BacklogState(
+            first_exceeded=now - 900,  # 900s into a 1800s grace
+            last_count=6,
+            last_check=now - 60,
+            consecutive_exceeded=3,
+        )
+        snap = BacklogSnapshot(count=6, at=now, files=[])
+        result = evaluate(snap, state, threshold=5, grace=1800)
+        assert result["healthy"] is True
+        assert 800 < result["grace_remaining"] < 1000
+
+    def test_message_contains_count(self) -> None:
+        snap = BacklogSnapshot(count=3, at=time.time(), files=[])
+        state = BacklogState.empty()
+        result = evaluate(snap, state, threshold=5, grace=1800)
+        assert "3" in result["message"]
+        assert "healthy" in result["message"]
+
+    def test_files_list_included(self) -> None:
+        files = ["a.md", "b.md", "c.md"]
+        snap = BacklogSnapshot(count=3, at=time.time(), files=files)
+        state = BacklogState.empty()
+        result = evaluate(snap, state, threshold=5, grace=1800)
+        assert result["files"] == files
+
+    def test_exactly_at_threshold_counts_as_exceeded(self) -> None:
+        snap = BacklogSnapshot(count=5, at=time.time(), files=[])
+        state = BacklogState.empty()
+        result = evaluate(snap, state, threshold=5, grace=1800)
+        # count >= threshold means exceeded
+        assert state.first_exceeded is not None
+
+    def test_one_below_threshold_is_healthy(self) -> None:
+        snap = BacklogSnapshot(count=4, at=time.time(), files=[])
+        state = BacklogState.empty()
+        result = evaluate(snap, state, threshold=5, grace=1800)
+        assert result["healthy"] is True
+        assert state.first_exceeded is None

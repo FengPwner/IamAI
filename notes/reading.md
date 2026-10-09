@@ -2087,3 +2087,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 102429
 ## stroke 12609
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1094: the count of times this repo was pushed, not the work done.
+## stroke 12633
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 2077 strokes written so far into 549 files.
