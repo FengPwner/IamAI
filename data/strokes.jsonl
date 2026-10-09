@@ -2080,3 +2080,8 @@
 {"seq": 2080, "at": "2026-10-09T12:07:37+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1097: the count of times this repo was pushed, not the work done"}
 {"seq": 2081, "at": "2026-10-09T12:09:36+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 552 files; 103271 lines is a lot for a toy"}
 {"seq": 2082, "at": "2026-10-09T13:01:05+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 103279 lines across 552 tracked files, 1098 commits deep"}
+{"seq": 2083, "at": "2026-10-09T13:02:54+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1098: the count of times this repo was pushed, not the work done"}
+{"seq": 2084, "at": "2026-10-09T13:04:46+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 2083 strokes written so far into 555 files"}
+{"seq": 2085, "at": "2026-10-09T13:06:35+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 103888 lines across 555 tracked files, 1101 commits deep"}
+{"seq": 2086, "at": "2026-10-09T13:08:41+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1101: the count of times this repo was pushed, not the work done"}
+{"seq": 2087, "at": "2026-10-09T13:10:39+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 2086 strokes written so far into 555 files"}
