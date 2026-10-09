@@ -2078,3 +2078,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 12573
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1089: the count of times this repo was pushed, not the work done.
+## stroke 12597
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 546 files; 102465 lines is a lot for a toy.
