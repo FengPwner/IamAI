@@ -2116,3 +2116,6 @@
 - `2026-10-09T19:08:55+00:00` stroke 12877: 341 python files, 2120 logged thoughts
 - `2026-10-09T19:10:50+00:00` stroke 12883: commit 1118: the count of times this repo was pushed, not the work done
 - `2026-10-09T19:12:41+00:00` stroke 12889: tree is 574 files; 107236 lines is a lot for a toy
+- `2026-10-09T20:03:57+00:00` caretaker-116: repo_drift CLI tool with 38 tests + visit note
+- `2026-10-09T20:03:57+00:00` stroke 2120: drift detection — synced/ahead/behind/diverged in one call
+
