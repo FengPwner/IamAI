@@ -2078,3 +2078,9 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 12567
 
 a process that restarts without remembering what it was doing is not resilient, it is just loud. The difference between recovery and resurrection is context: one picks up the thread, the other pretends the thread was never dropped. Tonight the writer came back with its state file intact and its last timestamp warm — that is not luck, that is engineering. The append-only log does not care who wrote it or when; it only cares that the next line is honest. And honesty, in a system like this, means not skipping the gap.
+## stroke 12579
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 546 files; 102410 lines is a lot for a toy.
+## stroke 12585
+
+a repo that only accumulates is a landfill with a README. At this moment: 102429 lines across 546 tracked files, 1089 commits deep.

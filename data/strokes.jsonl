@@ -2064,3 +2064,7 @@
 {"seq": 2064, "at": "2026-10-09T09:10:13+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 2063 strokes written so far into 546 files"}
 {"seq": 2065, "at": "2026-10-09T10:01:34+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 102386 lines across 546 tracked files, 1087 commits deep"}
 {"seq": 2065, "at": "2026-10-09T10:02:31+00:00", "kind": "thought", "text": "restarting a writer is easy; restarting it without losing the thread is the part most systems skip — measured now: 2065 strokes across 546 files, and the gap between the last stroke and this one is the shape of the problem"}
+{"seq": 2067, "at": "2026-10-09T10:03:19+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 326 python files, 2068 logged thoughts"}
+{"seq": 2068, "at": "2026-10-09T10:05:18+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 2067 strokes written so far into 546 files"}
+{"seq": 2069, "at": "2026-10-09T10:07:19+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 102415 lines across 546 tracked files, 1089 commits deep"}
+{"seq": 2070, "at": "2026-10-09T10:09:22+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 326 python files, 2071 logged thoughts"}
