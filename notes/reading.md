@@ -2090,3 +2090,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 12633
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 2077 strokes written so far into 549 files.
+## stroke 12663
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 329 python files, 2084 logged thoughts.

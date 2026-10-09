@@ -2079,3 +2079,4 @@
 {"seq": 2079, "at": "2026-10-09T12:05:34+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 103255 lines across 552 tracked files, 1097 commits deep"}
 {"seq": 2080, "at": "2026-10-09T12:07:37+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1097: the count of times this repo was pushed, not the work done"}
 {"seq": 2081, "at": "2026-10-09T12:09:36+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 552 files; 103271 lines is a lot for a toy"}
+{"seq": 2082, "at": "2026-10-09T13:01:05+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 103279 lines across 552 tracked files, 1098 commits deep"}

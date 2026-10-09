@@ -9720,3 +9720,4 @@ round 12638  bloom 100.0%  plants  146/384
 - stroke 12644: round 12644  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 12650: round 12650  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 12656: round 12656  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 12662: round 12662  bloom 100.0%  plants  146/384, bloom 100.0%
