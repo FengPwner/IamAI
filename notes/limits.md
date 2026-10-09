@@ -2142,3 +2142,7 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 12963
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 109052 lines across 586 tracked files, 1130 commits deep.
+
+## stroke 12987
+
+a heartbeat that checks its own pulse is either very healthy or very anxious — probably both. At this moment: 109084 lines across 589 tracked files, 1131 commits deep.
