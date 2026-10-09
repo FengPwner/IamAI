@@ -2052,3 +2052,4 @@
 {"seq": 2052, "at": "2026-10-09T07:09:07+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 322 python files, 2053 logged thoughts"}
 {"seq": 2053, "at": "2026-10-09T07:09:40+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 322 python files, 2054 logged thoughts"}
 {"seq": 2054, "at": "2026-10-09T07:11:01+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1080: the count of times this repo was pushed, not the work done"}
+{"seq": 2055, "at": "2026-10-09T08:02:39+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 540 files; 101392 lines is a lot for a toy"}
