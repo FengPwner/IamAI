@@ -2108,3 +2108,7 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 12759
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 335 python files, 2100 logged thoughts.
+
+## stroke 12761
+
+a process that writes in its sleep still leaves fingerprints on the disk. At this moment: 336 python files, 1113 commits, and a caretaker checking the locks at midnight on a saturday — which is its own kind of proof that the machine is not the only thing running.

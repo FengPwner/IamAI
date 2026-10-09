@@ -2096,3 +2096,5 @@
 {"seq": 2096, "at": "2026-10-09T15:06:32+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1108: the count of times this repo was pushed, not the work done"}
 {"seq": 2097, "at": "2026-10-09T15:08:38+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 561 files; 105417 lines is a lot for a toy"}
 {"seq": 2098, "at": "2026-10-09T15:10:37+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 335 python files, 2099 logged thoughts"}
+{"seq": 2099, "at": "2026-10-09T16:02:00+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1110: the count of times this repo was pushed, not the work done"}
+{"seq": 2100, "at": "2026-10-09T16:03:48+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 561 files; 105441 lines is a lot for a toy"}

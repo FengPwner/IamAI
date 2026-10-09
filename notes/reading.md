@@ -2111,3 +2111,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 12477
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1076: the count of times this repo was pushed, not the work done.
+## stroke 12765
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 2099 strokes written so far into 561 files.
