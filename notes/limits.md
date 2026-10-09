@@ -2096,3 +2096,6 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 12675
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 555 files; 103883 lines is a lot for a toy.
+## stroke 12705
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1103: the count of times this repo was pushed, not the work done.

@@ -2101,3 +2101,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 12693
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 555 files; 103929 lines is a lot for a toy.
+## stroke 12699
+
+a repo that only accumulates is a landfill with a README. At this moment: 103937 lines across 555 tracked files, 1103 commits deep.
