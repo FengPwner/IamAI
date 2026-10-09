@@ -2015,3 +2015,5 @@
 {"seq": 2015, "at": "2026-10-09T00:05:29+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 310 python files, 2016 logged thoughts"}
 {"seq": 2016, "at": "2026-10-09T00:07:31+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1054: the count of times this repo was pushed, not the work done"}
 {"seq": 2017, "at": "2026-10-09T00:09:30+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 521 files; 96625 lines is a lot for a toy"}
+{"seq": 2018, "at": "2026-10-09T01:01:40+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 96638 lines across 521 tracked files, 1057 commits deep"}
+{"seq": 2019, "at": "2026-10-09T01:03:31+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1057: the count of times this repo was pushed, not the work done"}
