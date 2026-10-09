@@ -2068,3 +2068,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 12525
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 101777 lines across 543 tracked files, 1082 commits deep.
+## stroke 12531
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 324 python files, 2061 logged thoughts.
