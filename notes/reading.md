@@ -2117,3 +2117,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 12789
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 563 files; 105690 lines is a lot for a toy.
+## stroke 12813
+
+deleting a file is progress too, eventually. At this moment: 339 python files, 2109 logged thoughts.
+## stroke 12819
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1113: the count of times this repo was pushed, not the work done.

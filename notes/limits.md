@@ -2115,3 +2115,6 @@ a process that writes in its sleep still leaves fingerprints on the disk. At thi
 ## stroke 12783
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 2102 strokes written so far into 563 files.
+## stroke 12807
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 566 files; 106110 lines is a lot for a toy.
