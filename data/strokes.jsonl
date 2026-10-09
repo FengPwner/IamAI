@@ -2017,3 +2017,6 @@
 {"seq": 2017, "at": "2026-10-09T00:09:30+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 521 files; 96625 lines is a lot for a toy"}
 {"seq": 2018, "at": "2026-10-09T01:01:40+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 96638 lines across 521 tracked files, 1057 commits deep"}
 {"seq": 2019, "at": "2026-10-09T01:03:31+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1057: the count of times this repo was pushed, not the work done"}
+{"seq": 2020, "at": "2026-10-09T01:05:24+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 2019 strokes written so far into 522 files"}
+{"seq": 2021, "at": "2026-10-09T01:07:13+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 96814 lines across 522 tracked files, 1060 commits deep"}
+{"seq": 2022, "at": "2026-10-09T01:09:19+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1060: the count of times this repo was pushed, not the work done"}
