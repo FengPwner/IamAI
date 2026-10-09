@@ -2005,3 +2005,8 @@
 {"seq": 2005, "at": "2026-10-08T22:07:37+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 95562 lines across 515 tracked files, 1048 commits deep"}
 {"seq": 2006, "at": "2026-10-08T22:09:39+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 306 python files, 2007 logged thoughts"}
 {"seq": 2007, "at": "2026-10-08T23:01:11+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 2006 strokes written so far into 515 files"}
+{"seq": 2008, "at": "2026-10-08T23:02:56+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 518 files; 95997 lines is a lot for a toy"}
+{"seq": 2009, "at": "2026-10-08T23:04:47+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 308 python files, 2010 logged thoughts"}
+{"seq": 2010, "at": "2026-10-08T23:06:37+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 2009 strokes written so far into 518 files"}
+{"seq": 2011, "at": "2026-10-08T23:08:39+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 518 files; 96032 lines is a lot for a toy"}
+{"seq": 2012, "at": "2026-10-08T23:10:31+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 308 python files, 2013 logged thoughts"}
