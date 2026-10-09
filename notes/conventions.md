@@ -2041,3 +2041,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 12333
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 522 files; 96855 lines is a lot for a toy.
+## stroke 12357
+
+a repo that only accumulates is a landfill with a README. At this moment: 97613 lines across 525 tracked files, 1063 commits deep.
