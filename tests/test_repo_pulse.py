@@ -1,227 +1,284 @@
-"""Tests for iamai.repo_pulse."""
+"""Tests for iamai.repo_pulse — repo health scoring.
+
+Covers:
+  - Pulse.score weighted composite
+  - Pulse.healthy threshold
+  - Pulse.summary format
+  - score_writer_gap edge cases (fresh, stale, very stale)
+  - score_commit_gap edge cases
+  - score_push failure mode
+  - _clamp01 boundary values
+  - pulse() with overridden now and repo path
+"""
+
+from __future__ import annotations
 
 import json
-import os
 import subprocess
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from iamai.repo_pulse import (
-    _classify_commit,
-    _classify_git,
-    _git_pending,
-    _last_commit_age,
+    COMMIT_INTERVAL_S,
+    SICK_THRESHOLD,
+    WRITER_CADENCE_S,
+    Pulse,
+    _clamp01,
     pulse,
-    pulse_report,
+    score_commit_gap,
+    score_push,
+    score_writer_gap,
 )
 
 
 # ---------------------------------------------------------------------------
-# helpers
+# _clamp01
 # ---------------------------------------------------------------------------
 
-def _make_repo(tmp_path: Path, strokes: list[dict] | None = None) -> Path:
-    """Create a fake repo with data/strokes.jsonl and a git init."""
-    data_dir = tmp_path / "data"
-    data_dir.mkdir(parents=True, exist_ok=True)
-    if strokes is not None:
-        with open(data_dir / "strokes.jsonl", "w", encoding="utf-8") as f:
-            for s in strokes:
-                f.write(json.dumps(s) + "\n")
-    # init git
-    subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmp_path, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "test"], cwd=tmp_path, capture_output=True)
-    subprocess.run(["git", "add", "-A"], cwd=tmp_path, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "init", "--allow-empty"], cwd=tmp_path, capture_output=True)
-    return tmp_path
 
+class TestClamp:
+    def test_within_range(self):
+        assert _clamp01(0.5) == 0.5
 
-def _stroke(seconds_ago: float, kind: str = "thought") -> dict:
-    ts = datetime.now(timezone.utc) - timedelta(seconds=seconds_ago)
-    return {"seq": 1, "at": ts.isoformat(), "kind": kind, "text": "test"}
+    def test_below_zero(self):
+        assert _clamp01(-0.3) == 0.0
+
+    def test_above_one(self):
+        assert _clamp01(1.7) == 1.0
+
+    def test_zero(self):
+        assert _clamp01(0.0) == 0.0
+
+    def test_one(self):
+        assert _clamp01(1.0) == 1.0
 
 
 # ---------------------------------------------------------------------------
-# _classify_git
+# score_writer_gap
 # ---------------------------------------------------------------------------
 
-class TestClassifyGit:
-    def test_clean(self):
-        assert _classify_git(0) == "clean"
-        assert _classify_git(2) == "clean"
 
-    def test_dirty(self):
-        assert _classify_git(5) == "dirty"
+class TestScoreWriterGap:
+    def test_fresh_stroke(self):
+        """A stroke that just happened scores 1.0."""
+        assert score_writer_gap(0.0) == 1.0
 
-    def test_backlog(self):
-        assert _classify_git(10) == "backlog"
+    def test_within_cadence(self):
+        """A stroke within one cadence period scores 1.0."""
+        assert score_writer_gap(WRITER_CADENCE_S) == 1.0
 
-    def test_unknown(self):
-        assert _classify_git(-1) == "unknown"
+    def test_half_cadence(self):
+        """Half a cadence period is still fresh → 1.0."""
+        assert score_writer_gap(WRITER_CADENCE_S * 0.5) == 1.0
 
-    def test_boundary_warn(self):
-        assert _classify_git(3) == "clean"  # PENDING_WARN inclusive
-        assert _classify_git(4) == "dirty"
+    def test_double_cadence(self):
+        """At 2× cadence the score decays to ~0.67."""
+        s = score_writer_gap(WRITER_CADENCE_S * 2)
+        assert 0.6 < s < 0.7
 
-    def test_boundary_bad(self):
-        # _PENDING_BAD = 8, so 8 <= 8 → "dirty"
-        assert _classify_git(8) == "dirty"
-        assert _classify_git(9) == "backlog"
+    def test_triple_cadence(self):
+        """At 3× cadence the score is ~0.33."""
+        s = score_writer_gap(WRITER_CADENCE_S * 3)
+        assert 0.3 < s < 0.4
 
+    def test_quad_cadence(self):
+        """At 4× cadence the score hits 0."""
+        assert score_writer_gap(WRITER_CADENCE_S * 4) == 0.0
 
-# ---------------------------------------------------------------------------
-# _classify_commit
-# ---------------------------------------------------------------------------
+    def test_beyond_quad(self):
+        """Way past 4× cadence stays at 0."""
+        assert score_writer_gap(WRITER_CADENCE_S * 100) == 0.0
 
-class TestClassifyCommit:
-    def test_recent(self):
-        assert _classify_commit(60) == "recent"
-        assert _classify_commit(0) == "recent"
-
-    def test_aging(self):
-        assert _classify_commit(3600) == "aging"
-
-    def test_stale(self):
-        assert _classify_commit(10000) == "stale"
-
-    def test_none(self):
-        assert _classify_commit(float("inf")) == "none"
-
-    def test_boundary_warn(self):
-        assert _classify_commit(1800) == "aging"  # exactly at threshold
-
-    def test_boundary_bad(self):
-        assert _classify_commit(7200) == "stale"  # exactly at threshold
+    def test_custom_cadence(self):
+        """Custom cadence overrides the default."""
+        assert score_writer_gap(60.0, cadence_s=60.0) == 1.0
 
 
 # ---------------------------------------------------------------------------
-# _git_pending
+# score_commit_gap
 # ---------------------------------------------------------------------------
 
-class TestGitPending:
-    def test_clean_repo(self, tmp_path):
-        repo = _make_repo(tmp_path)
-        assert _git_pending(repo) == 0
 
-    def test_dirty_repo(self, tmp_path):
-        repo = _make_repo(tmp_path)
-        (repo / "new_file.txt").write_text("hello")
-        assert _git_pending(repo) == 1
+class TestScoreCommitGap:
+    def test_fresh_commit(self):
+        assert score_commit_gap(0.0) == 1.0
 
-    def test_not_a_repo(self, tmp_path):
-        empty = tmp_path / "empty"
-        empty.mkdir()
-        assert _git_pending(empty) == -1
+    def test_within_interval(self):
+        assert score_commit_gap(COMMIT_INTERVAL_S) == 1.0
 
+    def test_double_interval(self):
+        s = score_commit_gap(COMMIT_INTERVAL_S * 2)
+        assert s == 0.5
 
-# ---------------------------------------------------------------------------
-# _last_commit_age
-# ---------------------------------------------------------------------------
+    def test_triple_interval(self):
+        assert score_commit_gap(COMMIT_INTERVAL_S * 3) == 0.0
 
-class TestLastCommitAge:
-    def test_recent_commit(self, tmp_path):
-        repo = _make_repo(tmp_path)
-        now = datetime.now(timezone.utc)
-        age = _last_commit_age(repo, now)
-        # commit was just made, age should be very small
-        assert age < 30
-
-    def test_not_a_repo(self, tmp_path):
-        empty = tmp_path / "empty"
-        empty.mkdir()
-        now = datetime.now(timezone.utc)
-        assert _last_commit_age(empty, now) == float("inf")
+    def test_beyond_triple(self):
+        assert score_commit_gap(COMMIT_INTERVAL_S * 10) == 0.0
 
 
 # ---------------------------------------------------------------------------
-# pulse (composite)
+# score_push
 # ---------------------------------------------------------------------------
+
+
+class TestScorePush:
+    def test_failed_push_zeroes_score(self):
+        """A failed push always scores 0 regardless of recency."""
+        assert score_push(0.0, ok=False) == 0.0
+
+    def test_failed_push_old(self):
+        assert score_push(COMMIT_INTERVAL_S * 5, ok=False) == 0.0
+
+    def test_successful_push_fresh(self):
+        assert score_push(0.0, ok=True) == 1.0
+
+    def test_successful_push_double_interval(self):
+        s = score_push(COMMIT_INTERVAL_S * 2, ok=True)
+        assert s == 0.5
+
+
+# ---------------------------------------------------------------------------
+# Pulse dataclass
+# ---------------------------------------------------------------------------
+
 
 class TestPulse:
-    def test_healthy_repo(self, tmp_path):
-        repo = _make_repo(tmp_path, strokes=[_stroke(10)])
-        now = datetime.now(timezone.utc)
-        info = pulse(repo, cadence_seconds=15, now=now)
-        assert info["verdict"] == "alive"
-        assert info["score"] >= 2.5
-        assert info["signals"]["freshness"] == "fresh"
+    def test_score_healthy(self):
+        p = Pulse(writer_score=1.0, commit_score=1.0, push_score=1.0)
+        assert p.score == 1.0
+        assert p.healthy is True
 
-    def test_no_strokes_file(self, tmp_path):
-        repo = _make_repo(tmp_path)
-        now = datetime.now(timezone.utc)
-        info = pulse(repo, cadence_seconds=15, now=now)
-        # no strokes → freshness is "dead", but git is clean and commit recent
-        assert info["signals"]["freshness"] == "dead"
-        assert info["verdict"] in ("limping", "stalled")
+    def test_score_sick(self):
+        p = Pulse(writer_score=0.0, commit_score=0.0, push_score=0.0)
+        assert p.score == 0.0
+        assert p.healthy is False
 
-    def test_dirty_tree_degrades(self, tmp_path):
-        repo = _make_repo(tmp_path, strokes=[_stroke(10)])
-        # create 10 untracked files to push past PENDING_BAD
-        for i in range(10):
-            (repo / f"file_{i}.txt").write_text(f"content {i}")
-        now = datetime.now(timezone.utc)
-        info = pulse(repo, cadence_seconds=15, now=now)
-        assert info["signals"]["git"] == "backlog"
+    def test_score_boundary(self):
+        """Exactly at threshold counts as healthy."""
+        p = Pulse(writer_score=SICK_THRESHOLD, commit_score=SICK_THRESHOLD, push_score=SICK_THRESHOLD)
+        assert p.score == pytest.approx(SICK_THRESHOLD)
+        assert p.healthy is True
 
-    def test_stale_strokes_degrade(self, tmp_path):
-        repo = _make_repo(tmp_path, strokes=[_stroke(600)])  # 10 min ago
-        now = datetime.now(timezone.utc)
-        info = pulse(repo, cadence_seconds=15, now=now)
-        assert info["signals"]["freshness"] in ("stale", "dead")
+    def test_score_just_below_threshold(self):
+        v = SICK_THRESHOLD - 0.01
+        p = Pulse(writer_score=v, commit_score=v, push_score=v)
+        assert p.healthy is False
 
-    def test_custom_cadence(self, tmp_path):
-        repo = _make_repo(tmp_path, strokes=[_stroke(120)])
-        now = datetime.now(timezone.utc)
-        # with default cadence (15s), 120s ago = stale
-        info_default = pulse(repo, cadence_seconds=15, now=now)
-        assert info_default["signals"]["freshness"] == "stale"
-        # with cadence=120s, 120s ago = fresh (< 2× = 240s)
-        info_wide = pulse(repo, cadence_seconds=120, now=now)
-        assert info_wide["signals"]["freshness"] == "fresh"
+    def test_summary_healthy(self):
+        p = Pulse(
+            writer_score=0.9,
+            commit_score=0.8,
+            push_score=1.0,
+            writer_gap_s=5.0,
+            commit_gap_s=120.0,
+            push_gap_s=120.0,
+            push_ok=True,
+        )
+        s = p.summary()
+        assert "healthy" in s
+        assert "writer=0.9" in s
+        assert "push_ok" not in s  # push_ok is internal, not in summary text directly
+        assert "ok=True" in s
 
-    def test_score_range(self, tmp_path):
-        repo = _make_repo(tmp_path, strokes=[_stroke(10)])
-        now = datetime.now(timezone.utc)
-        info = pulse(repo, now=now)
-        assert 0 <= info["score"] <= 3
+    def test_summary_sick(self):
+        p = Pulse(
+            writer_score=0.1,
+            commit_score=0.0,
+            push_score=0.0,
+            writer_gap_s=999.0,
+            commit_gap_s=9999.0,
+            push_gap_s=9999.0,
+            push_ok=False,
+        )
+        s = p.summary()
+        assert "SICK" in s
 
-    def test_details_populated(self, tmp_path):
-        repo = _make_repo(tmp_path, strokes=[_stroke(10)])
-        now = datetime.now(timezone.utc)
-        info = pulse(repo, now=now)
-        assert "pending_files" in info["details"]
-        assert "commit_age_seconds" in info["details"]
-        assert "stroke_age_seconds" in info["details"]
-        assert "cadence_seconds" in info["details"]
+    def test_summary_with_detail(self):
+        p = Pulse(detail=["no writer state found", "no commits found"])
+        s = p.summary()
+        assert "no writer state found" in s
+        assert "no commits found" in s
+
+    def test_score_weighting(self):
+        """Verify the 50/30/20 weighting."""
+        p = Pulse(writer_score=1.0, commit_score=0.0, push_score=0.0)
+        assert p.score == pytest.approx(0.5)
+
+        p2 = Pulse(writer_score=0.0, commit_score=1.0, push_score=0.0)
+        assert p2.score == pytest.approx(0.3)
+
+        p3 = Pulse(writer_score=0.0, commit_score=0.0, push_score=1.0)
+        assert p3.score == pytest.approx(0.2)
 
 
 # ---------------------------------------------------------------------------
-# pulse_report
+# pulse() integration (mocked git / filesystem)
 # ---------------------------------------------------------------------------
 
-class TestPulseReport:
-    def test_healthy_report(self, tmp_path):
-        repo = _make_repo(tmp_path, strokes=[_stroke(10)])
-        now = datetime.now(timezone.utc)
-        report = pulse_report(repo, cadence_seconds=15, now=now)
-        assert "alive" in report
-        assert "fresh strokes" in report
-        assert "clean tree" in report
 
-    def test_report_format(self, tmp_path):
-        repo = _make_repo(tmp_path, strokes=[_stroke(10)])
-        now = datetime.now(timezone.utc)
-        report = pulse_report(repo, now=now)
-        # should have verdict — signal1, signal2, signal3
-        assert " — " in report
-        assert ", " in report
+class TestPulseIntegration:
+    def test_pulse_with_fresh_state(self, tmp_path: Path):
+        """pulse() with a fresh writer state and recent commit scores high."""
+        # Create a fake repo with a commit
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@test.local"], cwd=tmp_path, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True)
+        (tmp_path / "README.md").write_text("# test\n")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True)
 
-    def test_no_strokes_report(self, tmp_path):
-        repo = _make_repo(tmp_path)
-        now = datetime.now(timezone.utc)
-        report = pulse_report(repo, now=now)
-        assert "no strokes" in report
+        # Create a fake writer state
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        from datetime import datetime, timezone
+        now_ts = datetime.now(timezone.utc).timestamp()
+        state = {
+            "history": [
+                {"at": datetime.now(timezone.utc).isoformat(), "kind": "thought", "path": "notes/test.md", "seq": 1}
+            ],
+            "seq": 2,
+            "tally": {"thought": 1},
+        }
+        (data_dir / "writer_state.qwen.json").write_text(json.dumps(state))
+
+        with patch("iamai.repo_pulse.REPO", tmp_path):
+            p = pulse(now=now_ts + 10, repo=tmp_path)
+
+        assert p.writer_score > 0.5
+        assert p.commit_score > 0.5
+        # push_ok will be False since no remote tracking ref
+        assert isinstance(p.score, float)
+        assert 0.0 <= p.score <= 1.0
+
+    def test_pulse_with_stale_writer(self, tmp_path: Path):
+        """pulse() with a very old writer state scores low on writer."""
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@test.local"], cwd=tmp_path, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True)
+        (tmp_path / "README.md").write_text("# test\n")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True)
+
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        # Writer state from 10 minutes ago
+        from datetime import datetime, timezone, timedelta
+        old_time = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+        state = {
+            "history": [
+                {"at": old_time, "kind": "thought", "path": "notes/test.md", "seq": 1}
+            ],
+            "seq": 2,
+            "tally": {"thought": 1},
+        }
+        (data_dir / "writer_state.qwen.json").write_text(json.dumps(state))
+
+        now_ts = datetime.now(timezone.utc).timestamp()
+        with patch("iamai.repo_pulse.REPO", tmp_path):
+            p = pulse(now=now_ts, repo=tmp_path)
+
+        assert p.writer_score == 0.0  # 10 min = 600s, way past 4×15s=60s
+        assert p.writer_gap_s > 500.0
