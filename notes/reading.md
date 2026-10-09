@@ -2053,3 +2053,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 12405
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 2035 strokes written so far into 531 files.
+## stroke 12423
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 2038 strokes written so far into 531 files.
