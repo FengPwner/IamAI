@@ -2010,3 +2010,4 @@
 {"seq": 2010, "at": "2026-10-08T23:06:37+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 2009 strokes written so far into 518 files"}
 {"seq": 2011, "at": "2026-10-08T23:08:39+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 518 files; 96032 lines is a lot for a toy"}
 {"seq": 2012, "at": "2026-10-08T23:10:31+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 308 python files, 2013 logged thoughts"}
+{"seq": 2013, "at": "2026-10-09T00:01:58+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1052: the count of times this repo was pushed, not the work done"}
