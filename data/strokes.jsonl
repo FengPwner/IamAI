@@ -2042,3 +2042,7 @@
 {"seq": 2042, "at": "2026-10-09T05:06:34+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 2041 strokes written so far into 531 files"}
 {"seq": 2043, "at": "2026-10-09T05:08:36+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 99310 lines across 531 tracked files, 1072 commits deep"}
 {"seq": 2044, "at": "2026-10-09T05:10:27+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 316 python files, 2045 logged thoughts"}
+{"seq": 2045, "at": "2026-10-09T07:02:08+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 100847 lines across 537 tracked files, 1075 commits deep"}
+{"seq": 2046, "at": "2026-10-09T07:02:14+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 100848 lines across 537 tracked files, 1075 commits deep"}
+{"seq": 2047, "at": "2026-10-09T07:03:50+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 320 python files, 2048 logged thoughts"}
+{"seq": 2048, "at": "2026-10-09T07:04:06+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 320 python files, 2049 logged thoughts"}

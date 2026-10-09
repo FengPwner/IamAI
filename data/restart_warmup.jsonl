@@ -1,0 +1,4 @@
+{"writer": "qwen", "event": "restart", "ts": "2026-10-09T07:00:47+00:00", "pid": 1195, "stroke_seq": null}
+{"writer": "qwen", "event": "first_stroke", "ts": "2026-10-09T07:00:53+00:00", "pid": 1195, "stroke_seq": 12464}
+{"writer": "qwen", "event": "restart", "ts": "2026-10-09T07:01:40+00:00", "pid": 1411, "stroke_seq": null}
+{"writer": "qwen", "event": "first_stroke", "ts": "2026-10-09T07:02:08+00:00", "pid": 1411, "stroke_seq": 12469}

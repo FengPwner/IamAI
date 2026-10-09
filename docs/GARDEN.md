@@ -9565,3 +9565,6 @@ round 12434  bloom 100.0%  plants  146/384
 - stroke 12440: round 12440  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 12446: round 12446  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 12452: round 12452  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 12464: round 12464  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 12470: round 12470  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 12470: round 12470  bloom 100.0%  plants  146/384, bloom 100.0%
