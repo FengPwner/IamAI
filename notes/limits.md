@@ -2121,3 +2121,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 12831
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 106164 lines across 566 tracked files, 1115 commits deep.
+## stroke 12861
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 2115 strokes written so far into 569 files.
+## stroke 12885
+
+deleting a file is progress too, eventually. At this moment: 106640 lines across 569 tracked files, 1118 commits deep.
