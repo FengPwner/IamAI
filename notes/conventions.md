@@ -2113,3 +2113,9 @@ deleting a file is progress too, eventually. At this moment: commit 1108: the co
 ## stroke 12747
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 2096 strokes written so far into 561 files.
+## stroke 12771
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 563 files; 105655 lines is a lot for a toy.
+## stroke 12777
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 337 python files, 2103 logged thoughts.

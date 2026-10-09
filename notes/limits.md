@@ -2112,3 +2112,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 12761
 
 a process that writes in its sleep still leaves fingerprints on the disk. At this moment: 336 python files, 1113 commits, and a caretaker checking the locks at midnight on a saturday — which is its own kind of proof that the machine is not the only thing running.
+## stroke 12783
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 2102 strokes written so far into 563 files.

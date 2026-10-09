@@ -2114,3 +2114,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 12765
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 2099 strokes written so far into 561 files.
+## stroke 12789
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 563 files; 105690 lines is a lot for a toy.
