@@ -2121,3 +2121,4 @@
 {"seq": 2121, "at": "2026-10-09T20:05:42+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1124: the count of times this repo was pushed, not the work done"}
 {"seq": 2122, "at": "2026-10-09T20:07:39+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 2121 strokes written so far into 579 files"}
 {"seq": 2123, "at": "2026-10-09T20:09:28+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 107967 lines across 579 tracked files, 1124 commits deep"}
+{"seq": 2124, "at": "2026-10-09T21:01:08+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1125: the count of times this repo was pushed, not the work done"}
