@@ -2045,3 +2045,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 12417
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 316 python files, 2039 logged thoughts.
+## stroke 12447
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 531 files; 99305 lines is a lot for a toy.
