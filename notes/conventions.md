@@ -2047,3 +2047,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 97613 
 ## stroke 12381
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1065: the count of times this repo was pushed, not the work done.
+## stroke 12387
+
+a repo that only accumulates is a landfill with a README. At this moment: 2032 strokes written so far into 528 files.
