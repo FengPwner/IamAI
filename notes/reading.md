@@ -2065,3 +2065,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 12507
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 101395 lines across 540 tracked files, 1081 commits deep.
+## stroke 12525
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 101777 lines across 543 tracked files, 1082 commits deep.
