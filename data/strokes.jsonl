@@ -2131,3 +2131,4 @@
 {"seq": 2131, "at": "2026-10-09T22:06:05+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 586 files; 109049 lines is a lot for a toy"}
 {"seq": 2132, "at": "2026-10-09T22:08:03+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 355 python files, 2133 logged thoughts"}
 {"seq": 2133, "at": "2026-10-09T22:10:08+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1130: the count of times this repo was pushed, not the work done"}
+{"seq": 2134, "at": "2026-10-09T23:01:25+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 586 files; 109084 lines is a lot for a toy"}
