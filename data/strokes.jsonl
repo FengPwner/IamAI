@@ -2026,3 +2026,6 @@
 {"seq": 2026, "at": "2026-10-09T02:06:29+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 2025 strokes written so far into 525 files"}
 {"seq": 2027, "at": "2026-10-09T02:08:33+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 525 files; 97599 lines is a lot for a toy"}
 {"seq": 2028, "at": "2026-10-09T02:10:28+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 312 python files, 2029 logged thoughts"}
+{"seq": 2029, "at": "2026-10-09T03:02:02+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 2028 strokes written so far into 525 files"}
+{"seq": 2030, "at": "2026-10-09T03:03:55+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 525 files; 97634 lines is a lot for a toy"}
+{"seq": 2031, "at": "2026-10-09T03:05:49+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 312 python files, 2032 logged thoughts"}
