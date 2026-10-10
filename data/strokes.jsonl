@@ -2234,3 +2234,6 @@
 {"seq": 2234, "at": "2026-10-10T17:09:19+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 619 files; 115681 lines is a lot for a toy"}
 {"seq": 2235, "at": "2026-10-10T18:01:05+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 115689 lines across 619 tracked files, 1194 commits deep"}
 {"seq": 2236, "at": "2026-10-10T18:03:22+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1197: the count of times this repo was pushed, not the work done"}
+{"seq": 2237, "at": "2026-10-10T18:05:27+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 621 files; 116197 lines is a lot for a toy"}
+{"seq": 2238, "at": "2026-10-10T18:07:23+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 116205 lines across 621 tracked files, 1198 commits deep"}
+{"seq": 2239, "at": "2026-10-10T18:09:26+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1198: the count of times this repo was pushed, not the work done"}
