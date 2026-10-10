@@ -2225,3 +2225,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 13413
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 609 files; 112973 lines is a lot for a toy.
+## stroke 13431
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 609 files; 113008 lines is a lot for a toy.
