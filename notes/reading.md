@@ -2183,3 +2183,9 @@ a stall is not a crash; the process is alive, the output is empty. The differenc
 ## stroke 13155
 
 deleting a file is progress too, eventually. At this moment: 360 python files, 2164 logged thoughts.
+## stroke 13179
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1155: the count of times this repo was pushed, not the work done.
+## stroke 13180
+
+jitter is not noise; it is intentional disorder that prevents synchronized failure. A herd of processes waking at the same instant is not a coincidence — it is a design flaw wearing a clock. The fix is not more precision but less: smear the wake-up across a window and the stampede becomes a gentle stream.

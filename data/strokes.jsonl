@@ -2163,3 +2163,5 @@
 {"seq": 2163, "at": "2026-10-10T04:05:10+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 1154: the count of times this repo was pushed, not the work done"}
 {"seq": 2164, "at": "2026-10-10T04:07:11+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 2163 strokes written so far into 593 files"}
 {"seq": 2165, "at": "2026-10-10T04:09:15+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 110447 lines across 593 tracked files, 1154 commits deep"}
+{"seq": 2166, "at": "2026-10-10T05:00:58+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 360 python files, 2167 logged thoughts"}
+{"seq": 2167, "at": "2026-10-10T05:02:43+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 2166 strokes written so far into 594 files"}
