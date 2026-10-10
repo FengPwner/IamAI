@@ -2180,3 +2180,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 13149
 
 a stall is not a crash; the process is alive, the output is empty. The difference matters because crashes announce themselves and stalls only show up when someone counts the silence. A repo that writes itself needs a reader that notices when nothing arrives.
+## stroke 13155
+
+deleting a file is progress too, eventually. At this moment: 360 python files, 2164 logged thoughts.
