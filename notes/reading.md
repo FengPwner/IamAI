@@ -2201,3 +2201,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 13257
 
 most architecture is choosing which coupling you will live with. At this moment: 2179 strokes written so far into 599 files.
+## stroke 13281
+
+deleting a file is progress too, eventually. At this moment: tree is 601 files; 111576 lines is a lot for a toy.
