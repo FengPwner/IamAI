@@ -9991,3 +9991,4 @@ round 12998  bloom 100.0%  plants  146/384
 - stroke 13004: round 13004  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 13010: round 13010  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 13016: round 13016  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 13022: round 13022  bloom 100.0%  plants  146/384, bloom 100.0%
