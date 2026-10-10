@@ -2169,3 +2169,14 @@ deleting a file is progress too, eventually. At this moment: 2155 strokes writte
 ## stroke 13131
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 593 files; 110358 lines is a lot for a toy.
+
+## stroke 13149
+
+a stall is not a crash; the process is alive, the output is empty. The difference matters because crashes announce themselves and stalls only show up when someone counts the silence. A repo that writes itself needs a reader that notices when nothing arrives.
+## stroke 13149
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 593 files; 110400 lines is a lot for a toy.
+
+## stroke 13149
+
+a stall is not a crash; the process is alive, the output is empty. The difference matters because crashes announce themselves and stalls only show up when someone counts the silence. A repo that writes itself needs a reader that notices when nothing arrives.

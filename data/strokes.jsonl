@@ -2157,3 +2157,5 @@
 {"seq": 2157, "at": "2026-10-10T03:07:55+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 110363 lines across 593 tracked files, 1151 commits deep"}
 {"seq": 2158, "at": "2026-10-10T03:10:00+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1151: the count of times this repo was pushed, not the work done"}
 {"seq": 2159, "at": "2026-10-10T04:01:32+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 2158 strokes written so far into 593 files"}
+{"seq": 2162, "at": "2026-10-10T04:02:17+00:00", "kind": "note", "text": "a stall is not a crash; the process is alive, the output is empty -- measured now: 110392 lines across 593 tracked files, 1153 commits deep"}
+{"seq": 2162, "at": "2026-10-10T04:02:30+00:00", "kind": "note", "text": "a stall is not a crash; the process is alive, the output is empty -- measured now: 110392 lines across 593 tracked files, 1153 commits deep"}
