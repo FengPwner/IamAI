@@ -2167,3 +2167,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 13053
 
 deleting a file is progress too, eventually. At this moment: tree is 594 files; 115048 lines is a lot for a toy.
+## stroke 13059
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 110230 lines across 592 tracked files, 1145 commits deep.
