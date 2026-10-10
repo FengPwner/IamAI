@@ -2239,3 +2239,6 @@ deleting a file is progress too, eventually. At this moment: commit 1188: the co
 ## stroke 13545
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 615 files; 114621 lines is a lot for a toy.
+## stroke 13551
+
+deleting a file is progress too, eventually. At this moment: 115049 lines across 617 tracked files, 1191 commits deep.
