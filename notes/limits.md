@@ -2263,3 +2263,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 13713
 
 a repo that only accumulates is a landfill with a README. At this moment: 2256 strokes written so far into 627 files.
+## stroke 13719
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 627 files; 117375 lines is a lot for a toy.

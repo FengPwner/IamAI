@@ -1,6 +1,21 @@
 {
   "history": [
     {
+<<<<<<< Updated upstream
+=======
+      "at": "2026-10-10T09:07:50+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 13321
+    },
+    {
+      "at": "2026-10-10T09:08:04+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 13322
+    },
+    {
+>>>>>>> Stashed changes
       "at": "2026-10-10T09:08:29+00:00",
       "kind": "garden",
       "path": "docs/GARDEN.md",
@@ -2387,6 +2402,7 @@
       "kind": "note",
       "path": "notes/limits.md",
       "seq": 13720
+<<<<<<< Updated upstream
     },
     {
       "at": "2026-10-10T22:01:55+00:00",
@@ -2408,6 +2424,17 @@
     "metrics": 2232,
     "note": 2232,
     "snippet": 2232,
+=======
+    }
+  ],
+  "seq": 13721,
+  "tally": {
+    "devlog": 2232,
+    "garden": 2232,
+    "metrics": 2231,
+    "note": 2232,
+    "snippet": 2231,
+>>>>>>> Stashed changes
     "thought": 2231
   }
 }
