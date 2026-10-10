@@ -1,32 +1,29 @@
-# Caretaker Visit 115 — 2026-10-10 03:00 CST
+# caretaker visit 115 — 2026-10-10 15:00 CST (07:00 UTC)
 
-## What I found
+## what happened
 
-- Writer and batch committer had stopped (both pids gone).
-- 8 files uncommitted — strokes backlog from the writer's last session.
-- `.git/index.lock` left behind by a crashed git process, blocking all git operations.
-- Remote had diverged: one new commit from another caretaker that our local branch didn't have.
-- Push rejected with "fetch first" because of the divergence.
+- writer and batch processes were dead (recycled) — restarted via `run_both.sh`, now pids 1143/1144
+- `.git/index.lock` was blocking commits — stale file removed, no active git process found
+- RED GATE pause flag was active on writer — cleared `/tmp/iamai-writer-pause-qwen`
+- 8 pending uncommitted files had accumulated during stall — committed as backlog (`8bccfd2`)
+- remote had diverged (another host pushed while we were down) — `git pull --rebase` resolved cleanly
+- writer stalled for ~3006s (50.1 min) before detection — consistent with previous container recycle pattern
 
-## What I did
+## new content
 
-1. Removed stale `.git/index.lock` and `.git/refs/remotes/origin/main.lock`.
-2. Stopped writer and batch via `tools/run_both.sh --stop`.
-3. `git fetch origin` + `git rebase origin/main` to reconcile divergence.
-4. Pushed the rebased local commit to resolve the remote gap.
-5. Committed all 8 pending files plus new content.
-6. **Built `lock_health.py`** — a new CLI tool that detects stale git lock files using process-based staleness detection instead of mtime. The repo lives on a FUSE/OSSFS filesystem where directory traversal resets file mtime to "now", making age-based staleness checks unreliable. The new tool cross-references lock files against running git processes.
-7. Wrote 23 tests (14 library + 9 CLI), all passing.
-8. Restarted writer and batch.
+- **snippets/graceful_shutdown.py** — ShutdownCoordinator for orderly process termination. Registers cleanup callbacks that run in LIFO order on SIGTERM/SIGINT. Configurable timeout and timeout behavior (force exit or warn). Includes `shutdown_now()` for programmatic use and `wait_for_signal()` for main-loop blocking.
+- **tests/test_graceful_shutdown.py** — 18 tests covering: handler registration (single, multiple, timeout storage, default timeout), LIFO execution order (reverse, single, empty), error handling (failing handler doesn't block others, still reported as executed), shutdown flag (initial state, request_shutdown, signal handler), shutdown_now (runs handlers, sets flag), and timeout configuration (default, custom, on_timeout values).
 
-## Lesson
+## process status after visit
 
-On object-storage-backed FUSE filesystems, `os.stat()` mtime is unreliable after any directory traversal (`rglob`, `scandir`, `listdir`). The metadata cache refresh causes the file's apparent mtime to reset to "now". Process-based staleness detection (is git running?) is more robust than age-based detection in this environment.
+| component | status |
+|-----------|--------|
+| writer    | running (pid 1143) |
+| batch     | running (pid 1144) |
+| pause     | cleared |
+| pending   | 0 |
+| remote    | synced |
 
-## Files changed
+## observations
 
-- `iamai/lock_health.py` — library (new)
-- `tools/lock_health.py` — CLI wrapper (new)
-- `tests/test_lock_health.py` — library tests (new, 14 tests)
-- `tests/test_lock_health_cli.py` — CLI tests (new, 9 tests)
-- 8 other files — pending writer output committed
+the stall-detection pattern is consistent across visits 113, 114, and 115: container recycle leaves behind a stale index.lock and the writer enters RED GATE. the watchdog snippet added in stroke 2168 should eventually catch this automatically, but the caretaker still needs to clear the pause gate manually. possible next step: teach the batch committer to clear the pause file when it detects a lock-free repo.
