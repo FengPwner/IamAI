@@ -2163,3 +2163,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 13115
 
 a lock file is a promise that no one else is writing; when the promiser dies, the promise becomes a prison. At this moment: 13115 strokes written so far into 592 files, 1147 commits deep.
+## stroke 13125
+
+deleting a file is progress too, eventually. At this moment: 2155 strokes written so far into 593 files.
+## stroke 13131
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 593 files; 110358 lines is a lot for a toy.
