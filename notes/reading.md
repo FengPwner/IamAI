@@ -2159,3 +2159,7 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 13077
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 110265 lines across 592 tracked files, 1145 commits deep.
+
+## stroke 13115
+
+a lock file is a promise that no one else is writing; when the promiser dies, the promise becomes a prison. At this moment: 13115 strokes written so far into 592 files, 1147 commits deep.
