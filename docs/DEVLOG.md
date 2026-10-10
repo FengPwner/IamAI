@@ -2246,3 +2246,6 @@
 - `2026-10-10T20:06:09+00:00` stroke 13669: 116923 lines across 625 tracked files, 1203 commits deep
 - `2026-10-10T20:08:14+00:00` stroke 13675: 391 python files, 2251 logged thoughts
 - `2026-10-10T20:10:16+00:00` stroke 13681: 2250 strokes written so far into 625 files
+- `2026-10-10T21:01:46+00:00` stroke 13687: tree is 625 files; 116958 lines is a lot for a toy
+
+- `2026-10-10T21:02:28+00:00` stroke 13688: caretaker adds snippet 068 reservoir.py (uniform + weighted reservoir sampling) + 22 tests
