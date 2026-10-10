@@ -1,12 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-10-09T14:07:21+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 12715
-    },
-    {
       "at": "2026-10-09T14:07:41+00:00",
       "kind": "devlog",
       "path": "docs/DEVLOG.md",
@@ -2399,13 +2393,19 @@
       "kind": "note",
       "path": "notes/limits.md",
       "seq": 13114
+    },
+    {
+      "at": "2026-10-10T03:01:31+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 13115
     }
   ],
-  "seq": 13115,
+  "seq": 13116,
   "tally": {
     "devlog": 2131,
     "garden": 2131,
-    "metrics": 2130,
+    "metrics": 2131,
     "note": 2131,
     "snippet": 2130,
     "thought": 2130
