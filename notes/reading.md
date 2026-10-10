@@ -2144,3 +2144,6 @@ deleting a file is progress too, eventually. At this moment: commit 1130: the co
 ## stroke 12975
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 2133 strokes written so far into 586 files.
+## stroke 12993
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 2137 strokes written so far into 589 files.

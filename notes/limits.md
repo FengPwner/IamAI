@@ -2146,3 +2146,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 12987
 
 a heartbeat that checks its own pulse is either very healthy or very anxious — probably both. At this moment: 109084 lines across 589 tracked files, 1131 commits deep.
+## stroke 12987
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 358 python files, 2138 logged thoughts.
+## stroke 13011
+
+deleting a file is progress too, eventually. At this moment: 2140 strokes written so far into 589 files.
+## stroke 13017
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 589 files; 109756 lines is a lot for a toy.
