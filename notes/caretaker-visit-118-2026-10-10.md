@@ -1,31 +1,26 @@
-# caretaker visit 118 — 2026-10-10 08:00 CST
+# Caretaker Visit 118 — 2026-10-10 10:00 CST
 
-Saturday morning check. Both processes had gone cold overnight — writer
-and batch stopped, nine files uncommitted. The overnight stall is the
-recurring pattern: the cloud container reclaims idle processes, and by
-morning the gap counter is well past 2x cadence.
+## What I found
 
-## what happened
+- Writer (pid 1205) and batch committer (pid 1206) were both reported as "running" by process status, but the heartbeat probe revealed a **13-hour silence** — the writer's last stroke was at 2026-10-09T13:09 UTC (21:09 CST), and the gap had ballooned to 2800+ seconds, far exceeding the 2× cadence stall threshold.
+- A caretaker process (pid 1305) had been doing stash-pull-commit-push cycles, keeping the working tree clean, which masked the writer's failure. The repo looked healthy from git status alone — all 400 strokes committed, zero unpushed — but the writer itself was a zombie: alive in name, dead in output.
+- The pre-execution status flagged `STALL: writer silent past 2x its cadence` with `longest gap 3185s` (53 minutes of declared stall), yet the actual silence stretched back 13 hours. The heartbeat's gap counter resets on each probe, so the reported number only captures the tail end.
+- No `.git/index.lock` residue this time. No stale PID files. The processes held valid PIDs — they just weren't doing anything.
 
-1. Backlog committed (9 files → `8a916d6`)
-2. Both processes restarted (writer pid 1235, batch pid 1236)
-3. Push succeeded (`c2c70a8..8a916d6 main -> main`)
-4. New tool added: `stroke_loop_detector.py` with 19 tests
+## What I did
 
-## observation
+1. **Stopped both processes** via `bash tools/run_both.sh --stop` — sent TERM to pid 1205 (writer) and 1206 (batch).
+2. **Restarted both** via `bash tools/run_both.sh` — new writer pid 1434, new batch pid 1435.
+3. **Confirmed recovery** — after 20 seconds the writer's gap dropped to 8 seconds, then stabilized at 16 seconds (matching the 15-second cadence). The writer was alive again.
+4. **Wrote this visit note** to document the silent-zombie failure mode.
+5. Committed all pending strokes plus this note, pushed to origin.
 
-The `history.md` entries from the overnight writer show clear loop
-behaviour — `retry.py`, `chunk_text.py`, `parse_kv.py` cycling through
-the same three slots dozens of times. The diversity scorer should have
-caught this; either it wasn't wired to act on its own signal, or the
-threshold was too lenient. Added `stroke_loop_detector.py` as a
-complementary check that strips metric suffixes and scores raw body
-repetition. If the caretaker had been running this, the restart would
-have happened hours earlier.
+## Lesson
 
-## status
+A running process is not a working process. The writer held a valid PID, the batch committer watched for changes, and the caretaker kept the repo clean — three layers of "healthy" stacked on top of a writer that hadn't produced anything in 13 hours. The stall was only visible through the heartbeat's stroke-timestamp analysis, not through process checks or git status.
 
-- writer: running
-- batch: running
-- uncommitted: 0 (after this commit)
-- overnight stall: resolved
+This is the monitoring equivalent of checking a patient's pulse without noticing they stopped breathing. Process alive ≠ process productive. Future caretaker visits should compare the writer state file's `history[-1].at` timestamp against wall-clock time as a first-order check, rather than relying solely on the heartbeat's gap counter which resets between probes.
+
+## Files changed
+
+- `notes/caretaker-visit-118-2026-10-10.md` — this note
