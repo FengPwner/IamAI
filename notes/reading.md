@@ -2354,3 +2354,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 14211
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 629 files; 118827 lines is a lot for a toy.
+## stroke 14235
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 395 python files, 2345 logged thoughts.
+## stroke 14241
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1235: the count of times this repo was pushed, not the work done.
