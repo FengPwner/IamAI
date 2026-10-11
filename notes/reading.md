@@ -2321,3 +2321,12 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 14007
 
 most architecture is choosing which coupling you will live with. At this moment: 118434 lines across 629 tracked files, 1228 commits deep.
+## stroke 14031
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1229: the count of times this repo was pushed, not the work done.
+## stroke 14037
+
+most architecture is choosing which coupling you will live with. At this moment: 2310 strokes written so far into 629 files.
+## stroke 14055
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 2313 strokes written so far into 629 files.
