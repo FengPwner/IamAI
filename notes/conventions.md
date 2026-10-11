@@ -2272,3 +2272,12 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 13755
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 629 files; 117978 lines is a lot for a toy.
+## stroke 13785
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 1216: the count of times this repo was pushed, not the work done.
+## stroke 13803
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1216: the count of times this repo was pushed, not the work done.
+## stroke 13809
+
+most architecture is choosing which coupling you will live with. At this moment: 2272 strokes written so far into 629 files.
