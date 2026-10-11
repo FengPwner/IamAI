@@ -2294,3 +2294,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 118045
 ## stroke 13827
 
 a repo that only accumulates is a landfill with a README. At this moment: 2275 strokes written so far into 629 files.
+## stroke 13851
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 629 files; 118150 lines is a lot for a toy.
