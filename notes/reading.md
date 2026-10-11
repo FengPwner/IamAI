@@ -2345,3 +2345,12 @@ a repo that only accumulates is a landfill with a README. At this moment: 118687
 ## stroke 14163
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1233: the count of times this repo was pushed, not the work done.
+## stroke 14187
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 2335 strokes written so far into 629 files.
+## stroke 14193
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 629 files; 118792 lines is a lot for a toy.
+## stroke 14211
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 629 files; 118827 lines is a lot for a toy.
