@@ -2338,3 +2338,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 14151
 
 most architecture is choosing which coupling you will live with. At this moment: 2329 strokes written so far into 629 files.
+## stroke 14169
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 2332 strokes written so far into 629 files.
