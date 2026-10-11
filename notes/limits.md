@@ -2374,3 +2374,6 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 14361
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 629 files; 119115 lines is a lot for a toy.
+## stroke 14385
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 119158 lines across 629 tracked files, 1240 commits deep.
