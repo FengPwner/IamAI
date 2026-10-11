@@ -2333,3 +2333,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 14085
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 395 python files, 2320 logged thoughts.
+## stroke 14109
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 1231: the count of times this repo was pushed, not the work done.
