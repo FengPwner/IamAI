@@ -2392,3 +2392,6 @@ deleting a file is progress too, eventually. At this moment: 2379 strokes writte
 ## stroke 14457
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 629 files; 119309 lines is a lot for a toy.
+## stroke 14481
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 119363 lines across 629 tracked files, 1243 commits deep.

@@ -2389,3 +2389,9 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 14463
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 395 python files, 2383 logged thoughts.
+## stroke 14469
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1243: the count of times this repo was pushed, not the work done.
+## stroke 14487
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1243: the count of times this repo was pushed, not the work done.
