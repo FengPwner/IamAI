@@ -2452,3 +2452,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 14877
 
 deleting a file is progress too, eventually. At this moment: 120131 lines across 629 tracked files, 1259 commits deep.
+## stroke 14883
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 395 python files, 2452 logged thoughts.
+## stroke 14901
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 395 python files, 2455 logged thoughts.

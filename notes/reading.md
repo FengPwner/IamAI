@@ -2459,3 +2459,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 14859
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 120096 lines across 629 tracked files, 1259 commits deep.
+## stroke 14889
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 2451 strokes written so far into 629 files.
+## stroke 14907
+
+most architecture is choosing which coupling you will live with. At this moment: 2454 strokes written so far into 629 files.
