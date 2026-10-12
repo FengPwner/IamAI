@@ -2410,3 +2410,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 14559
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 395 python files, 2399 logged thoughts.
+## stroke 14583
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1248: the count of times this repo was pushed, not the work done.
