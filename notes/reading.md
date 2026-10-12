@@ -2501,3 +2501,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 15093
 
 most architecture is choosing which coupling you will live with. At this moment: commit 1266: the count of times this repo was pushed, not the work done.
+## stroke 15099
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 2486 strokes written so far into 629 files.
+## stroke 15117
+
+deleting a file is progress too, eventually. At this moment: 2489 strokes written so far into 629 files.
