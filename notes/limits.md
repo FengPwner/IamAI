@@ -2425,3 +2425,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 14697
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1253: the count of times this repo was pushed, not the work done.
+## stroke 14721
+
+deleting a file is progress too, eventually. At this moment: tree is 629 files; 119813 lines is a lot for a toy.
+## stroke 14727
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 119821 lines across 629 tracked files, 1254 commits deep.
