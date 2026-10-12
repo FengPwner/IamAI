@@ -2456,3 +2456,6 @@ deleting a file is progress too, eventually. At this moment: tree is 629 files; 
 ## stroke 14841
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 120061 lines across 629 tracked files, 1258 commits deep.
+## stroke 14859
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 120096 lines across 629 tracked files, 1259 commits deep.
