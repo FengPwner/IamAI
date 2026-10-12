@@ -2399,3 +2399,6 @@ deleting a file is progress too, eventually. At this moment: tree is 629 files; 
 ## stroke 14499
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 119398 lines across 629 tracked files, 1243 commits deep.
+## stroke 14523
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 395 python files, 2393 logged thoughts.
