@@ -2429,3 +2429,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 14703
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 629 files; 119778 lines is a lot for a toy.
+## stroke 14733
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1255: the count of times this repo was pushed, not the work done.
+## stroke 14751
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1255: the count of times this repo was pushed, not the work done.
+## stroke 14757
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 2429 strokes written so far into 629 files.
