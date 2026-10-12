@@ -2473,3 +2473,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 14985
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 2467 strokes written so far into 629 files.
+## stroke 15009
+
+most architecture is choosing which coupling you will live with. At this moment: 120384 lines across 629 tracked files, 1264 commits deep.
+## stroke 15033
+
+deleting a file is progress too, eventually. At this moment: 395 python files, 2477 logged thoughts.
