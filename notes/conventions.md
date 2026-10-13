@@ -2560,3 +2560,9 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 15489
 
 most architecture is choosing which coupling you will live with. At this moment: 395 python files, 2553 logged thoughts.
+## stroke 15513
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 2555 strokes written so far into 629 files.
+## stroke 15519
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 629 files; 121349 lines is a lot for a toy.
