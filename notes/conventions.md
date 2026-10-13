@@ -2596,3 +2596,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 15699
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1290: the count of times this repo was pushed, not the work done.
+## stroke 15723
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 2590 strokes written so far into 629 files.
