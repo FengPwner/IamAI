@@ -2566,3 +2566,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 15519
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 629 files; 121349 lines is a lot for a toy.
+## stroke 15543
+
+deleting a file is progress too, eventually. At this moment: 121392 lines across 629 tracked files, 1283 commits deep.
