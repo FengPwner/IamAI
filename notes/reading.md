@@ -2627,3 +2627,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 395 py
 ## stroke 15867
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 395 python files, 2616 logged thoughts.
+## stroke 15897
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 629 files; 122088 lines is a lot for a toy.
