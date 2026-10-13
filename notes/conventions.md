@@ -2536,3 +2536,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 15333
 
 most architecture is choosing which coupling you will live with. At this moment: 121002 lines across 629 tracked files, 1275 commits deep.
+## stroke 15363
+
+most architecture is choosing which coupling you will live with. At this moment: 2530 strokes written so far into 629 files.
