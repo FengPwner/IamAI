@@ -2620,3 +2620,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 15831
 
 most architecture is choosing which coupling you will live with. At this moment: 395 python files, 2610 logged thoughts.
+## stroke 15855
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 2612 strokes written so far into 629 files.
