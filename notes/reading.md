@@ -2579,3 +2579,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 15585
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1286: the count of times this repo was pushed, not the work done.
+## stroke 15609
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 2571 strokes written so far into 629 files.
+## stroke 15615
+
+deleting a file is progress too, eventually. At this moment: tree is 629 files; 121536 lines is a lot for a toy.

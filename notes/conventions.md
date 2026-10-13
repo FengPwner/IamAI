@@ -2575,3 +2575,9 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 15573
 
 deleting a file is progress too, eventually. At this moment: 2565 strokes written so far into 629 files.
+## stroke 15591
+
+a repo that only accumulates is a landfill with a README. At this moment: 2568 strokes written so far into 629 files.
+## stroke 15597
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 121501 lines across 629 tracked files, 1287 commits deep.
