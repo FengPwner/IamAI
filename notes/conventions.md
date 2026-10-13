@@ -2587,3 +2587,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 395 py
 ## stroke 15645
 
 most architecture is choosing which coupling you will live with. At this moment: commit 1288: the count of times this repo was pushed, not the work done.
+## stroke 15669
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 629 files; 121652 lines is a lot for a toy.
+## stroke 15675
+
+most architecture is choosing which coupling you will live with. At this moment: 121660 lines across 629 tracked files, 1289 commits deep.

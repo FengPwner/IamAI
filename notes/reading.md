@@ -2588,3 +2588,9 @@ deleting a file is progress too, eventually. At this moment: tree is 629 files; 
 ## stroke 15639
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 395 python files, 2578 logged thoughts.
+## stroke 15657
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 395 python files, 2581 logged thoughts.
+## stroke 15663
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 1289: the count of times this repo was pushed, not the work done.
