@@ -31,8 +31,8 @@ def _make_repo(tmp_path: Path, strokes: list[dict] | None = None) -> Path:
     return tmp_path
 
 
-def _stroke(hours_ago: float, kind: str = "thought") -> dict:
-    ts = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+def _stroke(hours_ago: float, kind: str = "thought", now: datetime | None = None) -> dict:
+    ts = (now or datetime.now(timezone.utc)) - timedelta(hours=hours_ago)
     return {"seq": 1, "at": ts.isoformat(), "kind": kind, "text": "test"}
 
 
@@ -160,12 +160,15 @@ class TestVerdict:
 
 class TestPaceReport:
     def test_basic_report(self, tmp_path):
-        now = datetime.now(timezone.utc)
+        # Fixed "now" (14:00 UTC) keeps all 20 synthetic strokes on the same
+        # UTC day regardless of when the suite runs — otherwise the oldest
+        # strokes land "yesterday" whenever the clock is before 11:00 UTC.
+        now = datetime(2026, 10, 6, 14, 0, 0, tzinfo=timezone.utc)
         # 10 strokes in the last 30 min, 10 strokes from 2 hours ago
         recent = [
-            _stroke(hours_ago=0.1 * i) for i in range(1, 11)
+            _stroke(hours_ago=0.1 * i, now=now) for i in range(1, 11)
         ]
-        old = [_stroke(hours_ago=2.0 + i) for i in range(10)]
+        old = [_stroke(hours_ago=2.0 + i, now=now) for i in range(10)]
         repo = _make_repo(tmp_path, recent + old)
         report = pace_report(
             daily_target=200,

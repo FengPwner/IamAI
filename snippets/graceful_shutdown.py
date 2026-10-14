@@ -16,6 +16,7 @@ of earlier handlers.
 >>> sd.register("close-db", lambda: results.append("db"))
 >>> sd.register("flush-log", lambda: results.append("log"))
 >>> sd._run_handlers()
+['flush-log', 'close-db']
 >>> results
 ['log', 'db']
 """

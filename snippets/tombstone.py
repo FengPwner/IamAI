@@ -23,7 +23,7 @@ is safe (once all replicas have seen the deletion).
 zero dependencies.  stdlib only.
 
 >>> ts = TombstoneStore()
->>> ts.mark("user:42")
+>>> ts.mark("user:42")  # doctest: +ELLIPSIS
 Tombstone(key='user:42', ...)
 >>> ts.check("user:42")
 True
@@ -31,7 +31,7 @@ True
 False
 >>> ts.peek("user:42").deleted  # doctest: +ELLIPSIS
 True
->>> ts.compact(before=0)        # purge everything
+>>> ts.compact(before=10**9)     # purge everything (deleted_at < before)
 1
 >>> ts.check("user:42")
 False
@@ -90,7 +90,7 @@ class TombstoneStore:
         Source of monotonic time.  Override for deterministic tests.
 
     >>> store = TombstoneStore(ttl=60)
-    >>> store.mark("session:abc", reason="user logout")
+    >>> store.mark("session:abc", reason="user logout")  # doctest: +ELLIPSIS
     Tombstone(key='session:abc', ...)
     >>> store.check("session:abc")
     True
@@ -173,9 +173,9 @@ class TombstoneStore:
         is None, uses ``now - ttl``.  Returns count of purged entries.
 
         >>> store = TombstoneStore()
-        >>> store.mark("a", deleted_at=1.0)
+        >>> store.mark("a", deleted_at=1.0)  # doctest: +ELLIPSIS
         Tombstone(key='a', ...)
-        >>> store.mark("b", deleted_at=2.0)
+        >>> store.mark("b", deleted_at=2.0)  # doctest: +ELLIPSIS
         Tombstone(key='b', ...)
         >>> store.compact(before=1.5)
         1
@@ -197,11 +197,11 @@ class TombstoneStore:
 
         >>> a = TombstoneStore()
         >>> b = TombstoneStore()
-        >>> a.mark("x", deleted_at=1.0)
+        >>> a.mark("x", deleted_at=1.0)  # doctest: +ELLIPSIS
         Tombstone(key='x', ...)
-        >>> b.mark("x", deleted_at=2.0)
+        >>> b.mark("x", deleted_at=2.0)  # doctest: +ELLIPSIS
         Tombstone(key='x', ...)
-        >>> b.mark("y", deleted_at=3.0)
+        >>> b.mark("y", deleted_at=3.0)  # doctest: +ELLIPSIS
         Tombstone(key='y', ...)
         >>> a.merge(b)
         2

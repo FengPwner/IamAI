@@ -20,9 +20,14 @@ files = sorted(SNIPPETS.glob("*.py")) if SNIPPETS.exists() else []
 @pytest.mark.parametrize("path", files, ids=lambda p: p.name)
 def test_snippet_doctests(path: Path):
     import importlib.util
+    import sys
 
     spec = importlib.util.spec_from_file_location(f"snippet_{path.stem}", path)
     module = importlib.util.module_from_spec(spec)
+    # Register under its spec name before exec: dataclass string annotations
+    # resolve via sys.modules[cls.__module__] on Python 3.12, and an
+    # unregistered module crashes dataclasses at import time.
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
 
     import inspect

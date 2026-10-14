@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shlex
 import subprocess
 from datetime import datetime, timezone
 import sys
@@ -91,8 +92,14 @@ def writer_alive() -> bool:
 
 
 def gate() -> tuple[bool, str]:
+    cmd = [sys.executable, "-m", "pytest", "-q", "--no-header"]
+    # IAMAII_GATE_TESTS (space-separated pytest args) scopes the gate for a
+    # specific deployment without changing the default full-suite behavior.
+    extra = os.environ.get("IAMAII_GATE_TESTS", "").strip()
+    if extra:
+        cmd += shlex.split(extra)
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", "-q", "--no-header"],
+        cmd,
         cwd=REPO,
         capture_output=True,
         text=True,

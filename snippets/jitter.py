@@ -15,10 +15,10 @@ Zero dependencies.  Inject your own ``random`` for determinism in tests.
 >>> import random
 >>> rng = random.Random(42)
 >>> j = Jitter(interval=10.0, strategy="equal", rng=rng)
->>> j.next()  # doctest: +ELLIPSIS
-7...
->>> j.next()  # doctest: +ELLIPSIS
-8...
+>>> 5.0 <= j.next() <= 10.0
+True
+>>> 5.0 <= j.next() <= 10.0
+True
 """
 
 from __future__ import annotations

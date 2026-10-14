@@ -34,8 +34,14 @@ def test_plan_stroke_rotates_through_all_kinds(tmp_path: Path):
 
 
 def test_plan_stroke_is_reproducible_for_a_seed():
-    assert doubao.plan_stroke(seed=11, seq=7) == doubao.plan_stroke(seed=11, seq=7)
-    assert doubao.plan_stroke(seed=11, seq=7) != doubao.plan_stroke(seed=12, seq=7)
+    from iamai import writer as _writer
+
+    # Fix the repo snapshot once: stroke text embeds live repo metrics, so an
+    # actively-running writer can change the repo between two calls and break
+    # byte-equality. A captured snapshot makes the contract testable.
+    snap = _writer.snapshot()
+    assert doubao.plan_stroke(seed=11, seq=7, snap=snap) == doubao.plan_stroke(seed=11, seq=7, snap=snap)
+    assert doubao.plan_stroke(seed=11, seq=7, snap=snap) != doubao.plan_stroke(seed=12, seq=7, snap=snap)
 
 
 def test_every_stroke_stays_under_doubao(tmp_path: Path):

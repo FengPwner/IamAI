@@ -154,12 +154,15 @@ class TestHourlyHeatmap:
     def test_counts_by_hour(self, race_log):
         repo, log_path = race_log
         # Create races at known hours
-        base = datetime(2026, 10, 7, 0, 0, 0, tzinfo=timezone.utc)
+        # Anchor to today's UTC midnight: the 168 h window is measured from
+        # real now, so fixed past dates age out of the window and the
+        # hour-bucket counts collapse to zero.
+        base = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         entries = [
-            {"at": "2026-10-07T03:00:00+00:00", "writer": "qwen", "resolution": "rebase"},
-            {"at": "2026-10-07T03:30:00+00:00", "writer": "qwen", "resolution": "rebase"},
-            {"at": "2026-10-07T14:00:00+00:00", "writer": "guoban", "resolution": "rebase"},
-            {"at": "2026-10-07T23:59:00+00:00", "writer": "kimi", "resolution": "skip"},
+            {"at": (base + timedelta(hours=3)).isoformat(), "writer": "qwen", "resolution": "rebase"},
+            {"at": (base + timedelta(hours=3, minutes=30)).isoformat(), "writer": "qwen", "resolution": "rebase"},
+            {"at": (base + timedelta(hours=14)).isoformat(), "writer": "guoban", "resolution": "rebase"},
+            {"at": (base + timedelta(hours=23, minutes=59)).isoformat(), "writer": "kimi", "resolution": "skip"},
         ]
         _write_races(log_path, entries)
         hm = hourly_heatmap(repo, hours=168)

@@ -359,18 +359,21 @@ def _code_text(seq: int, variant: int, root: Path) -> tuple[str, str] | None:
     return name, source
 
 
-def plan_stroke(seed: int, seq: int, root: Path | str | None = None) -> dict:
-    """第 `seq` 笔豆包笔画。同一 (seed, seq) 永远得到同一笔。
+def plan_stroke(seed: int, seq: int, root: Path | str | None = None,
+                snap: dict | None = None) -> dict:
+    """第 `seq` 笔豆包笔画。同一 (seed, seq, snap) 永远得到同一笔。
 
     `root` 只在“这个文件是否已存在”的判断里用，默认是真实仓库；
     测试传入 tmp_path 就能让计划与仓库当前状态解耦。
+    `snap` 传入固定快照时完全可复现；默认取实时仓库快照（活跃写手
+    并发落笔时文本会随仓库增长变化，属预期行为）。
     """
 
     root = Path(root) if root else REPO_ROOT
     rng = LCG(seed * 104729 + 17 + 13 * seq)
     kind = KINDS[(seq - 1) % len(KINDS)]
     variant = rng.below(1000)
-    snap = writer.snapshot()
+    snap = snap if snap is not None else writer.snapshot()
 
     if kind == "dthought":
         body = THOUGHTS[variant % len(THOUGHTS)]

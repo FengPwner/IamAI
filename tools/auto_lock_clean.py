@@ -55,9 +55,9 @@ def is_stale(lock: Path, threshold: int = DEFAULT_THRESHOLD,
 
 def clean(lock: Path) -> dict:
     """Attempt to remove the lock file. Returns action result."""
-    if not lock.exists():
-        return {"action": "none", "reason": "lock absent"}
     try:
+        if not lock.exists():
+            return {"action": "none", "reason": "lock absent"}
         lock.unlink()
         return {"action": "cleaned", "path": str(lock)}
     except OSError as e:

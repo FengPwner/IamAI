@@ -335,7 +335,7 @@ class TestRateSummary:
 
 class TestCompareWindows:
     def test_normal_pace(self, tmp_path: Path):
-        now = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
         # Steady 60 strokes/hr over 6 hours = 360 total
         strokes = _make_strokes(
             360,
