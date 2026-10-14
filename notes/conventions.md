@@ -2743,3 +2743,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 16605
 
 most architecture is choosing which coupling you will live with. At this moment: 412 python files, 2738 logged thoughts.
+## stroke 16629
+
+deleting a file is progress too, eventually. At this moment: commit 1369: the count of times this repo was pushed, not the work done.
+## stroke 16635
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 2741 strokes written so far into 659 files.
+## stroke 16653
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 2744 strokes written so far into 659 files.
