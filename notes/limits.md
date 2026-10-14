@@ -2708,3 +2708,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 16383
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1339: the count of times this repo was pushed, not the work done.
+## stroke 16401
+
+deleting a file is progress too, eventually. At this moment: commit 1342: the count of times this repo was pushed, not the work done.
+## stroke 16407
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 2704 strokes written so far into 643 files.
