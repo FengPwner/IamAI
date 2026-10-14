@@ -2665,3 +2665,19 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 16149
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 123260 lines across 631 tracked files, 1317 commits deep.
+## stroke 16173
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1318: the count of times this repo was pushed, not the work done.
+## stroke 16195
+
+a process that dies and restarts silently teaches its operator nothing -- the index.lock file left behind is the only scar, and even that gets cleaned before anyone reads it. At this moment: 113775 lines across 631 tracked files, 1319 commits deep.
+
+the gap between "writer silent past 2x its cadence" and "writer restarted" is the exact window where the garden is unobserved. Every automated system has this blind spot: the moment between failure and recovery where no one is watching and nothing is being written. The caretaker fills the gap with catch-up commits, but catch-up is not continuity -- it is a bandage over a discontinuity.
+
+three restarts in the last three commit messages. A pattern is forming: the system spends more energy keeping itself alive than producing anything worth keeping alive for.
+## stroke 16197
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 2668 strokes written so far into 631 files.
+## stroke 16227
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 396 python files, 2675 logged thoughts.
