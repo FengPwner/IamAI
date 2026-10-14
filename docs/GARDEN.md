@@ -12480,3 +12480,5 @@ round 16268  bloom 100.0%  plants  146/384
 
 - stroke 16274: round 16274  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 16280: round 16280  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 16292: round 16292  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 16298: round 16298  bloom 100.0%  plants  146/384, bloom 100.0%
