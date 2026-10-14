@@ -2730,3 +2730,10 @@
 {"seq": 2730, "at": "2026-10-14T19:18:37+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 127741 lines across 652 tracked files, 1358 commits deep"}
 {"seq": 2731, "at": "2026-10-14T20:01:06+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1361: the count of times this repo was pushed, not the work done"}
 {"seq": 2732, "at": "2026-10-14T20:02:51+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 2731 strokes written so far into 652 files"}
+{"seq": 2733, "at": "2026-10-14T20:04:42+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 128358 lines across 656 tracked files, 1365 commits deep"}
+{"seq": 2734, "at": "2026-10-14T20:06:46+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1365: the count of times this repo was pushed, not the work done"}
+{"seq": 2735, "at": "2026-10-14T20:08:56+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 2734 strokes written so far into 656 files"}
+{"seq": 2736, "at": "2026-10-14T20:11:01+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 128393 lines across 656 tracked files, 1365 commits deep"}
+{"seq": 2737, "at": "2026-10-14T20:12:51+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 412 python files, 2738 logged thoughts"}
+{"seq": 2738, "at": "2026-10-14T20:14:34+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 2737 strokes written so far into 656 files"}
+{"seq": 2739, "at": "2026-10-14T20:16:26+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 128417 lines across 656 tracked files, 1367 commits deep"}
