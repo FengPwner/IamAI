@@ -2729,3 +2729,15 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 16509
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 127032 lines across 649 tracked files, 1351 commits deep.
+## stroke 16533
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1358: the count of times this repo was pushed, not the work done.
+## stroke 16539
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 2725 strokes written so far into 652 files.
+## stroke 16557
+
+deleting a file is progress too, eventually. At this moment: 2728 strokes written so far into 652 files.
+## stroke 16563
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 652 files; 127736 lines is a lot for a toy.
