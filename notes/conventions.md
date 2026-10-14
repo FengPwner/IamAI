@@ -2644,3 +2644,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 2625 s
 ## stroke 15957
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 122212 lines across 629 tracked files, 1299 commits deep.
+## stroke 15981
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 395 python files, 2635 logged thoughts.
