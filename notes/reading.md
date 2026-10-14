@@ -2718,3 +2718,12 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 16437
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 404 python files, 2711 logged thoughts.
+## stroke 16443
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 2710 strokes written so far into 646 files.
+## stroke 16461
+
+most architecture is choosing which coupling you will live with. At this moment: 2713 strokes written so far into 646 files.
+## stroke 16467
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 646 files; 126549 lines is a lot for a toy.
