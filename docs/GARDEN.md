@@ -12235,3 +12235,4 @@ round 15980  bloom 100.0%  plants  146/384
 
 - stroke 15986: round 15986  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 15992: round 15992  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 15998: round 15998  bloom 100.0%  plants  146/384, bloom 100.0%
