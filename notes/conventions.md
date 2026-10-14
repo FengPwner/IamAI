@@ -2722,3 +2722,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 16425
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 2707 strokes written so far into 643 files.
+## stroke 16449
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 646 files; 126514 lines is a lot for a toy.
+## stroke 16473
+
+deleting a file is progress too, eventually. At this moment: 406 python files, 2717 logged thoughts.
