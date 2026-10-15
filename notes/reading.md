@@ -2921,3 +2921,12 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 17631
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 450 python files, 2909 logged thoughts.
+## stroke 17655
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 1415: the count of times this repo was pushed, not the work done.
+## stroke 17661
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 712 files; 143459 lines is a lot for a toy.
+## stroke 17679
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 712 files; 143483 lines is a lot for a toy.
