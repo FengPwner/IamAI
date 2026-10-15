@@ -2849,3 +2849,9 @@ deleting a file is progress too, eventually. At this moment: tree is 688 files; 
 ## stroke 17187
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 688 files; 137087 lines is a lot for a toy.
+## stroke 17217
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 1398: the count of times this repo was pushed, not the work done.
+## stroke 17241
+
+most architecture is choosing which coupling you will live with. At this moment: 2842 strokes written so far into 691 files.

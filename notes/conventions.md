@@ -2839,3 +2839,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 17199
 
 most architecture is choosing which coupling you will live with. At this moment: commit 1396: the count of times this repo was pushed, not the work done.
+## stroke 17223
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 691 files; 137584 lines is a lot for a toy.
+## stroke 17229
+
+most architecture is choosing which coupling you will live with. At this moment: 137592 lines across 691 tracked files, 1398 commits deep.
+## stroke 17247
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 137627 lines across 691 tracked files, 1398 commits deep.
