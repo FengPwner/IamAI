@@ -2840,3 +2840,12 @@ only show up when you measure the gaps. three public functions:
 detect_pauses for threshold flagging, longest_pauses for top-N ranking,
 pause_report for the caretaker one-liner. 36 tests covering edge cases
 from empty files to malformed timestamps to window truncation.
+## stroke 17163
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 2829 strokes written so far into 688 files.
+## stroke 17169
+
+deleting a file is progress too, eventually. At this moment: tree is 688 files; 137052 lines is a lot for a toy.
+## stroke 17187
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 688 files; 137087 lines is a lot for a toy.

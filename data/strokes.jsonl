@@ -2827,3 +2827,10 @@
 {"seq": 2827, "at": "2026-10-15T07:14:47+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 686 files; 136482 lines is a lot for a toy"}
 {"seq": 2828, "at": "2026-10-15T07:16:40+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 136490 lines across 686 tracked files, 1394 commits deep"}
 {"seq": 2829, "at": "2026-10-15T08:03:06+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1395: the count of times this repo was pushed, not the work done"}
+{"seq": 2830, "at": "2026-10-15T08:05:08+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 2829 strokes written so far into 688 files"}
+{"seq": 2831, "at": "2026-10-15T08:07:17+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 137057 lines across 688 tracked files, 1396 commits deep"}
+{"seq": 2832, "at": "2026-10-15T08:09:35+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1396: the count of times this repo was pushed, not the work done"}
+{"seq": 2833, "at": "2026-10-15T08:11:52+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 2832 strokes written so far into 688 files"}
+{"seq": 2834, "at": "2026-10-15T08:13:56+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 137092 lines across 688 tracked files, 1396 commits deep"}
+{"seq": 2835, "at": "2026-10-15T08:15:43+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 435 python files, 2836 logged thoughts"}
+{"seq": 2836, "at": "2026-10-15T08:17:36+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 2835 strokes written so far into 688 files"}
