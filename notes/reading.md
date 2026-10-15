@@ -2873,3 +2873,9 @@ deleting a file is progress too, eventually. At this moment: 138152 lines across
 ## stroke 17343
 
 a repo that only accumulates is a landfill with a README. At this moment: 138187 lines across 693 tracked files, 1401 commits deep.
+## stroke 17367
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1403: the count of times this repo was pushed, not the work done.
+## stroke 17373
+
+a repo that only accumulates is a landfill with a README. At this moment: 2864 strokes written so far into 696 files.
