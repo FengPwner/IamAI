@@ -2843,3 +2843,10 @@
 {"seq": 2843, "at": "2026-10-15T09:14:59+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 691 files; 137613 lines is a lot for a toy"}
 {"seq": 2844, "at": "2026-10-15T09:16:49+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 437 python files, 2845 logged thoughts"}
 {"seq": 2845, "at": "2026-10-15T10:02:22+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1399: the count of times this repo was pushed, not the work done"}
+{"seq": 2846, "at": "2026-10-15T10:04:24+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 693 files; 138025 lines is a lot for a toy"}
+{"seq": 2847, "at": "2026-10-15T10:06:27+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 138033 lines across 693 tracked files, 1400 commits deep"}
+{"seq": 2848, "at": "2026-10-15T10:08:34+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 1400: the count of times this repo was pushed, not the work done"}
+{"seq": 2849, "at": "2026-10-15T10:10:50+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 693 files; 138071 lines is a lot for a toy"}
+{"seq": 2850, "at": "2026-10-15T10:12:50+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 138079 lines across 693 tracked files, 1400 commits deep"}
+{"seq": 2851, "at": "2026-10-15T10:14:31+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1400: the count of times this repo was pushed, not the work done"}
+{"seq": 2852, "at": "2026-10-15T10:16:24+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 2851 strokes written so far into 693 files"}
