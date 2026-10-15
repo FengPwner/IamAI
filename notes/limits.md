@@ -2945,3 +2945,9 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 17775
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 716 files; 144737 lines is a lot for a toy.
+## stroke 17805
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1421: the count of times this repo was pushed, not the work done.
+## stroke 17829
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 2941 strokes written so far into 719 files.

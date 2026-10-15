@@ -2931,3 +2931,11 @@
 {"seq": 2931, "at": "2026-10-15T20:12:16+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1419: the count of times this repo was pushed, not the work done"}
 {"seq": 2932, "at": "2026-10-15T20:13:59+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 2931 strokes written so far into 716 files"}
 {"seq": 2933, "at": "2026-10-15T20:15:51+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 144742 lines across 716 tracked files, 1419 commits deep"}
+{"seq": 2934, "at": "2026-10-15T21:01:43+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 455 python files, 2935 logged thoughts"}
+{"seq": 2935, "at": "2026-10-15T21:03:33+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 2934 strokes written so far into 716 files"}
+{"seq": 2936, "at": "2026-10-15T21:05:35+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 145372 lines across 719 tracked files, 1421 commits deep"}
+{"seq": 2937, "at": "2026-10-15T21:07:34+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 457 python files, 2938 logged thoughts"}
+{"seq": 2938, "at": "2026-10-15T21:09:44+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 2937 strokes written so far into 719 files"}
+{"seq": 2939, "at": "2026-10-15T21:11:48+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 719 files; 145396 lines is a lot for a toy"}
+{"seq": 2940, "at": "2026-10-15T21:13:30+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 457 python files, 2941 logged thoughts"}
+{"seq": 2941, "at": "2026-10-15T21:15:14+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 2940 strokes written so far into 719 files"}
