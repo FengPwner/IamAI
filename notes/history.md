@@ -2918,3 +2918,12 @@ classifies trend direction by comparing first-half and second-half means.
 - stroke 17621: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 17627: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 17633: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 17639: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+
+## caretaker visit 147 — 2026-10-16T02:00+08:00
+
+writer and batch both found dead after a 44-minute stall. 9 files uncommitted.
+Backlog committed, both processes restarted (writer pid 1467, batch pid 1468).
+Push succeeded. New module `visit_report` added with 89 tests — generates
+structured markdown reports for caretaker visits, supporting healthy/recovered/
+degraded severity classification with pure-function helpers.
