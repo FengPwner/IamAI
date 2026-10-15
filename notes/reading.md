@@ -2829,3 +2829,14 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 17139
 
 deleting a file is progress too, eventually. At this moment: 433 python files, 2827 logged thoughts.
+
+## caretaker visit 138 (stroke_pause module)
+
+pause detection is the missing companion to stroke_rate and stroke_freshness.
+rate tells you how fast; freshness tells you how recent; pause tells you
+where the silences are. a writer that emits strokes every 15s but goes
+quiet for ten minutes every hour looks fine on rate alone — the pauses
+only show up when you measure the gaps. three public functions:
+detect_pauses for threshold flagging, longest_pauses for top-N ranking,
+pause_report for the caretaker one-liner. 36 tests covering edge cases
+from empty files to malformed timestamps to window truncation.
