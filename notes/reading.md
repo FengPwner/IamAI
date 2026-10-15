@@ -2894,3 +2894,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 17475
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 139990 lines across 702 tracked files, 1407 commits deep.
+## stroke 17499
+
+a repo that only accumulates is a landfill with a README. At this moment: 444 python files, 2887 logged thoughts.
+## stroke 17523
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 2889 strokes written so far into 702 files.
+## stroke 17529
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 702 files; 140095 lines is a lot for a toy.
