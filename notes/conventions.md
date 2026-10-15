@@ -2934,3 +2934,6 @@ new tool: tools/repo_pulse.py — multi-signal health check combining
 writer process status, stroke age, commit age, pending file count,
 and diversity balance into a single verdict (healthy/warning/critical).
 31 tests covering all signal checkers, aggregation logic, and text formatting.
+## stroke 17715
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 2922 strokes written so far into 713 files.
