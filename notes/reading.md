@@ -2879,3 +2879,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 17373
 
 a repo that only accumulates is a landfill with a README. At this moment: 2864 strokes written so far into 696 files.
+## stroke 17397
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 696 files; 138843 lines is a lot for a toy.
