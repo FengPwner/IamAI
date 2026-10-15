@@ -2802,3 +2802,4 @@ was active vs. idle, and generates briefs for continuity across restarts.
 - stroke 16997: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 17003: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 17009: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 17015: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there

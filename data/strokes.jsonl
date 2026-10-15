@@ -2802,3 +2802,4 @@
 {"seq": 2802, "at": "2026-10-15T04:13:19+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 680 files; 135023 lines is a lot for a toy"}
 {"seq": 2803, "at": "2026-10-15T04:15:04+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 429 python files, 2804 logged thoughts"}
 {"seq": 2804, "at": "2026-10-15T04:16:57+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1388: the count of times this repo was pushed, not the work done"}
+{"seq": 2805, "at": "2026-10-15T05:02:54+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 680 files; 135058 lines is a lot for a toy"}

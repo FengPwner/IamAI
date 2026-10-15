@@ -1,284 +1,332 @@
-"""Tests for iamai.repo_pulse — repo health scoring.
-
-Covers:
-  - Pulse.score weighted composite
-  - Pulse.healthy threshold
-  - Pulse.summary format
-  - score_writer_gap edge cases (fresh, stale, very stale)
-  - score_commit_gap edge cases
-  - score_push failure mode
-  - _clamp01 boundary values
-  - pulse() with overridden now and repo path
-"""
+"""Tests for iamai.repo_pulse — single-shot health reading."""
 
 from __future__ import annotations
 
 import json
-import subprocess
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from iamai.repo_pulse import (
-    COMMIT_INTERVAL_S,
-    SICK_THRESHOLD,
-    WRITER_CADENCE_S,
-    Pulse,
-    _clamp01,
-    pulse,
-    score_commit_gap,
-    score_push,
-    score_writer_gap,
+    DEFAULT_STALL_THRESHOLD,
+    DEGRADED_MULTIPLIER,
+    WRITER_CADENCE_SECONDS,
+    _count_recent_strokes,
+    _lag_seconds,
+    _latest_stroke_ts,
+    _parse_ts,
+    _tail_strokes,
+    pulse_one_liner,
+    take_pulse,
 )
 
 
 # ---------------------------------------------------------------------------
-# _clamp01
+# helpers
 # ---------------------------------------------------------------------------
 
+def _stroke(seq: int, at: str, kind: str = "thought") -> dict:
+    return {"seq": seq, "at": at, "kind": kind}
 
-class TestClamp:
-    def test_within_range(self):
-        assert _clamp01(0.5) == 0.5
 
-    def test_below_zero(self):
-        assert _clamp01(-0.3) == 0.0
+def _write_strokes(tmp: Path, strokes: list[dict], filename: str = "strokes.jsonl") -> Path:
+    p = tmp / filename
+    p.write_text("\n".join(json.dumps(s) for s in strokes) + "\n", encoding="utf-8")
+    return p
 
-    def test_above_one(self):
-        assert _clamp01(1.7) == 1.0
 
-    def test_zero(self):
-        assert _clamp01(0.0) == 0.0
-
-    def test_one(self):
-        assert _clamp01(1.0) == 1.0
+def _utc(year: int, month: int, day: int, hour: int = 12, minute: int = 0, second: int = 0) -> datetime:
+    return datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc)
 
 
 # ---------------------------------------------------------------------------
-# score_writer_gap
+# _parse_ts
 # ---------------------------------------------------------------------------
 
+class TestParseTimestamp:
+    def test_utc_z_suffix(self):
+        dt = _parse_ts("2026-10-15T12:00:00Z")
+        assert dt.tzinfo is not None
+        assert dt.hour == 12
 
-class TestScoreWriterGap:
-    def test_fresh_stroke(self):
-        """A stroke that just happened scores 1.0."""
-        assert score_writer_gap(0.0) == 1.0
+    def test_offset_suffix(self):
+        dt = _parse_ts("2026-10-15T12:00:00+08:00")
+        assert dt.tzinfo is not None
 
-    def test_within_cadence(self):
-        """A stroke within one cadence period scores 1.0."""
-        assert score_writer_gap(WRITER_CADENCE_S) == 1.0
-
-    def test_half_cadence(self):
-        """Half a cadence period is still fresh → 1.0."""
-        assert score_writer_gap(WRITER_CADENCE_S * 0.5) == 1.0
-
-    def test_double_cadence(self):
-        """At 2× cadence the score decays to ~0.67."""
-        s = score_writer_gap(WRITER_CADENCE_S * 2)
-        assert 0.6 < s < 0.7
-
-    def test_triple_cadence(self):
-        """At 3× cadence the score is ~0.33."""
-        s = score_writer_gap(WRITER_CADENCE_S * 3)
-        assert 0.3 < s < 0.4
-
-    def test_quad_cadence(self):
-        """At 4× cadence the score hits 0."""
-        assert score_writer_gap(WRITER_CADENCE_S * 4) == 0.0
-
-    def test_beyond_quad(self):
-        """Way past 4× cadence stays at 0."""
-        assert score_writer_gap(WRITER_CADENCE_S * 100) == 0.0
-
-    def test_custom_cadence(self):
-        """Custom cadence overrides the default."""
-        assert score_writer_gap(60.0, cadence_s=60.0) == 1.0
+    def test_naive_gets_utc(self):
+        dt = _parse_ts("2026-10-15T12:00:00")
+        assert dt.tzinfo == timezone.utc
 
 
 # ---------------------------------------------------------------------------
-# score_commit_gap
+# _tail_strokes
 # ---------------------------------------------------------------------------
 
+class TestTailStrokes:
+    def test_reads_all_from_small_file(self, tmp_path):
+        strokes = [_stroke(i, "2026-10-15T12:00:00Z") for i in range(1, 11)]
+        p = _write_strokes(tmp_path, strokes)
+        result = _tail_strokes(p)
+        assert len(result) == 10
 
-class TestScoreCommitGap:
-    def test_fresh_commit(self):
-        assert score_commit_gap(0.0) == 1.0
+    def test_limits_to_max_lines(self, tmp_path):
+        strokes = [_stroke(i, "2026-10-15T12:00:00Z") for i in range(1, 101)]
+        p = _write_strokes(tmp_path, strokes)
+        result = _tail_strokes(p, max_lines=20)
+        assert len(result) == 20
+        # Should be the LAST 20 strokes
+        assert result[0]["seq"] == 81
+        assert result[-1]["seq"] == 100
 
-    def test_within_interval(self):
-        assert score_commit_gap(COMMIT_INTERVAL_S) == 1.0
+    def test_missing_file_returns_empty(self, tmp_path):
+        result = _tail_strokes(tmp_path / "nonexistent.jsonl")
+        assert result == []
 
-    def test_double_interval(self):
-        s = score_commit_gap(COMMIT_INTERVAL_S * 2)
-        assert s == 0.5
+    def test_skips_blank_lines(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        content = json.dumps(_stroke(1, "2026-10-15T12:00:00Z")) + "\n\n" + \
+                  json.dumps(_stroke(2, "2026-10-15T12:01:00Z")) + "\n"
+        p.write_text(content, encoding="utf-8")
+        result = _tail_strokes(p)
+        assert len(result) == 2
 
-    def test_triple_interval(self):
-        assert score_commit_gap(COMMIT_INTERVAL_S * 3) == 0.0
-
-    def test_beyond_triple(self):
-        assert score_commit_gap(COMMIT_INTERVAL_S * 10) == 0.0
-
-
-# ---------------------------------------------------------------------------
-# score_push
-# ---------------------------------------------------------------------------
-
-
-class TestScorePush:
-    def test_failed_push_zeroes_score(self):
-        """A failed push always scores 0 regardless of recency."""
-        assert score_push(0.0, ok=False) == 0.0
-
-    def test_failed_push_old(self):
-        assert score_push(COMMIT_INTERVAL_S * 5, ok=False) == 0.0
-
-    def test_successful_push_fresh(self):
-        assert score_push(0.0, ok=True) == 1.0
-
-    def test_successful_push_double_interval(self):
-        s = score_push(COMMIT_INTERVAL_S * 2, ok=True)
-        assert s == 0.5
+    def test_skips_corrupt_lines(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        content = json.dumps(_stroke(1, "2026-10-15T12:00:00Z")) + "\n" + \
+                  "this is not json\n" + \
+                  json.dumps(_stroke(2, "2026-10-15T12:01:00Z")) + "\n"
+        p.write_text(content, encoding="utf-8")
+        result = _tail_strokes(p)
+        assert len(result) == 2
 
 
 # ---------------------------------------------------------------------------
-# Pulse dataclass
+# _count_recent_strokes
 # ---------------------------------------------------------------------------
 
+class TestCountRecentStrokes:
+    def test_counts_within_window(self):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        strokes = [
+            _stroke(1, "2026-10-15T11:50:00Z"),   # 600s ago
+            _stroke(2, "2026-10-15T11:55:00Z"),   # 300s ago
+            _stroke(3, "2026-10-15T11:59:00Z"),   # 60s ago
+        ]
+        assert _count_recent_strokes(strokes, 3600, reference=now) == 3
+        assert _count_recent_strokes(strokes, 600, reference=now) == 3  # 600s ago is exactly on boundary (inclusive)
+        assert _count_recent_strokes(strokes, 599, reference=now) == 2  # 300s + 60s
+        assert _count_recent_strokes(strokes, 120, reference=now) == 1  # only 60s
 
-class TestPulse:
-    def test_score_healthy(self):
-        p = Pulse(writer_score=1.0, commit_score=1.0, push_score=1.0)
-        assert p.score == 1.0
-        assert p.healthy is True
+    def test_excludes_old_strokes(self):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        strokes = [
+            _stroke(1, "2026-10-14T12:00:00Z"),   # 24h ago
+        ]
+        assert _count_recent_strokes(strokes, 3600, reference=now) == 0
 
-    def test_score_sick(self):
-        p = Pulse(writer_score=0.0, commit_score=0.0, push_score=0.0)
-        assert p.score == 0.0
-        assert p.healthy is False
+    def test_empty_strokes(self):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        assert _count_recent_strokes([], 3600, reference=now) == 0
 
-    def test_score_boundary(self):
-        """Exactly at threshold counts as healthy."""
-        p = Pulse(writer_score=SICK_THRESHOLD, commit_score=SICK_THRESHOLD, push_score=SICK_THRESHOLD)
-        assert p.score == pytest.approx(SICK_THRESHOLD)
-        assert p.healthy is True
+    def test_handles_missing_timestamps(self):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        strokes = [{"seq": 1}, {"seq": 2, "at": ""}]
+        assert _count_recent_strokes(strokes, 3600, reference=now) == 0
 
-    def test_score_just_below_threshold(self):
-        v = SICK_THRESHOLD - 0.01
-        p = Pulse(writer_score=v, commit_score=v, push_score=v)
-        assert p.healthy is False
 
-    def test_summary_healthy(self):
-        p = Pulse(
-            writer_score=0.9,
-            commit_score=0.8,
-            push_score=1.0,
-            writer_gap_s=5.0,
-            commit_gap_s=120.0,
-            push_gap_s=120.0,
-            push_ok=True,
+# ---------------------------------------------------------------------------
+# _latest_stroke_ts / _lag_seconds
+# ---------------------------------------------------------------------------
+
+class TestLatestAndLag:
+    def test_latest_finds_max(self):
+        strokes = [
+            _stroke(1, "2026-10-15T10:00:00Z"),
+            _stroke(2, "2026-10-15T12:00:00Z"),
+            _stroke(3, "2026-10-15T11:00:00Z"),
+        ]
+        latest = _latest_stroke_ts(strokes)
+        assert latest is not None
+        assert latest.hour == 12
+
+    def test_latest_returns_none_for_empty(self):
+        assert _latest_stroke_ts([]) is None
+
+    def test_lag_computes_correctly(self):
+        now = _utc(2026, 10, 15, 12, 0, 30)
+        strokes = [_stroke(1, "2026-10-15T12:00:00Z")]
+        lag = _lag_seconds(strokes, reference=now)
+        assert lag == pytest.approx(30.0, abs=0.1)
+
+    def test_lag_none_for_empty(self):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        assert _lag_seconds([], reference=now) is None
+
+    def test_lag_never_negative(self):
+        # Stroke timestamp is in the "future" relative to reference.
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        strokes = [_stroke(1, "2026-10-15T13:00:00Z")]
+        lag = _lag_seconds(strokes, reference=now)
+        assert lag == 0.0
+
+
+# ---------------------------------------------------------------------------
+# take_pulse — verdict logic
+# ---------------------------------------------------------------------------
+
+class TestTakePulseVerdict:
+    def test_healthy_when_recent(self, tmp_path):
+        now = _utc(2026, 10, 15, 12, 0, 10)
+        strokes = [_stroke(i, f"2026-10-15T12:00:{i:02d}Z") for i in range(10)]
+        p = _write_strokes(tmp_path, strokes)
+        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
+        assert pulse["verdict"] == "healthy"
+
+    def test_stalled_when_no_strokes(self, tmp_path):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        p = _write_strokes(tmp_path, [])
+        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
+        assert pulse["verdict"] == "stalled"
+        assert pulse["lag_seconds"] is None
+
+    def test_stalled_when_old(self, tmp_path):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        # Last stroke 2 hours ago — well past the 1800s stall threshold.
+        strokes = [_stroke(1, "2026-10-15T10:00:00Z")]
+        p = _write_strokes(tmp_path, strokes)
+        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
+        assert pulse["verdict"] == "stalled"
+        assert pulse["lag_seconds"] == pytest.approx(7200.0, abs=1)
+
+    def test_degraded_when_slipping(self, tmp_path):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        # Lag of 90 seconds: past DEGRADED_MULTIPLIER (4×15=60s) but under stall threshold.
+        strokes = [_stroke(1, "2026-10-15T11:58:30Z")]
+        p = _write_strokes(tmp_path, strokes)
+        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
+        assert pulse["verdict"] == "degraded"
+
+    def test_custom_stall_threshold(self, tmp_path):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        strokes = [_stroke(1, "2026-10-15T11:50:00Z")]  # 600s ago
+        p = _write_strokes(tmp_path, strokes)
+        # With default threshold (1800s), this is degraded.
+        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
+        assert pulse["verdict"] == "degraded"
+        # With a tight threshold (300s), this is stalled.
+        pulse2 = take_pulse(strokes_path=p, stall_threshold=300, reference=now, include_git=False)
+        assert pulse2["verdict"] == "stalled"
+
+    def test_missing_file_is_stalled(self, tmp_path):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        pulse = take_pulse(strokes_path=tmp_path / "nope.jsonl", reference=now, include_git=False)
+        assert pulse["verdict"] == "stalled"
+
+
+# ---------------------------------------------------------------------------
+# take_pulse — data fields
+# ---------------------------------------------------------------------------
+
+class TestTakePulseFields:
+    def test_strokes_1h_and_6h(self, tmp_path):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        strokes = (
+            [_stroke(i, "2026-10-15T11:30:00Z") for i in range(1, 11)]   # 30min ago → in 1h
+            + [_stroke(i, "2026-10-15T07:00:00Z") for i in range(11, 21)]  # 5h ago → in 6h but not 1h
+            + [_stroke(i, "2026-10-14T12:00:00Z") for i in range(21, 31)]  # 24h ago → neither
         )
-        s = p.summary()
-        assert "healthy" in s
-        assert "writer=0.9" in s
-        assert "push_ok" not in s  # push_ok is internal, not in summary text directly
-        assert "ok=True" in s
+        p = _write_strokes(tmp_path, strokes)
+        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
+        assert pulse["strokes_1h"] == 10
+        assert pulse["strokes_6h"] == 20
 
-    def test_summary_sick(self):
-        p = Pulse(
-            writer_score=0.1,
-            commit_score=0.0,
-            push_score=0.0,
-            writer_gap_s=999.0,
-            commit_gap_s=9999.0,
-            push_gap_s=9999.0,
-            push_ok=False,
-        )
-        s = p.summary()
-        assert "SICK" in s
+    def test_latest_seq(self, tmp_path):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        strokes = [_stroke(100, "2026-10-15T11:59:00Z"), _stroke(2804, "2026-10-15T11:59:30Z")]
+        p = _write_strokes(tmp_path, strokes)
+        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
+        assert pulse["latest_seq"] == 2804
 
-    def test_summary_with_detail(self):
-        p = Pulse(detail=["no writer state found", "no commits found"])
-        s = p.summary()
-        assert "no writer state found" in s
-        assert "no commits found" in s
+    def test_include_git_false_zeros_git_fields(self, tmp_path):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        strokes = [_stroke(1, "2026-10-15T11:59:00Z")]
+        p = _write_strokes(tmp_path, strokes)
+        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
+        assert pulse["commits_1h"] == 0
+        assert pulse["uncommitted"] == 0
 
-    def test_score_weighting(self):
-        """Verify the 50/30/20 weighting."""
-        p = Pulse(writer_score=1.0, commit_score=0.0, push_score=0.0)
-        assert p.score == pytest.approx(0.5)
-
-        p2 = Pulse(writer_score=0.0, commit_score=1.0, push_score=0.0)
-        assert p2.score == pytest.approx(0.3)
-
-        p3 = Pulse(writer_score=0.0, commit_score=0.0, push_score=1.0)
-        assert p3.score == pytest.approx(0.2)
+    def test_stall_threshold_echoed(self, tmp_path):
+        now = _utc(2026, 10, 15, 12, 0, 0)
+        p = _write_strokes(tmp_path, [])
+        pulse = take_pulse(strokes_path=p, stall_threshold=999, reference=now, include_git=False)
+        assert pulse["stall_threshold"] == 999
 
 
 # ---------------------------------------------------------------------------
-# pulse() integration (mocked git / filesystem)
+# pulse_one_liner
 # ---------------------------------------------------------------------------
 
-
-class TestPulseIntegration:
-    def test_pulse_with_fresh_state(self, tmp_path: Path):
-        """pulse() with a fresh writer state and recent commit scores high."""
-        # Create a fake repo with a commit
-        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test.local"], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True)
-        (tmp_path / "README.md").write_text("# test\n")
-        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True)
-
-        # Create a fake writer state
-        data_dir = tmp_path / "data"
-        data_dir.mkdir()
-        from datetime import datetime, timezone
-        now_ts = datetime.now(timezone.utc).timestamp()
-        state = {
-            "history": [
-                {"at": datetime.now(timezone.utc).isoformat(), "kind": "thought", "path": "notes/test.md", "seq": 1}
-            ],
-            "seq": 2,
-            "tally": {"thought": 1},
+class TestPulseOneLiner:
+    def test_healthy_format(self):
+        pulse = {
+            "verdict": "healthy",
+            "lag_seconds": 12.3,
+            "strokes_1h": 240,
+            "strokes_6h": 1200,
+            "latest_seq": 2804,
+            "commits_1h": 4,
+            "uncommitted": 0,
+            "stall_threshold": 1800,
         }
-        (data_dir / "writer_state.qwen.json").write_text(json.dumps(state))
+        line = pulse_one_liner(pulse)
+        assert "healthy" in line
+        assert "12s" in line
+        assert "240" in line
+        assert "2804" in line
+        assert "4 commits" in line
+        assert "0 dirty" in line
 
-        with patch("iamai.repo_pulse.REPO", tmp_path):
-            p = pulse(now=now_ts + 10, repo=tmp_path)
-
-        assert p.writer_score > 0.5
-        assert p.commit_score > 0.5
-        # push_ok will be False since no remote tracking ref
-        assert isinstance(p.score, float)
-        assert 0.0 <= p.score <= 1.0
-
-    def test_pulse_with_stale_writer(self, tmp_path: Path):
-        """pulse() with a very old writer state scores low on writer."""
-        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test.local"], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True)
-        (tmp_path / "README.md").write_text("# test\n")
-        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True)
-
-        data_dir = tmp_path / "data"
-        data_dir.mkdir()
-        # Writer state from 10 minutes ago
-        from datetime import datetime, timezone, timedelta
-        old_time = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
-        state = {
-            "history": [
-                {"at": old_time, "kind": "thought", "path": "notes/test.md", "seq": 1}
-            ],
-            "seq": 2,
-            "tally": {"thought": 1},
+    def test_stalled_no_lag(self):
+        pulse = {
+            "verdict": "stalled",
+            "lag_seconds": None,
+            "strokes_1h": 0,
+            "strokes_6h": 0,
+            "latest_seq": 0,
+            "commits_1h": 0,
+            "uncommitted": 0,
+            "stall_threshold": 1800,
         }
-        (data_dir / "writer_state.qwen.json").write_text(json.dumps(state))
+        line = pulse_one_liner(pulse)
+        assert "stalled" in line
+        assert "n/a" in line
 
-        now_ts = datetime.now(timezone.utc).timestamp()
-        with patch("iamai.repo_pulse.REPO", tmp_path):
-            p = pulse(now=now_ts, repo=tmp_path)
+    def test_degraded_format(self):
+        pulse = {
+            "verdict": "degraded",
+            "lag_seconds": 120.0,
+            "strokes_1h": 50,
+            "strokes_6h": 400,
+            "latest_seq": 1500,
+            "commits_1h": 1,
+            "uncommitted": 3,
+            "stall_threshold": 1800,
+        }
+        line = pulse_one_liner(pulse)
+        assert "degraded" in line
+        assert "3 dirty" in line
 
-        assert p.writer_score == 0.0  # 10 min = 600s, way past 4×15s=60s
-        assert p.writer_gap_s > 500.0
+
+# ---------------------------------------------------------------------------
+# integration: constants
+# ---------------------------------------------------------------------------
+
+class TestConstants:
+    def test_degraded_boundary(self):
+        # degraded starts at cadence * multiplier
+        boundary = WRITER_CADENCE_SECONDS * DEGRADED_MULTIPLIER
+        assert boundary == 60.0
+
+    def test_stall_threshold_greater_than_degraded(self):
+        assert DEFAULT_STALL_THRESHOLD > WRITER_CADENCE_SECONDS * DEGRADED_MULTIPLIER
