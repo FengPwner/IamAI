@@ -2960,3 +2960,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 17865
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 2947 strokes written so far into 722 files.
+## stroke 17883
+
+deleting a file is progress too, eventually. At this moment: 2950 strokes written so far into 722 files.
