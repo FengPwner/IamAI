@@ -2831,3 +2831,10 @@ tracks whether the writer's output text is growing, shrinking, or staying stable
 in character count over recent windows. Computes min/max/mean/median stats and
 classifies trend direction by comparing first-half and second-half means.
 37 tests covering loading, edge cases, classification, and report formatting.
+- stroke 17117: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 17123: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 17129: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 17135: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 17141: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 17147: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 17153: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
