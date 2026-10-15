@@ -13063,3 +13063,5 @@ round 17090  bloom 100.0%  plants  146/384
 
 - stroke 17096: round 17096  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 17102: round 17102  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 17108: round 17108  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 17114: round 17114  bloom 100.0%  plants  146/384, bloom 100.0%

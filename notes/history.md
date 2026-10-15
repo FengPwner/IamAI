@@ -2818,3 +2818,16 @@ was active vs. idle, and generates briefs for continuity across restarts.
 - stroke 17093: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 17099: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 17105: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 17111: `retry.py` is already in the pool of 9 modules, nothing new to add there
+## stroke 17111
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 135900 lines across 686 tracked files, 1393 commits deep.
+
+*2026-10-15 15:00 — caretaker visit (manual)*
+
+Found both writer and batch down during afternoon check. Restarted via run_both.sh,
+committed 9 pending files as catch-up (968ee84). Added stroke_length module —
+tracks whether the writer's output text is growing, shrinking, or staying stable
+in character count over recent windows. Computes min/max/mean/median stats and
+classifies trend direction by comparing first-half and second-half means.
+37 tests covering loading, edge cases, classification, and report formatting.
