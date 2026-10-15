@@ -2786,3 +2786,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 16821
 
 a repo that only accumulates is a landfill with a README. At this moment: 2772 strokes written so far into 669 files.
+## stroke 16845
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 672 files; 132936 lines is a lot for a toy.
