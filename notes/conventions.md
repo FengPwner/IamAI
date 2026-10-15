@@ -2884,3 +2884,12 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 17439
 
 deleting a file is progress too, eventually. At this moment: 139411 lines across 699 tracked files, 1405 commits deep.
+## stroke 17457
+
+a repo that only accumulates is a landfill with a README. At this moment: 139966 lines across 702 tracked files, 1407 commits deep.
+## stroke 17481
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1407: the count of times this repo was pushed, not the work done.
+## stroke 17487
+
+a repo that only accumulates is a landfill with a README. At this moment: 2883 strokes written so far into 702 files.
