@@ -2860,3 +2860,9 @@ deleting a file is progress too, eventually. At this moment: tree is 693 files; 
 ## stroke 17301
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 693 files; 138109 lines is a lot for a toy.
+## stroke 17331
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 1401: the count of times this repo was pushed, not the work done.
+## stroke 17349
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1401: the count of times this repo was pushed, not the work done.
