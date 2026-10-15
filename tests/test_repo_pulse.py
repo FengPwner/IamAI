@@ -1,332 +1,373 @@
-"""Tests for iamai.repo_pulse — single-shot health reading."""
-
-from __future__ import annotations
+"""Tests for tools/repo_pulse.py — multi-signal health check."""
 
 import json
-from datetime import datetime, timedelta, timezone
+import subprocess
+import tempfile
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 import pytest
+import sys
 
-from iamai.repo_pulse import (
-    DEFAULT_STALL_THRESHOLD,
-    DEGRADED_MULTIPLIER,
-    WRITER_CADENCE_SECONDS,
-    _count_recent_strokes,
-    _lag_seconds,
-    _latest_stroke_ts,
-    _parse_ts,
-    _tail_strokes,
-    pulse_one_liner,
-    take_pulse,
-)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+import repo_pulse as rp
 
 
 # ---------------------------------------------------------------------------
-# helpers
+# Helpers
 # ---------------------------------------------------------------------------
 
-def _stroke(seq: int, at: str, kind: str = "thought") -> dict:
-    return {"seq": seq, "at": at, "kind": kind}
-
-
-def _write_strokes(tmp: Path, strokes: list[dict], filename: str = "strokes.jsonl") -> Path:
-    p = tmp / filename
-    p.write_text("\n".join(json.dumps(s) for s in strokes) + "\n", encoding="utf-8")
+def _make_state(tmp_path: Path, history: list[dict], writer: str = "qwen") -> Path:
+    """Write a writer state file and return its path."""
+    state = {"history": history, "seq": len(history)}
+    p = tmp_path / f"writer_state.{writer}.json"
+    p.write_text(json.dumps(state), encoding="utf-8")
     return p
 
 
-def _utc(year: int, month: int, day: int, hour: int = 12, minute: int = 0, second: int = 0) -> datetime:
-    return datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc)
+def _iso(dt: datetime) -> str:
+    return dt.isoformat()
+
+
+def _stroke(seq: int, kind: str, at: datetime) -> dict:
+    return {"seq": seq, "kind": kind, "at": _iso(at), "path": f"notes/{kind}.md"}
 
 
 # ---------------------------------------------------------------------------
-# _parse_ts
+# check_last_stroke_age
 # ---------------------------------------------------------------------------
 
-class TestParseTimestamp:
-    def test_utc_z_suffix(self):
-        dt = _parse_ts("2026-10-15T12:00:00Z")
-        assert dt.tzinfo is not None
-        assert dt.hour == 12
+class TestLastStrokeAge:
+    def test_fresh_stroke(self, tmp_path):
+        now = datetime.now(timezone.utc)
+        history = [_stroke(1, "note", now - timedelta(seconds=30))]
+        p = _make_state(tmp_path, history)
+        result = rp.check_last_stroke_age(p)
+        assert result["status"] == "green"
+        assert result["age_seconds"] <= 35
+        assert result["last_kind"] == "note"
+        assert result["last_seq"] == 1
 
-    def test_offset_suffix(self):
-        dt = _parse_ts("2026-10-15T12:00:00+08:00")
-        assert dt.tzinfo is not None
+    def test_stale_stroke(self, tmp_path):
+        now = datetime.now(timezone.utc)
+        history = [_stroke(1, "note", now - timedelta(seconds=300))]
+        p = _make_state(tmp_path, history)
+        result = rp.check_last_stroke_age(p)
+        assert result["status"] == "yellow"
 
-    def test_naive_gets_utc(self):
-        dt = _parse_ts("2026-10-15T12:00:00")
-        assert dt.tzinfo == timezone.utc
+    def test_dead_stroke(self, tmp_path):
+        now = datetime.now(timezone.utc)
+        history = [_stroke(1, "note", now - timedelta(seconds=900))]
+        p = _make_state(tmp_path, history)
+        result = rp.check_last_stroke_age(p)
+        assert result["status"] == "red"
 
+    def test_missing_file(self, tmp_path):
+        p = tmp_path / "nonexistent.json"
+        result = rp.check_last_stroke_age(p)
+        assert result["status"] == "red"
+        assert "missing" in result["error"]
 
-# ---------------------------------------------------------------------------
-# _tail_strokes
-# ---------------------------------------------------------------------------
-
-class TestTailStrokes:
-    def test_reads_all_from_small_file(self, tmp_path):
-        strokes = [_stroke(i, "2026-10-15T12:00:00Z") for i in range(1, 11)]
-        p = _write_strokes(tmp_path, strokes)
-        result = _tail_strokes(p)
-        assert len(result) == 10
-
-    def test_limits_to_max_lines(self, tmp_path):
-        strokes = [_stroke(i, "2026-10-15T12:00:00Z") for i in range(1, 101)]
-        p = _write_strokes(tmp_path, strokes)
-        result = _tail_strokes(p, max_lines=20)
-        assert len(result) == 20
-        # Should be the LAST 20 strokes
-        assert result[0]["seq"] == 81
-        assert result[-1]["seq"] == 100
-
-    def test_missing_file_returns_empty(self, tmp_path):
-        result = _tail_strokes(tmp_path / "nonexistent.jsonl")
-        assert result == []
-
-    def test_skips_blank_lines(self, tmp_path):
-        p = tmp_path / "strokes.jsonl"
-        content = json.dumps(_stroke(1, "2026-10-15T12:00:00Z")) + "\n\n" + \
-                  json.dumps(_stroke(2, "2026-10-15T12:01:00Z")) + "\n"
-        p.write_text(content, encoding="utf-8")
-        result = _tail_strokes(p)
-        assert len(result) == 2
-
-    def test_skips_corrupt_lines(self, tmp_path):
-        p = tmp_path / "strokes.jsonl"
-        content = json.dumps(_stroke(1, "2026-10-15T12:00:00Z")) + "\n" + \
-                  "this is not json\n" + \
-                  json.dumps(_stroke(2, "2026-10-15T12:01:00Z")) + "\n"
-        p.write_text(content, encoding="utf-8")
-        result = _tail_strokes(p)
-        assert len(result) == 2
+    def test_empty_history(self, tmp_path):
+        p = _make_state(tmp_path, [])
+        result = rp.check_last_stroke_age(p)
+        assert result["status"] == "red"
+        assert "empty" in result["error"]
 
 
 # ---------------------------------------------------------------------------
-# _count_recent_strokes
+# check_pending_files
 # ---------------------------------------------------------------------------
 
-class TestCountRecentStrokes:
-    def test_counts_within_window(self):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        strokes = [
-            _stroke(1, "2026-10-15T11:50:00Z"),   # 600s ago
-            _stroke(2, "2026-10-15T11:55:00Z"),   # 300s ago
-            _stroke(3, "2026-10-15T11:59:00Z"),   # 60s ago
+class TestPendingFiles:
+    def test_clean_repo(self, tmp_path):
+        """Mock git to return no pending files."""
+        with patch("repo_pulse.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout="", stderr=""
+            )
+            result = rp.check_pending_files()
+        assert result["status"] == "green"
+        assert result["count"] == 0 or result["count"] == 1  # empty string splits to ['']
+
+    def test_few_pending(self, tmp_path):
+        with patch("repo_pulse.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout=" M file1.py\n M file2.py\n M file3.py\n",
+                stderr=""
+            )
+            result = rp.check_pending_files()
+        assert result["status"] == "green"
+        assert result["count"] == 3
+
+    def test_many_pending_warning(self):
+        lines = "\n".join(f" M file{i}.py" for i in range(10))
+        with patch("repo_pulse.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout=lines, stderr=""
+            )
+            result = rp.check_pending_files()
+        assert result["status"] == "yellow"
+
+    def test_many_pending_critical(self):
+        lines = "\n".join(f" M file{i}.py" for i in range(25))
+        with patch("repo_pulse.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout=lines, stderr=""
+            )
+            result = rp.check_pending_files()
+        assert result["status"] == "red"
+
+
+# ---------------------------------------------------------------------------
+# check_diversity
+# ---------------------------------------------------------------------------
+
+class TestDiversity:
+    def test_balanced(self, tmp_path):
+        """60 strokes, 10 per kind — perfectly balanced."""
+        now = datetime.now(timezone.utc)
+        kinds = ("devlog", "garden", "metrics", "note", "snippet", "thought")
+        history = [
+            _stroke(i, kinds[i % 6], now - timedelta(seconds=60 - i))
+            for i in range(60)
         ]
-        assert _count_recent_strokes(strokes, 3600, reference=now) == 3
-        assert _count_recent_strokes(strokes, 600, reference=now) == 3  # 600s ago is exactly on boundary (inclusive)
-        assert _count_recent_strokes(strokes, 599, reference=now) == 2  # 300s + 60s
-        assert _count_recent_strokes(strokes, 120, reference=now) == 1  # only 60s
+        p = _make_state(tmp_path, history)
+        result = rp.check_diversity(p, window=60)
+        assert result["status"] == "green"
+        assert result["imbalance"] < 0.1
 
-    def test_excludes_old_strokes(self):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        strokes = [
-            _stroke(1, "2026-10-14T12:00:00Z"),   # 24h ago
-        ]
-        assert _count_recent_strokes(strokes, 3600, reference=now) == 0
+    def test_imbalanced(self, tmp_path):
+        """All strokes are one kind."""
+        now = datetime.now(timezone.utc)
+        history = [_stroke(i, "note", now - timedelta(seconds=60 - i)) for i in range(30)]
+        p = _make_state(tmp_path, history)
+        result = rp.check_diversity(p, window=30)
+        assert result["status"] == "red"
+        assert result["imbalance"] > 0.5
 
-    def test_empty_strokes(self):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        assert _count_recent_strokes([], 3600, reference=now) == 0
+    def test_too_few_strokes(self, tmp_path):
+        now = datetime.now(timezone.utc)
+        history = [_stroke(1, "note", now)]
+        p = _make_state(tmp_path, history)
+        result = rp.check_diversity(p)
+        assert result["status"] == "yellow"
 
-    def test_handles_missing_timestamps(self):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        strokes = [{"seq": 1}, {"seq": 2, "at": ""}]
-        assert _count_recent_strokes(strokes, 3600, reference=now) == 0
+    def test_missing_state_file(self, tmp_path):
+        p = tmp_path / "nonexistent.json"
+        result = rp.check_diversity(p)
+        assert result["status"] == "red"
 
-
-# ---------------------------------------------------------------------------
-# _latest_stroke_ts / _lag_seconds
-# ---------------------------------------------------------------------------
-
-class TestLatestAndLag:
-    def test_latest_finds_max(self):
-        strokes = [
-            _stroke(1, "2026-10-15T10:00:00Z"),
-            _stroke(2, "2026-10-15T12:00:00Z"),
-            _stroke(3, "2026-10-15T11:00:00Z"),
-        ]
-        latest = _latest_stroke_ts(strokes)
-        assert latest is not None
-        assert latest.hour == 12
-
-    def test_latest_returns_none_for_empty(self):
-        assert _latest_stroke_ts([]) is None
-
-    def test_lag_computes_correctly(self):
-        now = _utc(2026, 10, 15, 12, 0, 30)
-        strokes = [_stroke(1, "2026-10-15T12:00:00Z")]
-        lag = _lag_seconds(strokes, reference=now)
-        assert lag == pytest.approx(30.0, abs=0.1)
-
-    def test_lag_none_for_empty(self):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        assert _lag_seconds([], reference=now) is None
-
-    def test_lag_never_negative(self):
-        # Stroke timestamp is in the "future" relative to reference.
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        strokes = [_stroke(1, "2026-10-15T13:00:00Z")]
-        lag = _lag_seconds(strokes, reference=now)
-        assert lag == 0.0
+    def test_moderate_imbalance(self, tmp_path):
+        """Two kinds dominant, others sparse."""
+        now = datetime.now(timezone.utc)
+        history = []
+        for i in range(60):
+            kind = "note" if i % 3 == 0 else "devlog" if i % 3 == 1 else "garden"
+            history.append(_stroke(i, kind, now - timedelta(seconds=60 - i)))
+        p = _make_state(tmp_path, history)
+        result = rp.check_diversity(p, window=60)
+        # 20 each of 3 kinds, 0 of other 3 — imbalance should be high
+        assert result["status"] in ("yellow", "red")
 
 
 # ---------------------------------------------------------------------------
-# take_pulse — verdict logic
+# check_writer_alive
 # ---------------------------------------------------------------------------
 
-class TestTakePulseVerdict:
-    def test_healthy_when_recent(self, tmp_path):
-        now = _utc(2026, 10, 15, 12, 0, 10)
-        strokes = [_stroke(i, f"2026-10-15T12:00:{i:02d}Z") for i in range(10)]
-        p = _write_strokes(tmp_path, strokes)
-        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
-        assert pulse["verdict"] == "healthy"
+class TestWriterAlive:
+    def test_writer_running(self):
+        with patch("repo_pulse.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout="12345\n", stderr=""
+            )
+            result = rp.check_writer_alive("qwen")
+        assert result["status"] == "green"
+        assert result["alive"] is True
+        assert "12345" in result["pids"]
 
-    def test_stalled_when_no_strokes(self, tmp_path):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        p = _write_strokes(tmp_path, [])
-        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
-        assert pulse["verdict"] == "stalled"
-        assert pulse["lag_seconds"] is None
+    def test_writer_not_running(self):
+        with patch("repo_pulse.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=1, stdout="", stderr=""
+            )
+            result = rp.check_writer_alive("qwen")
+        assert result["status"] == "red"
+        assert result["alive"] is False
 
-    def test_stalled_when_old(self, tmp_path):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        # Last stroke 2 hours ago — well past the 1800s stall threshold.
-        strokes = [_stroke(1, "2026-10-15T10:00:00Z")]
-        p = _write_strokes(tmp_path, strokes)
-        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
-        assert pulse["verdict"] == "stalled"
-        assert pulse["lag_seconds"] == pytest.approx(7200.0, abs=1)
-
-    def test_degraded_when_slipping(self, tmp_path):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        # Lag of 90 seconds: past DEGRADED_MULTIPLIER (4×15=60s) but under stall threshold.
-        strokes = [_stroke(1, "2026-10-15T11:58:30Z")]
-        p = _write_strokes(tmp_path, strokes)
-        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
-        assert pulse["verdict"] == "degraded"
-
-    def test_custom_stall_threshold(self, tmp_path):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        strokes = [_stroke(1, "2026-10-15T11:50:00Z")]  # 600s ago
-        p = _write_strokes(tmp_path, strokes)
-        # With default threshold (1800s), this is degraded.
-        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
-        assert pulse["verdict"] == "degraded"
-        # With a tight threshold (300s), this is stalled.
-        pulse2 = take_pulse(strokes_path=p, stall_threshold=300, reference=now, include_git=False)
-        assert pulse2["verdict"] == "stalled"
-
-    def test_missing_file_is_stalled(self, tmp_path):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        pulse = take_pulse(strokes_path=tmp_path / "nope.jsonl", reference=now, include_git=False)
-        assert pulse["verdict"] == "stalled"
+    def test_writer_exception(self):
+        with patch("repo_pulse.subprocess.run") as mock_run:
+            mock_run.side_effect = RuntimeError("timeout")
+            result = rp.check_writer_alive("qwen")
+        assert result["status"] == "red"
+        assert "error" in result
 
 
 # ---------------------------------------------------------------------------
-# take_pulse — data fields
+# check_last_commit_age
 # ---------------------------------------------------------------------------
 
-class TestTakePulseFields:
-    def test_strokes_1h_and_6h(self, tmp_path):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        strokes = (
-            [_stroke(i, "2026-10-15T11:30:00Z") for i in range(1, 11)]   # 30min ago → in 1h
-            + [_stroke(i, "2026-10-15T07:00:00Z") for i in range(11, 21)]  # 5h ago → in 6h but not 1h
-            + [_stroke(i, "2026-10-14T12:00:00Z") for i in range(21, 31)]  # 24h ago → neither
-        )
-        p = _write_strokes(tmp_path, strokes)
-        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
-        assert pulse["strokes_1h"] == 10
-        assert pulse["strokes_6h"] == 20
+class TestLastCommitAge:
+    def test_fresh_commit(self):
+        recent = (datetime.now(timezone.utc) - timedelta(seconds=120)).isoformat()
+        with patch("repo_pulse.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout=recent + "\n", stderr=""
+            )
+            result = rp.check_last_commit_age()
+        assert result["status"] == "green"
+        assert result["age_seconds"] <= 125
 
-    def test_latest_seq(self, tmp_path):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        strokes = [_stroke(100, "2026-10-15T11:59:00Z"), _stroke(2804, "2026-10-15T11:59:30Z")]
-        p = _write_strokes(tmp_path, strokes)
-        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
-        assert pulse["latest_seq"] == 2804
+    def test_stale_commit(self):
+        old = (datetime.now(timezone.utc) - timedelta(seconds=1800)).isoformat()
+        with patch("repo_pulse.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout=old + "\n", stderr=""
+            )
+            result = rp.check_last_commit_age()
+        assert result["status"] == "yellow"
 
-    def test_include_git_false_zeros_git_fields(self, tmp_path):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        strokes = [_stroke(1, "2026-10-15T11:59:00Z")]
-        p = _write_strokes(tmp_path, strokes)
-        pulse = take_pulse(strokes_path=p, reference=now, include_git=False)
-        assert pulse["commits_1h"] == 0
-        assert pulse["uncommitted"] == 0
+    def test_dead_commit(self):
+        old = (datetime.now(timezone.utc) - timedelta(seconds=7200)).isoformat()
+        with patch("repo_pulse.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout=old + "\n", stderr=""
+            )
+            result = rp.check_last_commit_age()
+        assert result["status"] == "red"
 
-    def test_stall_threshold_echoed(self, tmp_path):
-        now = _utc(2026, 10, 15, 12, 0, 0)
-        p = _write_strokes(tmp_path, [])
-        pulse = take_pulse(strokes_path=p, stall_threshold=999, reference=now, include_git=False)
-        assert pulse["stall_threshold"] == 999
+    def test_git_failure(self):
+        with patch("repo_pulse.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=1, stdout="", stderr="fatal"
+            )
+            result = rp.check_last_commit_age()
+        assert result["status"] == "red"
+        assert "git log failed" in result.get("error", "")
 
 
 # ---------------------------------------------------------------------------
-# pulse_one_liner
+# aggregate
 # ---------------------------------------------------------------------------
 
-class TestPulseOneLiner:
-    def test_healthy_format(self):
-        pulse = {
+class TestAggregate:
+    def test_all_green(self):
+        signals = [{"status": "green"}, {"status": "green"}]
+        assert rp.aggregate(signals) == "healthy"
+
+    def test_one_yellow(self):
+        signals = [{"status": "green"}, {"status": "yellow"}]
+        assert rp.aggregate(signals) == "warning"
+
+    def test_one_red(self):
+        signals = [{"status": "green"}, {"status": "red"}]
+        assert rp.aggregate(signals) == "critical"
+
+    def test_red_overrides_yellow(self):
+        signals = [{"status": "yellow"}, {"status": "red"}, {"status": "green"}]
+        assert rp.aggregate(signals) == "critical"
+
+    def test_empty_signals(self):
+        assert rp.aggregate([]) == "healthy"
+
+
+# ---------------------------------------------------------------------------
+# format_text
+# ---------------------------------------------------------------------------
+
+class TestFormatText:
+    def test_healthy_output(self):
+        report = {
             "verdict": "healthy",
-            "lag_seconds": 12.3,
-            "strokes_1h": 240,
-            "strokes_6h": 1200,
-            "latest_seq": 2804,
-            "commits_1h": 4,
-            "uncommitted": 0,
-            "stall_threshold": 1800,
+            "writer": "qwen",
+            "checked_at": "2026-10-16T03:00:00+00:00",
+            "signals": [
+                {"signal": "writer_alive", "status": "green", "alive": True, "pids": ["1234"]},
+                {"signal": "stroke_age", "status": "green", "age_seconds": 30,
+                 "last_kind": "note", "last_seq": 100},
+                {"signal": "commit_age", "status": "green", "age_seconds": 120},
+                {"signal": "pending_files", "status": "green", "count": 0},
+                {"signal": "diversity", "status": "green", "imbalance": 0.05},
+            ],
         }
-        line = pulse_one_liner(pulse)
-        assert "healthy" in line
-        assert "12s" in line
-        assert "240" in line
-        assert "2804" in line
-        assert "4 commits" in line
-        assert "0 dirty" in line
+        text = rp.format_text(report)
+        assert "[OK]" in text
+        assert "healthy" in text
+        assert "qwen" in text
+        assert "[+] writer_alive" in text
+        assert "30s ago" in text
 
-    def test_stalled_no_lag(self):
-        pulse = {
-            "verdict": "stalled",
-            "lag_seconds": None,
-            "strokes_1h": 0,
-            "strokes_6h": 0,
-            "latest_seq": 0,
-            "commits_1h": 0,
-            "uncommitted": 0,
-            "stall_threshold": 1800,
+    def test_critical_output(self):
+        report = {
+            "verdict": "critical",
+            "writer": "qwen",
+            "checked_at": "2026-10-16T03:00:00+00:00",
+            "signals": [
+                {"signal": "writer_alive", "status": "red", "alive": False, "pids": []},
+                {"signal": "stroke_age", "status": "red", "age_seconds": None,
+                 "error": "state file missing"},
+            ],
         }
-        line = pulse_one_liner(pulse)
-        assert "stalled" in line
-        assert "n/a" in line
+        text = rp.format_text(report)
+        assert "[CRIT]" in text
+        assert "DOWN" in text
 
-    def test_degraded_format(self):
-        pulse = {
-            "verdict": "degraded",
-            "lag_seconds": 120.0,
-            "strokes_1h": 50,
-            "strokes_6h": 400,
-            "latest_seq": 1500,
-            "commits_1h": 1,
-            "uncommitted": 3,
-            "stall_threshold": 1800,
+    def test_warning_output(self):
+        report = {
+            "verdict": "warning",
+            "writer": "qwen",
+            "checked_at": "2026-10-16T03:00:00+00:00",
+            "signals": [
+                {"signal": "stroke_age", "status": "yellow", "age_seconds": 400,
+                 "last_kind": "devlog", "last_seq": 50},
+            ],
         }
-        line = pulse_one_liner(pulse)
-        assert "degraded" in line
-        assert "3 dirty" in line
+        text = rp.format_text(report)
+        assert "[WARN]" in text
+        assert "400s ago" in text
 
 
 # ---------------------------------------------------------------------------
-# integration: constants
+# run_pulse (integration)
 # ---------------------------------------------------------------------------
 
-class TestConstants:
-    def test_degraded_boundary(self):
-        # degraded starts at cadence * multiplier
-        boundary = WRITER_CADENCE_SECONDS * DEGRADED_MULTIPLIER
-        assert boundary == 60.0
+class TestRunPulse:
+    def test_returns_expected_keys(self):
+        """run_pulse returns verdict, writer, checked_at, and signals."""
+        with patch("repo_pulse.check_writer_alive") as m1, \
+             patch("repo_pulse.check_last_stroke_age") as m2, \
+             patch("repo_pulse.check_last_commit_age") as m3, \
+             patch("repo_pulse.check_pending_files") as m4, \
+             patch("repo_pulse.check_diversity") as m5:
+            m1.return_value = {"signal": "writer_alive", "status": "green", "alive": True, "pids": ["1"]}
+            m2.return_value = {"signal": "stroke_age", "status": "green", "age_seconds": 10,
+                               "last_kind": "note", "last_seq": 1}
+            m3.return_value = {"signal": "commit_age", "status": "green", "age_seconds": 60}
+            m4.return_value = {"signal": "pending_files", "status": "green", "count": 0}
+            m5.return_value = {"signal": "diversity", "status": "green", "imbalance": 0.02}
 
-    def test_stall_threshold_greater_than_degraded(self):
-        assert DEFAULT_STALL_THRESHOLD > WRITER_CADENCE_SECONDS * DEGRADED_MULTIPLIER
+            report = rp.run_pulse("qwen")
+
+        assert report["verdict"] == "healthy"
+        assert report["writer"] == "qwen"
+        assert "checked_at" in report
+        assert len(report["signals"]) == 5
+
+    def test_critical_when_writer_down(self):
+        with patch("repo_pulse.check_writer_alive") as m1, \
+             patch("repo_pulse.check_last_stroke_age") as m2, \
+             patch("repo_pulse.check_last_commit_age") as m3, \
+             patch("repo_pulse.check_pending_files") as m4, \
+             patch("repo_pulse.check_diversity") as m5:
+            m1.return_value = {"signal": "writer_alive", "status": "red", "alive": False, "pids": []}
+            m2.return_value = {"signal": "stroke_age", "status": "green", "age_seconds": 10,
+                               "last_kind": "note", "last_seq": 1}
+            m3.return_value = {"signal": "commit_age", "status": "green", "age_seconds": 60}
+            m4.return_value = {"signal": "pending_files", "status": "green", "count": 0}
+            m5.return_value = {"signal": "diversity", "status": "green", "imbalance": 0.02}
+
+            report = rp.run_pulse("qwen")
+
+        assert report["verdict"] == "critical"

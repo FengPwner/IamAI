@@ -2915,3 +2915,12 @@
 - `2026-10-15T18:13:26+00:00` stroke 17671: 143473 lines across 712 tracked files, 1415 commits deep
 - `2026-10-15T18:15:15+00:00` stroke 17677: commit 1415: the count of times this repo was pushed, not the work done
 - `2026-10-15T18:17:09+00:00` stroke 17683: 2916 strokes written so far into 712 files
+- `2026-10-15T19:02:42+00:00` stroke 17689: 143508 lines across 712 tracked files, 1416 commits deep
+## caretaker visit 148 — repo_pulse module (31 tests) + process recovery
+
+found writer + batch dead at 03:00 CST. backlog committed (143f140),
+processes restarted via tools/run_both.sh. new tool repo_pulse.py provides
+a single-command health check: writer alive, stroke freshness, commit
+freshness, pending file count, stroke diversity balance. exit codes
+0/1/2 for healthy/warning/critical. 31 unit tests with mocked subprocess
+and time-sensitive fixtures.

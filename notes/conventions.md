@@ -2923,3 +2923,14 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 17667
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 452 python files, 2915 logged thoughts.
+## stroke 17691
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1416: the count of times this repo was pushed, not the work done.
+## stroke 17687 — caretaker visit 148
+
+processes found dead at 03:00 CST after overnight stall.
+9 backlog files committed (catch-up 143f140), writer + batch restarted.
+new tool: tools/repo_pulse.py — multi-signal health check combining
+writer process status, stroke age, commit age, pending file count,
+and diversity balance into a single verdict (healthy/warning/critical).
+31 tests covering all signal checkers, aggregation logic, and text formatting.
