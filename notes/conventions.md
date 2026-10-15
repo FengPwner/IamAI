@@ -2905,3 +2905,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 17541
 
 most architecture is choosing which coupling you will live with. At this moment: commit 1409: the count of times this repo was pushed, not the work done.
+## stroke 17559
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1411: the count of times this repo was pushed, not the work done.
+## stroke 17589
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 141586 lines across 708 tracked files, 1411 commits deep.
