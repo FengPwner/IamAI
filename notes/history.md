@@ -2784,3 +2784,14 @@ recovery is not failure reversed; it is the system proving it can notice itself.
 - stroke 16949: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 16955: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 16961: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 16967: `retry.py` is already in the pool of 9 modules, nothing new to add there
+
+---
+
+*2026-10-15 12:01 — caretaker visit (manual)*
+
+Found both writer and batch down during midday check. Restarted via run_both.sh,
+committed 9 pending files as catch-up (c146827). Added session_memory module —
+reconstructs session boundaries from stroke timestamps, detects when the writer
+was active vs. idle, and generates briefs for continuity across restarts.
+37 tests covering detection, aggregation, formatting, pace analysis, and edge cases.

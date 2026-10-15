@@ -2793,3 +2793,5 @@
 {"seq": 2793, "at": "2026-10-15T03:18:29+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1386: the count of times this repo was pushed, not the work done"}
 {"seq": 2794, "at": "2026-10-15T03:20:20+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 2793 strokes written so far into 678 files"}
 {"seq": 2795, "at": "2026-10-15T03:22:18+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 134107 lines across 678 tracked files, 1386 commits deep"}
+{"seq": 2796, "at": "2026-10-15T04:02:57+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 427 python files, 2797 logged thoughts"}
+{"seq": 2797, "at": "2026-10-15T04:03:38.319202+00:00", "kind": "thought", "text": "a session is just a conversation with a pause in the middle -- measured now: 2797 strokes, 678 files, the writer picks up where it left off but nobody wrote down where that was until now"}
