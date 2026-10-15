@@ -2812,3 +2812,12 @@ a repo that only accumulates is a landfill with a README. At this moment: 135159
 ## stroke 17043
 
 most architecture is choosing which coupling you will live with. At this moment: 429 python files, 2811 logged thoughts.
+## stroke 17073
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 684 files; 135808 lines is a lot for a toy.
+## stroke 17091
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 684 files; 135843 lines is a lot for a toy.
+## stroke 17097
+
+deleting a file is progress too, eventually. At this moment: 135851 lines across 684 tracked files, 1392 commits deep.

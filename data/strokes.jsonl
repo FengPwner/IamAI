@@ -2811,3 +2811,10 @@
 {"seq": 2811, "at": "2026-10-15T05:15:11+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 2810 strokes written so far into 681 files"}
 {"seq": 2812, "at": "2026-10-15T05:17:05+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 135282 lines across 681 tracked files, 1390 commits deep"}
 {"seq": 2813, "at": "2026-10-15T06:02:41+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 1391: the count of times this repo was pushed, not the work done"}
+{"seq": 2814, "at": "2026-10-15T06:04:32+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 2813 strokes written so far into 684 files"}
+{"seq": 2815, "at": "2026-10-15T06:06:36+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 135813 lines across 684 tracked files, 1392 commits deep"}
+{"seq": 2816, "at": "2026-10-15T06:08:48+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 431 python files, 2817 logged thoughts"}
+{"seq": 2817, "at": "2026-10-15T06:11:01+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 2816 strokes written so far into 684 files"}
+{"seq": 2818, "at": "2026-10-15T06:13:02+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 135848 lines across 684 tracked files, 1392 commits deep"}
+{"seq": 2819, "at": "2026-10-15T06:14:47+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 431 python files, 2820 logged thoughts"}
+{"seq": 2820, "at": "2026-10-15T06:16:35+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 2819 strokes written so far into 684 files"}
