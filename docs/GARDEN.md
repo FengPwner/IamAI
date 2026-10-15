@@ -13145,3 +13145,5 @@ round 17192  bloom 100.0%  plants  146/384
 ```
 
 - stroke 17198: round 17198  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 17204: round 17204  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 17210: round 17210  bloom 100.0%  plants  146/384, bloom 100.0%
