@@ -2792,3 +2792,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 16851
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 132944 lines across 672 tracked files, 1381 commits deep.
+## stroke 16869
+
+deleting a file is progress too, eventually. At this moment: 133435 lines across 675 tracked files, 1384 commits deep.
+## stroke 16893
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1384: the count of times this repo was pushed, not the work done.
+## stroke 16899
+
+deleting a file is progress too, eventually. At this moment: 2784 strokes written so far into 675 files.
