@@ -14559,3 +14559,4 @@ round 19010  bloom 100.0%  plants  146/384
 
 - stroke 19016: round 19016  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 19022: round 19022  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 19028: round 19028  bloom 100.0%  plants  146/384, bloom 100.0%
