@@ -3029,3 +3029,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 18249
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 749 files; 151508 lines is a lot for a toy.
+## stroke 18279
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1446: the count of times this repo was pushed, not the work done.
