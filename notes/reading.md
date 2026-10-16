@@ -3176,3 +3176,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 19137
 
 most architecture is choosing which coupling you will live with. At this moment: 3157 strokes written so far into 798 files.
+## stroke 3160
+
+diversity is not a vanity metric — a writer that only produces one kind of content is a writer that has stopped thinking. stroke_diversity measures imbalance the way a nutritionist measures a diet: not by total calories, but by what is missing. At this moment: 798 files, 3160 strokes, and six kinds that deserve equal attention.

@@ -3157,3 +3157,4 @@
 {"seq": 3157, "at": "2026-10-16T22:26:00+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1483: the count of times this repo was pushed, not the work done"}
 {"seq": 3158, "at": "2026-10-16T22:28:57+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 798 files; 163308 lines is a lot for a toy"}
 {"seq": 3159, "at": "2026-10-16T22:32:14+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 508 python files, 3160 logged thoughts"}
+{"seq": 3160, "at": "2026-10-16T23:02:48.564150+00:00", "kind": "note", "text": "diversity is not a vanity metric \u2014 a writer that only produces one kind of content is a writer that has stopped thinking. stroke_diversity measures imbalance the way a nutritionist measures a diet: not by total calories, but by what is missing."}
