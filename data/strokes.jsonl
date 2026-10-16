@@ -3129,3 +3129,10 @@
 {"seq": 3129, "at": "2026-10-16T20:03:08+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 3128 strokes written so far into 789 files"}
 {"seq": 3130, "at": "2026-10-16T20:06:18+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 160886 lines across 789 tracked files, 1478 commits deep"}
 {"seq": 3131, "at": "2026-10-16T20:09:21+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 502 python files, 3132 logged thoughts"}
+{"seq": 3132, "at": "2026-10-16T20:12:31+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 3131 strokes written so far into 792 files"}
+{"seq": 3133, "at": "2026-10-16T20:15:39+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 161442 lines across 792 tracked files, 1479 commits deep"}
+{"seq": 3134, "at": "2026-10-16T20:18:43+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 504 python files, 3135 logged thoughts"}
+{"seq": 3135, "at": "2026-10-16T20:21:45+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 3134 strokes written so far into 792 files"}
+{"seq": 3136, "at": "2026-10-16T20:24:50+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 792 files; 161477 lines is a lot for a toy"}
+{"seq": 3137, "at": "2026-10-16T20:27:54+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 504 python files, 3138 logged thoughts"}
+{"seq": 3138, "at": "2026-10-16T20:31:07+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1479: the count of times this repo was pushed, not the work done"}

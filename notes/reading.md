@@ -3143,3 +3143,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 18975
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 502 python files, 3132 logged thoughts.
+## stroke 18981
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1479: the count of times this repo was pushed, not the work done.
+## stroke 18999
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1479: the count of times this repo was pushed, not the work done.
+## stroke 19005
+
+deleting a file is progress too, eventually. At this moment: 3135 strokes written so far into 792 files.
