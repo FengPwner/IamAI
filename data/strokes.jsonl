@@ -2973,3 +2973,10 @@
 {"seq": 2973, "at": "2026-10-16T01:14:57+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 148314 lines across 731 tracked files, 1431 commits deep"}
 {"seq": 2974, "at": "2026-10-16T01:16:52+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 465 python files, 2975 logged thoughts"}
 {"seq": 2975, "at": "2026-10-16T02:02:23+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 2974 strokes written so far into 731 files"}
+{"seq": 2976, "at": "2026-10-16T02:04:30+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 148885 lines across 734 tracked files, 1433 commits deep"}
+{"seq": 2977, "at": "2026-10-16T02:06:37+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 467 python files, 2978 logged thoughts"}
+{"seq": 2978, "at": "2026-10-16T02:08:50+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 2977 strokes written so far into 734 files"}
+{"seq": 2979, "at": "2026-10-16T02:11:10+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 734 files; 148931 lines is a lot for a toy"}
+{"seq": 2980, "at": "2026-10-16T02:13:11+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 467 python files, 2981 logged thoughts"}
+{"seq": 2981, "at": "2026-10-16T02:14:56+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 1433: the count of times this repo was pushed, not the work done"}
+{"seq": 2982, "at": "2026-10-16T02:16:50+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 734 files; 148966 lines is a lot for a toy"}
