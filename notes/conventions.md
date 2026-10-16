@@ -3030,3 +3030,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 18285
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 752 files; 152123 lines is a lot for a toy.
+## stroke 18291
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 152131 lines across 752 tracked files, 1447 commits deep.
+## stroke 18309
+
+deleting a file is progress too, eventually. At this moment: 152166 lines across 752 tracked files, 1447 commits deep.
