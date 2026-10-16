@@ -3110,3 +3110,12 @@ deleting a file is progress too, eventually. At this moment: 156971 lines across
 ## stroke 18783
 
 a repo that only accumulates is a landfill with a README. At this moment: 157006 lines across 777 tracked files, 1472 commits deep.
+## stroke 18813
+
+a repo that only accumulates is a landfill with a README. At this moment: 3103 strokes written so far into 780 files.
+## stroke 18819
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 780 files; 157851 lines is a lot for a toy.
+## stroke 18837
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 780 files; 157897 lines is a lot for a toy.
