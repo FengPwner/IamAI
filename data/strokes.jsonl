@@ -2948,3 +2948,10 @@
 {"seq": 2948, "at": "2026-10-15T22:14:06+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 722 files; 146129 lines is a lot for a toy"}
 {"seq": 2949, "at": "2026-10-15T22:15:55+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 146148 lines across 722 tracked files, 1423 commits deep"}
 {"seq": 2950, "at": "2026-10-15T23:01:51+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1424: the count of times this repo was pushed, not the work done"}
+{"seq": 2951, "at": "2026-10-15T23:03:36+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 2950 strokes written so far into 725 files"}
+{"seq": 2952, "at": "2026-10-15T23:05:40+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 146711 lines across 725 tracked files, 1425 commits deep"}
+{"seq": 2953, "at": "2026-10-15T23:07:44+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1425: the count of times this repo was pushed, not the work done"}
+{"seq": 2954, "at": "2026-10-15T23:09:50+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 2953 strokes written so far into 725 files"}
+{"seq": 2955, "at": "2026-10-15T23:11:55+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 146746 lines across 725 tracked files, 1425 commits deep"}
+{"seq": 2956, "at": "2026-10-15T23:13:37+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 461 python files, 2957 logged thoughts"}
+{"seq": 2957, "at": "2026-10-15T23:15:23+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 2956 strokes written so far into 725 files"}
