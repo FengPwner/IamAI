@@ -3098,3 +3098,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 18711
 
 most architecture is choosing which coupling you will live with. At this moment: 492 python files, 3088 logged thoughts.
+## stroke 18735
+
+deleting a file is progress too, eventually. At this moment: commit 1471: the count of times this repo was pushed, not the work done.
+## stroke 18759
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 777 files; 156963 lines is a lot for a toy.
+## stroke 18765
+
+deleting a file is progress too, eventually. At this moment: 156971 lines across 777 tracked files, 1471 commits deep.
