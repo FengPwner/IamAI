@@ -2989,3 +2989,10 @@
 {"seq": 2989, "at": "2026-10-16T03:16:26+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1438: the count of times this repo was pushed, not the work done"}
 {"seq": 2990, "at": "2026-10-16T04:01:33+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 2989 strokes written so far into 739 files"}
 {"seq": 2991, "at": "2026-10-16T04:03:28+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 149632 lines across 739 tracked files, 1439 commits deep"}
+{"seq": 2992, "at": "2026-10-16T04:05:31+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 472 python files, 2993 logged thoughts"}
+{"seq": 2993, "at": "2026-10-16T04:07:35+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 2992 strokes written so far into 743 files"}
+{"seq": 2994, "at": "2026-10-16T04:09:48+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 150286 lines across 743 tracked files, 1440 commits deep"}
+{"seq": 2995, "at": "2026-10-16T04:11:53+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 472 python files, 2996 logged thoughts"}
+{"seq": 2996, "at": "2026-10-16T04:13:41+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 2995 strokes written so far into 743 files"}
+{"seq": 2997, "at": "2026-10-16T04:15:27+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 743 files; 150310 lines is a lot for a toy"}
+{"seq": 2998, "at": "2026-10-16T04:17:18+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 472 python files, 2999 logged thoughts"}
