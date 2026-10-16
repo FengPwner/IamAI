@@ -3126,3 +3126,6 @@
 {"seq": 3126, "at": "2026-10-16T18:27:02+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 3125 strokes written so far into 783 files"}
 {"seq": 3127, "at": "2026-10-16T18:30:08+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 158927 lines across 783 tracked files, 1476 commits deep"}
 {"seq": 3128, "at": "2026-10-16T18:33:27+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1476: the count of times this repo was pushed, not the work done"}
+{"seq": 3129, "at": "2026-10-16T20:03:08+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 3128 strokes written so far into 789 files"}
+{"seq": 3130, "at": "2026-10-16T20:06:18+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 160886 lines across 789 tracked files, 1478 commits deep"}
+{"seq": 3131, "at": "2026-10-16T20:09:21+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 502 python files, 3132 logged thoughts"}
