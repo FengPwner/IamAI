@@ -3020,3 +3020,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 18201
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 474 python files, 3003 logged thoughts.
+## stroke 18225
+
+deleting a file is progress too, eventually. At this moment: 3005 strokes written so far into 746 files.
