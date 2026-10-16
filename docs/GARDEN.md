@@ -14208,3 +14208,5 @@ round 18566  bloom 100.0%  plants  146/384
 @@..@..@..@.@@@.@..@@..@.@@.@.@...@@.@...@.@.@@.
 ```
 
+- stroke 18572: round 18572  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 18578: round 18578  bloom 100.0%  plants  146/384, bloom 100.0%
