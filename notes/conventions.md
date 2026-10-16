@@ -3084,3 +3084,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 18603
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1464: the count of times this repo was pushed, not the work done.
+## stroke 18621
+
+deleting a file is progress too, eventually. At this moment: commit 1465: the count of times this repo was pushed, not the work done.
+## stroke 18645
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 771 files; 155718 lines is a lot for a toy.
+## stroke 18651
+
+deleting a file is progress too, eventually. At this moment: 155726 lines across 771 tracked files, 1465 commits deep.
