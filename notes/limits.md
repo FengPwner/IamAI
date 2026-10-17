@@ -3215,3 +3215,15 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 19461
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 812 files; 167367 lines is a lot for a toy.
+## stroke 19485
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 168320 lines across 815 tracked files, 1496 commits deep.
+## stroke 19515
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 3221 strokes written so far into 815 files.
+## stroke 19533
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 3224 strokes written so far into 815 files.
+## stroke 19539
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 815 files; 168425 lines is a lot for a toy.
