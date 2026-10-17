@@ -3282,3 +3282,12 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 19785
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 827 files; 171843 lines is a lot for a toy.
+## stroke 19809
+
+most architecture is choosing which coupling you will live with. At this moment: 530 python files, 3272 logged thoughts.
+## stroke 19815
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1507: the count of times this repo was pushed, not the work done.
+## stroke 19839
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 3275 strokes written so far into 830 files.

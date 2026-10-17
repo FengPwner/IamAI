@@ -3287,3 +3287,15 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 19779
 
 deleting a file is progress too, eventually. At this moment: 3265 strokes written so far into 827 files.
+## stroke 19803
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 830 files; 172358 lines is a lot for a toy.
+## stroke 19833
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1507: the count of times this repo was pushed, not the work done.
+## stroke 19851
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1507: the count of times this repo was pushed, not the work done.
+## stroke 19857
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 3278 strokes written so far into 830 files.

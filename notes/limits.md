@@ -3275,3 +3275,12 @@ deleting a file is progress too, eventually. At this moment: 528 python files, 3
 ## stroke 19797
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1504: the count of times this repo was pushed, not the work done.
+## stroke 19821
+
+deleting a file is progress too, eventually. At this moment: tree is 830 files; 172404 lines is a lot for a toy.
+## stroke 19827
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 172412 lines across 830 tracked files, 1507 commits deep.
+## stroke 19845
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 172447 lines across 830 tracked files, 1507 commits deep.
