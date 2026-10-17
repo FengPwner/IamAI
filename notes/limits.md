@@ -3197,3 +3197,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 19359
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1490: the count of times this repo was pushed, not the work done.
+## stroke 19377
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1492: the count of times this repo was pushed, not the work done.
+## stroke 19383
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 3199 strokes written so far into 809 files.
+## stroke 19407
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 809 files; 166430 lines is a lot for a toy.
