@@ -3330,3 +3330,4 @@
 {"seq": 3330, "at": "2026-10-17T16:26:22+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 176330 lines across 848 tracked files, 1517 commits deep"}
 {"seq": 3331, "at": "2026-10-17T16:29:29+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 542 python files, 3332 logged thoughts"}
 {"seq": 3332, "at": "2026-10-17T16:32:54+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 3331 strokes written so far into 848 files"}
+{"seq": 3333, "at": "2026-10-17T18:03:20+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 850 files; 176848 lines is a lot for a toy"}

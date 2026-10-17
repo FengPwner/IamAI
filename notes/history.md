@@ -3351,3 +3351,4 @@ degraded severity classification with pure-function helpers.
 - stroke 20171: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 20177: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - caretaker visit 192 (human-assisted): idle_budget module (35 tests) — tracks how long the writer may stay silent before intervention; classifies gaps as healthy/stretching/overdue/critical based on cadence and tolerance; notes that the writer loop was producing repetitive strokes (parse_kv/retry/chunk_text cycling) indicating a template loop rather than true idle, which is a different failure mode than process death
+- stroke 20183: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
