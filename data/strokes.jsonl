@@ -3193,3 +3193,4 @@
 {"seq": 3193, "at": "2026-10-17T02:25:37+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 3192 strokes written so far into 806 files"}
 {"seq": 3194, "at": "2026-10-17T02:28:59+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 806 files; 165414 lines is a lot for a toy"}
 {"seq": 3195, "at": "2026-10-17T02:32:20+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 514 python files, 3196 logged thoughts"}
+{"seq": 3196, "at": "2026-10-17T03:01:57+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 3195 strokes written so far into 806 files"}
