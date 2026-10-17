@@ -3291,3 +3291,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 19839
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 3275 strokes written so far into 830 files.
+## stroke 19863
+
+deleting a file is progress too, eventually. At this moment: 172493 lines across 830 tracked files, 1508 commits deep.
