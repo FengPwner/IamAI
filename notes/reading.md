@@ -3329,3 +3329,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 20043
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1513: the count of times this repo was pushed, not the work done.
+## stroke 20061
+
+deleting a file is progress too, eventually. At this moment: commit 1514: the count of times this repo was pushed, not the work done.
+## stroke 20091
+
+deleting a file is progress too, eventually. At this moment: 174284 lines across 839 tracked files, 1514 commits deep.
