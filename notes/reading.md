@@ -3299,3 +3299,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 19857
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 3278 strokes written so far into 830 files.
+## stroke 19887
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 532 python files, 3285 logged thoughts.
+## stroke 19905
+
+deleting a file is progress too, eventually. At this moment: 532 python files, 3288 logged thoughts.
+## stroke 19911
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1509: the count of times this repo was pushed, not the work done.
