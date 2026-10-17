@@ -3219,3 +3219,15 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 19401
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 3202 strokes written so far into 809 files.
+## stroke 19425
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 812 files; 167308 lines is a lot for a toy.
+## stroke 19449
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 518 python files, 3212 logged thoughts.
+## stroke 19455
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1494: the count of times this repo was pushed, not the work done.
+## stroke 19473
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1494: the count of times this repo was pushed, not the work done.
