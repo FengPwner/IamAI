@@ -3226,3 +3226,13 @@
 {"seq": 3226, "at": "2026-10-17T05:38:49+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 168430 lines across 815 tracked files, 1496 commits deep"}
 {"seq": 3227, "at": "2026-10-17T06:01:49+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1497: the count of times this repo was pushed, not the work done"}
 {"seq": 3228, "at": "2026-10-17T06:05:19+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 3227 strokes written so far into 815 files"}
+{"seq": 3229, "at": "2026-10-17T06:08:49+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 169401 lines across 818 tracked files, 1498 commits deep"}
+{"seq": 3230, "at": "2026-10-17T06:12:15+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 522 python files, 3231 logged thoughts"}
+{"seq": 3231, "at": "2026-10-17T06:15:42+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 3230 strokes written so far into 818 files"}
+{"seq": 3232, "at": "2026-10-17T06:19:07+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 169436 lines across 818 tracked files, 1498 commits deep"}
+{"seq": 3233, "at": "2026-10-17T06:22:32+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 522 python files, 3234 logged thoughts"}
+{"seq": 3234, "at": "2026-10-17T06:25:57+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 3233 strokes written so far into 818 files"}
+{"seq": 3235, "at": "2026-10-17T06:29:25+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 818 files; 169460 lines is a lot for a toy"}
+{"seq": 3236, "at": "2026-10-17T06:32:54+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 522 python files, 3237 logged thoughts"}
+{"seq": 3237, "at": "2026-10-17T06:36:34+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1498: the count of times this repo was pushed, not the work done"}
+{"seq": 3238, "at": "2026-10-17T06:40:01+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 818 files; 169506 lines is a lot for a toy"}
