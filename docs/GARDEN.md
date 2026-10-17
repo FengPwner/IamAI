@@ -15301,3 +15301,4 @@ round 19964  bloom 100.0%  plants  146/384
 
 - stroke 19970: round 19970  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 19976: round 19976  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 19982: round 19982  bloom 100.0%  plants  146/384, bloom 100.0%
