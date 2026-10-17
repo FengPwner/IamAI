@@ -3335,3 +3335,6 @@ deleting a file is progress too, eventually. At this moment: commit 1514: the co
 ## stroke 20091
 
 deleting a file is progress too, eventually. At this moment: 174284 lines across 839 tracked files, 1514 commits deep.
+## stroke 20115
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 538 python files, 3323 logged thoughts.
