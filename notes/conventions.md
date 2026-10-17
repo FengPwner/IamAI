@@ -3336,3 +3336,15 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 20103
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 3319 strokes written so far into 839 files.
+## stroke 20121
+
+most architecture is choosing which coupling you will live with. At this moment: 3322 strokes written so far into 845 files.
+## stroke 20127
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 845 files; 175569 lines is a lot for a toy.
+## stroke 20151
+
+most architecture is choosing which coupling you will live with. At this moment: 542 python files, 3329 logged thoughts.
+## stroke 20175
+
+deleting a file is progress too, eventually. At this moment: commit 1517: the count of times this repo was pushed, not the work done.
