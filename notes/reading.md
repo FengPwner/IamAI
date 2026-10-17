@@ -3206,3 +3206,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 19293
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 801 files; 164353 lines is a lot for a toy.
+## stroke 19311
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 806 files; 165339 lines is a lot for a toy.
+## stroke 19335
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 514 python files, 3193 logged thoughts.
+## stroke 19341
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1490: the count of times this repo was pushed, not the work done.
