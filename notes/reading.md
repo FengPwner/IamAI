@@ -3200,3 +3200,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 19263
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1486: the count of times this repo was pushed, not the work done.
+## stroke 19287
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 3183 strokes written so far into 801 files.
+## stroke 19293
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 801 files; 164353 lines is a lot for a toy.
