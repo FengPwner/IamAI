@@ -3477,3 +3477,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 20931
 
 most architecture is choosing which coupling you will live with. At this moment: 560 python files, 3459 logged thoughts.
+## stroke 20955
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 3461 strokes written so far into 881 files.
+## stroke 20979
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 881 files; 183400 lines is a lot for a toy.
