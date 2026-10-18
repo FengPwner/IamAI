@@ -16335,3 +16335,4 @@ round 21284  bloom 100.0%  plants  146/384
 
 - stroke 21290: round 21290  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 21296: round 21296  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 21302: round 21302  bloom 100.0%  plants  146/384, bloom 100.0%

@@ -3516,3 +3516,4 @@
 {"seq": 3516, "at": "2026-10-18T12:25:19+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 896 files; 185894 lines is a lot for a toy"}
 {"seq": 3517, "at": "2026-10-18T12:28:28+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 572 python files, 3518 logged thoughts"}
 {"seq": 3518, "at": "2026-10-18T12:31:49+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1558: the count of times this repo was pushed, not the work done"}
+{"seq": 3519, "at": "2026-10-18T13:02:33+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 896 files; 185929 lines is a lot for a toy"}
