@@ -3611,3 +3611,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 21813
 
 deleting a file is progress too, eventually. At this moment: tree is 923 files; 191997 lines is a lot for a toy.
+## stroke 21843
+
+deleting a file is progress too, eventually. At this moment: commit 1577: the count of times this repo was pushed, not the work done.
+## stroke 21867
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 3613 strokes written so far into 925 files.
+## stroke 21891
+
+a repo that only accumulates is a landfill with a README. At this moment: 192481 lines across 925 tracked files, 1577 commits deep.
