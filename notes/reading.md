@@ -3455,3 +3455,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 20793
 
 a repo that only accumulates is a landfill with a README. At this moment: 181600 lines across 872 tracked files, 1538 commits deep.
+## stroke 20811
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 181624 lines across 872 tracked files, 1539 commits deep.
