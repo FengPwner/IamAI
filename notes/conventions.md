@@ -3447,3 +3447,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 20769
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 871 files; 181429 lines is a lot for a toy.
+## stroke 20775
+
+most architecture is choosing which coupling you will live with. At this moment: 181510 lines across 871 tracked files, 1536 commits deep.

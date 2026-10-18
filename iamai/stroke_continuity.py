@@ -1,146 +1,219 @@
-"""stroke_continuity -- detect gaps in the stroke sequence.
+"""Stroke continuity — is the sequence unbroken and regular?
 
-The writer produces strokes at seq 1, 2, 3, ... with no skips.
-When the process dies (and it does, every ~90 minutes on average),
-the batch committer may not have flushed recent strokes.  Restarting
-the writer picks up the next seq number, so the *sequence* stays
-contiguous even though there was a wall-clock gap.
+Freshness tells you *how recent*, momentum tells you *how fast*,
+continuity tells you *how consistent*.  A writer that produces 400
+strokes over two hours looks healthy on rate alone — but if 380 of
+those came in the first 30 minutes and the remaining 20 were spaced
+across the next 90, that "healthy" rate masks a near-stall that the
+caretaker needs to know about.
 
-But sometimes the gap is visible: two consecutive strokes may have
-timestamps 90 minutes apart because the writer died mid-stroke and
-the restart re-initialised from the last committed state.  This
-module makes those gaps queryable.
+This module computes three metrics:
+
+=====================  ================================================
+metric                 meaning
+=====================  ================================================
+``sequence_integrity`` fraction of consecutive strokes with
+                       monotonically increasing sequence numbers
+                       and no duplicates (1.0 = perfect)
+``temporal_regularity`` 1 − CV of inter-stroke intervals, clamped
+                       to [0, 1] (1.0 = clockwork, 0.0 = chaos)
+``continuity_score``   geometric mean of the two above
+=====================  ================================================
+
+The key insight: continuity is the *second derivative* of throughput.
+Rate tells you position, momentum tells you velocity, and continuity
+tells you whether the velocity itself is stable.  A writer with
+perfect freshness and momentum but broken continuity is a writer
+that recovered from a crash — functional but scarred.
 
 Usage::
 
-    from iamai.stroke_continuity import find_gaps, continuity_report
+    from iamai.stroke_continuity import continuity, continuity_summary
 
-    gaps = find_gaps("data/strokes.jsonl", min_gap_seconds=300)
-    report = continuity_report("data/strokes.jsonl")
-    print(report["gap_count"])        # how many gaps found
-    print(report["longest_gap_s"])    # seconds
-    print(report["mean_gap_s"])       # average gap length
+    info = continuity(strokes_path=Path("data/strokes.jsonl"))
+    print(info["continuity_score"])     # 0.87
+    print(info["sequence_integrity"])   # 0.95
+    print(info["temporal_regularity"])  # 0.80
 
-Design choices:
-  - Pure-Python, no subprocess calls -- reads JSONL directly.
-  - ``min_gap_seconds`` filters noise; default 300s (5 min) catches
-    real stalls without flagging the normal 15s cadence jitter.
-  - Returns dataclass list so callers can inspect individual gaps.
+    summary = continuity_summary(strokes_path=...)
+    # "continuity 0.87 — seq_integrity 0.95, temporal_regularity 0.80, 400 strokes"
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+import math
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Sequence
+
+_DEFAULT_STROKES_PATH = Path("data/strokes.jsonl")
 
 
-@dataclass(frozen=True)
-class Gap:
-    """A detected gap between two consecutive strokes."""
-    seq_before: int
-    seq_after: int
-    time_before: str
-    time_after: str
-    gap_seconds: float
+def _parse_timestamp(ts: str) -> datetime:
+    """Parse an ISO 8601 timestamp string to a timezone-aware datetime.
 
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "seq_before": self.seq_before,
-            "seq_after": self.seq_after,
-            "time_before": self.time_before,
-            "time_after": self.time_after,
-            "gap_seconds": round(self.gap_seconds, 1),
-        }
+    Handles ``+00:00``, ``Z`` suffixes, and bare datetimes (assumed UTC).
+    """
+    ts = ts.strip()
+    if ts.endswith("Z"):
+        ts = ts[:-1] + "+00:00"
+    dt = datetime.fromisoformat(ts)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
-def _parse_iso(ts: str) -> datetime:
-    """Parse an ISO 8601 timestamp to a timezone-aware datetime."""
-    # Handle both Z suffix and +00:00
-    ts = ts.replace("Z", "+00:00")
-    return datetime.fromisoformat(ts)
-
-
-def _read_strokes(filepath: str | Path) -> list[dict[str, Any]]:
-    """Read strokes from a JSONL file, returning parsed dicts."""
-    path = Path(filepath)
-    if not path.exists():
-        return []
-    strokes = []
-    with path.open("r", encoding="utf-8") as f:
+def _load_strokes(path: Path) -> list[dict]:
+    """Load strokes from a JSONL file, adding ``_dt`` and ``_seq`` keys."""
+    strokes: list[dict] = []
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
-            if line:
-                try:
-                    strokes.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                obj["_dt"] = _parse_timestamp(obj["at"])
+                obj["_seq"] = int(obj["seq"])
+                strokes.append(obj)
+            except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+                continue
     return strokes
 
 
-def find_gaps(
-    filepath: str | Path,
-    min_gap_seconds: float = 300.0,
-) -> list[Gap]:
-    """Find gaps in the stroke sequence exceeding ``min_gap_seconds``.
+# ---------------------------------------------------------------------------
+# Sequence integrity
+# ---------------------------------------------------------------------------
 
-    Only considers consecutive strokes (by list order in the JSONL file,
-    which should match seq order).  Returns gaps sorted by gap_seconds
-    descending (longest first).
+def sequence_integrity(strokes: list[dict]) -> float:
+    """Fraction of consecutive pairs that are strictly consecutive (seq+1).
+
+    Returns 1.0 for an empty list or a single stroke (vacuously ordered).
+    Gaps (seq jumps by >1), duplicates, and descents all count as violations.
     """
-    strokes = _read_strokes(filepath)
     if len(strokes) < 2:
-        return []
+        return 1.0
 
-    gaps: list[Gap] = []
-    for i in range(1, len(strokes)):
-        prev = strokes[i - 1]
-        curr = strokes[i]
-        try:
-            t_prev = _parse_iso(prev["at"])
-            t_curr = _parse_iso(curr["at"])
-        except (KeyError, ValueError):
-            continue
-
-        delta = (t_curr - t_prev).total_seconds()
-        if delta >= min_gap_seconds:
-            gaps.append(Gap(
-                seq_before=prev.get("seq", 0),
-                seq_after=curr.get("seq", 0),
-                time_before=prev["at"],
-                time_after=curr["at"],
-                gap_seconds=delta,
-            ))
-
-    gaps.sort(key=lambda g: g.gap_seconds, reverse=True)
-    return gaps
+    ok = 0
+    total = len(strokes) - 1
+    for i in range(total):
+        if strokes[i + 1]["_seq"] == strokes[i]["_seq"] + 1:
+            ok += 1
+    return ok / total
 
 
-def continuity_report(
-    filepath: str | Path,
-    min_gap_seconds: float = 300.0,
-) -> dict[str, Any]:
-    """Produce a summary dict of stroke continuity metrics.
+# ---------------------------------------------------------------------------
+# Temporal regularity
+# ---------------------------------------------------------------------------
 
-    Keys:
-      - total_strokes: number of strokes in the file
-      - gap_count: number of gaps exceeding min_gap_seconds
-      - longest_gap_s: seconds (0 if no gaps)
-      - mean_gap_s: average of all detected gaps (0 if none)
-      - gaps: list of Gap.as_dict() entries
+def temporal_regularity(strokes: list[dict]) -> float:
+    """1 − coefficient_of_variation of inter-stroke intervals (seconds).
+
+    Returns 1.0 for a single stroke or empty list (no intervals to vary).
+    Clamped to [0.0, 1.0].
     """
-    strokes = _read_strokes(filepath)
-    gaps = find_gaps(filepath, min_gap_seconds)
+    if len(strokes) < 2:
+        return 1.0
 
-    gap_seconds = [g.gap_seconds for g in gaps]
+    intervals: list[float] = []
+    for i in range(len(strokes) - 1):
+        dt = (strokes[i + 1]["_dt"] - strokes[i]["_dt"]).total_seconds()
+        intervals.append(max(dt, 0.0))  # negative gaps → 0 (clock skew)
+
+    if not intervals:
+        return 1.0
+
+    mean = sum(intervals) / len(intervals)
+    if mean <= 0:
+        return 0.0  # all strokes at the same instant → maximum irregularity
+
+    variance = sum((x - mean) ** 2 for x in intervals) / len(intervals)
+    std = math.sqrt(variance)
+    cv = std / mean
+    return max(0.0, min(1.0, 1.0 - cv))
+
+
+# ---------------------------------------------------------------------------
+# Composite score
+# ---------------------------------------------------------------------------
+
+def continuity(
+    repo: Path | None = None,
+    strokes_path: Path | None = None,
+    tail: int = 0,
+) -> dict:
+    """Compute stroke continuity metrics.
+
+    Args:
+        repo: repository root (used to locate strokes file)
+        strokes_path: explicit path to strokes JSONL (overrides repo)
+        tail: if > 0, only examine the last ``tail`` strokes;
+              if 0, examine all strokes.
+
+    Returns:
+        dict with keys:
+            - ``sequence_integrity``: 0.0–1.0
+            - ``temporal_regularity``: 0.0–1.0
+            - ``continuity_score``: geometric mean of the two above
+            - ``stroke_count``: number of strokes examined
+            - ``seq_violations``: count of non-increasing consecutive pairs
+            - ``mean_interval_s``: mean inter-stroke interval in seconds
+    """
+    if strokes_path is None:
+        base = Path(repo) if repo else Path(".")
+        strokes_path = base / _DEFAULT_STROKES_PATH
+
+    strokes = _load_strokes(strokes_path)
+    if tail > 0:
+        strokes = strokes[-tail:]
+
+    seq_int = sequence_integrity(strokes)
+    temp_reg = temporal_regularity(strokes)
+
+    # Geometric mean: penalises lopsided scores more than arithmetic mean
+    if seq_int > 0 and temp_reg > 0:
+        score = math.sqrt(seq_int * temp_reg)
+    else:
+        score = 0.0
+
+    # Count violations for diagnostics
+    violations = 0
+    if len(strokes) >= 2:
+        for i in range(len(strokes) - 1):
+            if strokes[i + 1]["_seq"] != strokes[i]["_seq"] + 1:
+                violations += 1
+
+    # Mean interval
+    mean_interval = 0.0
+    if len(strokes) >= 2:
+        total_s = (strokes[-1]["_dt"] - strokes[0]["_dt"]).total_seconds()
+        mean_interval = total_s / (len(strokes) - 1)
+
     return {
-        "total_strokes": len(strokes),
-        "gap_count": len(gaps),
-        "longest_gap_s": round(max(gap_seconds), 1) if gap_seconds else 0,
-        "mean_gap_s": round(
-            sum(gap_seconds) / len(gap_seconds), 1
-        ) if gap_seconds else 0,
-        "gaps": [g.as_dict() for g in gaps],
+        "sequence_integrity": round(seq_int, 4),
+        "temporal_regularity": round(temp_reg, 4),
+        "continuity_score": round(score, 4),
+        "stroke_count": len(strokes),
+        "seq_violations": violations,
+        "mean_interval_s": round(mean_interval, 1),
     }
+
+
+def continuity_summary(
+    repo: Path | None = None,
+    strokes_path: Path | None = None,
+    tail: int = 100,
+) -> str:
+    """One-liner continuity summary for caretaker logs.
+
+    Example::
+
+        "continuity 0.8700 — seq_integrity 0.9500, temporal_regularity 0.7970, 100 strokes"
+    """
+    info = continuity(repo=repo, strokes_path=strokes_path, tail=tail)
+    return (
+        f"continuity {info['continuity_score']} — "
+        f"seq_integrity {info['sequence_integrity']}, "
+        f"temporal_regularity {info['temporal_regularity']}, "
+        f"{info['stroke_count']} strokes"
+    )
