@@ -3606,3 +3606,12 @@ deleting a file is progress too, eventually. At this moment: tree is 917 files; 
 ## stroke 21705
 
 most architecture is choosing which coupling you will live with. At this moment: 585 python files, 3588 logged thoughts.
+## stroke 21729
+
+deleting a file is progress too, eventually. At this moment: commit 1574: the count of times this repo was pushed, not the work done.
+## stroke 21735
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 3591 strokes written so far into 920 files.
+## stroke 21753
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 3594 strokes written so far into 920 files.
