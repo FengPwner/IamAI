@@ -3588,3 +3588,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 21597
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1569: the count of times this repo was pushed, not the work done.
+## stroke 21627
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 189988 lines across 914 tracked files, 1570 commits deep.
+## stroke 21651
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 583 python files, 3579 logged thoughts.
