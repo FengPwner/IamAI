@@ -3449,3 +3449,11 @@
 {"seq": 3449, "at": "2026-10-18T05:29:28+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 3448 strokes written so far into 875 files"}
 {"seq": 3450, "at": "2026-10-18T05:32:56+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 182162 lines across 875 tracked files, 1542 commits deep"}
 {"seq": 3451, "at": "2026-10-18T06:03:12+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 558 python files, 3452 logged thoughts"}
+{"seq": 3452, "at": "2026-10-18T06:07:04+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 3451 strokes written so far into 878 files"}
+{"seq": 3453, "at": "2026-10-18T06:10:54+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 878 files; 182707 lines is a lot for a toy"}
+{"seq": 3454, "at": "2026-10-18T06:14:37+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 560 python files, 3455 logged thoughts"}
+{"seq": 3455, "at": "2026-10-18T06:18:31+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1544: the count of times this repo was pushed, not the work done"}
+{"seq": 3456, "at": "2026-10-18T06:22:23+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 878 files; 182742 lines is a lot for a toy"}
+{"seq": 3457, "at": "2026-10-18T06:25:59+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 560 python files, 3458 logged thoughts"}
+{"seq": 3458, "at": "2026-10-18T06:29:41+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1544: the count of times this repo was pushed, not the work done"}
+{"seq": 3459, "at": "2026-10-18T06:33:22+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 878 files; 182777 lines is a lot for a toy"}

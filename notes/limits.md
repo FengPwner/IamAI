@@ -3455,3 +3455,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 20889
 
 most architecture is choosing which coupling you will live with. At this moment: 182165 lines across 875 tracked files, 1543 commits deep.
+## stroke 20907
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 182710 lines across 878 tracked files, 1544 commits deep.
+## stroke 20937
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 3458 strokes written so far into 878 files.

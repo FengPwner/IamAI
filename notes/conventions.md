@@ -3468,3 +3468,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 20877
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 1542: the count of times this repo was pushed, not the work done.
+## stroke 20901
+
+most architecture is choosing which coupling you will live with. At this moment: 3452 strokes written so far into 878 files.
+## stroke 20925
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 182756 lines across 878 tracked files, 1544 commits deep.
+## stroke 20931
+
+most architecture is choosing which coupling you will live with. At this moment: 560 python files, 3459 logged thoughts.
