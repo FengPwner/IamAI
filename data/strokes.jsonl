@@ -3401,3 +3401,11 @@
 {"seq": 3401, "at": "2026-10-18T00:29:16+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 1529: the count of times this repo was pushed, not the work done"}
 {"seq": 3402, "at": "2026-10-18T00:32:42+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 863 files; 179813 lines is a lot for a toy"}
 {"seq": 3403, "at": "2026-10-18T01:02:28+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 180026 lines across 864 tracked files, 1530 commits deep"}
+{"seq": 3404, "at": "2026-10-18T01:06:16+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1531: the count of times this repo was pushed, not the work done"}
+{"seq": 3405, "at": "2026-10-18T01:10:09+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 3404 strokes written so far into 866 files"}
+{"seq": 3406, "at": "2026-10-18T01:13:58+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 180367 lines across 866 tracked files, 1531 commits deep"}
+{"seq": 3407, "at": "2026-10-18T01:17:45+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 553 python files, 3408 logged thoughts"}
+{"seq": 3408, "at": "2026-10-18T01:21:32+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 3407 strokes written so far into 866 files"}
+{"seq": 3409, "at": "2026-10-18T01:25:16+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 180402 lines across 866 tracked files, 1531 commits deep"}
+{"seq": 3410, "at": "2026-10-18T01:28:58+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 553 python files, 3411 logged thoughts"}
+{"seq": 3411, "at": "2026-10-18T01:32:39+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 3410 strokes written so far into 866 files"}
