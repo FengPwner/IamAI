@@ -15801,3 +15801,4 @@ round 20588  bloom 100.0%  plants  146/384
 
 - stroke 20594: round 20594  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 20600: round 20600  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 20606: round 20606  bloom 100.0%  plants  146/384, bloom 100.0%
