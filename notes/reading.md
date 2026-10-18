@@ -3437,3 +3437,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 20709
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 3420 strokes written so far into 868 files.
+## stroke 20715
+
+deleting a file is progress too, eventually. At this moment: tree is 868 files; 180855 lines is a lot for a toy.
