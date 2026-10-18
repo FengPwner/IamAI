@@ -3615,3 +3615,15 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 21753
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 3594 strokes written so far into 920 files.
+## stroke 21783
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 589 python files, 3601 logged thoughts.
+## stroke 21807
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1575: the count of times this repo was pushed, not the work done.
+## stroke 21831
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 923 files; 192043 lines is a lot for a toy.
+## stroke 21837
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 192051 lines across 923 tracked files, 1575 commits deep.
