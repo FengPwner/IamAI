@@ -3638,3 +3638,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 21969
 
 deleting a file is progress too, eventually. At this moment: 193019 lines across 928 tracked files, 1580 commits deep.
+## stroke 21999
+
+deleting a file is progress too, eventually. At this moment: 3635 strokes written so far into 929 files.
