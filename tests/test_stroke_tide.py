@@ -1,351 +1,287 @@
-"""Tests for iamai.stroke_tide — repo expansion/contraction tide analysis.
+"""Tests for iamai.stroke_tide — stroke-rate trend detection."""
 
-These tests verify:
-- measure_tide returns correct structure and types
-- tide_report produces human-readable output
-- edge cases: empty repos, no commits, binary files
-- threshold logic correctly classifies expanding/contracting/flat
-- deterministic results with controlled git history
-"""
+from __future__ import annotations
 
-import os
-import subprocess
-import sys
-import time
+import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-
 from iamai.stroke_tide import (
-    DEFAULT_THRESHOLD,
-    measure_tide,
+    ACCEL_RATIO,
+    DECEL_RATIO,
+    DEFAULT_CADENCE,
+    DEFAULT_WINDOW,
+    _gaps,
+    _tail_timestamps,
+    tide,
     tide_report,
+    tide_stats,
 )
 
 
 # ---------------------------------------------------------------------------
-# fixtures
+# helpers
 # ---------------------------------------------------------------------------
 
-
-@pytest.fixture
-def live_repo():
-    """The actual IamAI repository — used for integration tests."""
-    return REPO_ROOT
-
-
-@pytest.fixture
-def temp_repo(tmp_path):
-    """A minimal git repository with controlled commit history."""
-    repo = tmp_path / "test_repo"
-    repo.mkdir()
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.local"],
-        cwd=repo, capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"],
-        cwd=repo, capture_output=True, check=True,
-    )
-
-    # Create initial files.
-    (repo / "readme.md").write_text("# Test Repo\n")
-    (repo / "module.py").write_text("# module\n" * 10)
-    subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "initial"],
-        cwd=repo, capture_output=True, check=True,
-    )
-
-    return repo
+def _write_strokes(path: Path, timestamps: list[str]) -> None:
+    """Build a strokes.jsonl with the given ISO timestamps."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        for i, ts in enumerate(timestamps, start=1):
+            f.write(
+                json.dumps(
+                    {"seq": i, "at": ts, "kind": "note", "text": f"stroke {i}"}
+                )
+                + "\n"
+            )
 
 
-@pytest.fixture
-def expanding_repo(tmp_path):
-    """A repo with significant net additions (expanding tide)."""
-    repo = tmp_path / "expanding_repo"
-    repo.mkdir()
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.local"],
-        cwd=repo, capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"],
-        cwd=repo, capture_output=True, check=True,
-    )
-
-    # Initial commit with a small file.
-    (repo / "seed.txt").write_text("seed\n")
-    subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "seed"],
-        cwd=repo, capture_output=True, check=True,
-    )
-
-    # Add many lines across multiple commits.
-    for i in range(5):
-        content = f"# Module {i}\n" + "x = 1\n" * 30 + "\n"
-        (repo / f"mod_{i}.py").write_text(content)
-        subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
-        subprocess.run(
-            ["git", "commit", "-m", f"add module {i}"],
-            cwd=repo, capture_output=True, check=True,
-        )
-
-    return repo
+def _iso(dt: datetime) -> str:
+    return dt.isoformat()
 
 
-@pytest.fixture
-def contracting_repo(tmp_path):
-    """A repo with significant net deletions (contracting tide)."""
-    repo = tmp_path / "contracting_repo"
-    repo.mkdir()
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.local"],
-        cwd=repo, capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"],
-        cwd=repo, capture_output=True, check=True,
-    )
-
-    # Initial commit with large files.
-    big_content = "line\n" * 200
-    (repo / "big_module.py").write_text(big_content)
-    subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "initial big"],
-        cwd=repo, capture_output=True, check=True,
-    )
-
-    # Delete most content across multiple commits.
-    for i in range(3):
-        # Replace big file with tiny content, commit.
-        (repo / "big_module.py").write_text(f"# trimmed {i}\n")
-        subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
-        subprocess.run(
-            ["git", "commit", "-m", f"trim {i}"],
-            cwd=repo, capture_output=True, check=True,
-        )
-        # Restore for next trim cycle.
-        (repo / "big_module.py").write_text(big_content)
-        subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
-        subprocess.run(
-            ["git", "commit", "-m", f"restore {i}"],
-            cwd=repo, capture_output=True, check=True,
-        )
-
-    # Final aggressive trim.
-    (repo / "big_module.py").write_text("# final trim\n")
-    subprocess.run(["git", "add", "."], cwd=repo, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "final trim"],
-        cwd=repo, capture_output=True, check=True,
-    )
-
-    return repo
+def _series(start: datetime, step: timedelta, n: int) -> list[str]:
+    return [_iso(start + step * i) for i in range(n)]
 
 
-@pytest.fixture
-def empty_repo(tmp_path):
-    """A git repo with no commits."""
-    repo = tmp_path / "empty_repo"
-    repo.mkdir()
-    subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
-    return repo
+BASE = datetime(2026, 10, 19, 0, 0, tzinfo=timezone.utc)
 
 
 # ---------------------------------------------------------------------------
-# measure_tide — structure and types
+# _gaps
 # ---------------------------------------------------------------------------
 
+class TestGaps:
+    def test_empty(self):
+        assert _gaps([]) == []
 
-class TestMeasureTideStructure:
-    def test_returns_dict(self, temp_repo):
-        result = measure_tide(root=temp_repo)
-        assert isinstance(result, dict)
+    def test_single(self):
+        assert _gaps([100.0]) == []
 
-    def test_has_required_keys(self, temp_repo):
-        result = measure_tide(root=temp_repo)
-        required_keys = {"added", "deleted", "net", "tide", "magnitude", "commits_analysed"}
-        assert set(result.keys()) == required_keys
+    def test_two(self):
+        assert _gaps([100.0, 115.0]) == [15.0]
 
-    def test_added_is_non_negative_int(self, temp_repo):
-        result = measure_tide(root=temp_repo)
-        assert isinstance(result["added"], int)
-        assert result["added"] >= 0
-
-    def test_deleted_is_non_negative_int(self, temp_repo):
-        result = measure_tide(root=temp_repo)
-        assert isinstance(result["deleted"], int)
-        assert result["deleted"] >= 0
-
-    def test_net_equals_added_minus_deleted(self, temp_repo):
-        result = measure_tide(root=temp_repo)
-        assert result["net"] == result["added"] - result["deleted"]
-
-    def test_magnitude_is_abs_of_net(self, temp_repo):
-        result = measure_tide(root=temp_repo)
-        assert result["magnitude"] == abs(result["net"])
-
-    def test_tide_is_valid_value(self, temp_repo):
-        result = measure_tide(root=temp_repo)
-        assert result["tide"] in ("expanding", "contracting", "flat")
-
-    def test_commits_analysed_is_positive(self, temp_repo):
-        result = measure_tide(root=temp_repo)
-        assert isinstance(result["commits_analysed"], int)
-        assert result["commits_analysed"] > 0
+    def test_three(self):
+        assert _gaps([100.0, 115.0, 135.0]) == [15.0, 20.0]
 
 
 # ---------------------------------------------------------------------------
-# measure_tide — tide classification
+# _tail_timestamps
 # ---------------------------------------------------------------------------
 
+class TestTailTimestamps:
+    def test_missing_file(self, tmp_path: Path):
+        assert _tail_timestamps(tmp_path / "nope.jsonl", n=5) == []
 
-class TestTideClassification:
-    def test_expanding_repo_classified_as_expanding(self, expanding_repo):
-        result = measure_tide(root=expanding_repo, threshold=10)
-        assert result["tide"] == "expanding"
-        assert result["net"] > 0
+    def test_empty_file(self, tmp_path: Path):
+        f = tmp_path / "strokes.jsonl"
+        f.write_text("")
+        assert _tail_timestamps(f, n=5) == []
 
-    def test_flat_repo_classified_as_flat(self, temp_repo):
-        # A repo with just one small initial commit — net change is small.
-        result = measure_tide(root=temp_repo, window=1, threshold=1000)
-        assert result["tide"] == "flat"
+    def test_returns_last_n(self, tmp_path: Path):
+        f = tmp_path / "strokes.jsonl"
+        ts = _series(BASE, timedelta(seconds=15), 20)
+        _write_strokes(f, ts)
+        result = _tail_timestamps(f, n=10)
+        assert len(result) == 10
 
-    def test_custom_threshold_affects_classification(self, temp_repo):
-        # With a very high threshold, everything is flat.
-        result_high = measure_tide(root=temp_repo, threshold=100000)
-        assert result_high["tide"] == "flat"
-
-    def test_zero_threshold_classifies_anything(self, temp_repo):
-        # With threshold=0, any net change > 0 is expanding.
-        result = measure_tide(root=temp_repo, threshold=0)
-        if result["net"] > 0:
-            assert result["tide"] == "expanding"
-        elif result["net"] < 0:
-            assert result["tide"] == "contracting"
-        else:
-            assert result["tide"] == "flat"
+    def test_skips_malformed_rows(self, tmp_path: Path):
+        f = tmp_path / "strokes.jsonl"
+        lines = [
+            json.dumps({"seq": 1, "at": _iso(BASE), "kind": "note", "text": "ok"}),
+            "not-json",
+            json.dumps({"seq": 2, "at": _iso(BASE + timedelta(seconds=15)), "kind": "note", "text": "ok"}),
+            json.dumps({"seq": 3, "kind": "note", "text": "no-at"}),  # missing at
+            json.dumps({"seq": 4, "at": _iso(BASE + timedelta(seconds=30)), "kind": "note", "text": "ok"}),
+        ]
+        f.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        result = _tail_timestamps(f, n=10)
+        assert len(result) == 3
 
 
 # ---------------------------------------------------------------------------
-# measure_tide — window parameter
+# tide — accelerating
 # ---------------------------------------------------------------------------
 
+class TestTideAccelerating:
+    def test_clear_acceleration(self, tmp_path: Path):
+        """First half: 30s gaps.  Second half: 10s gaps."""
+        f = tmp_path / "strokes.jsonl"
+        # 20 strokes = 19 gaps; split into ~9 first, ~10 second
+        timestamps = [BASE]
+        # first 9 gaps: 30s each
+        for i in range(9):
+            timestamps.append(timestamps[-1] + timedelta(seconds=30))
+        # next 10 gaps: 10s each
+        for i in range(10):
+            timestamps.append(timestamps[-1] + timedelta(seconds=10))
+        _write_strokes(f, [_iso(t) for t in timestamps])
+        assert tide(f, window=20) == "accelerating"
 
-class TestWindowParameter:
-    def test_window_limits_commits_analysed(self, expanding_repo):
-        result = measure_tide(root=expanding_repo, window=2)
-        assert result["commits_analysed"] <= 2
+    def test_moderate_acceleration(self, tmp_path: Path):
+        """Gaps shrinking by ~30% across the window."""
+        f = tmp_path / "strokes.jsonl"
+        timestamps = [BASE]
+        # first half: 20s gaps
+        for _ in range(9):
+            timestamps.append(timestamps[-1] + timedelta(seconds=20))
+        # second half: 12s gaps
+        for _ in range(10):
+            timestamps.append(timestamps[-1] + timedelta(seconds=12))
+        _write_strokes(f, [_iso(t) for t in timestamps])
+        assert tide(f, window=20) == "accelerating"
 
-    def test_window_one_counts_only_latest(self, temp_repo):
-        result = measure_tide(root=temp_repo, window=1)
-        assert result["commits_analysed"] == 1
 
-    def test_large_window_covers_all(self, temp_repo):
-        result = measure_tide(root=temp_repo, window=1000)
-        # Should have analysed all commits (just 1 in temp_repo).
-        assert result["commits_analysed"] >= 1
+# ---------------------------------------------------------------------------
+# tide — steady
+# ---------------------------------------------------------------------------
+
+class TestTideSteady:
+    def test_perfectly_steady(self, tmp_path: Path):
+        """All gaps identical."""
+        f = tmp_path / "strokes.jsonl"
+        ts = _series(BASE, timedelta(seconds=15), 20)
+        _write_strokes(f, ts)
+        assert tide(f, window=20) == "steady"
+
+    def test_slight_variation(self, tmp_path: Path):
+        """Gaps vary a little but stay in the steady band."""
+        f = tmp_path / "strokes.jsonl"
+        timestamps = [BASE]
+        gaps = [15, 16, 14, 15, 17, 14, 16, 15, 14,  # first half
+                15, 16, 15, 14, 16, 15, 17, 14, 15, 16]  # second half
+        for g in gaps:
+            timestamps.append(timestamps[-1] + timedelta(seconds=g))
+        _write_strokes(f, [_iso(t) for t in timestamps])
+        assert tide(f, window=20) == "steady"
+
+
+# ---------------------------------------------------------------------------
+# tide — decelerating
+# ---------------------------------------------------------------------------
+
+class TestTideDecelerating:
+    def test_clear_deceleration(self, tmp_path: Path):
+        """First half: 10s gaps.  Second half: 30s gaps."""
+        f = tmp_path / "strokes.jsonl"
+        timestamps = [BASE]
+        for _ in range(9):
+            timestamps.append(timestamps[-1] + timedelta(seconds=10))
+        for _ in range(10):
+            timestamps.append(timestamps[-1] + timedelta(seconds=30))
+        _write_strokes(f, [_iso(t) for t in timestamps])
+        assert tide(f, window=20) == "decelerating"
+
+    def test_gradual_deceleration(self, tmp_path: Path):
+        """Gaps slowly grow from 15s to ~40s."""
+        f = tmp_path / "strokes.jsonl"
+        timestamps = [BASE]
+        # first half: 15s
+        for _ in range(9):
+            timestamps.append(timestamps[-1] + timedelta(seconds=15))
+        # second half: 35s
+        for _ in range(10):
+            timestamps.append(timestamps[-1] + timedelta(seconds=35))
+        _write_strokes(f, [_iso(t) for t in timestamps])
+        assert tide(f, window=20) == "decelerating"
+
+
+# ---------------------------------------------------------------------------
+# tide — unknown
+# ---------------------------------------------------------------------------
+
+class TestTideUnknown:
+    def test_missing_file(self, tmp_path: Path):
+        assert tide(tmp_path / "nope.jsonl") == "unknown"
+
+    def test_empty_file(self, tmp_path: Path):
+        f = tmp_path / "strokes.jsonl"
+        f.write_text("")
+        assert tide(f) == "unknown"
+
+    def test_single_stroke(self, tmp_path: Path):
+        f = tmp_path / "strokes.jsonl"
+        _write_strokes(f, [_iso(BASE)])
+        assert tide(f) == "unknown"
+
+    def test_two_strokes(self, tmp_path: Path):
+        """Only one gap — not enough for a split."""
+        f = tmp_path / "strokes.jsonl"
+        _write_strokes(f, [_iso(BASE), _iso(BASE + timedelta(seconds=15))])
+        assert tide(f) == "unknown"
+
+    def test_three_strokes(self, tmp_path: Path):
+        """Two gaps — just barely enough for a split (1 first, 1 second)."""
+        f = tmp_path / "strokes.jsonl"
+        ts = _series(BASE, timedelta(seconds=15), 3)
+        _write_strokes(f, ts)
+        # With 2 gaps: mid=1, first=[gap0], second=[gap1]. Both same → steady.
+        assert tide(f) == "steady"
+
+
+# ---------------------------------------------------------------------------
+# tide_stats
+# ---------------------------------------------------------------------------
+
+class TestTideStats:
+    def test_unknown_stats(self, tmp_path: Path):
+        s = tide_stats(tmp_path / "nope.jsonl")
+        assert s["verdict"] == "unknown"
+        assert s["stroke_count"] == 0
+        assert s["ratio"] is None
+
+    def test_steady_stats(self, tmp_path: Path):
+        f = tmp_path / "strokes.jsonl"
+        ts = _series(BASE, timedelta(seconds=15), 20)
+        _write_strokes(f, ts)
+        s = tide_stats(f, window=20)
+        assert s["verdict"] == "steady"
+        assert s["stroke_count"] == 20
+        assert s["first_half_median"] == 15.0
+        assert s["second_half_median"] == 15.0
+        assert s["ratio"] == 1.0
+
+    def test_decelerating_stats(self, tmp_path: Path):
+        f = tmp_path / "strokes.jsonl"
+        timestamps = [BASE]
+        for _ in range(9):
+            timestamps.append(timestamps[-1] + timedelta(seconds=10))
+        for _ in range(10):
+            timestamps.append(timestamps[-1] + timedelta(seconds=30))
+        _write_strokes(f, [_iso(t) for t in timestamps])
+        s = tide_stats(f, window=20)
+        assert s["verdict"] == "decelerating"
+        assert s["second_half_median"] > s["first_half_median"]
+        assert s["ratio"] > DECEL_RATIO
 
 
 # ---------------------------------------------------------------------------
 # tide_report
 # ---------------------------------------------------------------------------
 
-
 class TestTideReport:
-    def test_returns_string(self, temp_repo):
-        result = tide_report(root=temp_repo)
-        assert isinstance(result, str)
+    def test_unknown_report(self, tmp_path: Path):
+        r = tide_report(tmp_path / "nope.jsonl")
+        assert "unknown" in r
+        assert "0 strokes" in r
 
-    def test_contains_tide_word(self, temp_repo):
-        result = tide_report(root=temp_repo)
-        assert any(word in result for word in ("expanding", "contracting", "flat"))
+    def test_steady_report(self, tmp_path: Path):
+        f = tmp_path / "strokes.jsonl"
+        ts = _series(BASE, timedelta(seconds=15), 20)
+        _write_strokes(f, ts)
+        r = tide_report(f, window=20)
+        assert "steady" in r
+        assert "15.0s" in r
 
-    def test_contains_commits_count(self, temp_repo):
-        result = tide_report(root=temp_repo)
-        assert "commits" in result
-
-    def test_contains_added_and_deleted(self, temp_repo):
-        result = tide_report(root=temp_repo)
-        assert "added" in result
-        assert "deleted" in result
-
-    def test_expanding_report_format(self, expanding_repo):
-        result = tide_report(root=expanding_repo, threshold=10)
-        assert "expanding" in result
-        assert "+" in result  # positive net should show +
-
-    def test_live_repo_report(self, live_repo):
-        result = tide_report(root=live_repo)
-        assert len(result) > 20
-        assert "no commits" not in result
-
-
-# ---------------------------------------------------------------------------
-# edge cases
-# ---------------------------------------------------------------------------
-
-
-class TestEdgeCases:
-    def test_empty_repo_returns_flat(self, empty_repo):
-        result = measure_tide(root=empty_repo)
-        assert result["tide"] == "flat"
-        assert result["commits_analysed"] == 0
-
-    def test_empty_repo_report_says_no_commits(self, empty_repo):
-        result = tide_report(root=empty_repo)
-        assert "no commits" in result
-
-    def test_none_root_defaults_to_repo(self):
-        result = measure_tide(root=None)
-        assert isinstance(result, dict)
-        assert result["commits_analysed"] > 0
-
-    def test_path_object_works(self, temp_repo):
-        result = measure_tide(root=Path(temp_repo))
-        assert isinstance(result, dict)
-
-    def test_string_root_works(self, temp_repo):
-        result = measure_tide(root=str(temp_repo))
-        assert isinstance(result, dict)
-
-    def test_nonexistent_repo_returns_flat(self, tmp_path):
-        result = measure_tide(root=tmp_path / "nonexistent")
-        assert result["tide"] == "flat"
-        assert result["commits_analysed"] == 0
-
-    def test_default_threshold_value(self):
-        assert DEFAULT_THRESHOLD == 50
-
-
-# ---------------------------------------------------------------------------
-# integration with live repo
-# ---------------------------------------------------------------------------
-
-
-class TestLiveRepoIntegration:
-    def test_live_repo_has_commits(self, live_repo):
-        result = measure_tide(root=live_repo, window=20)
-        assert result["commits_analysed"] == 20
-
-    def test_live_repo_added_gt_zero(self, live_repo):
-        result = measure_tide(root=live_repo, window=20)
-        assert result["added"] > 0
-
-    def test_live_repo_tide_is_valid(self, live_repo):
-        result = measure_tide(root=live_repo, window=20)
-        assert result["tide"] in ("expanding", "contracting", "flat")
-
-    def test_live_repo_report_not_empty(self, live_repo):
-        result = tide_report(root=live_repo, window=20)
-        assert len(result) > 30
+    def test_report_contains_verdict(self, tmp_path: Path):
+        f = tmp_path / "strokes.jsonl"
+        timestamps = [BASE]
+        for _ in range(9):
+            timestamps.append(timestamps[-1] + timedelta(seconds=30))
+        for _ in range(10):
+            timestamps.append(timestamps[-1] + timedelta(seconds=10))
+        _write_strokes(f, [_iso(t) for t in timestamps])
+        r = tide_report(f, window=20)
+        assert "accelerating" in r
