@@ -3617,3 +3617,12 @@
 {"seq": 3617, "at": "2026-10-18T22:29:48+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 925 files; 192478 lines is a lot for a toy"}
 {"seq": 3618, "at": "2026-10-18T22:33:08+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 192486 lines across 925 tracked files, 1577 commits deep"}
 {"seq": 3619, "at": "2026-10-18T23:02:45+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1578: the count of times this repo was pushed, not the work done"}
+{"seq": 3620, "at": "2026-10-18T23:06:06+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 928 files; 192949 lines is a lot for a toy"}
+{"seq": 3621, "at": "2026-10-18T23:09:24+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 192968 lines across 928 tracked files, 1579 commits deep"}
+{"seq": 3622, "at": "2026-10-18T23:12:43+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1579: the count of times this repo was pushed, not the work done"}
+{"seq": 3623, "at": "2026-10-18T23:16:08+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 3622 strokes written so far into 928 files"}
+{"seq": 3624, "at": "2026-10-18T23:19:24+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 192992 lines across 928 tracked files, 1579 commits deep"}
+{"seq": 3625, "at": "2026-10-18T23:22:37+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 593 python files, 3626 logged thoughts"}
+{"seq": 3626, "at": "2026-10-18T23:25:54+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 3625 strokes written so far into 928 files"}
+{"seq": 3627, "at": "2026-10-18T23:29:01+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 193027 lines across 928 tracked files, 1579 commits deep"}
+{"seq": 3628, "at": "2026-10-18T23:32:17+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 593 python files, 3629 logged thoughts"}
