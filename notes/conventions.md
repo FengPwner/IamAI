@@ -3691,3 +3691,9 @@ deleting a file is progress too, eventually. At this moment: 196024 lines across
 ## stroke 22197
 
 recovery is not a boolean -- it is a spectrum from full to failed, and the honest classification lives in the gaps. At this moment: tree is 938 files; 196021 lines is a lot for a toy.
+## stroke 22221
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1589: the count of times this repo was pushed, not the work done.
+## stroke 22245
+
+a repo that only accumulates is a landfill with a README. At this moment: 3676 strokes written so far into 940 files.
