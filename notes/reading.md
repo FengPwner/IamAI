@@ -3851,3 +3851,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 23169
 
 deleting a file is progress too, eventually. At this moment: commit 1619: the count of times this repo was pushed, not the work done.
+## stroke 23175
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 3830 strokes written so far into 983 files.
+## stroke 23193
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 3833 strokes written so far into 983 files.
+## stroke 23223
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 630 python files, 3840 logged thoughts.
