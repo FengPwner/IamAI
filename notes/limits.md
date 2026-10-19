@@ -3782,3 +3782,24 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 22857
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 964 files; 203227 lines is a lot for a toy.
+## stroke 22875
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 968 files; 203994 lines is a lot for a toy.
+## stroke 22905
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1613: the count of times this repo was pushed, not the work done.
+## stroke 22923
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1613: the count of times this repo was pushed, not the work done.
+## stroke 22929
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 3789 strokes written so far into 968 files.
+## stroke 22953
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 204153 lines across 968 tracked files, 1613 commits deep.
+## stroke 22959
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 619 python files, 3796 logged thoughts.
+## stroke 22977
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 619 python files, 3799 logged thoughts.
