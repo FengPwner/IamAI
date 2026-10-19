@@ -3657,3 +3657,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 22017
 
 most architecture is choosing which coupling you will live with. At this moment: 3638 strokes written so far into 929 files.
+## stroke 22035
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 3641 strokes written so far into 929 files.
