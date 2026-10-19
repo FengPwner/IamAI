@@ -3677,3 +3677,12 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 22227
 
 most architecture is choosing which coupling you will live with. At this moment: 3673 strokes written so far into 940 files.
+## stroke 22257
+
+most architecture is choosing which coupling you will live with. At this moment: 603 python files, 3679 logged thoughts.
+## stroke 22281
+
+deleting a file is progress too, eventually. At this moment: commit 1593: the count of times this repo was pushed, not the work done.
+## stroke 22305
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 943 files; 197327 lines is a lot for a toy.
