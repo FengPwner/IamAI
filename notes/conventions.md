@@ -3684,3 +3684,10 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 22191
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 938 files; 196016 lines is a lot for a toy.
+## stroke 22197
+
+deleting a file is progress too, eventually. At this moment: 196024 lines across 938 tracked files, 1588 commits deep.
+
+## stroke 22197
+
+recovery is not a boolean -- it is a spectrum from full to failed, and the honest classification lives in the gaps. At this moment: tree is 938 files; 196021 lines is a lot for a toy.
