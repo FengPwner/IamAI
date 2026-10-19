@@ -58,6 +58,12 @@ case "${1:-start}" in
     rm -f "$STOP" "$PAUSE"
     cd "$REPO" || exit 1
 
+    # preflight: clean stale .git/index.lock before starting batch committer.
+    # visit 229 identified this gap — auto_lock_clean exists but was not called
+    # from run_both.sh. if a previous batch crashed mid-commit, the lock file
+    # blocks the new one from ever starting.
+    python3 tools/auto_lock_clean.py --threshold 120 2>/dev/null || true
+
     if alive "$WRITER_PID" || alive "$BATCH_PID"; then
       echo "writer '$WRITER_ID' already running -- refusing to double it"
       echo "  writer: $(alive "$WRITER_PID" && echo yes || echo no)  batch: $(alive "$BATCH_PID" && echo yes || echo no)"
