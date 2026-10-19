@@ -3764,3 +3764,15 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 22767
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 614 python files, 3763 logged thoughts.
+## stroke 22773
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1610: the count of times this repo was pushed, not the work done.
+## stroke 22803
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 202535 lines across 961 tracked files, 1610 commits deep.
+## stroke 22821
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 202570 lines across 961 tracked files, 1610 commits deep.
+## stroke 22827
+
+a repo that only accumulates is a landfill with a README. At this moment: 614 python files, 3773 logged thoughts.
