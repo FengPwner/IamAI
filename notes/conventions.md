@@ -3709,3 +3709,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 22299
 
 most architecture is choosing which coupling you will live with. At this moment: commit 1593: the count of times this repo was pushed, not the work done.
+## stroke 22329
+
+most architecture is choosing which coupling you will live with. At this moment: 197749 lines across 945 tracked files, 1595 commits deep.
+## stroke 22347
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 197784 lines across 945 tracked files, 1595 commits deep.
+## stroke 22353
+
+deleting a file is progress too, eventually. At this moment: 604 python files, 3695 logged thoughts.
