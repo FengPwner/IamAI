@@ -3776,3 +3776,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 22707
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 201589 lines across 958 tracked files, 1607 commits deep.
+## stroke 22725
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 202387 lines across 961 tracked files, 1609 commits deep.
+## stroke 22731
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 614 python files, 3757 logged thoughts.
+## stroke 22755
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 1609: the count of times this repo was pushed, not the work done.

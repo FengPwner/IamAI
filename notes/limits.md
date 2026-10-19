@@ -3755,3 +3755,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 22701
 
 a repo that only accumulates is a landfill with a README. At this moment: 3750 strokes written so far into 958 files.
+## stroke 22719
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 3753 strokes written so far into 958 files.
+## stroke 22749
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 614 python files, 3760 logged thoughts.
+## stroke 22767
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 614 python files, 3763 logged thoughts.
