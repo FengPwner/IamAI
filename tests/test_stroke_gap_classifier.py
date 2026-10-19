@@ -1,252 +1,334 @@
-"""Tests for iamai.stroke_gap_classifier.
+#!/usr/bin/env python3
+"""Tests for tools/stroke_gap_classifier.py — inter-stroke gap classification."""
 
-Covers: classify(), worst_band(), StrokeGapHistogram (record, counts,
-total, worst, summarize, reset), edge cases, and error handling.
-"""
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
-from iamai.stroke_gap_classifier import (
-    BAND_ORDER,
-    StrokeGapHistogram,
-    classify,
-    worst_band,
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "tools"))
+
+from stroke_gap_classifier import (
+    DEGRADED_MULT,
+    DEAD_MULT,
+    STALL_MULT,
+    GapReport,
+    analyze,
+    classify_gap,
+    exit_code,
+    format_text,
+    parse_iso,
+    read_last_stroke,
+    run,
 )
 
 
-# ── classify() ────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# parse_iso
+# ---------------------------------------------------------------------------
 
 
-class TestClassify:
-    """classify() pure-function tests with default 15 s cadence."""
+class TestParseIso:
+    def test_utc_z_suffix(self) -> None:
+        epoch = parse_iso("2026-10-19T05:33:04Z")
+        assert isinstance(epoch, float)
+        assert epoch > 0
 
-    def test_zero_gap_is_normal(self):
-        assert classify(0) == "normal"
+    def test_utc_offset(self) -> None:
+        epoch = parse_iso("2026-10-19T05:33:04+00:00")
+        assert isinstance(epoch, float)
 
-    def test_small_gap_is_normal(self):
-        assert classify(10) == "normal"
-        assert classify(14.9) == "normal"
-        assert classify(29.9) == "normal"  # < 2× cadence
+    def test_positive_offset(self) -> None:
+        epoch = parse_iso("2026-10-19T13:33:04+08:00")
+        assert isinstance(epoch, float)
 
-    def test_exactly_2x_is_stretched(self):
-        assert classify(30.0) == "stretched"
+    def test_z_and_offset_agree(self) -> None:
+        z = parse_iso("2026-10-19T05:33:04Z")
+        off = parse_iso("2026-10-19T05:33:04+00:00")
+        assert abs(z - off) < 1.0
 
-    def test_stretched_range(self):
-        assert classify(35) == "stretched"
-        assert classify(50) == "stretched"
-        assert classify(74.9) == "stretched"  # < 5× cadence
-
-    def test_exactly_5x_is_micro_stall(self):
-        assert classify(75.0) == "micro_stall"
-
-    def test_micro_stall_range(self):
-        assert classify(80) == "micro_stall"
-        assert classify(200) == "micro_stall"
-        assert classify(449.9) == "micro_stall"  # < 30× cadence
-
-    def test_exactly_30x_is_stall(self):
-        assert classify(450.0) == "stall"
-
-    def test_stall_range(self):
-        assert classify(500) == "stall"
-        assert classify(1000) == "stall"
-        assert classify(1799.9) == "stall"  # < 120× cadence
-
-    def test_exactly_120x_is_reclaimed(self):
-        assert classify(1800.0) == "reclaimed"
-
-    def test_large_gap_is_reclaimed(self):
-        assert classify(2700) == "reclaimed"
-        assert classify(3600) == "reclaimed"
-        assert classify(86400) == "reclaimed"
-
-    def test_negative_gap_raises(self):
-        with pytest.raises(ValueError, match="gap_s must be >= 0"):
-            classify(-1)
-
-    def test_zero_cadence_raises(self):
-        with pytest.raises(ValueError, match="cadence_s must be > 0"):
-            classify(15, cadence_s=0)
-
-    def test_negative_cadence_raises(self):
-        with pytest.raises(ValueError, match="cadence_s must be > 0"):
-            classify(15, cadence_s=-5)
-
-    def test_custom_cadence_30s(self):
-        """With a 30 s cadence, 45 s gap should be normal (< 2× = 60 s)."""
-        assert classify(45, cadence_s=30) == "normal"
-        assert classify(60, cadence_s=30) == "stretched"
-        assert classify(150, cadence_s=30) == "micro_stall"  # 5× = 150
-
-    def test_custom_cadence_60s(self):
-        """With a 60 s cadence, 3599 s should be stall (< 120× = 7200 s)."""
-        assert classify(3599, cadence_s=60) == "stall"
-        assert classify(7200, cadence_s=60) == "reclaimed"
+    def test_whitespace_stripped(self) -> None:
+        epoch = parse_iso("  2026-10-19T05:33:04Z  ")
+        assert epoch > 0
 
 
-# ── worst_band() ──────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# classify_gap
+# ---------------------------------------------------------------------------
 
 
-class TestWorstBand:
-    def test_empty_list_returns_normal(self):
-        assert worst_band([]) == "normal"
+class TestClassifyGap:
+    def test_zero_gap_is_healthy(self) -> None:
+        assert classify_gap(0, cadence=15) == "healthy"
 
-    def test_all_normal(self):
-        assert worst_band([10, 15, 20]) == "normal"
+    def test_exactly_cadence_is_healthy(self) -> None:
+        assert classify_gap(15, cadence=15) == "healthy"
 
-    def test_mixed_returns_worst(self):
-        assert worst_band([10, 80, 3600]) == "reclaimed"
+    def test_exactly_2x_is_healthy(self) -> None:
+        assert classify_gap(30, cadence=15) == "healthy"
 
-    def test_single_stretch(self):
-        assert worst_band([45]) == "stretched"
+    def test_just_over_2x_is_degraded(self) -> None:
+        assert classify_gap(31, cadence=15) == "degraded"
 
-    def test_custom_cadence(self):
-        # 500/60 ≈ 8.3× → micro_stall; need 1800+ for stall at 60s cadence
-        assert worst_band([100, 200, 500], cadence_s=60) == "micro_stall"
-        assert worst_band([1800], cadence_s=60) == "stall"
+    def test_exactly_5x_is_degraded(self) -> None:
+        assert classify_gap(75, cadence=15) == "degraded"
 
+    def test_just_over_5x_is_stalled(self) -> None:
+        assert classify_gap(76, cadence=15) == "stalled"
 
-# ── StrokeGapHistogram ───────────────────────────────────────────────
+    def test_exactly_20x_is_stalled(self) -> None:
+        assert classify_gap(300, cadence=15) == "stalled"
 
+    def test_just_over_20x_is_dead(self) -> None:
+        assert classify_gap(301, cadence=15) == "dead"
 
-class TestStrokeGapHistogram:
-    def test_empty_histogram(self):
-        h = StrokeGapHistogram()
-        assert h.total == 0
-        assert h.worst == "normal"
-        assert h.counts() == {b: 0 for b in BAND_ORDER}
+    def test_very_large_gap_is_dead(self) -> None:
+        assert classify_gap(99999, cadence=15) == "dead"
 
-    def test_record_returns_band(self):
-        h = StrokeGapHistogram()
-        assert h.record(15) == "normal"
-        assert h.record(80) == "micro_stall"
+    def test_custom_cadence(self) -> None:
+        # 60s cadence: healthy up to 120s, degraded up to 300s
+        assert classify_gap(60, cadence=60) == "healthy"
+        assert classify_gap(121, cadence=60) == "degraded"
+        assert classify_gap(301, cadence=60) == "stalled"
+        assert classify_gap(1201, cadence=60) == "dead"
 
-    def test_total_increments(self):
-        h = StrokeGapHistogram()
-        h.record(10)
-        h.record(10)
-        h.record(10)
-        assert h.total == 3
+    def test_zero_cadence_raises(self) -> None:
+        with pytest.raises(ValueError, match="positive"):
+            classify_gap(10, cadence=0)
 
-    def test_counts_accumulate(self):
-        h = StrokeGapHistogram()
-        h.record(10)   # normal
-        h.record(12)   # normal
-        h.record(35)   # stretched
-        h.record(80)   # micro_stall
-        h.record(500)  # stall
-        h.record(3600) # reclaimed
-        counts = h.counts()
-        assert counts["normal"] == 2
-        assert counts["stretched"] == 1
-        assert counts["micro_stall"] == 1
-        assert counts["stall"] == 1
-        assert counts["reclaimed"] == 1
-
-    def test_counts_returns_copy(self):
-        """Mutating the returned dict must not affect the histogram."""
-        h = StrokeGapHistogram()
-        h.record(10)
-        c = h.counts()
-        c["normal"] = 999
-        assert h.counts()["normal"] == 1
-
-    def test_worst_tracks_highest_severity(self):
-        h = StrokeGapHistogram()
-        h.record(10)
-        assert h.worst == "normal"
-        h.record(80)
-        assert h.worst == "micro_stall"
-        h.record(3600)
-        assert h.worst == "reclaimed"
-        # Adding a normal doesn't lower it
-        h.record(10)
-        assert h.worst == "reclaimed"
-
-    def test_max_gap(self):
-        h = StrokeGapHistogram()
-        h.record(10)
-        h.record(500)
-        h.record(200)
-        assert h._max_gap == 500
-
-    def test_min_gap(self):
-        h = StrokeGapHistogram()
-        h.record(500)
-        h.record(10)
-        h.record(200)
-        assert h._min_gap == 10
-
-    def test_summarize_empty(self):
-        h = StrokeGapHistogram()
-        s = h.summarize()
-        assert s["total"] == 0
-        assert s["worst"] == "normal"
-        assert s["mean_gap_s"] is None
-        assert s["max_gap_s"] == 0.0
-
-    def test_summarize_with_data(self):
-        h = StrokeGapHistogram(cadence_s=15)
-        h.record(10)
-        h.record(20)
-        h.record(30)
-        s = h.summarize()
-        assert s["total"] == 3
-        assert s["cadence_s"] == 15
-        assert s["mean_gap_s"] == 20.0
-        assert s["max_gap_s"] == 30.0
-        assert s["min_gap_s"] == 10.0
-        assert s["worst"] == "stretched"
-        assert isinstance(s["bands"], dict)
-
-    def test_summarize_mean_rounded(self):
-        h = StrokeGapHistogram()
-        h.record(10)
-        h.record(11)
-        h.record(12)
-        assert h.summarize()["mean_gap_s"] == 11.0
-
-    def test_reset_clears_everything(self):
-        h = StrokeGapHistogram()
-        h.record(10)
-        h.record(3600)
-        h.record(80)
-        h.reset()
-        assert h.total == 0
-        assert h.worst == "normal"
-        assert h._max_gap == 0.0
-        assert h._min_gap is None
-        assert all(v == 0 for v in h.counts().values())
-
-    def test_record_after_reset_works(self):
-        h = StrokeGapHistogram()
-        h.record(10)
-        h.reset()
-        h.record(80)
-        assert h.total == 1
-        assert h.counts()["micro_stall"] == 1
-
-    def test_negative_gap_raises(self):
-        h = StrokeGapHistogram()
-        with pytest.raises(ValueError):
-            h.record(-5)
-
-    def test_custom_cadence(self):
-        """With 30 s cadence, a 45 s gap should be normal."""
-        h = StrokeGapHistogram(cadence_s=30)
-        band = h.record(45)
-        assert band == "normal"
-        assert h.summarize()["cadence_s"] == 30
+    def test_negative_cadence_raises(self) -> None:
+        with pytest.raises(ValueError, match="positive"):
+            classify_gap(10, cadence=-5)
 
 
-# ── BAND_ORDER ────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# read_last_stroke
+# ---------------------------------------------------------------------------
 
 
-class TestBandOrder:
-    def test_order_is_ascending_severity(self):
-        assert BAND_ORDER == ["normal", "stretched", "micro_stall", "stall", "reclaimed"]
+class TestReadLastStroke:
+    def test_reads_last_line(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text(
+            '{"seq":1,"at":"2026-01-01T00:00:00Z"}\n'
+            '{"seq":2,"at":"2026-01-01T00:00:15Z"}\n'
+        )
+        last = read_last_stroke(f)
+        assert last["seq"] == 2
 
-    def test_all_bands_covered(self):
-        """Every band in the order should be reachable by classify()."""
-        test_gaps = [10, 35, 80, 500, 3600]
-        bands = [classify(g) for g in test_gaps]
-        assert set(bands) == set(BAND_ORDER)
+    def test_skips_blank_lines(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text(
+            '{"seq":1,"at":"2026-01-01T00:00:00Z"}\n\n\n'
+            '{"seq":99,"at":"2026-01-01T01:00:00Z"}\n'
+        )
+        last = read_last_stroke(f)
+        assert last["seq"] == 99
+
+    def test_skips_malformed_lines(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text(
+            "not json at all\n"
+            '{"seq":5,"at":"2026-01-01T00:05:00Z"}\n'
+            "{bad json\n"
+        )
+        last = read_last_stroke(f)
+        assert last["seq"] == 5
+
+    def test_missing_file_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(FileNotFoundError):
+            read_last_stroke(tmp_path / "nope.jsonl")
+
+    def test_empty_file_raises(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text("")
+        with pytest.raises(ValueError, match="empty"):
+            read_last_stroke(f)
+
+    def test_all_bad_json_raises(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text("not json\nstill not json\n")
+        with pytest.raises(ValueError, match="empty"):
+            read_last_stroke(f)
+
+
+# ---------------------------------------------------------------------------
+# analyze (integration with tmp strokes)
+# ---------------------------------------------------------------------------
+
+
+class TestAnalyze:
+    def test_healthy_gap(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text('{"seq":100,"at":"2026-10-19T06:00:00Z"}\n')
+        # "now" is 10 seconds later — well within 2× 15s cadence
+        report = analyze(f, cadence=15, now=parse_iso("2026-10-19T06:00:10Z"))
+        assert report.band == "healthy"
+        assert report.last_seq == 100
+
+    def test_degraded_gap(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text('{"seq":200,"at":"2026-10-19T06:00:00Z"}\n')
+        # 40s gap at 15s cadence = ~2.67× → degraded
+        report = analyze(f, cadence=15, now=parse_iso("2026-10-19T06:00:40Z"))
+        assert report.band == "degraded"
+
+    def test_stalled_gap(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text('{"seq":300,"at":"2026-10-19T06:00:00Z"}\n')
+        # 200s gap at 15s cadence = ~13.3× → stalled
+        report = analyze(f, cadence=15, now=parse_iso("2026-10-19T06:03:20Z"))
+        assert report.band == "stalled"
+
+    def test_dead_gap(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text('{"seq":400,"at":"2026-10-19T06:00:00Z"}\n')
+        # 600s gap at 15s cadence = 40× → dead
+        report = analyze(f, cadence=15, now=parse_iso("2026-10-19T06:10:00Z"))
+        assert report.band == "dead"
+
+    def test_gap_ratio_calculation(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text('{"seq":500,"at":"2026-10-19T06:00:00Z"}\n')
+        # 45s gap / 15s cadence = 3.0×
+        report = analyze(f, cadence=15, now=parse_iso("2026-10-19T06:00:45Z"))
+        assert abs(report.gap_ratio - 3.0) < 0.01
+
+    def test_missing_at_field_raises(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text('{"seq":1,"no_at_field":true}\n')
+        with pytest.raises(ValueError, match="at"):
+            analyze(f, cadence=15, now=parse_iso("2026-10-19T06:00:00Z"))
+
+    def test_report_has_required_fields(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text('{"seq":42,"at":"2026-10-19T06:00:00Z"}\n')
+        report = analyze(f, cadence=15, now=parse_iso("2026-10-19T06:00:30Z"))
+        d = report.to_dict()
+        for key in ("last_seq", "last_at", "last_epoch", "now_epoch",
+                     "gap_seconds", "cadence", "band", "gap_ratio"):
+            assert key in d
+
+
+# ---------------------------------------------------------------------------
+# exit_code
+# ---------------------------------------------------------------------------
+
+
+class TestExitCode:
+    def test_healthy_returns_zero(self) -> None:
+        r = GapReport(1, "", 0, 10, 10, 15, "healthy", 0.67)
+        assert exit_code(r) == 0
+
+    def test_degraded_returns_zero(self) -> None:
+        r = GapReport(1, "", 0, 40, 40, 15, "degraded", 2.67)
+        assert exit_code(r) == 0
+
+    def test_stalled_returns_one(self) -> None:
+        r = GapReport(1, "", 0, 100, 100, 15, "stalled", 6.67)
+        assert exit_code(r) == 1
+
+    def test_dead_returns_one(self) -> None:
+        r = GapReport(1, "", 0, 9999, 9999, 15, "dead", 666.6)
+        assert exit_code(r) == 1
+
+
+# ---------------------------------------------------------------------------
+# format_text
+# ---------------------------------------------------------------------------
+
+
+class TestFormatText:
+    def test_contains_band(self) -> None:
+        r = GapReport(42, "2026-10-19T06:00:00Z", 0, 10, 10, 15, "healthy", 0.67)
+        text = format_text(r)
+        assert "healthy" in text
+
+    def test_contains_seq(self) -> None:
+        r = GapReport(42, "2026-10-19T06:00:00Z", 0, 10, 10, 15, "healthy", 0.67)
+        assert "seq=42" in format_text(r)
+
+    def test_contains_cadence(self) -> None:
+        r = GapReport(1, "", 0, 10, 10, 30, "healthy", 0.33)
+        assert "30s" in format_text(r)
+
+
+# ---------------------------------------------------------------------------
+# CLI (subprocess)
+# ---------------------------------------------------------------------------
+
+
+class TestCLI:
+    def test_json_output(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text('{"seq":1,"at":"2026-10-19T06:00:00Z"}\n')
+        result = subprocess.run(
+            [sys.executable, str(REPO / "tools" / "stroke_gap_classifier.py"),
+             "--strokes", str(f), "--json"],
+            capture_output=True, text=True, timeout=10,
+        )
+        assert result.returncode in (0, 1)
+        data = json.loads(result.stdout)
+        assert "band" in data
+
+    def test_text_output(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text('{"seq":1,"at":"2026-10-19T06:00:00Z"}\n')
+        result = subprocess.run(
+            [sys.executable, str(REPO / "tools" / "stroke_gap_classifier.py"),
+             "--strokes", str(f)],
+            capture_output=True, text=True, timeout=10,
+        )
+        assert result.returncode in (0, 1)
+        assert "healthy" in result.stdout or "degraded" in result.stdout or \
+               "stalled" in result.stdout or "dead" in result.stdout
+
+    def test_missing_file_exits_2(self, tmp_path: Path) -> None:
+        result = subprocess.run(
+            [sys.executable, str(REPO / "tools" / "stroke_gap_classifier.py"),
+             "--strokes", str(tmp_path / "nope.jsonl")],
+            capture_output=True, text=True, timeout=10,
+        )
+        assert result.returncode == 2
+
+    def test_custom_cadence(self, tmp_path: Path) -> None:
+        f = tmp_path / "strokes.jsonl"
+        f.write_text('{"seq":1,"at":"2026-10-19T06:00:00Z"}\n')
+        # 60s gap with 60s cadence → 1.0× → healthy
+        result = subprocess.run(
+            [sys.executable, str(REPO / "tools" / "stroke_gap_classifier.py"),
+             "--strokes", str(f), "--cadence", "60", "--json"],
+            capture_output=True, text=True, timeout=10,
+            env={**__import__("os").environ, "SOURCE_DATE_EPOCH": str(
+                int(parse_iso("2026-10-19T06:01:00Z"))
+            )},
+        )
+        # Can't control "now" via CLI, but at least verify it runs
+        assert result.returncode in (0, 1)
+
+
+# ---------------------------------------------------------------------------
+# Boundary conditions
+# ---------------------------------------------------------------------------
+
+
+class TestBoundaries:
+    """Verify exact multiplier thresholds."""
+
+    @pytest.mark.parametrize("gap,cadence,expected", [
+        (15 * DEGRADED_MULT, 15, "healthy"),        # exactly at boundary
+        (15 * DEGRADED_MULT + 0.01, 15, "degraded"), # just over
+        (15 * STALL_MULT, 15, "degraded"),           # exactly at boundary
+        (15 * STALL_MULT + 0.01, 15, "stalled"),     # just over
+        (15 * DEAD_MULT, 15, "stalled"),             # exactly at boundary
+        (15 * DEAD_MULT + 0.01, 15, "dead"),         # just over
+    ])
+    def test_threshold_boundaries(
+        self, gap: float, cadence: float, expected: str
+    ) -> None:
+        assert classify_gap(gap, cadence) == expected
