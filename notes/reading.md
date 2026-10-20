@@ -3947,3 +3947,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 23745
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 3925 strokes written so far into 1011 files.
+## stroke 23763
+
+deleting a file is progress too, eventually. At this moment: 3928 strokes written so far into 1011 files.
