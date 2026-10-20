@@ -4035,3 +4035,4 @@
 {"seq": 4035, "at": "2026-10-20T20:21:02+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1041 files; 220198 lines is a lot for a toy"}
 {"seq": 4036, "at": "2026-10-20T20:23:56+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 220217 lines across 1041 tracked files, 1669 commits deep"}
 {"seq": 4037, "at": "2026-10-20T20:26:44+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1669: the count of times this repo was pushed, not the work done"}
+{"seq": 4038, "at": "2026-10-20T21:01:27+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 4037 strokes written so far into 1041 files"}
