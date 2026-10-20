@@ -4087,3 +4087,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 24519
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 4056 strokes written so far into 1047 files.
+## stroke 24525
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1047 files; 221488 lines is a lot for a toy.
