@@ -4009,3 +4009,12 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 24111
 
 a repo that only accumulates is a landfill with a README. At this moment: 217481 lines across 1029 tracked files, 1661 commits deep.
+## stroke 24135
+
+most architecture is choosing which coupling you will live with. At this moment: 661 python files, 3993 logged thoughts.
+## stroke 24159
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 3995 strokes written so far into 1032 files.
+## stroke 24165
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 1032 files; 218139 lines is a lot for a toy.
