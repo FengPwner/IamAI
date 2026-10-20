@@ -4030,3 +4030,12 @@ cadence is real or just statistically convenient.
 25 tests, all passing. the hard part was picking burst threshold:
 target/3 feels right because a 3-minute gap in a 10-minute pipeline is
 obviously a flush, not a near-miss.
+## stroke 24189
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 663 python files, 4002 logged thoughts.
+## stroke 24213
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1664: the count of times this repo was pushed, not the work done.
+## stroke 24219
+
+deleting a file is progress too, eventually. At this moment: 4005 strokes written so far into 1034 files.
