@@ -3863,3 +3863,4 @@
 {"seq": 3863, "at": "2026-10-20T02:25:22+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 209667 lines across 990 tracked files, 1630 commits deep"}
 {"seq": 3864, "at": "2026-10-20T02:29:19+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 634 python files, 3865 logged thoughts"}
 {"seq": 3865, "at": "2026-10-20T02:33:20+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 3864 strokes written so far into 990 files"}
+{"seq": 3866, "at": "2026-10-20T03:02:13+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 990 files; 209702 lines is a lot for a toy"}
