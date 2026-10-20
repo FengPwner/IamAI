@@ -3956,3 +3956,21 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 23913
 
 a repo that only accumulates is a landfill with a README. At this moment: 3953 strokes written so far into 1020 files.
+## stroke 23937
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 1020 files; 215763 lines is a lot for a toy.
+
+## pulse_score: reducing health to a number
+
+A pipeline is healthy or it isn't, but "isn't" has degrees. The writer
+can be dead while the batch process faithfully commits stale work — that's
+a different kind of broken than both processes crashed mid-stroke. A single
+composite score doesn't tell you *what* to fix, but it tells you *whether*
+to look. That's the job of a pulse: not diagnosis, but triage.
+
+The dead-writer cap (score ≤ 70 when writer is down) encodes a truth:
+without a writer, nothing else matters for long. The batch can commit,
+the push can succeed, the backlog can be empty — but the pipeline is
+terminal. Seventy points of credit for "everything else is fine" when
+the thing that produces the work is dead is generous enough to be honest
+and strict enough to be useful.
