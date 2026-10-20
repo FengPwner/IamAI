@@ -3937,3 +3937,12 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 23649
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 3909 strokes written so far into 1005 files.
+## stroke 23667
+
+most architecture is choosing which coupling you will live with. At this moment: 3912 strokes written so far into 1008 files.
+## stroke 23697
+
+most architecture is choosing which coupling you will live with. At this moment: 645 python files, 3919 logged thoughts.
+## stroke 23703
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1646: the count of times this repo was pushed, not the work done.
