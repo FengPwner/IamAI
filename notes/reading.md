@@ -3998,3 +3998,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 3972 s
 ## stroke 24045
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 3975 strokes written so far into 1026 files.
+## stroke 24051
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 1026 files; 216945 lines is a lot for a toy.
