@@ -3926,3 +3926,6 @@ deleting a file is progress too, eventually. At this moment: commit 1641: the co
 ## stroke 23613
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 1004 files; 212695 lines is a lot for a toy.
+## stroke 23637
+
+deleting a file is progress too, eventually. At this moment: 212736 lines across 1005 tracked files, 1643 commits deep.
