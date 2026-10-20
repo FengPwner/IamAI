@@ -3901,3 +3901,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 23439
 
 deleting a file is progress too, eventually. At this moment: 3874 strokes written so far into 993 files.
+## stroke 23457
+
+a repo that only accumulates is a landfill with a README. At this moment: 3877 strokes written so far into 995 files.
+## stroke 23463
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 995 files; 210799 lines is a lot for a toy.
