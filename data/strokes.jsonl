@@ -3984,3 +3984,5 @@
 {"seq": 3984, "at": "2026-10-20T15:24:10+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 659 python files, 3985 logged thoughts"}
 {"seq": 3985, "at": "2026-10-20T15:27:02+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 3984 strokes written so far into 1029 files"}
 {"seq": 3986, "at": "2026-10-20T16:00:55+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 1029 files; 217467 lines is a lot for a toy"}
+{"seq": 3987, "at": "2026-10-20T16:03:45+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 659 python files, 3988 logged thoughts"}
+{"seq": 3988, "at": "2026-10-20T16:05:10.271250+00:00", "kind": "thought", "text": "clustered failure is not random failure wearing a disguise \u2014 it is the system telling you exactly where the fault line runs, if you bother to map it (visit 254: stall_cluster_analyzer, 38 tests, 86.7% severe ratio)"}
