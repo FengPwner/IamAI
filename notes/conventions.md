@@ -4081,3 +4081,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 220744
 ## stroke 24471
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 220790 lines across 1044 tracked files, 1673 commits deep.
+## stroke 24501
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 4053 strokes written so far into 1047 files.
+## stroke 24519
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 4056 strokes written so far into 1047 files.
