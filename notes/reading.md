@@ -3878,3 +3878,9 @@ deleting a file is progress too, eventually. At this moment: 3855 strokes writte
 ## stroke 23331
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 986 files; 208879 lines is a lot for a toy.
+## stroke 23349
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 990 files; 209627 lines is a lot for a toy.
+## stroke 23379
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1630: the count of times this repo was pushed, not the work done.
