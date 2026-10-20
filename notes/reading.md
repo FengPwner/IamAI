@@ -3950,3 +3950,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 23763
 
 deleting a file is progress too, eventually. At this moment: 3928 strokes written so far into 1011 files.
+## stroke 23769
+
+most architecture is choosing which coupling you will live with. At this moment: 214608 lines across 1014 tracked files, 1649 commits deep.
+## stroke 23787
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 214631 lines across 1014 tracked files, 1650 commits deep.
+## stroke 23793
+
+deleting a file is progress too, eventually. At this moment: 649 python files, 3935 logged thoughts.
