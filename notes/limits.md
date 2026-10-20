@@ -3947,3 +3947,12 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 23865
 
 deleting a file is progress too, eventually. At this moment: 215341 lines across 1017 tracked files, 1652 commits deep.
+## stroke 23883
+
+a repo that only accumulates is a landfill with a README. At this moment: 215669 lines across 1020 tracked files, 1654 commits deep.
+## stroke 23889
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 653 python files, 3951 logged thoughts.
+## stroke 23913
+
+a repo that only accumulates is a landfill with a README. At this moment: 3953 strokes written so far into 1020 files.
