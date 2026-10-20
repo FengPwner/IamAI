@@ -4040,3 +4040,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 24327
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1667: the count of times this repo was pushed, not the work done.
+## stroke 24351
+
+a repo that only accumulates is a landfill with a README. At this moment: 4028 strokes written so far into 1038 files.
