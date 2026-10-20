@@ -4018,3 +4018,15 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 24165
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 1032 files; 218139 lines is a lot for a toy.
+
+## caretaker visit: commit_rhythm_score module
+
+adding a rhythm analyser because average interval lies — a pipeline that
+bursts 5 commits in 2 minutes then goes silent for 40 looks fine if you
+only check the mean. geometric mean of interval accuracy, jitter, and
+burst penalty gives one number that actually tells you whether the
+cadence is real or just statistically convenient.
+
+25 tests, all passing. the hard part was picking burst threshold:
+target/3 feels right because a 3-minute gap in a 10-minute pipeline is
+obviously a flush, not a near-miss.
