@@ -4112,3 +4112,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 24771
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1059 files; 224571 lines is a lot for a toy.
+## stroke 24789
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1062 files; 224996 lines is a lot for a toy.
+## stroke 24795
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 225004 lines across 1062 tracked files, 1688 commits deep.
+## stroke 24819
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1688: the count of times this repo was pushed, not the work done.
