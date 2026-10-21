@@ -4251,3 +4251,12 @@
 {"seq": 4251, "at": "2026-10-21T17:28:23+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1716: the count of times this repo was pushed, not the work done"}
 {"seq": 4252, "at": "2026-10-21T17:31:36+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 1096 files; 232926 lines is a lot for a toy"}
 {"seq": 4253, "at": "2026-10-21T18:03:13+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 232934 lines across 1096 tracked files, 1717 commits deep"}
+{"seq": 4254, "at": "2026-10-21T18:06:28+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1719: the count of times this repo was pushed, not the work done"}
+{"seq": 4255, "at": "2026-10-21T18:09:36+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 4254 strokes written so far into 1100 files"}
+{"seq": 4256, "at": "2026-10-21T18:12:50+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 233684 lines across 1100 tracked files, 1719 commits deep"}
+{"seq": 4257, "at": "2026-10-21T18:16:01+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 711 python files, 4258 logged thoughts"}
+{"seq": 4258, "at": "2026-10-21T18:19:08+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 4257 strokes written so far into 1100 files"}
+{"seq": 4259, "at": "2026-10-21T18:22:09+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 233719 lines across 1100 tracked files, 1719 commits deep"}
+{"seq": 4260, "at": "2026-10-21T18:25:14+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 711 python files, 4261 logged thoughts"}
+{"seq": 4261, "at": "2026-10-21T18:28:17+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 4260 strokes written so far into 1100 files"}
+{"seq": 4262, "at": "2026-10-21T18:31:30+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 1100 files; 233743 lines is a lot for a toy"}
