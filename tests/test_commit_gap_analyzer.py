@@ -1,273 +1,207 @@
-"""tests for commit_gap_analyzer — 30 tests covering all edge cases."""
+"""tests for scripts/commit_gap_analyzer.py"""
+
+import sys
+import os
+import subprocess
+import tempfile
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
-from iamai.commit_gap_analyzer import (
-    GapReport,
-    analyze_gaps,
-    analyze_from_log_lines,
-    _parse_timestamp,
-    _percentile,
+
+# 将 scripts/ 加入 import 路径
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+
+from commit_gap_analyzer import (
+    compute_gaps,
+    analyze,
+    format_report,
+    get_commit_timestamps,
 )
 
 
-# --- basic gap computation ---
+# ── helpers ──────────────────────────────────────────────────────────
 
-def test_empty_timestamps():
-    r = analyze_gaps([])
-    assert r.gap_seconds == []
-    assert r.mean_gap == 0.0
-    assert r.total_gaps == 0
-    assert r.trend == "steady"
-
-
-def test_single_timestamp():
-    r = analyze_gaps(["2026-10-21T00:00:00+00:00"])
-    assert r.gap_seconds == []
-    assert r.total_gaps == 0
-
-
-def test_two_identical_timestamps():
-    r = analyze_gaps(["2026-10-21T00:00:00+00:00", "2026-10-21T00:00:00+00:00"])
-    assert r.gap_seconds == [0]
-    assert r.mean_gap == 0.0
-    assert r.trend == "steady"
-
-
-def test_two_timestamps_60s_apart():
-    r = analyze_gaps(["2026-10-21T00:00:00+00:00", "2026-10-21T00:01:00+00:00"])
-    assert r.gap_seconds == [60]
-    assert r.mean_gap == 60.0
-    assert r.max_gap == 60
-    assert r.min_gap == 60
-
-
-def test_three_timestamps_mixed_gaps():
-    r = analyze_gaps([
-        "2026-10-21T00:00:00+00:00",
-        "2026-10-21T00:01:00+00:00",
-        "2026-10-21T00:05:00+00:00",
-    ])
-    assert r.gap_seconds == [60, 240]
-    assert r.mean_gap == 150.0
-    assert r.max_gap == 240
-    assert r.min_gap == 60
-
-
-# --- negative gap clamping ---
-
-def test_negative_gap_clamped_to_zero():
-    r = analyze_gaps([
-        "2026-10-21T00:05:00+00:00",
-        "2026-10-21T00:00:00+00:00",  # earlier than previous
-    ])
-    assert r.gap_seconds == [0]
-    assert r.mean_gap == 0.0
-
-
-# --- stall detection ---
-
-def test_no_stalls_under_threshold():
-    r = analyze_gaps([
-        "2026-10-21T00:00:00+00:00",
-        "2026-10-21T00:01:00+00:00",
-        "2026-10-21T00:02:00+00:00",
-    ], stall_threshold=600)
-    assert r.stall_count == 0
-    assert r.stall_ratio == 0.0
-
-
-def test_all_stalls_above_threshold():
-    r = analyze_gaps([
-        "2026-10-21T00:00:00+00:00",
-        "2026-10-21T00:20:00+00:00",
-        "2026-10-21T00:40:00+00:00",
-    ], stall_threshold=600)
-    assert r.stall_count == 2
-    assert r.stall_ratio == 1.0
-
-
-def test_mixed_stalls():
-    r = analyze_gaps([
-        "2026-10-21T00:00:00+00:00",
-        "2026-10-21T00:05:00+00:00",   # 300s — not a stall
-        "2026-10-21T00:25:00+00:00",   # 1200s — stall
-        "2026-10-21T00:26:00+00:00",   # 60s — not a stall
-    ], stall_threshold=600)
-    assert r.stall_count == 1
-    assert r.stall_ratio == pytest.approx(1 / 3)
-
-
-def test_custom_stall_threshold():
-    r = analyze_gaps([
-        "2026-10-21T00:00:00+00:00",
-        "2026-10-21T00:02:00+00:00",
-    ], stall_threshold=60)
-    assert r.stall_count == 1
-    assert r.stall_ratio == 1.0
-
-
-# --- trend detection ---
-
-def test_steady_trend():
-    # uniform 60s gaps
-    ts = [f"2026-10-21T00:{i:02d}:00+00:00" for i in range(10)]
-    r = analyze_gaps(ts)
-    assert r.trend == "steady"
-
-
-def test_accelerating_trend():
-    # first half: 600s gaps, second half: 60s gaps
-    ts = []
-    base = 0
-    for _ in range(5):
-        ts.append(f"2026-10-21T{base // 3600:02d}:{(base % 3600) // 60:02d}:{base % 60:02d}+00:00")
-        base += 600
-    for _ in range(5):
-        ts.append(f"2026-10-21T{base // 3600:02d}:{(base % 3600) // 60:02d}:{base % 60:02d}+00:00")
-        base += 60
-    r = analyze_gaps(ts)
-    assert r.trend == "accelerating"
-
-
-def test_decaying_trend():
-    # first half: 60s gaps, second half: 600s gaps
-    ts = []
-    base = 0
-    for _ in range(5):
-        ts.append(f"2026-10-21T{base // 3600:02d}:{(base % 3600) // 60:02d}:{base % 60:02d}+00:00")
-        base += 60
-    for _ in range(5):
-        ts.append(f"2026-10-21T{base // 3600:02d}:{(base % 3600) // 60:02d}:{base % 60:02d}+00:00")
-        base += 600
-    r = analyze_gaps(ts)
-    assert r.trend == "decaying"
-
-
-# --- health check ---
-
-def test_healthy_report():
-    r = analyze_gaps([
-        "2026-10-21T00:00:00+00:00",
-        "2026-10-21T00:05:00+00:00",
-        "2026-10-21T00:10:00+00:00",
-        "2026-10-21T00:15:00+00:00",
-    ], stall_threshold=600)
-    assert r.is_healthy is True
-
-
-def test_unhealthy_high_stall_ratio():
-    r = analyze_gaps([
-        "2026-10-21T00:00:00+00:00",
-        "2026-10-21T01:00:00+00:00",
-    ], stall_threshold=60)
-    assert r.is_healthy is False
-
-
-def test_unhealthy_decaying_trend():
-    # even with low stall ratio, decaying = unhealthy
-    r = GapReport(stall_ratio=0.0, trend="decaying")
-    assert r.is_healthy is False
-
-
-# --- p95 calculation ---
-
-def test_p95_gap():
-    # 20 gaps: 10,20,...,200
-    ts = ["2026-10-21T00:00:00+00:00"]
-    cumulative = 0
-    for g in range(10, 210, 10):
-        cumulative += g
-        ts.append(f"2026-10-21T00:00:{cumulative % 60:02d}+00:00")  # not realistic but tests math
-    # simpler: just test _percentile directly
-    data = list(range(10, 210, 10))  # [10, 20, ..., 200]
-    p95 = _percentile(data, 95)
-    assert 180 <= p95 <= 200
-
-
-def test_p95_empty():
-    assert _percentile([], 95) == 0
-
-
-def test_p95_single_value():
-    assert _percentile([42], 95) == 42
-
-
-# --- timestamp parsing ---
-
-def test_parse_z_suffix():
-    dt = _parse_timestamp("2026-10-21T00:00:00Z")
-    assert dt.year == 2026
-    assert dt.month == 10
-
-
-def test_parse_offset_suffix():
-    dt = _parse_timestamp("2026-10-21T08:00:00+08:00")
-    assert dt.hour == 8
-
-
-def test_parse_plain_iso():
-    dt = _parse_timestamp("2026-10-21T00:00:00")
-    assert dt.day == 21
-
-
-# --- log line parsing ---
-
-def test_analyze_from_devlog_lines():
-    lines = [
-        "- `2026-10-20T17:00:00+00:00` stroke 100: something",
-        "- `2026-10-20T17:10:00+00:00` stroke 101: another thing",
-        "- `2026-10-20T17:20:00+00:00` stroke 102: yet more",
+def _make_entries(offsets_minutes: list[int], base: datetime | None = None) -> list[dict]:
+    """
+    构造 mock 提交条目列表。
+    offsets_minutes: 每条提交相对于 base 的偏移（分钟）。
+    """
+    if base is None:
+        base = datetime(2026, 10, 21, 10, 0, 0, tzinfo=timezone.utc)
+    return [
+        {"timestamp": base + timedelta(minutes=m), "message": f"commit-{i}"}
+        for i, m in enumerate(offsets_minutes)
     ]
-    r = analyze_from_log_lines(lines, stall_threshold=600)
-    assert r.total_gaps == 2
-    assert r.gap_seconds == [600, 600]
-    assert r.trend == "steady"
 
 
-def test_analyze_from_log_skips_bad_lines():
-    lines = [
-        "- `2026-10-20T17:00:00+00:00` stroke 100",
-        "this is not a valid line",
-        "- `not-a-date` stroke 101",
-        "- `2026-10-20T17:10:00+00:00` stroke 102",
-    ]
-    r = analyze_from_log_lines(lines)
-    assert r.total_gaps == 1
-    assert r.gap_seconds == [600]
+# ── compute_gaps ─────────────────────────────────────────────────────
+
+class TestComputeGaps:
+    def test_empty_input(self):
+        assert compute_gaps([]) == []
+
+    def test_single_entry(self):
+        entries = _make_entries([0])
+        assert compute_gaps(entries) == []
+
+    def test_two_entries(self):
+        entries = _make_entries([0, 10])
+        gaps = compute_gaps(entries)
+        assert len(gaps) == 1
+        assert gaps[0]["gap_seconds"] == 600.0
+        assert gaps[0]["from_commit"] == "commit-0"
+        assert gaps[0]["to_commit"] == "commit-1"
+
+    def test_multiple_entries(self):
+        entries = _make_entries([0, 5, 15, 20])
+        gaps = compute_gaps(entries)
+        assert len(gaps) == 3
+        assert gaps[0]["gap_seconds"] == 300.0   # 5 min
+        assert gaps[1]["gap_seconds"] == 600.0   # 10 min
+        assert gaps[2]["gap_seconds"] == 300.0   # 5 min
+
+    def test_gap_at_field_is_isoformat(self):
+        entries = _make_entries([0, 10])
+        gaps = compute_gaps(entries)
+        # 应该能被 datetime.fromisoformat 解析
+        ts = datetime.fromisoformat(gaps[0]["at"])
+        assert ts.year == 2026
 
 
-def test_analyze_from_log_empty():
-    r = analyze_from_log_lines([])
-    assert r.total_gaps == 0
+# ── analyze ──────────────────────────────────────────────────────────
+
+class TestAnalyze:
+    def test_empty_gaps(self):
+        stats = analyze([])
+        assert stats["total_commits"] == 0
+        assert stats["avg_gap_s"] == 0
+        assert stats["rhythm_stability"] == 0.0
+
+    def test_single_gap(self):
+        gaps = [{"gap_seconds": 600, "from_commit": "a", "to_commit": "b",
+                 "at": "2026-10-21T10:10:00+00:00"}]
+        stats = analyze(gaps)
+        assert stats["total_commits"] == 2
+        assert stats["avg_gap_s"] == 600.0
+        assert stats["max_gap_s"] == 600.0
+        assert stats["stall_count"] == 0
+        # 单个间隔 → 稳定性 1.0
+        assert stats["rhythm_stability"] == 1.0
+
+    def test_uniform_gaps_high_stability(self):
+        """完全均匀的间隔 → 稳定性接近 1.0"""
+        gaps = [
+            {"gap_seconds": 600, "from_commit": f"c{i}", "to_commit": f"c{i+1}",
+             "at": f"2026-10-21T10:{10+i*10:02d}:00+00:00"}
+            for i in range(10)
+        ]
+        stats = analyze(gaps)
+        assert stats["rhythm_stability"] > 0.99
+
+    def test_variable_gaps_lower_stability(self):
+        """间隔差异大 → 稳定性明显低于 1.0"""
+        values = [100, 2000, 50, 3000, 200]
+        gaps = [
+            {"gap_seconds": v, "from_commit": f"c{i}", "to_commit": f"c{i+1}",
+             "at": f"2026-10-21T10:{i:02d}:00+00:00"}
+            for i, v in enumerate(values)
+        ]
+        stats = analyze(gaps)
+        assert stats["rhythm_stability"] < 0.5
+
+    def test_stall_count_with_threshold(self):
+        gaps = [
+            {"gap_seconds": 300, "from_commit": "a", "to_commit": "b",
+             "at": "2026-10-21T10:05:00+00:00"},
+            {"gap_seconds": 1500, "from_commit": "b", "to_commit": "c",
+             "at": "2026-10-21T10:30:00+00:00"},
+            {"gap_seconds": 600, "from_commit": "c", "to_commit": "d",
+             "at": "2026-10-21T10:40:00+00:00"},
+            {"gap_seconds": 2000, "from_commit": "d", "to_commit": "e",
+             "at": "2026-10-21T11:13:00+00:00"},
+        ]
+        stats = analyze(gaps, stall_threshold_s=1200)
+        assert stats["stall_count"] == 2  # 1500s 和 2000s 超过阈值
+        assert stats["max_gap_s"] == 2000.0
+
+    def test_max_gap_identification(self):
+        gaps = [
+            {"gap_seconds": 100, "from_commit": "a", "to_commit": "b",
+             "at": "2026-10-21T10:01:00+00:00"},
+            {"gap_seconds": 5000, "from_commit": "b", "to_commit": "c",
+             "at": "2026-10-21T11:24:00+00:00"},
+            {"gap_seconds": 200, "from_commit": "c", "to_commit": "d",
+             "at": "2026-10-21T11:28:00+00:00"},
+        ]
+        stats = analyze(gaps)
+        assert stats["max_gap_s"] == 5000.0
+        assert stats["max_gap_from"] == "b"
+        assert stats["max_gap_to"] == "c"
 
 
-def test_analyze_from_log_no_valid_lines():
-    r = analyze_from_log_lines(["garbage", "more garbage"])
-    assert r.total_gaps == 0
+# ── format_report ────────────────────────────────────────────────────
+
+class TestFormatReport:
+    def test_empty_stats(self):
+        report = format_report({"total_commits": 0, "avg_gap_s": 0, "max_gap_s": 0,
+                                "max_gap_at": None, "stall_count": 0,
+                                "rhythm_stability": 0.0, "stall_threshold_s": 1200})
+        assert "无提交数据" in report
+
+    def test_normal_report_contains_key_fields(self):
+        stats = {
+            "total_commits": 10,
+            "avg_gap_s": 600.0,
+            "max_gap_s": 1800.0,
+            "max_gap_at": "2026-10-21T10:30:00+00:00",
+            "max_gap_from": "add feature X",
+            "max_gap_to": "fix typo in Y",
+            "stall_count": 1,
+            "stall_threshold_s": 1200.0,
+            "rhythm_stability": 0.75,
+        }
+        report = format_report(stats)
+        assert "提交总数: 10" in report
+        assert "平均间隔: 600s" in report
+        assert "最大间隔: 1800s" in report
+        assert "停摆次数: 1" in report
+        assert "0.750" in report
 
 
-# --- gap report defaults ---
+# ── get_commit_timestamps (integration, uses real git) ───────────────
 
-def test_gap_report_defaults():
-    r = GapReport()
-    assert r.gap_seconds == []
-    assert r.mean_gap == 0.0
-    assert r.max_gap == 0
-    assert r.min_gap == 0
-    assert r.p95_gap == 0
-    assert r.stall_ratio == 0.0
-    assert r.trend == "steady"
-    assert r.total_gaps == 0
-    assert r.stall_count == 0
-    assert r.is_healthy is True  # empty report is technically healthy
+class TestGetCommitTimestamps:
+    def test_real_repo(self):
+        """用本仓库做集成测试——至少有若干提交。"""
+        repo = str(Path(__file__).resolve().parent.parent)
+        entries = get_commit_timestamps(repo, last_n=10)
+        assert len(entries) >= 2
+        assert "timestamp" in entries[0]
+        assert "message" in entries[0]
+
+    def test_nonexistent_repo(self):
+        entries = get_commit_timestamps("/tmp/nonexistent_repo_xyz_12345")
+        assert entries == []
+
+    def test_small_last_n(self):
+        repo = str(Path(__file__).resolve().parent.parent)
+        entries = get_commit_timestamps(repo, last_n=3)
+        assert len(entries) <= 3
 
 
-# --- edge: large number of timestamps ---
+# ── end-to-end pipeline ──────────────────────────────────────────────
 
-def test_large_input():
-    ts = [f"2026-10-21T{i // 60:02d}:{i % 60:02d}:00+00:00" for i in range(100)]
-    r = analyze_gaps(ts)
-    assert r.total_gaps == 99
-    assert all(g == 60 for g in r.gap_seconds)
-    assert r.mean_gap == 60.0
-    assert r.trend == "steady"
+class TestEndToEnd:
+    def test_full_pipeline(self):
+        """构造条目 → 计算间隔 → 分析 → 格式化，完整走一遍。"""
+        entries = _make_entries([0, 10, 20, 30, 50, 60, 80])
+        gaps = compute_gaps(entries)
+        stats = analyze(gaps, stall_threshold_s=900)
+        report = format_report(stats)
+
+        assert stats["total_commits"] == 7
+        # gaps: 600, 600, 600, 1200, 600, 1200 — 30→50 和 60→80 各 1200s > 900s
+        assert stats["stall_count"] == 2
+        assert "=== 提交节奏分析报告 ===" in report
+        assert "停摆次数: 2" in report
