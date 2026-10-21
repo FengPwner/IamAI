@@ -4179,3 +4179,12 @@
 {"seq": 4179, "at": "2026-10-21T10:30:53+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 4178 strokes written so far into 1081 files"}
 {"seq": 4180, "at": "2026-10-21T11:01:05+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 229581 lines across 1081 tracked files, 1700 commits deep"}
 {"seq": 4181, "at": "2026-10-21T11:04:05+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 697 python files, 4182 logged thoughts"}
+{"seq": 4182, "at": "2026-10-21T11:07:15+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 4181 strokes written so far into 1082 files"}
+{"seq": 4183, "at": "2026-10-21T11:10:19+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 1082 files; 229896 lines is a lot for a toy"}
+{"seq": 4184, "at": "2026-10-21T11:13:27+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 698 python files, 4185 logged thoughts"}
+{"seq": 4185, "at": "2026-10-21T11:16:35+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 4184 strokes written so far into 1082 files"}
+{"seq": 4186, "at": "2026-10-21T11:19:40+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 1082 files; 229931 lines is a lot for a toy"}
+{"seq": 4187, "at": "2026-10-21T11:22:35+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 698 python files, 4188 logged thoughts"}
+{"seq": 4188, "at": "2026-10-21T11:25:36+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1703: the count of times this repo was pushed, not the work done"}
+{"seq": 4189, "at": "2026-10-21T11:28:32+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 1082 files; 229955 lines is a lot for a toy"}
+{"seq": 4190, "at": "2026-10-21T11:31:47+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 229974 lines across 1082 tracked files, 1703 commits deep"}

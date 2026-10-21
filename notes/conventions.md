@@ -4210,3 +4210,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 25251
 
 most architecture is choosing which coupling you will live with. At this moment: 697 python files, 4179 logged thoughts.
+## stroke 25275
+
+deleting a file is progress too, eventually. At this moment: commit 1703: the count of times this repo was pushed, not the work done.
+## stroke 25305
+
+deleting a file is progress too, eventually. At this moment: 229934 lines across 1082 tracked files, 1703 commits deep.
+## stroke 25323
+
+a repo that only accumulates is a landfill with a README. At this moment: 229969 lines across 1082 tracked files, 1703 commits deep.
