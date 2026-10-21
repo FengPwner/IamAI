@@ -4075,3 +4075,6 @@
 {"seq": 4075, "at": "2026-10-21T00:22:59+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1680: the count of times this repo was pushed, not the work done"}
 {"seq": 4076, "at": "2026-10-21T00:25:52+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 4075 strokes written so far into 1052 files"}
 {"seq": 4077, "at": "2026-10-21T00:28:52+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 222836 lines across 1052 tracked files, 1680 commits deep"}
+{"seq": 4078, "at": "2026-10-21T01:02:38+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1681: the count of times this repo was pushed, not the work done"}
+{"seq": 4079, "at": "2026-10-21T01:05:52+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 4078 strokes written so far into 1052 files"}
+{"seq": 4080, "at": "2026-10-21T01:09:00+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 222882 lines across 1052 tracked files, 1681 commits deep"}
