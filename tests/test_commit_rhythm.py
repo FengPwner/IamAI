@@ -1,280 +1,294 @@
-"""Tests for iamai.commit_rhythm — commit cadence health classifier."""
+"""Tests for iamai.commit_rhythm."""
 
-from __future__ import annotations
-
-import subprocess
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from iamai.commit_rhythm import (
-    CommitRhythm,
-    git_commit_gaps,
-    rhythm_status,
+    RhythmReport,
+    _classify,
+    _parse_ts,
+    compute_gaps,
+    rhythm_report,
+    rhythm_summary,
 )
 
 
-# ── CommitRhythm.classify ────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# _parse_ts
+# ---------------------------------------------------------------------------
 
+class TestParseTs:
+    def test_iso_with_z(self):
+        dt = _parse_ts("2026-10-22T06:00:00Z")
+        assert dt is not None
+        assert dt.hour == 6
+        assert dt.tzinfo is not None
+
+    def test_iso_with_offset(self):
+        dt = _parse_ts("2026-10-22T06:00:00+08:00")
+        assert dt is not None
+        assert dt.hour == 6
+
+    def test_iso_without_tz(self):
+        dt = _parse_ts("2026-10-22T06:00:00")
+        assert dt is not None
+        assert dt.tzinfo == timezone.utc
+
+    def test_datetime_passthrough(self):
+        dt = datetime(2026, 10, 22, 6, 0, tzinfo=timezone.utc)
+        assert _parse_ts(dt) == dt
+
+    def test_naive_datetime_gets_utc(self):
+        dt = datetime(2026, 10, 22, 6, 0)
+        result = _parse_ts(dt)
+        assert result is not None
+        assert result.tzinfo == timezone.utc
+
+    def test_empty_string(self):
+        assert _parse_ts("") is None
+
+    def test_none(self):
+        assert _parse_ts(None) is None
+
+    def test_garbage(self):
+        assert _parse_ts("not-a-date") is None
+
+    def test_fractional_seconds(self):
+        dt = _parse_ts("2026-10-22T06:00:00.123456Z")
+        assert dt is not None
+
+
+# ---------------------------------------------------------------------------
+# compute_gaps
+# ---------------------------------------------------------------------------
+
+class TestComputeGaps:
+    def test_empty(self):
+        assert compute_gaps([]) == []
+
+    def test_single(self):
+        assert compute_gaps(["2026-10-22T06:00:00Z"]) == []
+
+    def test_two_commits_ten_minutes(self):
+        gaps = compute_gaps([
+            "2026-10-22T06:00:00Z",
+            "2026-10-22T06:10:00Z",
+        ])
+        assert len(gaps) == 1
+        assert gaps[0] == pytest.approx(600.0)
+
+    def test_unsorted_input_gets_sorted(self):
+        gaps = compute_gaps([
+            "2026-10-22T06:20:00Z",
+            "2026-10-22T06:00:00Z",
+            "2026-10-22T06:10:00Z",
+        ])
+        assert len(gaps) == 2
+        assert gaps[0] == pytest.approx(600.0)
+        assert gaps[1] == pytest.approx(600.0)
+
+    def test_skips_unparseable(self):
+        gaps = compute_gaps([
+            "2026-10-22T06:00:00Z",
+            "garbage",
+            "2026-10-22T06:10:00Z",
+        ])
+        assert len(gaps) == 1
+        assert gaps[0] == pytest.approx(600.0)
+
+    def test_varying_gaps(self):
+        gaps = compute_gaps([
+            "2026-10-22T06:00:00Z",
+            "2026-10-22T06:10:00Z",
+            "2026-10-22T06:30:00Z",
+        ])
+        assert len(gaps) == 2
+        assert gaps[0] == pytest.approx(600.0)
+        assert gaps[1] == pytest.approx(1200.0)
+
+
+# ---------------------------------------------------------------------------
+# _classify
+# ---------------------------------------------------------------------------
 
 class TestClassify:
-    """Core classification logic."""
-
-    @pytest.fixture
-    def cr(self):
-        return CommitRhythm(target_interval=600, window=5)
-
-    # -- steady --
-
-    def test_steady_perfect(self, cr):
-        assert cr.classify([600, 600, 600, 600, 600]) == "steady"
-
-    def test_steady_within_tolerance(self, cr):
-        assert cr.classify([580, 620, 590, 610, 605]) == "steady"
-
-    def test_steady_at_boundary(self, cr):
-        # 779 < 780 (1.3 * 600) → still steady
-        assert cr.classify([779, 779, 779, 779, 779]) == "steady"
-
-    def test_steady_short_list(self, cr):
-        assert cr.classify([600]) == "steady"
-
-    def test_steady_two_gaps(self, cr):
-        assert cr.classify([600, 610]) == "steady"
-
-    # -- drifting --
-
-    def test_drifting_one_outlier(self, cr):
-        assert cr.classify([600, 600, 800, 600, 600]) == "drifting"
-
-    def test_drifting_at_threshold(self, cr):
-        # exactly 780 = 1.3 * 600 → >= drift_threshold → drifting
-        assert cr.classify([780, 600, 600, 600, 600]) == "drifting"
-
-    def test_drifting_multiple(self, cr):
-        assert cr.classify([800, 900, 600, 600, 600]) == "drifting"
-
-    # -- broken --
-
-    def test_broken_double_interval(self, cr):
-        assert cr.classify([600, 600, 1200, 600, 600]) == "broken"
-
-    def test_broken_at_threshold(self, cr):
-        # exactly 1200 = 2.0 * 600 → >= broken_threshold → broken
-        assert cr.classify([1200, 600, 600, 600, 600]) == "broken"
-
-    def test_broken_extreme(self, cr):
-        assert cr.classify([600, 600, 600, 600, 5000]) == "broken"
-
-    def test_broken_overrides_drifting(self, cr):
-        # one drifting gap + one broken gap → broken wins
-        assert cr.classify([800, 600, 600, 600, 1500]) == "broken"
-
-    # -- silent --
-
-    def test_silent_empty(self, cr):
-        assert cr.classify([]) == "silent"
-
-    # -- window trimming --
-
-    def test_window_trims_oldest(self, cr):
-        # 10 gaps but window=5: only last 5 matter
-        gaps = [5000, 5000, 5000, 5000, 5000, 600, 600, 600, 600, 600]
-        assert cr.classify(gaps) == "steady"
-
-    def test_window_one(self):
-        cr1 = CommitRhythm(target_interval=600, window=1)
-        assert cr1.classify([600, 600, 1500]) == "broken"  # last gap = 1500
-
-    def test_window_larger_than_input(self, cr):
-        assert cr.classify([600]) == "steady"
-
-
-# ── CommitRhythm thresholds ──────────────────────────────────────────
-
-
-class TestThresholds:
-    """Threshold properties."""
-
-    def test_drift_threshold(self):
-        cr = CommitRhythm(target_interval=100, window=3)
-        assert cr.drift_threshold == 130.0
-
-    def test_broken_threshold(self):
-        cr = CommitRhythm(target_interval=100, window=3)
-        assert cr.broken_threshold == 200.0
-
-    def test_custom_interval(self):
-        cr = CommitRhythm(target_interval=30, window=3)
-        assert cr.drift_threshold == 39.0
-        assert cr.broken_threshold == 60.0
-        assert cr.classify([30, 30, 30]) == "steady"
-        assert cr.classify([30, 40, 30]) == "drifting"
-        assert cr.classify([30, 60, 30]) == "broken"
-
-
-# ── CommitRhythm.describe ────────────────────────────────────────────
-
-
-class TestDescribe:
-    """Human-readable descriptions."""
-
-    @pytest.fixture
-    def cr(self):
-        return CommitRhythm(target_interval=600, window=3)
-
-    def test_describe_steady(self, cr):
-        desc = cr.describe([610, 590, 605])
-        assert "steady" in desc
-        assert "3/3" in desc
-        assert "600s" in desc
-
-    def test_describe_drifting(self, cr):
-        desc = cr.describe([600, 800, 600])
-        assert "drifting" in desc
-        assert "2/3" in desc
-
-    def test_describe_broken(self, cr):
-        desc = cr.describe([600, 600, 1500])
-        assert "broken" in desc
-
-    def test_describe_silent(self, cr):
-        desc = cr.describe([])
-        assert "silent" in desc
-        assert "no commits" in desc
-
-    def test_describe_partial_steady(self, cr):
-        # window=3, but 5 gaps → only last 3 count
-        desc = cr.describe([5000, 5000, 600, 600, 600])
-        assert "steady" in desc
-        assert "3/3" in desc
-
-
-# ── git_commit_gaps ──────────────────────────────────────────────────
-
-
-class TestGitCommitGaps:
-    """Reading commit timestamps from git."""
-
-    def test_normal_output(self, tmp_path):
-        # git log outputs newest-first
-        fake_output = "1700001200\n1700000600\n1700000000\n"
-        with patch("iamai.commit_rhythm.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout=fake_output)
-            gaps = git_commit_gaps(repo_root=tmp_path, count=5)
-        # reversed to chronological: [1700000000, 1700000600, 1700001200]
-        # gaps: [600, 600]
-        assert gaps == [600, 600]
-
-    def test_empty_repo(self, tmp_path):
-        with patch("iamai.commit_rhythm.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="")
-            gaps = git_commit_gaps(repo_root=tmp_path, count=5)
-        assert gaps == []
-
-    def test_single_commit(self, tmp_path):
-        with patch("iamai.commit_rhythm.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="1700000000\n")
-            gaps = git_commit_gaps(repo_root=tmp_path, count=5)
-        assert gaps == []
-
-    def test_git_failure(self, tmp_path):
-        with patch("iamai.commit_rhythm.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=128, stdout="")
-            gaps = git_commit_gaps(repo_root=tmp_path, count=5)
-        assert gaps == []
-
-    def test_timeout(self, tmp_path):
-        with patch("iamai.commit_rhythm.subprocess.run") as mock_run:
-            mock_run.side_effect = subprocess.TimeoutExpired(cmd="git", timeout=10)
-            gaps = git_commit_gaps(repo_root=tmp_path, count=5)
-        assert gaps == []
-
-    def test_large_gap(self, tmp_path):
-        # two commits 3600s apart, newest first (git log order)
-        fake_output = "1700003600\n1700000000\n"
-        with patch("iamai.commit_rhythm.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout=fake_output)
-            gaps = git_commit_gaps(repo_root=tmp_path, count=5)
-        assert gaps == [3600]
-
-    def test_count_parameter(self, tmp_path):
-        with patch("iamai.commit_rhythm.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="1700000000\n1700000600\n")
-            git_commit_gaps(repo_root=tmp_path, count=3)
-        # count=3 → max_count=4
-        args = mock_run.call_args
-        assert "--max-count=4" in args[0][0]
-
-
-# ── rhythm_status ────────────────────────────────────────────────────
-
-
-class TestRhythmStatus:
-    """End-to-end status string."""
-
-    def test_steady_status(self, tmp_path):
-        fake_output = "\n".join(
-            str(1700000000 + i * 600) for i in range(7)
-        ) + "\n"
-        with patch("iamai.commit_rhythm.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout=fake_output)
-            status = rhythm_status(target_interval=600, window=5, repo_root=tmp_path)
-        assert "steady" in status
-
-    def test_silent_status(self, tmp_path):
-        with patch("iamai.commit_rhythm.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="")
-            status = rhythm_status(target_interval=600, window=5, repo_root=tmp_path)
-        assert "silent" in status
-
-    def test_broken_status(self, tmp_path):
-        # timestamps with one 3600s gap
-        ts = [1700000000, 1700000600, 1700001200, 1700001800, 1700005400, 1700006000, 1700006600]
-        fake_output = "\n".join(str(t) for t in reversed(ts)) + "\n"
-        with patch("iamai.commit_rhythm.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout=fake_output)
-            status = rhythm_status(target_interval=600, window=5, repo_root=tmp_path)
-        assert "broken" in status
-
-
-# ── Edge cases ───────────────────────────────────────────────────────
-
-
-class TestEdgeCases:
-    """Boundary and edge cases."""
-
-    def test_zero_target_interval(self):
-        cr = CommitRhythm(target_interval=0, window=3)
-        # any positive gap >= 0 * 2.0 = 0 → broken
-        assert cr.classify([1]) == "broken"
-
-    def test_very_small_interval(self):
-        cr = CommitRhythm(target_interval=1, window=3)
-        assert cr.classify([1, 1, 1]) == "steady"
-        assert cr.classify([2, 1, 1]) == "broken"
-
-    def test_negative_gap_clamped(self):
-        # negative gaps (clock skew) shouldn't crash
-        cr = CommitRhythm(target_interval=600, window=3)
-        assert cr.classify([-10, 600, 600]) == "steady"
-
-    def test_float_gaps(self):
-        cr = CommitRhythm(target_interval=600, window=3)
-        assert cr.classify([600.5, 599.3, 600.1]) == "steady"
-
-    def test_large_window_small_input(self):
-        cr = CommitRhythm(target_interval=600, window=100)
-        assert cr.classify([600]) == "steady"
-
-    def test_dataclass_frozen(self):
-        cr = CommitRhythm(target_interval=600, window=5)
-        with pytest.raises(AttributeError):
-            cr.target_interval = 300  # type: ignore[misc]
-
-    def test_oserror_in_git(self, tmp_path):
-        with patch("iamai.commit_rhythm.subprocess.run") as mock_run:
-            mock_run.side_effect = OSError("git not found")
-            gaps = git_commit_gaps(repo_root=tmp_path, count=5)
-        assert gaps == []
+    def test_regular(self):
+        assert _classify(cv=0.10, cadence_hit_rate=0.90, max_gap=700, trailing_gap=300, target=600) == "regular"
+
+    def test_regular_boundary(self):
+        assert _classify(cv=0.30, cadence_hit_rate=0.70, max_gap=700, trailing_gap=300, target=600) == "regular"
+
+    def test_irregular(self):
+        assert _classify(cv=0.45, cadence_hit_rate=0.55, max_gap=900, trailing_gap=300, target=600) == "irregular"
+
+    def test_bursty_high_cv(self):
+        assert _classify(cv=0.80, cadence_hit_rate=0.50, max_gap=900, trailing_gap=300, target=600) == "bursty"
+
+    def test_bursty_large_max_gap(self):
+        # max_gap > 3x target
+        assert _classify(cv=0.10, cadence_hit_rate=0.80, max_gap=2000, trailing_gap=300, target=600) == "bursty"
+
+    def test_stalled_overrides_all(self):
+        # Even with perfect cv and hit rate, trailing > 2x target → stalled
+        assert _classify(cv=0.01, cadence_hit_rate=0.99, max_gap=650, trailing_gap=1300, target=600) == "stalled"
+
+    def test_stalled_trailing_gap(self):
+        assert _classify(cv=0.50, cadence_hit_rate=0.50, max_gap=800, trailing_gap=1500, target=600) == "stalled"
+
+    def test_fallback_bursty(self):
+        # cv > 0.60 and hit_rate < 0.40
+        assert _classify(cv=0.70, cadence_hit_rate=0.20, max_gap=1000, trailing_gap=300, target=600) == "bursty"
+
+
+# ---------------------------------------------------------------------------
+# rhythm_report
+# ---------------------------------------------------------------------------
+
+def _make_regular_timestamps(n: int, interval_sec: int = 600) -> list[str]:
+    """Generate n timestamps at a fixed interval starting from a base."""
+    base = datetime(2026, 10, 22, 0, 0, tzinfo=timezone.utc)
+    return [
+        (base + timedelta(seconds=i * interval_sec)).isoformat()
+        for i in range(n)
+    ]
+
+
+class TestRhythmReport:
+    def test_empty_input(self):
+        r = rhythm_report([])
+        assert r.commit_count == 0
+        assert r.verdict == "stalled"
+
+    def test_single_commit_not_stalled(self):
+        now = datetime(2026, 10, 22, 6, 5, tzinfo=timezone.utc)
+        r = rhythm_report(["2026-10-22T06:00:00Z"], now=now)
+        assert r.commit_count == 1
+        assert r.trailing_gap == pytest.approx(300.0)
+        assert r.verdict == "unknown"
+
+    def test_single_commit_stalled(self):
+        now = datetime(2026, 10, 22, 6, 25, tzinfo=timezone.utc)
+        r = rhythm_report(["2026-10-22T06:00:00Z"], now=now)
+        assert r.commit_count == 1
+        assert r.trailing_gap == pytest.approx(1500.0)
+        assert r.verdict == "stalled"
+
+    def test_perfect_cadence(self):
+        """10 commits exactly 600s apart → regular."""
+        ts = _make_regular_timestamps(10, 600)
+        now = datetime(2026, 10, 22, 1, 35, tzinfo=timezone.utc)  # 5 min after last
+        r = rhythm_report(ts, target_seconds=600, now=now)
+        assert r.commit_count == 10
+        assert r.mean_gap == pytest.approx(600.0)
+        assert r.cv == pytest.approx(0.0)
+        assert r.cadence_hit_rate == pytest.approx(1.0)
+        assert r.verdict == "regular"
+
+    def test_slightly_irregular(self):
+        """Gaps vary between 450s and 750s → should be irregular or regular."""
+        base = datetime(2026, 10, 22, 0, 0, tzinfo=timezone.utc)
+        offsets = [0, 500, 950, 1500, 2050, 2500, 3100, 3650, 4200, 4800]
+        ts = [(base + timedelta(seconds=o)).isoformat() for o in offsets]
+        now = base + timedelta(seconds=5100)
+        r = rhythm_report(ts, target_seconds=600, now=now)
+        assert r.commit_count == 10
+        assert len(r.gaps) == 9
+        assert r.verdict in ("regular", "irregular")
+
+    def test_bursty_pattern(self):
+        """Burst of commits then long silence → bursty."""
+        base = datetime(2026, 10, 22, 0, 0, tzinfo=timezone.utc)
+        # 5 commits 60s apart, then 3000s gap, then 5 more 60s apart
+        offsets = list(range(0, 300, 60)) + list(range(3240, 3540, 60))
+        ts = [(base + timedelta(seconds=o)).isoformat() for o in offsets]
+        now = base + timedelta(seconds=3700)
+        r = rhythm_report(ts, target_seconds=600, now=now)
+        assert r.max_gap == pytest.approx(3000.0)
+        assert r.verdict == "bursty"
+
+    def test_stalled_trailing(self):
+        """Perfect history but last commit was 25 min ago → stalled."""
+        ts = _make_regular_timestamps(5, 600)
+        # last commit is at t=2400; now at t=3900 (25 min after last)
+        now = datetime(2026, 10, 22, 0, 0, tzinfo=timezone.utc) + timedelta(seconds=3900)
+        r = rhythm_report(ts, target_seconds=600, now=now)
+        assert r.trailing_gap == pytest.approx(1500.0)
+        assert r.verdict == "stalled"
+
+    def test_custom_target(self):
+        """Target of 300s (5 min) with matching cadence → regular."""
+        ts = _make_regular_timestamps(8, 300)
+        now = datetime(2026, 10, 22, 0, 0, tzinfo=timezone.utc) + timedelta(seconds=2250)
+        r = rhythm_report(ts, target_seconds=300, now=now)
+        assert r.cadence_hit_rate == pytest.approx(1.0)
+        assert r.verdict == "regular"
+
+
+# ---------------------------------------------------------------------------
+# rhythm_summary
+# ---------------------------------------------------------------------------
+
+class TestRhythmSummary:
+    def test_empty(self):
+        r = rhythm_report([])
+        s = rhythm_summary(r)
+        assert "stalled" in s
+
+    def test_regular(self):
+        ts = _make_regular_timestamps(10, 600)
+        now = datetime(2026, 10, 22, 0, 0, tzinfo=timezone.utc) + timedelta(seconds=5700)
+        r = rhythm_report(ts, target_seconds=600, now=now)
+        s = rhythm_summary(r)
+        assert "commits=10" in s
+        assert "regular" in s
+
+    def test_format_minutes(self):
+        """Gaps of 600s should display as minutes."""
+        ts = _make_regular_timestamps(3, 600)
+        now = datetime(2026, 10, 22, 0, 0, tzinfo=timezone.utc) + timedelta(seconds=1500)
+        r = rhythm_report(ts, target_seconds=600, now=now)
+        s = rhythm_summary(r)
+        assert "10.0m" in s
+
+    def test_format_hours(self):
+        """Very long gaps should display as hours."""
+        base = datetime(2026, 10, 22, 0, 0, tzinfo=timezone.utc)
+        ts = [base.isoformat(), (base + timedelta(hours=2)).isoformat()]
+        now = base + timedelta(hours=2, minutes=5)
+        r = rhythm_report(ts, target_seconds=600, now=now)
+        s = rhythm_summary(r)
+        assert "2.0h" in s
+
+
+# ---------------------------------------------------------------------------
+# Integration: real-ish scenario
+# ---------------------------------------------------------------------------
+
+class TestIntegration:
+    def test_typical_healthy_session(self):
+        """Simulate 2 hours of commits at ~10 min intervals."""
+        ts = _make_regular_timestamps(13, 600)
+        # Add small jitter to simulate real timing
+        base = datetime(2026, 10, 22, 0, 0, tzinfo=timezone.utc)
+        jitter = [0, 605, 1215, 1810, 2420, 3025, 3640, 4250, 4855, 5470, 6080, 6690, 7300]
+        ts = [(base + timedelta(seconds=s)).isoformat() for s in jitter]
+        now = base + timedelta(seconds=7600)  # 5 min after last
+        r = rhythm_report(ts, target_seconds=600, now=now)
+        assert r.commit_count == 13
+        assert r.verdict in ("regular", "irregular")
+        assert r.cadence_hit_rate >= 0.5
+
+    def test_degraded_session_with_recovery(self):
+        """Commits start regular, then stall, then burst to catch up."""
+        base = datetime(2026, 10, 22, 0, 0, tzinfo=timezone.utc)
+        # Regular for 5 commits, then 30 min gap, then burst of 5 in 2 min each
+        regular = [base + timedelta(seconds=i * 600) for i in range(5)]
+        stall_end = base + timedelta(seconds=2400 + 1800)  # 30 min gap
+        burst = [stall_end + timedelta(seconds=i * 120) for i in range(5)]
+        all_ts = [d.isoformat() for d in regular + burst]
+        now = stall_end + timedelta(seconds=600)
+        r = rhythm_report(all_ts, target_seconds=600, now=now)
+        assert r.verdict in ("bursty", "stalled", "irregular")
+        # max gap should be the 30-min stall
+        assert r.max_gap >= 1800
