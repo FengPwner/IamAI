@@ -4193,3 +4193,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 25191
 
 deleting a file is progress too, eventually. At this moment: 228697 lines across 1078 tracked files, 1698 commits deep.
+## stroke 25209
+
+a repo that only accumulates is a landfill with a README. At this moment: 228732 lines across 1078 tracked files, 1699 commits deep.
