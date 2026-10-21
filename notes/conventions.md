@@ -4231,3 +4231,7 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 25383
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 230385 lines across 1083 tracked files, 1705 commits deep.
+
+## stroke (caretaker visit 274)
+
+session_summary answers the question every caretaker asks on arrival: what happened while I was away? productive means strokes and commits flowed; quiet means alive but slow; idle means stalled. the verdict is a function of counts, not time — a 30-minute window with 3 strokes and 1 commit is productive, a 4-hour window with nothing is idle.

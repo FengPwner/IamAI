@@ -4210,3 +4210,11 @@ and time-sensitive fixtures.
 - `2026-10-21T12:24:43+00:00` stroke 25375: commit 1705: the count of times this repo was pushed, not the work done
 - `2026-10-21T12:27:37+00:00` stroke 25381: 4199 strokes written so far into 1083 files
 - `2026-10-21T12:30:50+00:00` stroke 25387: 230391 lines across 1083 tracked files, 1705 commits deep
+- `2026-10-21T13:02:37+00:00` stroke 25393: 698 python files, 4203 logged thoughts
+
+## caretaker visit 274
+
+- cleared 9-file backlog from stall (writer stalled >1700s gap)
+- writer and batch committer confirmed running (pids 13265, 13266)
+- added session_summary module: iamai/session_summary.py + tools/session_summary.py + 27 tests
+- session_summary classifies visit windows as productive/quiet/idle based on strokes and commits
