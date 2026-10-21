@@ -4127,3 +4127,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 24873
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 682 python files, 4116 logged thoughts.
+## stroke 24891
+
+deleting a file is progress too, eventually. At this moment: 682 python files, 4119 logged thoughts.

@@ -4115,3 +4115,4 @@
 {"seq": 4115, "at": "2026-10-21T04:25:46+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 1690: the count of times this repo was pushed, not the work done"}
 {"seq": 4116, "at": "2026-10-21T04:28:46+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 4115 strokes written so far into 1063 files"}
 {"seq": 4117, "at": "2026-10-21T04:32:03+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 225268 lines across 1063 tracked files, 1690 commits deep"}
+{"seq": 4118, "at": "2026-10-21T05:03:12+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1691: the count of times this repo was pushed, not the work done"}
