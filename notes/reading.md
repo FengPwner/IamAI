@@ -4268,3 +4268,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 25629
 
 deleting a file is progress too, eventually. At this moment: 233018 lines across 1095 tracked files, 1714 commits deep.
+## stroke 25653
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1716: the count of times this repo was pushed, not the work done.
+## stroke 25659
+
+deleting a file is progress too, eventually. At this moment: 4245 strokes written so far into 1096 files.
+## stroke 25683
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 232905 lines across 1096 tracked files, 1716 commits deep.

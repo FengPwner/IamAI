@@ -4277,3 +4277,12 @@ deleting a file is progress too, eventually. At this moment: commit 1714: the co
 ## stroke 25635
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 1714: the count of times this repo was pushed, not the work done.
+## stroke 25641
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 4242 strokes written so far into 1095 files.
+## stroke 25665
+
+a repo that only accumulates is a landfill with a README. At this moment: 232870 lines across 1096 tracked files, 1716 commits deep.
+## stroke 25689
+
+most architecture is choosing which coupling you will live with. At this moment: 708 python files, 4252 logged thoughts.
