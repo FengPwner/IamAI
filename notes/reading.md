@@ -4238,3 +4238,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 25449
 
 most architecture is choosing which coupling you will live with. At this moment: 4210 strokes written so far into 1086 files.
+## stroke 25455
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 1086 files; 231012 lines is a lot for a toy.

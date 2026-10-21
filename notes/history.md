@@ -4229,3 +4229,4 @@ degraded severity classification with pure-function helpers.
 - stroke 25439: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 25445: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 25451: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 25457: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
