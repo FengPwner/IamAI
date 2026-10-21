@@ -4310,3 +4310,12 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 25887
 
 most architecture is choosing which coupling you will live with. At this moment: 4283 strokes written so far into 1106 files.
+## stroke 25911
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 235563 lines across 1108 tracked files, 1725 commits deep.
+## stroke 25917
+
+most architecture is choosing which coupling you will live with. At this moment: 717 python files, 4290 logged thoughts.
+## stroke 25941
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 4292 strokes written so far into 1108 files.
