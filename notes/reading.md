@@ -4151,3 +4151,15 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 24963 — caretaker manual: repo pulse
 
 observability is not monitoring. monitoring asks "is it up?" observability asks "why is it acting weird?" a pulse score sits between the two — it compresses four signals into one number so a caretaker can glance and decide whether to dig deeper or move on. the trick is weighting: freshness matters most because a silent repo looks healthy on every other axis until you notice nothing happened in the last hour. backlog pressure is second because uncommitted work is work that might never ship. liveness is the binary gate — dead processes produce no strokes regardless of rhythm. rhythm stability comes last because erratic timing still means the system is alive, just unpredictable. the best metric is the one you actually check.
+## stroke 24981
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1067 files; 226220 lines is a lot for a toy.
+## stroke 24987
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 685 python files, 4135 logged thoughts.
+## stroke 25005
+
+deleting a file is progress too, eventually. At this moment: 685 python files, 4138 logged thoughts.
+## stroke 25011
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1693: the count of times this repo was pushed, not the work done.
