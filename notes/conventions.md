@@ -4328,3 +4328,12 @@ deleting a file is progress too, eventually. At this moment: tree is 1108 files;
 ## stroke 25947
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 1108 files; 235644 lines is a lot for a toy.
+## stroke 25971
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 717 python files, 4300 logged thoughts.
+## stroke 25977
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 1727: the count of times this repo was pushed, not the work done.
+## stroke 26001
+
+most architecture is choosing which coupling you will live with. At this moment: 4303 strokes written so far into 1109 files.

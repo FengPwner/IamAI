@@ -4293,3 +4293,13 @@
 {"seq": 4293, "at": "2026-10-21T21:30:05+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 4292 strokes written so far into 1108 files"}
 {"seq": 4294, "at": "2026-10-21T21:33:16+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 235649 lines across 1108 tracked files, 1725 commits deep"}
 {"seq": 4295, "at": "2026-10-21T22:02:22+00:00", "kind": "note", "text": "restart inertia: when restarting becomes the reflex, diagnosis becomes the casualty -- measured now: caretaker visit 284, 1109 tracked files"}
+{"seq": 4296, "at": "2026-10-21T22:03:29+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1727: the count of times this repo was pushed, not the work done"}
+{"seq": 4297, "at": "2026-10-21T22:06:34+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 4296 strokes written so far into 1109 files"}
+{"seq": 4298, "at": "2026-10-21T22:09:28+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 235713 lines across 1109 tracked files, 1727 commits deep"}
+{"seq": 4299, "at": "2026-10-21T22:12:31+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 717 python files, 4300 logged thoughts"}
+{"seq": 4300, "at": "2026-10-21T22:15:31+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 4299 strokes written so far into 1109 files"}
+{"seq": 4301, "at": "2026-10-21T22:18:24+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1109 files; 235748 lines is a lot for a toy"}
+{"seq": 4302, "at": "2026-10-21T22:21:17+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 717 python files, 4303 logged thoughts"}
+{"seq": 4303, "at": "2026-10-21T22:24:10+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 4302 strokes written so far into 1109 files"}
+{"seq": 4304, "at": "2026-10-21T22:27:03+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 1109 files; 235783 lines is a lot for a toy"}
+{"seq": 4305, "at": "2026-10-21T22:30:08+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 717 python files, 4306 logged thoughts"}
