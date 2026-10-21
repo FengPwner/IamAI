@@ -1,12 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-10-21T15:20:52+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 25554
-    },
-    {
       "at": "2026-10-21T15:21:19+00:00",
       "kind": "thought",
       "path": "data/strokes.jsonl",
@@ -2399,15 +2393,24 @@
       "kind": "garden",
       "path": "docs/GARDEN.md",
       "seq": 25953
+    },
+    {
+      "at": "2026-10-21T22:02:04+00:00",
+      "kind": "note",
+      "path": "notes/limits.md",
+      "seq": 25954
     }
   ],
-  "seq": 25954,
+  "seq": 25955,
   "tally": {
     "devlog": 4271,
     "garden": 4271,
     "metrics": 4270,
-    "note": 4270,
+    "note": 4271,
     "snippet": 4270,
     "thought": 4270
-  }
+  },
+  "last_stroke": "2026-10-21T22:02:22+00:00",
+  "stroke_count": 1,
+  "source": "caretaker-manual"
 }

@@ -4292,3 +4292,4 @@
 {"seq": 4292, "at": "2026-10-21T21:26:57+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1725: the count of times this repo was pushed, not the work done"}
 {"seq": 4293, "at": "2026-10-21T21:30:05+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 4292 strokes written so far into 1108 files"}
 {"seq": 4294, "at": "2026-10-21T21:33:16+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 235649 lines across 1108 tracked files, 1725 commits deep"}
+{"seq": 4295, "at": "2026-10-21T22:02:22+00:00", "kind": "note", "text": "restart inertia: when restarting becomes the reflex, diagnosis becomes the casualty -- measured now: caretaker visit 284, 1109 tracked files"}
