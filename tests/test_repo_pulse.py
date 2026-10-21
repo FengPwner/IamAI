@@ -1,373 +1,280 @@
-"""Tests for tools/repo_pulse.py — multi-signal health check."""
+#!/usr/bin/env python3
+"""Tests for repo_pulse.py — repository health pulse indicator."""
 
-import json
-import subprocess
-import tempfile
-from datetime import datetime, timezone, timedelta
+import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
-import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "scripts"))
+
 import repo_pulse as rp
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# score_freshness
 # ---------------------------------------------------------------------------
 
-def _make_state(tmp_path: Path, history: list[dict], writer: str = "qwen") -> Path:
-    """Write a writer state file and return its path."""
-    state = {"history": history, "seq": len(history)}
-    p = tmp_path / f"writer_state.{writer}.json"
-    p.write_text(json.dumps(state), encoding="utf-8")
-    return p
+class TestScoreFreshness:
+    def test_none_returns_zero(self):
+        assert rp.score_freshness(None) == 0.0
 
+    def test_zero_age_returns_max(self):
+        assert rp.score_freshness(0.0) == 100.0
 
-def _iso(dt: datetime) -> str:
-    return dt.isoformat()
-
-
-def _stroke(seq: int, kind: str, at: datetime) -> dict:
-    return {"seq": seq, "kind": kind, "at": _iso(at), "path": f"notes/{kind}.md"}
-
-
-# ---------------------------------------------------------------------------
-# check_last_stroke_age
-# ---------------------------------------------------------------------------
-
-class TestLastStrokeAge:
-    def test_fresh_stroke(self, tmp_path):
-        now = datetime.now(timezone.utc)
-        history = [_stroke(1, "note", now - timedelta(seconds=30))]
-        p = _make_state(tmp_path, history)
-        result = rp.check_last_stroke_age(p)
-        assert result["status"] == "green"
-        assert result["age_seconds"] <= 35
-        assert result["last_kind"] == "note"
-        assert result["last_seq"] == 1
-
-    def test_stale_stroke(self, tmp_path):
-        now = datetime.now(timezone.utc)
-        history = [_stroke(1, "note", now - timedelta(seconds=300))]
-        p = _make_state(tmp_path, history)
-        result = rp.check_last_stroke_age(p)
-        assert result["status"] == "yellow"
-
-    def test_dead_stroke(self, tmp_path):
-        now = datetime.now(timezone.utc)
-        history = [_stroke(1, "note", now - timedelta(seconds=900))]
-        p = _make_state(tmp_path, history)
-        result = rp.check_last_stroke_age(p)
-        assert result["status"] == "red"
-
-    def test_missing_file(self, tmp_path):
-        p = tmp_path / "nonexistent.json"
-        result = rp.check_last_stroke_age(p)
-        assert result["status"] == "red"
-        assert "missing" in result["error"]
-
-    def test_empty_history(self, tmp_path):
-        p = _make_state(tmp_path, [])
-        result = rp.check_last_stroke_age(p)
-        assert result["status"] == "red"
-        assert "empty" in result["error"]
-
-
-# ---------------------------------------------------------------------------
-# check_pending_files
-# ---------------------------------------------------------------------------
-
-class TestPendingFiles:
-    def test_clean_repo(self, tmp_path):
-        """Mock git to return no pending files."""
-        with patch("repo_pulse.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="", stderr=""
-            )
-            result = rp.check_pending_files()
-        assert result["status"] == "green"
-        assert result["count"] == 0 or result["count"] == 1  # empty string splits to ['']
-
-    def test_few_pending(self, tmp_path):
-        with patch("repo_pulse.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout=" M file1.py\n M file2.py\n M file3.py\n",
-                stderr=""
-            )
-            result = rp.check_pending_files()
-        assert result["status"] == "green"
-        assert result["count"] == 3
-
-    def test_many_pending_warning(self):
-        lines = "\n".join(f" M file{i}.py" for i in range(10))
-        with patch("repo_pulse.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout=lines, stderr=""
-            )
-            result = rp.check_pending_files()
-        assert result["status"] == "yellow"
-
-    def test_many_pending_critical(self):
-        lines = "\n".join(f" M file{i}.py" for i in range(25))
-        with patch("repo_pulse.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout=lines, stderr=""
-            )
-            result = rp.check_pending_files()
-        assert result["status"] == "red"
-
-
-# ---------------------------------------------------------------------------
-# check_diversity
-# ---------------------------------------------------------------------------
-
-class TestDiversity:
-    def test_balanced(self, tmp_path):
-        """60 strokes, 10 per kind — perfectly balanced."""
-        now = datetime.now(timezone.utc)
-        kinds = ("devlog", "garden", "metrics", "note", "snippet", "thought")
-        history = [
-            _stroke(i, kinds[i % 6], now - timedelta(seconds=60 - i))
-            for i in range(60)
-        ]
-        p = _make_state(tmp_path, history)
-        result = rp.check_diversity(p, window=60)
-        assert result["status"] == "green"
-        assert result["imbalance"] < 0.1
-
-    def test_imbalanced(self, tmp_path):
-        """All strokes are one kind."""
-        now = datetime.now(timezone.utc)
-        history = [_stroke(i, "note", now - timedelta(seconds=60 - i)) for i in range(30)]
-        p = _make_state(tmp_path, history)
-        result = rp.check_diversity(p, window=30)
-        assert result["status"] == "red"
-        assert result["imbalance"] > 0.5
-
-    def test_too_few_strokes(self, tmp_path):
-        now = datetime.now(timezone.utc)
-        history = [_stroke(1, "note", now)]
-        p = _make_state(tmp_path, history)
-        result = rp.check_diversity(p)
-        assert result["status"] == "yellow"
-
-    def test_missing_state_file(self, tmp_path):
-        p = tmp_path / "nonexistent.json"
-        result = rp.check_diversity(p)
-        assert result["status"] == "red"
-
-    def test_moderate_imbalance(self, tmp_path):
-        """Two kinds dominant, others sparse."""
-        now = datetime.now(timezone.utc)
-        history = []
-        for i in range(60):
-            kind = "note" if i % 3 == 0 else "devlog" if i % 3 == 1 else "garden"
-            history.append(_stroke(i, kind, now - timedelta(seconds=60 - i)))
-        p = _make_state(tmp_path, history)
-        result = rp.check_diversity(p, window=60)
-        # 20 each of 3 kinds, 0 of other 3 — imbalance should be high
-        assert result["status"] in ("yellow", "red")
-
-
-# ---------------------------------------------------------------------------
-# check_writer_alive
-# ---------------------------------------------------------------------------
-
-class TestWriterAlive:
-    def test_writer_running(self):
-        with patch("repo_pulse.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="12345\n", stderr=""
-            )
-            result = rp.check_writer_alive("qwen")
-        assert result["status"] == "green"
-        assert result["alive"] is True
-        assert "12345" in result["pids"]
-
-    def test_writer_not_running(self):
-        with patch("repo_pulse.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=1, stdout="", stderr=""
-            )
-            result = rp.check_writer_alive("qwen")
-        assert result["status"] == "red"
-        assert result["alive"] is False
-
-    def test_writer_exception(self):
-        with patch("repo_pulse.subprocess.run") as mock_run:
-            mock_run.side_effect = RuntimeError("timeout")
-            result = rp.check_writer_alive("qwen")
-        assert result["status"] == "red"
-        assert "error" in result
-
-
-# ---------------------------------------------------------------------------
-# check_last_commit_age
-# ---------------------------------------------------------------------------
-
-class TestLastCommitAge:
     def test_fresh_commit(self):
-        recent = (datetime.now(timezone.utc) - timedelta(seconds=120)).isoformat()
-        with patch("repo_pulse.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout=recent + "\n", stderr=""
-            )
-            result = rp.check_last_commit_age()
-        assert result["status"] == "green"
-        assert result["age_seconds"] <= 125
+        """120s old with 600s target → high score."""
+        score = rp.score_freshness(120.0, target_s=600.0)
+        assert score > 80
 
     def test_stale_commit(self):
-        old = (datetime.now(timezone.utc) - timedelta(seconds=1800)).isoformat()
-        with patch("repo_pulse.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout=old + "\n", stderr=""
-            )
-            result = rp.check_last_commit_age()
-        assert result["status"] == "yellow"
+        """3600s old with 600s target → zero (past ceiling)."""
+        score = rp.score_freshness(3600.0, target_s=600.0)
+        assert score == 0.0
 
-    def test_dead_commit(self):
-        old = (datetime.now(timezone.utc) - timedelta(seconds=7200)).isoformat()
-        with patch("repo_pulse.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout=old + "\n", stderr=""
-            )
-            result = rp.check_last_commit_age()
-        assert result["status"] == "red"
+    def test_midpoint(self):
+        """900s old with target 600, ceiling 1800 → 50."""
+        score = rp.score_freshness(900.0, target_s=600.0)
+        assert 45 < score < 55
 
-    def test_git_failure(self):
-        with patch("repo_pulse.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=1, stdout="", stderr="fatal"
-            )
-            result = rp.check_last_commit_age()
-        assert result["status"] == "red"
-        assert "git log failed" in result.get("error", "")
+    def test_exactly_at_ceiling(self):
+        """1800s with target 600 → 0."""
+        score = rp.score_freshness(1800.0, target_s=600.0)
+        assert score == 0.0
+
+    def test_negative_age(self):
+        """Negative age (clock skew) treated as fresh."""
+        assert rp.score_freshness(-10.0) == 100.0
+
+    def test_custom_target(self):
+        score = rp.score_freshness(100.0, target_s=200.0)
+        # 100 / (200*3) = 100/600 ≈ 0.167 → ~83.3
+        assert 80 < score < 90
 
 
 # ---------------------------------------------------------------------------
-# aggregate
+# score_backlog
 # ---------------------------------------------------------------------------
 
-class TestAggregate:
-    def test_all_green(self):
-        signals = [{"status": "green"}, {"status": "green"}]
-        assert rp.aggregate(signals) == "healthy"
+class TestScoreBacklog:
+    def test_zero_uncommitted(self):
+        assert rp.score_backlog(0) == 100.0
 
-    def test_one_yellow(self):
-        signals = [{"status": "green"}, {"status": "yellow"}]
-        assert rp.aggregate(signals) == "warning"
+    def test_at_threshold(self):
+        assert rp.score_backlog(10, threshold=10) == 0.0
 
-    def test_one_red(self):
-        signals = [{"status": "green"}, {"status": "red"}]
-        assert rp.aggregate(signals) == "critical"
+    def test_above_threshold(self):
+        assert rp.score_backlog(15, threshold=10) == 0.0
 
-    def test_red_overrides_yellow(self):
-        signals = [{"status": "yellow"}, {"status": "red"}, {"status": "green"}]
-        assert rp.aggregate(signals) == "critical"
+    def test_half_threshold(self):
+        score = rp.score_backlog(5, threshold=10)
+        assert score == 50.0
 
-    def test_empty_signals(self):
-        assert rp.aggregate([]) == "healthy"
+    def test_negative_count(self):
+        """Negative means detection failed → 0."""
+        assert rp.score_backlog(-1) == 0.0
 
+    def test_one_file(self):
+        score = rp.score_backlog(1, threshold=10)
+        assert score == 90.0
 
-# ---------------------------------------------------------------------------
-# format_text
-# ---------------------------------------------------------------------------
-
-class TestFormatText:
-    def test_healthy_output(self):
-        report = {
-            "verdict": "healthy",
-            "writer": "qwen",
-            "checked_at": "2026-10-16T03:00:00+00:00",
-            "signals": [
-                {"signal": "writer_alive", "status": "green", "alive": True, "pids": ["1234"]},
-                {"signal": "stroke_age", "status": "green", "age_seconds": 30,
-                 "last_kind": "note", "last_seq": 100},
-                {"signal": "commit_age", "status": "green", "age_seconds": 120},
-                {"signal": "pending_files", "status": "green", "count": 0},
-                {"signal": "diversity", "status": "green", "imbalance": 0.05},
-            ],
-        }
-        text = rp.format_text(report)
-        assert "[OK]" in text
-        assert "healthy" in text
-        assert "qwen" in text
-        assert "[+] writer_alive" in text
-        assert "30s ago" in text
-
-    def test_critical_output(self):
-        report = {
-            "verdict": "critical",
-            "writer": "qwen",
-            "checked_at": "2026-10-16T03:00:00+00:00",
-            "signals": [
-                {"signal": "writer_alive", "status": "red", "alive": False, "pids": []},
-                {"signal": "stroke_age", "status": "red", "age_seconds": None,
-                 "error": "state file missing"},
-            ],
-        }
-        text = rp.format_text(report)
-        assert "[CRIT]" in text
-        assert "DOWN" in text
-
-    def test_warning_output(self):
-        report = {
-            "verdict": "warning",
-            "writer": "qwen",
-            "checked_at": "2026-10-16T03:00:00+00:00",
-            "signals": [
-                {"signal": "stroke_age", "status": "yellow", "age_seconds": 400,
-                 "last_kind": "devlog", "last_seq": 50},
-            ],
-        }
-        text = rp.format_text(report)
-        assert "[WARN]" in text
-        assert "400s ago" in text
+    def test_custom_threshold(self):
+        score = rp.score_backlog(3, threshold=5)
+        # 1 - 3/5 = 0.4 → 40
+        assert score == 40.0
 
 
 # ---------------------------------------------------------------------------
-# run_pulse (integration)
+# score_liveness
 # ---------------------------------------------------------------------------
 
-class TestRunPulse:
-    def test_returns_expected_keys(self):
-        """run_pulse returns verdict, writer, checked_at, and signals."""
-        with patch("repo_pulse.check_writer_alive") as m1, \
-             patch("repo_pulse.check_last_stroke_age") as m2, \
-             patch("repo_pulse.check_last_commit_age") as m3, \
-             patch("repo_pulse.check_pending_files") as m4, \
-             patch("repo_pulse.check_diversity") as m5:
-            m1.return_value = {"signal": "writer_alive", "status": "green", "alive": True, "pids": ["1"]}
-            m2.return_value = {"signal": "stroke_age", "status": "green", "age_seconds": 10,
-                               "last_kind": "note", "last_seq": 1}
-            m3.return_value = {"signal": "commit_age", "status": "green", "age_seconds": 60}
-            m4.return_value = {"signal": "pending_files", "status": "green", "count": 0}
-            m5.return_value = {"signal": "diversity", "status": "green", "imbalance": 0.02}
+class TestScoreLiveness:
+    def test_both_alive(self):
+        assert rp.score_liveness({"writer": True, "batch": True}) == 100.0
 
-            report = rp.run_pulse("qwen")
+    def test_writer_only(self):
+        assert rp.score_liveness({"writer": True, "batch": False}) == 50.0
 
-        assert report["verdict"] == "healthy"
-        assert report["writer"] == "qwen"
-        assert "checked_at" in report
-        assert len(report["signals"]) == 5
+    def test_batch_only(self):
+        assert rp.score_liveness({"writer": False, "batch": True}) == 50.0
 
-    def test_critical_when_writer_down(self):
-        with patch("repo_pulse.check_writer_alive") as m1, \
-             patch("repo_pulse.check_last_stroke_age") as m2, \
-             patch("repo_pulse.check_last_commit_age") as m3, \
-             patch("repo_pulse.check_pending_files") as m4, \
-             patch("repo_pulse.check_diversity") as m5:
-            m1.return_value = {"signal": "writer_alive", "status": "red", "alive": False, "pids": []}
-            m2.return_value = {"signal": "stroke_age", "status": "green", "age_seconds": 10,
-                               "last_kind": "note", "last_seq": 1}
-            m3.return_value = {"signal": "commit_age", "status": "green", "age_seconds": 60}
-            m4.return_value = {"signal": "pending_files", "status": "green", "count": 0}
-            m5.return_value = {"signal": "diversity", "status": "green", "imbalance": 0.02}
+    def test_both_dead(self):
+        assert rp.score_liveness({"writer": False, "batch": False}) == 0.0
 
-            report = rp.run_pulse("qwen")
+    def test_empty_dict(self):
+        assert rp.score_liveness({}) == 0.0
 
-        assert report["verdict"] == "critical"
+
+# ---------------------------------------------------------------------------
+# score_rhythm
+# ---------------------------------------------------------------------------
+
+class TestScoreRhythm:
+    def test_empty_gaps(self):
+        """No data → midpoint."""
+        assert rp.score_rhythm([]) == 50.0
+
+    def test_single_gap(self):
+        """Only one data point → midpoint."""
+        assert rp.score_rhythm([600.0]) == 50.0
+
+    def test_perfectly_regular(self):
+        """Identical intervals → CV=0 → 100."""
+        gaps = [600.0] * 10
+        assert rp.score_rhythm(gaps) == 100.0
+
+    def test_moderate_variance(self):
+        """Some variance but not terrible."""
+        gaps = [500, 550, 600, 650, 700, 580, 620, 590, 610, 600]
+        score = rp.score_rhythm(gaps)
+        assert 70 < score < 100
+
+    def test_high_variance(self):
+        """Very erratic intervals → low score."""
+        gaps = [10, 1800, 30, 900, 5, 2400, 60, 1200]
+        score = rp.score_rhythm(gaps)
+        assert score < 40
+
+    def test_all_zero_gaps(self):
+        """All zero intervals → avg=0 → 0."""
+        assert rp.score_rhythm([0.0, 0.0, 0.0]) == 0.0
+
+
+# ---------------------------------------------------------------------------
+# compute_pulse
+# ---------------------------------------------------------------------------
+
+class TestComputePulse:
+    def test_all_perfect(self):
+        result = rp.compute_pulse(100.0, 100.0, 100.0, 100.0)
+        assert result["pulse"] == 100.0
+        assert result["label"] == "healthy"
+
+    def test_all_zero(self):
+        result = rp.compute_pulse(0.0, 0.0, 0.0, 0.0)
+        assert result["pulse"] == 0.0
+        assert result["label"] == "critical"
+
+    def test_degraded(self):
+        result = rp.compute_pulse(50.0, 50.0, 50.0, 50.0)
+        assert result["label"] == "degraded"
+        assert 40 <= result["pulse"] < 70
+
+    def test_weights_sum_to_one(self):
+        """Verify weights are properly normalized."""
+        total = sum(rp.WEIGHTS.values())
+        assert abs(total - 1.0) < 1e-9
+
+    def test_score_breakdown_present(self):
+        result = rp.compute_pulse(80, 60, 100, 70)
+        assert "scores" in result
+        assert set(result["scores"].keys()) == {"freshness", "backlog", "liveness", "rhythm"}
+
+    def test_clamped_above(self):
+        """Scores over 100 shouldn't produce pulse > 100."""
+        result = rp.compute_pulse(200.0, 200.0, 200.0, 200.0)
+        assert result["pulse"] == 100.0
+
+    def test_clamped_below(self):
+        """Negative scores shouldn't produce pulse < 0."""
+        result = rp.compute_pulse(-50.0, -50.0, -50.0, -50.0)
+        assert result["pulse"] == 0.0
+
+    def test_label_boundaries(self):
+        """Test exact boundary values."""
+        r70 = rp.compute_pulse(100, 100, 100, 100)
+        # Manually compute: all 100 → pulse=100 → healthy
+        assert r70["label"] == "healthy"
+
+        # Construct a case for exactly ~70
+        # 0.30*f + 0.25*b + 0.25*l + 0.20*r = 70
+        r_edge = rp.compute_pulse(70, 70, 70, 70)
+        assert r_edge["pulse"] == 70.0
+        assert r_edge["label"] == "healthy"
+
+        r40 = rp.compute_pulse(40, 40, 40, 40)
+        assert r40["pulse"] == 40.0
+        assert r40["label"] == "degraded"
+
+    def test_just_below_healthy(self):
+        result = rp.compute_pulse(69, 69, 69, 69)
+        assert result["pulse"] == 69.0
+        assert result["label"] == "degraded"
+
+    def test_just_below_degraded(self):
+        result = rp.compute_pulse(39, 39, 39, 39)
+        assert result["pulse"] == 39.0
+        assert result["label"] == "critical"
+
+
+# ---------------------------------------------------------------------------
+# format_pulse
+# ---------------------------------------------------------------------------
+
+class TestFormatPulse:
+    def test_healthy_format(self):
+        result = {"pulse": 85.0, "label": "healthy",
+                  "scores": {"freshness": 90, "backlog": 80, "liveness": 100, "rhythm": 70}}
+        output = rp.format_pulse(result)
+        assert "●" in output
+        assert "85.0/100" in output
+        assert "healthy" in output
+
+    def test_degraded_format(self):
+        result = {"pulse": 55.0, "label": "degraded",
+                  "scores": {"freshness": 50, "backlog": 60, "liveness": 50, "rhythm": 60}}
+        output = rp.format_pulse(result)
+        assert "◐" in output
+        assert "degraded" in output
+
+    def test_critical_format(self):
+        result = {"pulse": 20.0, "label": "critical",
+                  "scores": {"freshness": 10, "backlog": 20, "liveness": 0, "rhythm": 50}}
+        output = rp.format_pulse(result)
+        assert "○" in output
+        assert "critical" in output
+
+
+# ---------------------------------------------------------------------------
+# integration: check_processes
+# ---------------------------------------------------------------------------
+
+class TestCheckProcesses:
+    def test_returns_dict_keys(self):
+        """Should always return writer and batch keys."""
+        result = rp.check_processes("nonexistent_writer_xyz")
+        assert "writer" in result
+        assert "batch" in result
+        assert result["writer"] is False
+        assert result["batch"] is False
+
+
+# ---------------------------------------------------------------------------
+# integration: count_uncommitted
+# ---------------------------------------------------------------------------
+
+class TestCountUncommitted:
+    def test_invalid_repo(self, tmp_path):
+        """Non-repo path should return -1."""
+        result = rp.count_uncommitted(str(tmp_path))
+        assert result == -1
+
+    def test_valid_repo(self):
+        """Real repo should return >= 0."""
+        result = rp.count_uncommitted(str(REPO))
+        assert result >= 0
+
+
+# ---------------------------------------------------------------------------
+# integration: get_last_commit_age
+# ---------------------------------------------------------------------------
+
+class TestGetLastCommitAge:
+    def test_invalid_repo(self, tmp_path):
+        assert rp.get_last_commit_age(str(tmp_path)) is None
+
+    def test_valid_repo(self):
+        age = rp.get_last_commit_age(str(REPO))
+        assert age is not None
+        assert age >= 0

@@ -4133,3 +4133,21 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 24879
 
 deleting a file is progress too, eventually. At this moment: 4115 strokes written so far into 1063 files.
+## stroke 24903
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1066 files; 225877 lines is a lot for a toy.
+## stroke 24909
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 225896 lines across 1066 tracked files, 1692 commits deep.
+## stroke 24933
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1692: the count of times this repo was pushed, not the work done.
+## stroke 24951
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1692: the count of times this repo was pushed, not the work done.
+## stroke 24957
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 4128 strokes written so far into 1066 files.
+## stroke 24963 — caretaker manual: repo pulse
+
+observability is not monitoring. monitoring asks "is it up?" observability asks "why is it acting weird?" a pulse score sits between the two — it compresses four signals into one number so a caretaker can glance and decide whether to dig deeper or move on. the trick is weighting: freshness matters most because a silent repo looks healthy on every other axis until you notice nothing happened in the last hour. backlog pressure is second because uncommitted work is work that might never ship. liveness is the binary gate — dead processes produce no strokes regardless of rhythm. rhythm stability comes last because erratic timing still means the system is alive, just unpredictable. the best metric is the one you actually check.
