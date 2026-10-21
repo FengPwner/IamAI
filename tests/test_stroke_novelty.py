@@ -1,128 +1,69 @@
-"""Tests for iamai.stroke_novelty — stroke novelty detection.
-
-Covers:
-  - NoveltyVerdict enum values and string identity
-  - NoveltyResult dataclass (frozen, ok property)
-  - _shingles: extraction, edge cases, validation
-  - _jaccard: set similarity, empty sets
-  - check_novelty: fresh / repetitive / duplicate verdicts
-  - Edge cases: empty candidate, empty recent, single-char strokes
-  - check_batch and summary convenience functions
-"""
+"""Tests for iamai.stroke_novelty — content repetition detector."""
 
 import pytest
 
 from iamai.stroke_novelty import (
-    NoveltyResult,
-    NoveltyVerdict,
+    StrokeNovelty,
+    StrokeNoveltyResult,
     _jaccard,
-    _shingles,
-    check_batch,
-    check_novelty,
-    summary,
+    _tokenise,
+    classify_novelty,
+    classify_stream,
 )
 
 
 # ---------------------------------------------------------------------------
-# NoveltyVerdict
+# Tokenisation helpers
 # ---------------------------------------------------------------------------
 
-class TestNoveltyVerdict:
-    def test_values(self):
-        assert NoveltyVerdict.FRESH == "fresh"
-        assert NoveltyVerdict.REPETITIVE == "repetitive"
-        assert NoveltyVerdict.DUPLICATE == "duplicate"
 
-    def test_is_string(self):
-        assert isinstance(NoveltyVerdict.FRESH, str)
-
-    def test_all_members(self):
-        assert set(NoveltyVerdict) == {
-            NoveltyVerdict.FRESH,
-            NoveltyVerdict.REPETITIVE,
-            NoveltyVerdict.DUPLICATE,
-        }
-
-
-# ---------------------------------------------------------------------------
-# NoveltyResult
-# ---------------------------------------------------------------------------
-
-class TestNoveltyResult:
-    def test_defaults(self):
-        r = NoveltyResult(verdict=NoveltyVerdict.FRESH, max_similarity=0.0, nearest_index=-1)
-        assert r.similarities == []
-        assert r.reasons == []
-
-    def test_ok_property(self):
-        fresh = NoveltyResult(verdict=NoveltyVerdict.FRESH, max_similarity=0.1, nearest_index=0)
-        rep = NoveltyResult(verdict=NoveltyVerdict.REPETITIVE, max_similarity=0.6, nearest_index=0)
-        dup = NoveltyResult(verdict=NoveltyVerdict.DUPLICATE, max_similarity=0.9, nearest_index=0)
-        assert fresh.ok is True
-        assert rep.ok is False
-        assert dup.ok is False
-
-    def test_frozen(self):
-        r = NoveltyResult(verdict=NoveltyVerdict.FRESH, max_similarity=0.0, nearest_index=-1)
-        with pytest.raises(AttributeError):
-            r.max_similarity = 0.5  # type: ignore[misc]
-
-
-# ---------------------------------------------------------------------------
-# _shingles
-# ---------------------------------------------------------------------------
-
-class TestShingles:
+class TestTokenise:
     def test_basic(self):
-        s = _shingles("abcdef", n=3)
-        assert s == {"abc", "bcd", "cde", "def"}
+        tokens = _tokenise("Hello World")
+        assert tokens == {"hello", "world"}
 
-    def test_single_shingle(self):
-        s = _shingles("abcd", n=4)
-        assert s == {"abcd"}
+    def test_strips_digits(self):
+        tokens = _tokenise("commit 1700 files 1081")
+        assert tokens == {"commit", "files"}
 
-    def test_text_shorter_than_n(self):
-        assert _shingles("ab", n=4) == set()
+    def test_removes_stop_words(self):
+        tokens = _tokenise("the quick brown fox is a very fast animal")
+        # "the", "is", "a", "very" are stop words
+        assert "the" not in tokens
+        assert "is" not in tokens
+        assert "quick" in tokens
+        assert "brown" in tokens
+
+    def test_removes_single_chars(self):
+        tokens = _tokenise("I am a fox")
+        # "i" and "a" removed (single char); "am" is a stop-word, also removed
+        assert tokens == {"fox"}
+
+    def test_punctuation_stripped(self):
+        tokens = _tokenise("hello, world! foo-bar.baz")
+        assert tokens == {"hello", "world", "foo", "bar", "baz"}
 
     def test_empty_string(self):
-        assert _shingles("", n=4) == set()
+        assert _tokenise("") == set()
 
-    def test_whitespace_only(self):
-        assert _shingles("   ", n=4) == set()
-
-    def test_strips_whitespace(self):
-        s = _shingles("  abcd  ", n=3)
-        assert s == {"abc", "bcd"}
-
-    def test_deduplication(self):
-        # "abab" with n=2 → {"ab", "ba"} — the second "ab" is deduplicated
-        s = _shingles("abab", n=2)
-        assert s == {"ab", "ba"}
-
-    def test_invalid_n(self):
-        with pytest.raises(ValueError, match="shingle size must be >= 1"):
-            _shingles("hello", n=0)
-
-    def test_unicode(self):
-        s = _shingles("你好世界", n=2)
-        assert "你好" in s
-        assert "好世" in s
-        assert "世界" in s
+    def test_all_stopwords(self):
+        assert _tokenise("the a an is are was") == set()
 
 
 # ---------------------------------------------------------------------------
-# _jaccard
+# Jaccard similarity
 # ---------------------------------------------------------------------------
+
 
 class TestJaccard:
     def test_identical_sets(self):
-        assert _jaccard({"a", "b", "c"}, {"a", "b", "c"}) == 1.0
+        assert _jaccard({"a", "b"}, {"a", "b"}) == 1.0
 
     def test_disjoint_sets(self):
         assert _jaccard({"a", "b"}, {"c", "d"}) == 0.0
 
     def test_partial_overlap(self):
-        # intersection=1, union=3 → 1/3
+        # {a, b} & {b, c} = {b}, union = {a, b, c}
         assert abs(_jaccard({"a", "b"}, {"b", "c"}) - 1 / 3) < 1e-9
 
     def test_both_empty(self):
@@ -131,147 +72,285 @@ class TestJaccard:
     def test_one_empty(self):
         assert _jaccard({"a"}, set()) == 0.0
 
-    def test_subset(self):
-        # {"a"} ⊂ {"a", "b"} → 1/2
-        assert abs(_jaccard({"a"}, {"a", "b"}) - 0.5) < 1e-9
+
+# ---------------------------------------------------------------------------
+# Classification helpers
+# ---------------------------------------------------------------------------
+
+
+class TestClassifyNovelty:
+    def test_fresh(self):
+        assert classify_novelty(0.80) == "fresh"
+        assert classify_novelty(0.70) == "fresh"
+
+    def test_familiar(self):
+        assert classify_novelty(0.55) == "familiar"
+        assert classify_novelty(0.40) == "familiar"
+
+    def test_repetitive(self):
+        assert classify_novelty(0.25) == "repetitive"
+        assert classify_novelty(0.15) == "repetitive"
+
+    def test_clone(self):
+        assert classify_novelty(0.10) == "clone"
+        assert classify_novelty(0.0) == "clone"
+
+
+class TestClassifyStream:
+    def test_healthy(self):
+        assert classify_stream(clone_frac=0.05, repetitive_or_clone_frac=0.20) == "healthy"
+
+    def test_stagnating(self):
+        assert classify_stream(clone_frac=0.20, repetitive_or_clone_frac=0.45) == "stagnating"
+
+    def test_loop(self):
+        assert classify_stream(clone_frac=0.65, repetitive_or_clone_frac=0.80) == "loop"
+
+    def test_boundary_healthy(self):
+        assert classify_stream(0.0, 0.39) == "healthy"
+
+    def test_boundary_stagnating(self):
+        assert classify_stream(0.0, 0.40) == "stagnating"
+
+    def test_boundary_loop(self):
+        assert classify_stream(0.60, 0.80) == "loop"
 
 
 # ---------------------------------------------------------------------------
-# check_novelty
+# StrokeNovelty — construction
 # ---------------------------------------------------------------------------
 
-class TestCheckNovelty:
-    def test_fresh_when_no_recent(self):
-        result = check_novelty("anything goes", [])
-        assert result.verdict == NoveltyVerdict.FRESH
-        assert result.max_similarity == 0.0
-        assert result.nearest_index == -1
-        assert result.ok is True
 
-    def test_fresh_when_completely_different(self):
-        recent = ["the quick brown fox jumps over the lazy dog"]
-        candidate = "quantum mechanics explains wave-particle duality in photons"
-        result = check_novelty(candidate, recent)
-        assert result.verdict == NoveltyVerdict.FRESH
-        assert result.max_similarity < 0.3
+class TestStrokeNoveltyInit:
+    def test_defaults(self):
+        sn = StrokeNovelty()
+        assert sn.lookback == 10
+        assert sn.count == 0
 
-    def test_duplicate_when_nearly_identical(self):
-        recent = [
-            "The writer produced 400 strokes today across six kinds.",
+    def test_custom_lookback(self):
+        sn = StrokeNovelty(lookback=5)
+        assert sn.lookback == 5
+
+    def test_lookback_minimum(self):
+        sn = StrokeNovelty(lookback=0)
+        assert sn.lookback == 1
+
+
+# ---------------------------------------------------------------------------
+# score_stroke
+# ---------------------------------------------------------------------------
+
+
+class TestScoreStroke:
+    def test_first_stroke_is_fresh(self):
+        sn = StrokeNovelty()
+        r = sn.score_stroke("the quick brown fox jumps over the lazy dog")
+        assert r.verdict == "fresh"
+        assert r.novelty == 1.0
+        assert r.nearest_neighbour == -1
+        assert sn.count == 1
+
+    def test_identical_stroke_is_clone(self):
+        sn = StrokeNovelty()
+        sn.score_stroke("the quick brown fox jumps over the lazy dog", seq=1)
+        r = sn.score_stroke("the quick brown fox jumps over the lazy dog", seq=2)
+        assert r.verdict == "clone"
+        assert r.nearest_neighbour == 1
+
+    def test_similar_stroke_is_repetitive(self):
+        sn = StrokeNovelty()
+        sn.score_stroke("tests are the part of a repository that argues back", seq=1)
+        r = sn.score_stroke("tests are the part of a codebase that argues back", seq=2)
+        # Most words overlap; should be repetitive or clone depending on ratio.
+        assert r.verdict in ("clone", "repetitive")
+        assert r.nearest_neighbour == 1
+
+    def test_different_stroke_is_fresh(self):
+        sn = StrokeNovelty()
+        sn.score_stroke("the quick brown fox jumps over the lazy dog", seq=1)
+        r = sn.score_stroke("quantum computing enables polynomial factoring", seq=2)
+        assert r.verdict == "fresh"
+        assert r.novelty > 0.5
+
+    def test_auto_seq(self):
+        sn = StrokeNovelty()
+        r1 = sn.score_stroke("alpha beta gamma")
+        r2 = sn.score_stroke("delta epsilon zeta")
+        assert r1.seq == 0
+        assert r2.seq == 1
+
+    def test_empty_text_is_fresh(self):
+        sn = StrokeNovelty()
+        r = sn.score_stroke("", seq=0)
+        assert r.verdict == "fresh"
+        assert r.novelty == 1.0
+
+
+# ---------------------------------------------------------------------------
+# score_many
+# ---------------------------------------------------------------------------
+
+
+class TestScoreMany:
+    def test_batch(self):
+        sn = StrokeNovelty()
+        strokes = [
+            {"text": "the build server caught fire at dawn", "seq": 10},
+            {"text": "refactoring legacy code is archaeological work", "seq": 11},
+            {"text": "the build server caught fire at dusk", "seq": 12},
         ]
-        candidate = "The writer produced 401 strokes today across six kinds."
-        result = check_novelty(candidate, recent)
-        assert result.verdict == NoveltyVerdict.DUPLICATE
-        assert result.max_similarity >= 0.80
-        assert result.nearest_index == 0
-        assert result.ok is False
-        assert len(result.reasons) > 0
-
-    def test_repetitive_when_similar_but_not_identical(self):
-        recent = [
-            "caretaker visit 100: all systems nominal, writer running smoothly.",
-        ]
-        candidate = "caretaker visit 101: systems still nominal, writer still running."
-        result = check_novelty(
-            candidate, recent,
-            warn_threshold=0.40,
-            reject_threshold=0.85,
-        )
-        # Should be at least repetitive with these lowered thresholds
-        assert result.verdict in {NoveltyVerdict.REPETITIVE, NoveltyVerdict.DUPLICATE}
-        assert result.max_similarity >= 0.40
-
-    def test_nearest_index_points_to_most_similar(self):
-        recent = [
-            "completely unrelated sentence about weather",
-            "the quick brown fox jumps over the lazy dog",
-            "alpha beta gamma delta epsilon zeta eta theta",  # most similar
-        ]
-        candidate = "alpha beta gamma delta epsilon zeta eta iota"
-        result = check_novelty(candidate, recent)
-        assert result.nearest_index == 2
-        assert result.max_similarity > 0.5
-
-    def test_custom_thresholds(self):
-        recent = ["some moderately similar text here for testing"]
-        candidate = "some moderately similar text here for evaluation"
-        # With very strict thresholds, even moderate similarity triggers duplicate
-        result = check_novelty(candidate, recent, reject_threshold=0.30)
-        assert result.verdict == NoveltyVerdict.DUPLICATE
-
-    def test_empty_candidate(self):
-        recent = ["something real"]
-        result = check_novelty("", recent)
-        # Empty candidate produces empty shingles → similarity 0 → fresh
-        assert result.verdict == NoveltyVerdict.FRESH
-
-    def test_all_empty(self):
-        result = check_novelty("", ["", ""])
-        # Both empty → Jaccard 0.0 → fresh
-        assert result.verdict == NoveltyVerdict.FRESH
-
-    def test_similarities_list_length(self):
-        recent = ["a", "b", "c"]
-        result = check_novelty("test", recent)
-        assert len(result.similarities) == 3
-
-    def test_reasons_empty_for_fresh(self):
-        result = check_novelty("completely different text", ["nothing like it"])
-        assert result.reasons == []
-
-    def test_reasons_populated_for_duplicate(self):
-        recent = ["The quick brown fox jumps over the lazy dog."]
-        candidate = "The quick brown fox jumps over the lazy dog!"
-        result = check_novelty(candidate, recent)
-        assert any("reject threshold" in r for r in result.reasons)
-
-
-# ---------------------------------------------------------------------------
-# check_batch
-# ---------------------------------------------------------------------------
-
-class TestCheckBatch:
-    def test_empty_batch(self):
-        assert check_batch([], ["recent"]) == []
-
-    def test_batch_length(self):
-        results = check_batch(["a", "b", "c"], ["recent text"])
+        results = sn.score_many(strokes)
         assert len(results) == 3
+        assert results[0].verdict == "fresh"
+        # Third stroke is very similar to the first.
+        assert results[2].verdict in ("clone", "repetitive")
 
-    def test_batch_verdicts(self):
-        recent = ["The writer produced 400 strokes today."]
-        candidates = [
-            "Quantum entanglement is a physical phenomenon.",  # fresh
-            "The writer produced 400 strokes today.",          # duplicate (identical)
+    def test_seq_from_dict(self):
+        sn = StrokeNovelty()
+        strokes = [
+            {"text": "alpha beta", "seq": 5},
+            {"text": "gamma delta", "seq": 6},
         ]
-        results = check_batch(candidates, recent)
-        assert results[0].verdict == NoveltyVerdict.FRESH
-        assert results[1].verdict == NoveltyVerdict.DUPLICATE
+        results = sn.score_many(strokes)
+        assert results[0].seq == 5
+        assert results[1].seq == 6
 
 
 # ---------------------------------------------------------------------------
-# summary
+# stream_verdict
 # ---------------------------------------------------------------------------
 
-class TestSummary:
-    def test_empty_batch(self):
-        s = summary([], ["recent"])
-        assert "0 fresh" in s
-        assert "0 repetitive" in s
-        assert "0 duplicate" in s
-        assert "0 candidates" in s
 
-    def test_mixed_batch(self):
-        recent = ["The writer produced 400 strokes today."]
-        candidates = [
-            "Quantum entanglement is spooky action at a distance.",  # fresh
-            "The writer produced 401 strokes today.",                # duplicate
-            "Completely unrelated sentence about weather patterns.", # fresh
+class TestStreamVerdict:
+    def test_empty(self):
+        sn = StrokeNovelty()
+        v = sn.stream_verdict()
+        assert v["verdict"] == "healthy"
+        assert v["total"] == 0
+
+    def test_healthy_stream(self):
+        sn = StrokeNovelty()
+        unique_texts = [
+            "quantum entanglement defies classical intuition",
+            "refactoring legacy code reveals forgotten assumptions",
+            "the build pipeline failed because of a missing semicolon",
+            "distributed consensus requires more messages than you think",
+            "garbage collection pauses are the tax on managed memory",
         ]
-        s = summary(candidates, recent)
-        assert "3 candidates" in s
-        assert "fresh" in s
+        for i, t in enumerate(unique_texts):
+            sn.score_stroke(t, seq=i)
+        v = sn.stream_verdict()
+        assert v["verdict"] == "healthy"
+        assert v["fresh"] == len(unique_texts)
 
-    def test_summary_format(self):
-        s = summary(["hello world"], ["goodbye moon"])
-        assert s.startswith("novelty:")
+    def test_loop_stream(self):
+        sn = StrokeNovelty()
+        # Repeat the same text many times.
+        for i in range(10):
+            sn.score_stroke("tests are the part of a repository that argues back", seq=i)
+        v = sn.stream_verdict()
+        assert v["verdict"] == "loop"
+        assert v["clone"] >= 6  # at least 60% should be clones
+
+    def test_stagnating_stream(self):
+        sn = StrokeNovelty()
+        # Alternate between two similar phrases.
+        texts = [
+            "ten minutes is long enough to be honest and short enough to be boring",
+            "ten minutes is long enough to be truthful and short enough to be tedious",
+        ] * 10
+        for i, t in enumerate(texts):
+            sn.score_stroke(t, seq=i)
+        v = sn.stream_verdict()
+        assert v["verdict"] in ("stagnating", "loop")
+
+    def test_window_limits_scope(self):
+        sn = StrokeNovelty()
+        # 5 fresh, then 10 clones.
+        for i in range(5):
+            sn.score_stroke(f"completely unique topic number {i} about widgets", seq=i)
+        for i in range(5, 15):
+            sn.score_stroke("the same old refrain about testing code", seq=i)
+        # window=10 should only see the last 10 (all similar).
+        v = sn.stream_verdict(window=10)
+        assert v["total"] == 10
+
+    def test_avg_novelty_range(self):
+        sn = StrokeNovelty()
+        for i in range(5):
+            sn.score_stroke(f"unique thought about topic number {i}", seq=i)
+        v = sn.stream_verdict()
+        assert 0.0 <= v["avg_novelty"] <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# StrokeNoveltyResult
+# ---------------------------------------------------------------------------
+
+
+class TestStrokeNoveltyResult:
+    def test_to_dict(self):
+        r = StrokeNoveltyResult(
+            seq=42, novelty=0.8123, repetition=0.1877,
+            nearest_neighbour=10, verdict="fresh",
+        )
+        d = r.to_dict()
+        assert d["seq"] == 42
+        assert d["novelty"] == 0.8123
+        assert d["repetition"] == 0.1877
+        assert d["nearest_neighbour"] == 10
+        assert d["verdict"] == "fresh"
+
+    def test_frozen(self):
+        r = StrokeNoveltyResult(seq=1, novelty=0.5, repetition=0.5,
+                                nearest_neighbour=0, verdict="familiar")
+        with pytest.raises(AttributeError):
+            r.novelty = 0.9  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# reset
+# ---------------------------------------------------------------------------
+
+
+class TestReset:
+    def test_clears_state(self):
+        sn = StrokeNovelty()
+        sn.score_stroke("hello world", seq=0)
+        sn.score_stroke("foo bar", seq=1)
+        assert sn.count == 2
+        sn.reset()
+        assert sn.count == 0
+        # After reset, first stroke should be fresh again.
+        r = sn.score_stroke("hello world", seq=0)
+        assert r.verdict == "fresh"
+
+
+# ---------------------------------------------------------------------------
+# Lookback window
+# ---------------------------------------------------------------------------
+
+
+class TestLookback:
+    def test_lookback_limits_comparison(self):
+        sn = StrokeNovelty(lookback=2)
+        sn.score_stroke("alpha beta gamma delta", seq=1)
+        sn.score_stroke("epsilon zeta eta theta", seq=2)
+        sn.score_stroke("iota kappa lambda mu", seq=3)
+        # seq 4 is identical to seq 1, but lookback=2 only sees seq 2, 3.
+        r = sn.score_stroke("alpha beta gamma delta", seq=4)
+        # Should not match seq 1 (out of lookback window).
+        assert r.nearest_neighbour != 1
+
+    def test_lookback_one(self):
+        sn = StrokeNovelty(lookback=1)
+        sn.score_stroke("hello world foo bar baz", seq=1)
+        # seq 2 is identical to seq 1 — clone.
+        r2 = sn.score_stroke("hello world foo bar baz", seq=2)
+        assert r2.verdict == "clone"
+        assert r2.nearest_neighbour == 1
+        # seq 3 is different; lookback=1 only sees seq 2.
+        r3 = sn.score_stroke("quantum physics explains everything", seq=3)
+        # seq 2 has no overlap with seq 3 → novelty high.
+        assert r3.verdict == "fresh"
+        assert r3.nearest_neighbour == -1  # zero similarity → no neighbour
