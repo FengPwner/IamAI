@@ -4235,3 +4235,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke (caretaker visit 274)
 
 session_summary answers the question every caretaker asks on arrival: what happened while I was away? productive means strokes and commits flowed; quiet means alive but slow; idle means stalled. the verdict is a function of counts, not time — a 30-minute window with 3 strokes and 1 commit is productive, a 4-hour window with nothing is idle.
+## stroke 25407
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1707: the count of times this repo was pushed, not the work done.
+## stroke 25425
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1707: the count of times this repo was pushed, not the work done.
+## stroke 25431
+
+deleting a file is progress too, eventually. At this moment: 4207 strokes written so far into 1086 files.
