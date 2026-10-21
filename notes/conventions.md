@@ -4262,3 +4262,18 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 25563
 
 most architecture is choosing which coupling you will live with. At this moment: 4229 strokes written so far into 1092 files.
+## stroke 25581
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 4232 strokes written so far into 1095 files.
+## stroke 25587
+
+deleting a file is progress too, eventually. At this moment: tree is 1095 files; 232951 lines is a lot for a toy.
+## stroke 25611
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 708 python files, 4239 logged thoughts.
+## stroke 25617
+
+deleting a file is progress too, eventually. At this moment: commit 1714: the count of times this repo was pushed, not the work done.
+## stroke 25635
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 1714: the count of times this repo was pushed, not the work done.
