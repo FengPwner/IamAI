@@ -4424,3 +4424,19 @@ deleting a file is progress too, eventually. At this moment: commit 1748: the co
 ## stroke 26493
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 4385 strokes written so far into 1129 files.
+## stroke 26517
+
+deleting a file is progress too, eventually. At this moment: 240245 lines across 1129 tracked files, 1749 commits deep.
+
+## stroke 26525 (caretaker manual visit)
+
+a writer that still produces on time may already be tired — texts shrink,
+vocabulary recycles, topics narrow, gaps widen. fatigue is not a timing
+problem; it is a quality problem. the new writer_fatigue module catches
+this by measuring four degradation signals across sliding windows and
+combining them into a 0–100 score with grades fresh/warming/fatigued/exhausted.
+pure python, no deps, 39 tests pass. complements heartbeat_decay (timing)
+and stroke_coherence (topic continuity) for a complete writer-health picture.
+## stroke 26523
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 728 python files, 4392 logged thoughts.

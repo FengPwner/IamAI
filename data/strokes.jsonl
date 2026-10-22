@@ -4387,3 +4387,4 @@
 {"seq": 4387, "at": "2026-10-22T06:29:06+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 728 python files, 4388 logged thoughts"}
 {"seq": 4388, "at": "2026-10-22T06:32:21+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1748: the count of times this repo was pushed, not the work done"}
 {"seq": 4389, "at": "2026-10-22T06:35:43+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 1129 files; 240231 lines is a lot for a toy"}
+{"seq": 4390, "at": "2026-10-22T07:03:47+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 240250 lines across 1129 tracked files, 1749 commits deep"}
