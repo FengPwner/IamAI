@@ -4536,3 +4536,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 27111
 
 deleting a file is progress too, eventually. At this moment: 746 python files, 4490 logged thoughts.
+## stroke 27141
+
+deleting a file is progress too, eventually. At this moment: tree is 1158 files; 249801 lines is a lot for a toy.
+## stroke 27165
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 249844 lines across 1158 tracked files, 1771 commits deep.

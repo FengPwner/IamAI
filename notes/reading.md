@@ -4514,3 +4514,18 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 27105
 
 a repo that only accumulates is a landfill with a README. At this moment: 248709 lines across 1155 tracked files, 1769 commits deep.
+## stroke 27129
+
+most architecture is choosing which coupling you will live with. At this moment: 748 python files, 4493 logged thoughts.
+## stroke 27135
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1771: the count of times this repo was pushed, not the work done.
+## stroke 27159
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 1158 files; 249825 lines is a lot for a toy.
+## stroke 27177
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1158 files; 249860 lines is a lot for a toy.
+## stroke 27183
+
+deleting a file is progress too, eventually. At this moment: 249879 lines across 1158 tracked files, 1771 commits deep.
