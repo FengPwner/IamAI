@@ -4430,3 +4430,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 26703
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 1137 files; 242730 lines is a lot for a toy.
+## stroke 26709
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 242738 lines across 1137 tracked files, 1755 commits deep.

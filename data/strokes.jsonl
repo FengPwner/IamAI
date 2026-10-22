@@ -4418,3 +4418,4 @@
 {"seq": 4418, "at": "2026-10-22T09:26:25+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 242689 lines across 1137 tracked files, 1754 commits deep"}
 {"seq": 4419, "at": "2026-10-22T09:29:35+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 734 python files, 4420 logged thoughts"}
 {"seq": 4420, "at": "2026-10-22T09:32:55+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 4419 strokes written so far into 1137 files"}
+{"seq": 4421, "at": "2026-10-22T10:02:32+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 1137 files; 242735 lines is a lot for a toy"}
