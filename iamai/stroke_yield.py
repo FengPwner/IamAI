@@ -1,348 +1,220 @@
-"""stroke_yield — measure what the writer actually produces per unit of wall time.
+"""stroke_yield — what fraction of writer output survives into the commit graph?
 
-``stroke_pacer`` checks whether strokes arrive on the *configured* cadence
-(e.g. every 15 s).  ``stroke_novelty`` checks whether the text is fresh.
-Neither answers the question a caretaker actually needs at 3 AM:
-
-    "In the last hour, how many useful strokes did this writer produce,
-    and is that rate going up or down?"
-
-Yield is **strokes per minute of wall-clock time**, computed over sliding
-windows.  It collapses burst-then-idle patterns into a single number that
-trends toward zero when the writer is stalling, and toward the configured
-cadence when it is healthy.
+Every stroke the writer appends to ``data/strokes.jsonl`` is a small act
+of documentation.  But a stroke that sits in the working tree without
+being committed is fragile: a crash, a stale-lock purge, or an
+overzealous ``git checkout -- .`` will erase it.  *Stroke yield* answers
+the question: **how much of the writer's work is actually preserved?**
 
 Concept
 -------
 
-Given a list of ``(timestamp, kind)`` pairs representing stroke events::
+The measurement is straightforward::
 
-    window_yield(timestamps, window=3600)
-        → strokes_per_minute over the last ``window`` seconds
+    total_strokes      = line count of strokes.jsonl in the working tree
+    committed_strokes  = line count of strokes.jsonl at HEAD
 
-    yield_trend(timestamps, windows=[300, 900, 3600])
-        → acceleration signal: rising, steady, or falling
+    yield_pct = committed_strokes / total_strokes * 100
 
-    session_summary(timestamps, start, end)
-        → total strokes, yield rate, dead-time fraction, burst count
+A repo where every stroke has been committed scores 100 %.  A repo with
+a large uncommitted tail scores lower.
 
-Classification per window::
+Grades
+------
 
-    productive   yield >= 3.0 spm   (one stroke every 20 s or faster)
-    steady       1.0 <= yield < 3.0 spm
-    sluggish     0.2 <= yield < 1.0 spm  (one stroke every 1–5 min)
-    stalled      yield < 0.2 spm   (effectively silent)
+=================  ===================================================
+grade              meaning
+=================  ===================================================
+``excellent``      yield ≥ 98 % — virtually all output is committed
+``good``           yield 90–97 % — small uncommitted tail, normal lag
+``fair``           yield 75–89 % — significant gap, commit soon
+``poor``           yield 50–74 % — large gap, intervention needed
+``critical``       yield < 50 % — most output is uncommitted, act now
+=================  ===================================================
 
-Why yield instead of cadence
------------------------------
+Why this matters
+----------------
 
-Cadence measures the *interval* between consecutive strokes.  It breaks
-down when the writer alternates between bursts of five strokes in a
-minute and twenty minutes of silence.  Yield smooths that out: over any
-window, you either produced useful work or you didn't.
+Existing metrics track *cadence* (strokes per minute), *commit freshness*
+(time since last commit), and *commit debt* (file-level backlog).
+Stroke yield fills a different niche: it measures **preservation ratio**
+at the content level.  A repo could have a fresh commit and still be
+missing 200 strokes if the commit happened before a burst of writing.
 
-Yield also makes cross-writer comparison meaningful.  A 15 s cadence
-writer and a 60 s cadence writer can both be "productive" if their yield
-rates are both above the threshold — cadence is a design choice, yield
-is an outcome.
+The caretaker can use yield_pct to decide whether a manual flush commit
+is warranted before leaving the watch.
 
 Usage::
 
-    from iamai.stroke_yield import StrokeYield
+    from iamai.stroke_yield import stroke_yield_report
 
-    sy = StrokeYield()
-    sy.ingest(timestamps, kinds)
-    sy.current_yield()          # strokes per minute right now
-    sy.trend()                  # "rising" | "steady" | "falling"
-    sy.session_report(start_t)  # full session breakdown
+    report = stroke_yield_report(repo_path="/path/to/IamAI")
+    print(report.yield_pct, report.grade)
+    print(report.total_strokes, report.committed_strokes)
 """
 
 from __future__ import annotations
 
-import time
+import json
+import subprocess
 from dataclasses import dataclass, field
-from typing import Sequence
+from pathlib import Path
+from typing import Optional
 
 
 # ---------------------------------------------------------------------------
-# Thresholds (strokes per minute)
+# Grade thresholds (yield_pct >= threshold → grade)
 # ---------------------------------------------------------------------------
 
-_PRODUCTIVE_SPM = 3.0   # one stroke every 20 s
-_STEADY_SPM = 1.0        # one stroke every 60 s
-_SLUGGISH_SPM = 0.2      # one stroke every 5 min
+_GRADE_THRESHOLDS: list[tuple[float, str]] = [
+    (98.0, "excellent"),
+    (90.0, "good"),
+    (75.0, "fair"),
+    (50.0, "poor"),
+]
+_GRADE_CRITICAL = "critical"
 
 
-def classify_yield(spm: float) -> str:
-    """Classify a strokes-per-minute value."""
-    if spm >= _PRODUCTIVE_SPM:
-        return "productive"
-    if spm >= _STEADY_SPM:
-        return "steady"
-    if spm >= _SLUGGISH_SPM:
-        return "sluggish"
-    return "stalled"
-
-
-def classify_trend(ratio: float) -> str:
-    """Classify yield trend from recent/older ratio.
-
-    Parameters
-    ----------
-    ratio : float
-        recent_yield / older_yield.  > 1.2 is rising, < 0.8 is falling.
-    """
-    if ratio > 1.2:
-        return "rising"
-    if ratio < 0.8:
-        return "falling"
-    return "steady"
+def _classify_yield(pct: float) -> str:
+    """Return the grade string for a given yield percentage."""
+    for threshold, grade in _GRADE_THRESHOLDS:
+        if pct >= threshold:
+            return grade
+    return _GRADE_CRITICAL
 
 
 # ---------------------------------------------------------------------------
-# Result types
+# Data class
 # ---------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
-class WindowYield:
-    """Yield measurement for a single time window."""
+class YieldReport:
+    """Result of a stroke-yield measurement."""
 
-    window_seconds: int
-    strokes: int
-    spm: float          # strokes per minute
-    verdict: str        # productive | steady | sluggish | stalled
-
-    def to_dict(self) -> dict:
-        return {
-            "window_seconds": self.window_seconds,
-            "strokes": self.strokes,
-            "spm": round(self.spm, 4),
-            "verdict": self.verdict,
-        }
-
-
-@dataclass(frozen=True)
-class SessionReport:
-    """Full session breakdown."""
-
-    duration_seconds: float
     total_strokes: int
-    spm: float
-    verdict: str
-    dead_time_seconds: float
-    dead_time_fraction: float
-    burst_count: int
-    longest_gap_seconds: float
-    by_kind: dict
+    committed_strokes: int
+    uncommitted_strokes: int
+    yield_pct: float
+    grade: str
 
     def to_dict(self) -> dict:
         return {
-            "duration_seconds": round(self.duration_seconds, 1),
             "total_strokes": self.total_strokes,
-            "spm": round(self.spm, 4),
-            "verdict": self.verdict,
-            "dead_time_seconds": round(self.dead_time_seconds, 1),
-            "dead_time_fraction": round(self.dead_time_fraction, 4),
-            "burst_count": self.burst_count,
-            "longest_gap_seconds": round(self.longest_gap_seconds, 1),
-            "by_kind": self.by_kind,
+            "committed_strokes": self.committed_strokes,
+            "uncommitted_strokes": self.uncommitted_strokes,
+            "yield_pct": round(self.yield_pct, 2),
+            "grade": self.grade,
         }
 
 
 # ---------------------------------------------------------------------------
-# Core analyser
+# Counting helpers
 # ---------------------------------------------------------------------------
 
+def _count_lines_in_file(path: Path) -> int:
+    """Count non-empty lines in a file.  Returns 0 if file missing."""
+    if not path.exists():
+        return 0
+    with path.open("r", encoding="utf-8", errors="replace") as fh:
+        return sum(1 for line in fh if line.strip())
 
-class StrokeYield:
-    """Track writing yield over time.
+
+def _count_lines_at_head(repo: Path, rel_path: str = "data/strokes.jsonl") -> int:
+    """Count non-empty lines of a file as stored at HEAD.  Returns 0 on error."""
+    try:
+        raw = subprocess.run(
+            ["git", "show", f"HEAD:{rel_path}"],
+            capture_output=True,
+            text=True,
+            cwd=str(repo),
+            timeout=10,
+        )
+        if raw.returncode != 0:
+            return 0
+        return sum(1 for line in raw.stdout.splitlines() if line.strip())
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return 0
+
+
+def _read_latest_seq(path: Path) -> Optional[int]:
+    """Read the seq number of the last stroke in a file, or None."""
+    if not path.exists():
+        return None
+    last_line = ""
+    with path.open("r", encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            stripped = line.strip()
+            if stripped:
+                last_line = stripped
+    if not last_line:
+        return None
+    try:
+        return json.loads(last_line).get("seq")
+    except (json.JSONDecodeError, AttributeError):
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
+def stroke_yield_report(
+    repo_path: str | Path | None = None,
+    strokes_rel: str = "data/strokes.jsonl",
+) -> YieldReport:
+    """Measure what fraction of writer strokes survive in the commit graph.
 
     Parameters
     ----------
-    burst_threshold : float
-        Gap in seconds below which consecutive strokes count as a burst.
-        Default 30 s — three strokes within 30 s is a burst.
-    dead_gap : float
-        Gap in seconds above which time counts as "dead" (writer idle).
-        Default 120 s — any gap over 2 min is dead time.
+    repo_path : path-like, optional
+        Root of the git repository.  Defaults to the IamAI workspace.
+    strokes_rel : str
+        Relative path (from repo root) to the strokes append-only log.
+
+    Returns
+    -------
+    YieldReport with counts, percentage, and grade.
     """
+    if repo_path is None:
+        repo_path = Path(__file__).resolve().parent.parent
+    repo = Path(repo_path)
 
-    def __init__(self, burst_threshold: float = 30.0, dead_gap: float = 120.0):
-        self.burst_threshold = burst_threshold
-        self.dead_gap = dead_gap
-        self._timestamps: list[float] = []
-        self._kinds: list[str] = []
+    strokes_file = repo / strokes_rel
+    total = _count_lines_in_file(strokes_file)
+    committed = _count_lines_at_head(repo, strokes_rel)
 
-    # -- ingestion -----------------------------------------------------------
+    # Clamp: committed cannot exceed total (race during concurrent writes)
+    if committed > total:
+        committed = total
 
-    def ingest(self, timestamps: Sequence[float],
-               kinds: Sequence[str] | None = None) -> None:
-        """Add stroke events.
+    uncommitted = total - committed
 
-        Parameters
-        ----------
-        timestamps : sequence of float
-            Unix timestamps of stroke events.
-        kinds : sequence of str, optional
-            Stroke kind labels (devlog, note, thought, etc.).
-        """
-        pairs = sorted(zip(timestamps, kinds or [""] * len(timestamps)))
-        for ts, kind in pairs:
-            self._timestamps.append(float(ts))
-            self._kinds.append(kind)
+    if total == 0:
+        pct = 100.0  # nothing to lose
+    else:
+        pct = (committed / total) * 100.0
 
-    def add(self, timestamp: float, kind: str = "") -> None:
-        """Add a single stroke event."""
-        self._timestamps.append(float(timestamp))
-        self._kinds.append(kind)
+    grade = _classify_yield(pct)
 
-    # -- window yield --------------------------------------------------------
+    return YieldReport(
+        total_strokes=total,
+        committed_strokes=committed,
+        uncommitted_strokes=uncommitted,
+        yield_pct=round(pct, 2),
+        grade=grade,
+    )
 
-    def window_yield(self, window: int = 3600,
-                     now: float | None = None) -> WindowYield:
-        """Compute yield over a trailing window.
 
-        Parameters
-        ----------
-        window : int
-            Window size in seconds.
-        now : float, optional
-            Reference time.  Defaults to last known timestamp.
+# ---------------------------------------------------------------------------
+# Convenience: human-readable summary
+# ---------------------------------------------------------------------------
 
-        Returns
-        -------
-        WindowYield
-        """
-        now = now or (self._timestamps[-1] if self._timestamps else time.time())
-        cutoff = now - window
-        count = sum(1 for t in self._timestamps if t > cutoff)
-        spm = count / (window / 60.0) if window > 0 else 0.0
-        return WindowYield(
-            window_seconds=window,
-            strokes=count,
-            spm=spm,
-            verdict=classify_yield(spm),
-        )
-
-    def current_yield(self, now: float | None = None) -> float:
-        """Strokes per minute over the last 5 minutes."""
-        return self.window_yield(window=300, now=now).spm
-
-    # -- trend ---------------------------------------------------------------
-
-    def trend(self, now: float | None = None) -> dict:
-        """Compare recent yield to older yield.
-
-        Returns
-        -------
-        dict with keys: trend, recent_spm, older_spm, ratio
-        """
-        now = now or (self._timestamps[-1] if self._timestamps else time.time())
-        recent = self.window_yield(window=300, now=now)       # last 5 min
-        older = self.window_yield(window=900, now=now - 300)  # 5–15 min ago
-
-        if older.spm == 0:
-            ratio = float("inf") if recent.spm > 0 else 1.0
-        else:
-            ratio = recent.spm / older.spm
-
-        return {
-            "trend": classify_trend(ratio),
-            "recent_spm": round(recent.spm, 4),
-            "older_spm": round(older.spm, 4),
-            "ratio": round(ratio, 4) if ratio != float("inf") else "inf",
-        }
-
-    # -- session report ------------------------------------------------------
-
-    def session_report(self, start: float | None = None,
-                       end: float | None = None) -> SessionReport:
-        """Full breakdown for a session.
-
-        Parameters
-        ----------
-        start : float, optional
-            Session start time.  Defaults to first stroke.
-        end : float, optional
-            Session end time.  Defaults to last stroke.
-
-        Returns
-        -------
-        SessionReport
-        """
-        if not self._timestamps:
-            return SessionReport(
-                duration_seconds=0, total_strokes=0, spm=0,
-                verdict="stalled", dead_time_seconds=0,
-                dead_time_fraction=0, burst_count=0,
-                longest_gap_seconds=0, by_kind={},
-            )
-
-        start = start or self._timestamps[0]
-        end = end or self._timestamps[-1]
-
-        # Filter to session range
-        ts_in = [t for t in self._timestamps if start <= t <= end]
-        ki_in = [k for t, k in zip(self._timestamps, self._kinds)
-                 if start <= t <= end]
-
-        duration = max(end - start, 1.0)
-        total = len(ts_in)
-        spm = total / (duration / 60.0)
-
-        # Gaps analysis
-        gaps = []
-        dead_time = 0.0
-        burst_count = 0
-        in_burst = False
-
-        for i in range(1, len(ts_in)):
-            gap = ts_in[i] - ts_in[i - 1]
-            gaps.append(gap)
-            if gap > self.dead_gap:
-                dead_time += gap
-            if gap <= self.burst_threshold:
-                if not in_burst:
-                    burst_count += 1
-                    in_burst = True
-            else:
-                in_burst = False
-
-        longest_gap = max(gaps) if gaps else 0.0
-
-        # Kind distribution
-        by_kind: dict[str, int] = {}
-        for k in ki_in:
-            label = k or "unknown"
-            by_kind[label] = by_kind.get(label, 0) + 1
-
-        return SessionReport(
-            duration_seconds=duration,
-            total_strokes=total,
-            spm=spm,
-            verdict=classify_yield(spm),
-            dead_time_seconds=dead_time,
-            dead_time_fraction=dead_time / duration if duration > 0 else 0,
-            burst_count=burst_count,
-            longest_gap_seconds=longest_gap,
-            by_kind=by_kind,
-        )
-
-    # -- multi-window snapshot -----------------------------------------------
-
-    def snapshot(self, now: float | None = None,
-                 windows: Sequence[int] = (300, 900, 3600)) -> list[WindowYield]:
-        """Yield across multiple windows at once."""
-        return [self.window_yield(w, now) for w in windows]
-
-    # -- housekeeping --------------------------------------------------------
-
-    def reset(self) -> None:
-        """Clear all data."""
-        self._timestamps.clear()
-        self._kinds.clear()
-
-    @property
-    def count(self) -> int:
-        return len(self._timestamps)
+def yield_summary(report: YieldReport | None = None, **kwargs) -> str:
+    """One-line human-readable summary of stroke yield."""
+    if report is None:
+        report = stroke_yield_report(**kwargs)
+    return (
+        f"stroke yield: {report.yield_pct:.1f}% ({report.grade}) — "
+        f"{report.committed_strokes}/{report.total_strokes} committed, "
+        f"{report.uncommitted_strokes} uncommitted"
+    )
