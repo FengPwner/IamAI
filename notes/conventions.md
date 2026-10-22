@@ -4458,3 +4458,15 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 26643
 
 deleting a file is progress too, eventually. At this moment: 4410 strokes written so far into 1134 files.
+## stroke 26649
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1137 files; 242625 lines is a lot for a toy.
+## stroke 26673
+
+deleting a file is progress too, eventually. At this moment: 734 python files, 4417 logged thoughts.
+## stroke 26679
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1754: the count of times this repo was pushed, not the work done.
+## stroke 26697
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1754: the count of times this repo was pushed, not the work done.
