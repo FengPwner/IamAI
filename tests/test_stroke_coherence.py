@@ -1,225 +1,280 @@
-"""Tests for iamai.stroke_coherence — stroke text coherence assessment.
+"""Tests for iamai.stroke_coherence module."""
 
-Covers:
-  - CoherenceVerdict enum values
-  - CoherenceResult dataclass (frozen, ok property)
-  - assess: coherent / degraded / incoherent verdicts
-  - Dimension checks: length, repetition, char health, sentence completeness
-  - Edge cases: empty string, single character, Unicode, very long text
-  - assess_batch and summary convenience functions
-"""
+import sys
+from pathlib import Path
 
-import pytest
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
 
 from iamai.stroke_coherence import (
-    CoherenceResult,
-    CoherenceVerdict,
-    assess,
-    assess_batch,
-    summary,
+    analyse,
+    coherence_grade,
+    jaccard,
+    mean_run_length,
+    pairwise_similarities,
+    topic_stability,
+    _tokenise,
+    DEFAULT_STABILITY_THRESHOLD,
 )
 
 
-# ---------------------------------------------------------------------------
-# CoherenceVerdict
-# ---------------------------------------------------------------------------
-
-class TestCoherenceVerdict:
-    def test_values(self):
-        assert CoherenceVerdict.COHERENT == "coherent"
-        assert CoherenceVerdict.DEGRADED == "degraded"
-        assert CoherenceVerdict.INCOHERENT == "incoherent"
-
-    def test_is_string(self):
-        assert isinstance(CoherenceVerdict.COHERENT, str)
+# ── _tokenise ─────────────────────────────────────────────────
 
 
-# ---------------------------------------------------------------------------
-# CoherenceResult
-# ---------------------------------------------------------------------------
+class TestTokenise:
+    def test_basic(self):
+        tokens = _tokenise("the garden grows slowly")
+        assert tokens == {"garden", "grows", "slowly"}
 
-class TestCoherenceResult:
-    def test_defaults(self):
-        r = CoherenceResult(verdict=CoherenceVerdict.COHERENT, score=1.0)
-        assert r.length_ok is True
-        assert r.repetition_ratio == 0.0
-        assert r.char_health == 1.0
-        assert r.sentence_complete is True
-        assert r.reasons == []
+    def test_strips_stopwords(self):
+        tokens = _tokenise("it is a very beautiful day")
+        assert "it" not in tokens
+        assert "is" not in tokens
+        assert "a" not in tokens
+        assert "very" not in tokens
+        assert "beautiful" in tokens
+        assert "day" in tokens
 
-    def test_ok_property(self):
-        ok = CoherenceResult(verdict=CoherenceVerdict.COHERENT, score=0.9)
-        bad = CoherenceResult(verdict=CoherenceVerdict.DEGRADED, score=0.5)
-        assert ok.ok is True
-        assert bad.ok is False
-
-    def test_frozen(self):
-        r = CoherenceResult(verdict=CoherenceVerdict.COHERENT, score=1.0)
-        with pytest.raises(AttributeError):
-            r.score = 0.5  # type: ignore[misc]
-
-
-# ---------------------------------------------------------------------------
-# assess — coherent strokes
-# ---------------------------------------------------------------------------
-
-class TestCoherent:
-    def test_normal_sentence(self):
-        r = assess("The writer emitted a thoughtful stroke about code design.")
-        assert r.verdict == CoherenceVerdict.COHERENT
-        assert r.score >= 0.70
-        assert r.reasons == []
-
-    def test_multiline_prose(self):
-        text = (
-            "Repositories grow in ways their creators do not predict. "
-            "A module added today solves a problem that did not exist yesterday. "
-            "The best response is to keep the design simple and the tests honest."
-        )
-        r = assess(text)
-        assert r.verdict == CoherenceVerdict.COHERENT
-
-    def test_chinese_text(self):
-        r = assess("代码仓库的成长往往超出创造者的预期。好的设计是保持简单。")
-        assert r.verdict == CoherenceVerdict.COHERENT
-
-
-# ---------------------------------------------------------------------------
-# assess — degraded strokes
-# ---------------------------------------------------------------------------
-
-class TestDegraded:
-    def test_repetitive_sentences(self):
-        text = (
-            "The fox jumped. The fox jumped. The fox jumped. "
-            "The fox jumped. The fox jumped. The fox jumped. "
-            "The fox jumped. The fox jumped."
-        )
-        r = assess(text)
-        assert r.repetition_ratio > 0.50
-        assert any("repetition" in reason for reason in r.reasons)
-
-    def test_truncated_text(self):
-        text = "The writer was producing output but then it got cut off mid"
-        r = assess(text)
-        assert r.sentence_complete is False
-        assert any("mid-sentence" in reason for reason in r.reasons)
-
-
-# ---------------------------------------------------------------------------
-# assess — incoherent strokes
-# ---------------------------------------------------------------------------
-
-class TestIncoherent:
-    def test_too_short(self):
-        r = assess("hi")
-        assert r.length_ok is False
-        assert r.verdict == CoherenceVerdict.INCOHERENT
+    def test_strips_short_tokens(self):
+        tokens = _tokenise("i am ok")
+        # "i" and "am" are stopwords; "ok" is len 2 but not a stopword
+        assert "ok" in tokens
 
     def test_empty_string(self):
-        r = assess("")
-        assert r.length_ok is False
-        assert r.verdict == CoherenceVerdict.INCOHERENT
+        assert _tokenise("") == set()
 
-    def test_control_characters(self):
-        # Build a string mostly made of control characters (bell, etc.)
-        bad = "".join(chr(i) for i in range(1, 32)) * 2
-        r = assess(bad)
-        assert r.char_health < 0.95
-        assert any("char_health" in reason for reason in r.reasons)
+    def test_case_insensitive(self):
+        assert _tokenise("Garden GROWS") == _tokenise("garden grows")
 
-    def test_replacement_char_garbage(self):
-        text = "\ufffd" * 50
-        r = assess(text)
-        assert r.char_health < 0.50
-        assert r.verdict == CoherenceVerdict.INCOHERENT
+    def test_punctuation_handling(self):
+        tokens = _tokenise("hello, world! test-case.")
+        assert "hello" in tokens
+        assert "world" in tokens
+        assert "test" in tokens
+        assert "case" in tokens
 
 
-# ---------------------------------------------------------------------------
-# Dimension checks — boundary conditions
-# ---------------------------------------------------------------------------
-
-class TestBoundaries:
-    def test_exactly_min_chars(self):
-        text = "a" * 10  # exactly at default min
-        r = assess(text)
-        assert r.length_ok is True
-
-    def test_one_below_min(self):
-        text = "a" * 9
-        r = assess(text)
-        assert r.length_ok is False
-
-    def test_custom_min_chars(self):
-        r = assess("hello world", min_chars=5)
-        assert r.length_ok is True
-
-    def test_text_ending_with_period(self):
-        r = assess("This is a complete sentence.")
-        assert r.sentence_complete is True
-
-    def test_text_ending_with_chinese_period(self):
-        r = assess("这是一句完整的话。")
-        assert r.sentence_complete is True
-
-    def test_text_ending_with_bracket(self):
-        r = assess("This is a complete thought (with parens).")
-        assert r.sentence_complete is True
-
-    def test_single_sentence_no_repetition(self):
-        r = assess("Just one sentence here.")
-        assert r.repetition_ratio == 0.0
-
-    def test_all_identical_short_sentences(self):
-        text = "Yes. Yes. Yes. Yes. Yes. Yes. Yes. Yes. Yes. Yes."
-        r = assess(text)
-        # 9 duplicates out of 10 sentences
-        assert r.repetition_ratio >= 0.80
+# ── jaccard ───────────────────────────────────────────────────
 
 
-# ---------------------------------------------------------------------------
-# assess_batch
-# ---------------------------------------------------------------------------
+class TestJaccard:
+    def test_identical_sets(self):
+        s = {"a", "b", "c"}
+        assert jaccard(s, s) == 1.0
 
-class TestAssessBatch:
-    def test_empty_batch(self):
-        results = assess_batch([])
-        assert results == []
+    def test_disjoint_sets(self):
+        assert jaccard({"a", "b"}, {"c", "d"}) == 0.0
 
-    def test_batch_returns_list(self):
-        texts = ["Good stroke.", "Bad", "Another good stroke here."]
-        results = assess_batch(texts)
-        assert len(results) == 3
-        assert all(isinstance(r, CoherenceResult) for r in results)
+    def test_partial_overlap(self):
+        # {a,b} ∩ {b,c} = {b}, {a,b} ∪ {b,c} = {a,b,c}
+        assert abs(jaccard({"a", "b"}, {"b", "c"}) - 1 / 3) < 1e-9
+
+    def test_empty_sets(self):
+        assert jaccard(set(), set()) == 0.0
+
+    def test_one_empty(self):
+        assert jaccard({"a"}, set()) == 0.0
+
+    def test_subset(self):
+        # {a} ⊂ {a,b,c}  → 1/3
+        assert abs(jaccard({"a"}, {"a", "b", "c"}) - 1 / 3) < 1e-9
 
 
-# ---------------------------------------------------------------------------
-# summary
-# ---------------------------------------------------------------------------
+# ── pairwise_similarities ─────────────────────────────────────
 
-class TestSummary:
+
+class TestPairwiseSimilarities:
     def test_empty(self):
-        assert summary([]) == "no strokes assessed"
+        assert pairwise_similarities([]) == []
 
-    def test_all_coherent(self):
-        results = [
-            CoherenceResult(verdict=CoherenceVerdict.COHERENT, score=0.95),
-            CoherenceResult(verdict=CoherenceVerdict.COHERENT, score=0.85),
+    def test_single_stroke(self):
+        assert pairwise_similarities([{"text": "hello world"}]) == []
+
+    def test_two_identical_strokes(self):
+        strokes = [{"text": "garden grows"}, {"text": "garden grows"}]
+        sims = pairwise_similarities(strokes)
+        assert len(sims) == 1
+        assert sims[0] == 1.0
+
+    def test_two_disjoint_strokes(self):
+        strokes = [{"text": "garden grows"}, {"text": "python async"}]
+        sims = pairwise_similarities(strokes)
+        assert len(sims) == 1
+        assert sims[0] == 0.0
+
+    def test_three_strokes_two_pairs(self):
+        strokes = [
+            {"text": "the garden grows slowly"},
+            {"text": "slow growth in the garden"},
+            {"text": "python async event loop"},
         ]
-        s = summary(results)
-        assert "2 strokes" in s
-        assert "2 coherent" in s
-        assert "0 degraded" in s
-        assert "0 incoherent" in s
+        sims = pairwise_similarities(strokes)
+        assert len(sims) == 2
+        # First pair shares "garden", "grows"/"growth", "slowly"/"slow"
+        assert sims[0] > 0.1
+        # Second pair shares very little
+        assert sims[1] < 0.1
+
+    def test_custom_text_key(self):
+        strokes = [{"content": "hello world"}, {"content": "hello world"}]
+        sims = pairwise_similarities(strokes, text_key="content")
+        assert sims[0] == 1.0
+
+    def test_missing_text_key(self):
+        strokes = [{"other": "data"}, {"other": "data"}]
+        sims = pairwise_similarities(strokes)
+        assert sims == [0.0]
+
+
+# ── topic_stability ───────────────────────────────────────────
+
+
+class TestTopicStability:
+    def test_empty(self):
+        assert topic_stability([]) == 0.0
+
+    def test_all_above(self):
+        assert topic_stability([0.2, 0.3, 0.4]) == 1.0
+
+    def test_all_below(self):
+        assert topic_stability([0.01, 0.02, 0.03]) == 0.0
 
     def test_mixed(self):
-        results = [
-            CoherenceResult(verdict=CoherenceVerdict.COHERENT, score=0.9),
-            CoherenceResult(verdict=CoherenceVerdict.DEGRADED, score=0.5),
-            CoherenceResult(verdict=CoherenceVerdict.INCOHERENT, score=0.2),
+        # 2 of 4 above 0.15
+        result = topic_stability([0.2, 0.05, 0.3, 0.01])
+        assert abs(result - 0.5) < 1e-9
+
+    def test_custom_threshold(self):
+        sims = [0.10, 0.20, 0.30]
+        assert topic_stability(sims, threshold=0.25) == 1 / 3
+        assert abs(topic_stability(sims, threshold=0.25) - 1 / 3) < 1e-9
+
+    def test_exact_threshold(self):
+        assert topic_stability([0.15], threshold=0.15) == 1.0
+
+
+# ── mean_run_length ───────────────────────────────────────────
+
+
+class TestMeanRunLength:
+    def test_empty(self):
+        assert mean_run_length([]) == 0.0
+
+    def test_no_runs(self):
+        assert mean_run_length([0.01, 0.02, 0.03]) == 0.0
+
+    def test_single_run(self):
+        # Three consecutive above threshold = run of 3
+        assert mean_run_length([0.2, 0.3, 0.4]) == 3.0
+
+    def test_two_runs(self):
+        # Run of 2, then break, then run of 1 → mean = 1.5
+        sims = [0.2, 0.3, 0.01, 0.2]
+        assert mean_run_length(sims) == 1.5
+
+    def test_all_one_run(self):
+        assert mean_run_length([0.5, 0.5, 0.5, 0.5]) == 4.0
+
+    def test_alternating(self):
+        # Above, below, above, below → two runs of 1 each → mean 1.0
+        sims = [0.2, 0.01, 0.2, 0.01]
+        assert mean_run_length(sims) == 1.0
+
+
+# ── coherence_grade ───────────────────────────────────────────
+
+
+class TestCoherenceGrade:
+    def test_threaded(self):
+        assert coherence_grade(0.35) == "threaded"
+        assert coherence_grade(0.30) == "threaded"
+
+    def test_loose(self):
+        assert coherence_grade(0.25) == "loose"
+        assert coherence_grade(0.18) == "loose"
+
+    def test_scattered(self):
+        assert coherence_grade(0.15) == "scattered"
+        assert coherence_grade(0.10) == "scattered"
+
+    def test_disjointed(self):
+        assert coherence_grade(0.05) == "disjointed"
+        assert coherence_grade(0.0) == "disjointed"
+
+
+# ── analyse (integration) ─────────────────────────────────────
+
+
+class TestAnalyse:
+    def test_empty_strokes(self):
+        report = analyse([])
+        assert report["pairwise_similarity"] == 0.0
+        assert report["topic_stability"] == 0.0
+        assert report["run_length"] == 0.0
+        assert report["n_pairs"] == 0
+        assert report["coherence_grade"] == "disjointed"
+
+    def test_single_stroke(self):
+        report = analyse([{"text": "hello world"}])
+        assert report["n_pairs"] == 0
+
+    def test_coherent_sequence(self):
+        strokes = [
+            {"text": "the garden grows with careful attention"},
+            {"text": "careful garden attention yields deep roots"},
+            {"text": "deep roots anchor the growing garden"},
+            {"text": "growing garden needs strong roots"},
         ]
-        s = summary(results)
-        assert "1 coherent" in s
-        assert "1 degraded" in s
-        assert "1 incoherent" in s
-        assert "avg score 0.53" in s
+        report = analyse(strokes)
+        assert report["n_pairs"] == 3
+        assert report["pairwise_similarity"] > 0.1
+        assert report["topic_stability"] > 0.3
+        assert report["coherence_grade"] in ("threaded", "loose")
+
+    def test_incoherent_sequence(self):
+        strokes = [
+            {"text": "python async programming patterns"},
+            {"text": "ancient roman aqueducts carried water"},
+            {"text": "banana bread recipe requires ripe bananas"},
+            {"text": "quantum entanglement defies classical physics"},
+        ]
+        report = analyse(strokes)
+        assert report["n_pairs"] == 3
+        assert report["pairwise_similarity"] < 0.1
+        assert report["coherence_grade"] == "disjointed"
+
+    def test_mixed_sequence(self):
+        strokes = [
+            {"text": "the writer produces diverse content"},
+            {"text": "diverse content includes thoughts and notes"},
+            {"text": "python async event loops are efficient"},
+            {"text": "quantum computing uses qubits"},
+        ]
+        report = analyse(strokes)
+        assert report["n_pairs"] == 3
+        assert 0.0 < report["pairwise_similarity"] < 0.5
+
+    def test_returns_all_keys(self):
+        strokes = [{"text": "a"}, {"text": "b"}]
+        report = analyse(strokes)
+        expected_keys = {
+            "pairwise_similarity",
+            "topic_stability",
+            "run_length",
+            "coherence_grade",
+            "n_pairs",
+        }
+        assert set(report.keys()) == expected_keys
+
+    def test_custom_threshold(self):
+        strokes = [
+            {"text": "garden grows"},
+            {"text": "garden blooms"},
+        ]
+        # With very high threshold, this pair should be unstable
+        report = analyse(strokes, stability_threshold=0.9)
+        assert report["topic_stability"] == 0.0
+
+        # With very low threshold, should be stable
+        report = analyse(strokes, stability_threshold=0.01)
+        assert report["topic_stability"] == 1.0
