@@ -21011,3 +21011,5 @@ round 27290  bloom 100.0%  plants  146/384
 
 - stroke 27296: round 27296  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 27302: round 27302  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 27308: round 27308  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 27314: round 27314  bloom 100.0%  plants  146/384, bloom 100.0%
