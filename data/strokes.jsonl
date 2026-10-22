@@ -4448,3 +4448,11 @@
 {"seq": 4448, "at": "2026-10-22T12:30:25+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1761: the count of times this repo was pushed, not the work done"}
 {"seq": 4449, "at": "2026-10-22T12:33:49+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 1144 files; 245108 lines is a lot for a toy"}
 {"seq": 4450, "at": "2026-10-22T13:03:49+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 245127 lines across 1144 tracked files, 1762 commits deep"}
+{"seq": 4451, "at": "2026-10-22T13:07:32+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1763: the count of times this repo was pushed, not the work done"}
+{"seq": 4452, "at": "2026-10-22T13:11:07+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 4451 strokes written so far into 1147 files"}
+{"seq": 4453, "at": "2026-10-22T13:14:49+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 246161 lines across 1147 tracked files, 1763 commits deep"}
+{"seq": 4454, "at": "2026-10-22T13:18:25+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1763: the count of times this repo was pushed, not the work done"}
+{"seq": 4455, "at": "2026-10-22T13:22:03+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 4454 strokes written so far into 1147 files"}
+{"seq": 4456, "at": "2026-10-22T13:25:31+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 246196 lines across 1147 tracked files, 1763 commits deep"}
+{"seq": 4457, "at": "2026-10-22T13:28:58+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 740 python files, 4458 logged thoughts"}
+{"seq": 4458, "at": "2026-10-22T13:32:30+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 4457 strokes written so far into 1147 files"}

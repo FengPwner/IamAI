@@ -4457,3 +4457,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 26865
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 738 python files, 4449 logged thoughts.
+## stroke 26889
+
+most architecture is choosing which coupling you will live with. At this moment: 4451 strokes written so far into 1147 files.
+## stroke 26913
+
+deleting a file is progress too, eventually. At this moment: tree is 1147 files; 246191 lines is a lot for a toy.
