@@ -4343,3 +4343,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 26145
 
 most architecture is choosing which coupling you will live with. At this moment: 719 python files, 4329 logged thoughts.
+## stroke 26163
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 721 python files, 4332 logged thoughts.
+## stroke 26193
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1116 files; 237392 lines is a lot for a toy.
