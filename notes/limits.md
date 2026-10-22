@@ -4433,3 +4433,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 26709
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 242738 lines across 1137 tracked files, 1755 commits deep.
+## stroke 26733
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 736 python files, 4427 logged thoughts.
