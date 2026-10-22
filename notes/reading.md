@@ -4505,3 +4505,12 @@ deleting a file is progress too, eventually. At this moment: tree is 1150 files;
 ## stroke 27057
 
 deleting a file is progress too, eventually. At this moment: commit 1766: the count of times this repo was pushed, not the work done.
+## stroke 27075
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 1769: the count of times this repo was pushed, not the work done.
+## stroke 27081
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 4483 strokes written so far into 1155 files.
+## stroke 27105
+
+a repo that only accumulates is a landfill with a README. At this moment: 248709 lines across 1155 tracked files, 1769 commits deep.
