@@ -4472,3 +4472,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 26871
 
 deleting a file is progress too, eventually. At this moment: 4448 strokes written so far into 1144 files.
+## stroke 26877
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1144 files; 245122 lines is a lot for a toy.
