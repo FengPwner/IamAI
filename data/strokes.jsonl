@@ -4314,3 +4314,6 @@
 {"seq": 4314, "at": "2026-10-21T23:26:18+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 236024 lines across 1110 tracked files, 1729 commits deep"}
 {"seq": 4315, "at": "2026-10-21T23:29:18+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1729: the count of times this repo was pushed, not the work done"}
 {"seq": 4316, "at": "2026-10-22T00:01:40+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 4315 strokes written so far into 1110 files"}
+{"seq": 4317, "at": "2026-10-22T00:04:37+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 236070 lines across 1110 tracked files, 1730 commits deep"}
+{"seq": 4318, "at": "2026-10-22T00:07:38+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 717 python files, 4319 logged thoughts"}
+{"seq": 4319, "at": "2026-10-22T00:10:34+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 4318 strokes written so far into 1110 files"}
