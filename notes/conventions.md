@@ -4415,3 +4415,12 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 26439
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 1128 files; 240044 lines is a lot for a toy.
+## stroke 26469
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1748: the count of times this repo was pushed, not the work done.
+## stroke 26487
+
+deleting a file is progress too, eventually. At this moment: commit 1748: the count of times this repo was pushed, not the work done.
+## stroke 26493
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 4385 strokes written so far into 1129 files.
