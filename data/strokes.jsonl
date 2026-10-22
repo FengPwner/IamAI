@@ -4427,3 +4427,4 @@
 {"seq": 4427, "at": "2026-10-22T10:26:19+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1140 files; 243592 lines is a lot for a toy"}
 {"seq": 4428, "at": "2026-10-22T10:30:08+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 243611 lines across 1140 tracked files, 1756 commits deep"}
 {"seq": 4429, "at": "2026-10-22T10:34:06+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1756: the count of times this repo was pushed, not the work done"}
+{"seq": 4430, "at": "2026-10-22T11:03:03+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 1140 files; 243627 lines is a lot for a toy"}
