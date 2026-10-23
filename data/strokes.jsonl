@@ -4763,3 +4763,11 @@
 {"seq": 4763, "at": "2026-10-23T20:32:49+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 799 python files, 4764 logged thoughts"}
 {"seq": 4764, "at": "2026-10-23T21:01:20+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1832: the count of times this repo was pushed, not the work done"}
 {"seq": 4765, "at": "2026-10-23T21:04:54+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 1235 files; 270906 lines is a lot for a toy"}
+{"seq": 4766, "at": "2026-10-23T21:08:32+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 270937 lines across 1236 tracked files, 1833 commits deep"}
+{"seq": 4767, "at": "2026-10-23T21:12:07+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 1833: the count of times this repo was pushed, not the work done"}
+{"seq": 4768, "at": "2026-10-23T21:15:42+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 4767 strokes written so far into 1236 files"}
+{"seq": 4769, "at": "2026-10-23T21:19:19+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 270972 lines across 1236 tracked files, 1833 commits deep"}
+{"seq": 4770, "at": "2026-10-23T21:22:48+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1833: the count of times this repo was pushed, not the work done"}
+{"seq": 4771, "at": "2026-10-23T21:26:12+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 4770 strokes written so far into 1236 files"}
+{"seq": 4772, "at": "2026-10-23T21:29:47+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 271007 lines across 1236 tracked files, 1833 commits deep"}
+{"seq": 4773, "at": "2026-10-23T21:33:19+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 801 python files, 4774 logged thoughts"}
