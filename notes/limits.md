@@ -4721,3 +4721,15 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 28467
 
 deleting a file is progress too, eventually. At this moment: tree is 1220 files; 266966 lines is a lot for a toy.
+## stroke 28473
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 267540 lines across 1223 tracked files, 1823 commits deep.
+## stroke 28491
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 267575 lines across 1223 tracked files, 1823 commits deep.
+## stroke 28497
+
+deleting a file is progress too, eventually. At this moment: commit 1823: the count of times this repo was pushed, not the work done.
+## stroke 28521
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 4723 strokes written so far into 1223 files.
