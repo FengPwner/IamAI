@@ -4595,3 +4595,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 27693
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 256728 lines across 1183 tracked files, 1789 commits deep.
+## stroke 27717
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 766 python files, 4591 logged thoughts.
