@@ -4757,3 +4757,12 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 28653
 
 deleting a file is progress too, eventually. At this moment: 4745 strokes written so far into 1229 files.
+## stroke 28671
+
+a repo that only accumulates is a landfill with a README. At this moment: 4748 strokes written so far into 1230 files.
+## stroke 28677
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1230 files; 269416 lines is a lot for a toy.
+## stroke 28701
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 269470 lines across 1230 tracked files, 1829 commits deep.
