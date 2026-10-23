@@ -4682,3 +4682,12 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 28119
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1806: the count of times this repo was pushed, not the work done.
+## stroke 28137
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1807: the count of times this repo was pushed, not the work done.
+## stroke 28143
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 4660 strokes written so far into 1205 files.
+## stroke 28167
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 262502 lines across 1205 tracked files, 1807 commits deep.
