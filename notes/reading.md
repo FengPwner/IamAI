@@ -4781,3 +4781,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 28689
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1829: the count of times this repo was pushed, not the work done.
+## stroke 28707
+
+deleting a file is progress too, eventually. At this moment: commit 1830: the count of times this repo was pushed, not the work done.
