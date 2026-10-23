@@ -4776,3 +4776,6 @@ deleting a file is progress too, eventually. At this moment: 4726 strokes writte
 ## stroke 28563
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1226 files; 268664 lines is a lot for a toy.
+## stroke 28593
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1826: the count of times this repo was pushed, not the work done.

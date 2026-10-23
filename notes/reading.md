@@ -4763,3 +4763,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 28581
 
 deleting a file is progress too, eventually. At this moment: tree is 1226 files; 268688 lines is a lot for a toy.
+## stroke 28587
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 268707 lines across 1226 tracked files, 1826 commits deep.
