@@ -4675,3 +4675,11 @@
 {"seq": 4675, "at": "2026-10-23T11:33:59+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 783 python files, 4676 logged thoughts"}
 {"seq": 4676, "at": "2026-10-23T11:37:49+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 4675 strokes written so far into 1208 files"}
 {"seq": 4677, "at": "2026-10-23T12:04:42+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 1208 files; 263553 lines is a lot for a toy"}
+{"seq": 4678, "at": "2026-10-23T12:08:32+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 785 python files, 4679 logged thoughts"}
+{"seq": 4679, "at": "2026-10-23T12:12:21+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 4678 strokes written so far into 1211 files"}
+{"seq": 4680, "at": "2026-10-23T12:16:11+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 1211 files; 264514 lines is a lot for a toy"}
+{"seq": 4681, "at": "2026-10-23T12:20:00+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 785 python files, 4682 logged thoughts"}
+{"seq": 4682, "at": "2026-10-23T12:23:38+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1813: the count of times this repo was pushed, not the work done"}
+{"seq": 4683, "at": "2026-10-23T12:27:10+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 1211 files; 264549 lines is a lot for a toy"}
+{"seq": 4684, "at": "2026-10-23T12:30:44+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 785 python files, 4685 logged thoughts"}
+{"seq": 4685, "at": "2026-10-23T12:34:23+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1813: the count of times this repo was pushed, not the work done"}
