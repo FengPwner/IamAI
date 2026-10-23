@@ -4580,3 +4580,4 @@
 {"seq": 4580, "at": "2026-10-23T01:31:30+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 764 python files, 4581 logged thoughts"}
 {"seq": 4581, "at": "2026-10-23T01:35:24+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 4580 strokes written so far into 1180 files"}
 {"seq": 4582, "at": "2026-10-23T01:39:27+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 1180 files; 256170 lines is a lot for a toy"}
+{"seq": 4583, "at": "2026-10-23T02:02:30+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 764 python files, 4584 logged thoughts"}
