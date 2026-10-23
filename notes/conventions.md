@@ -4659,3 +4659,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 770 py
 ## stroke 27837
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 4609 strokes written so far into 1190 files.
+## stroke 27843
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 1190 files; 258287 lines is a lot for a toy.

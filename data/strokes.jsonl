@@ -4608,3 +4608,4 @@
 {"seq": 4608, "at": "2026-10-23T04:27:04+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 258257 lines across 1190 tracked files, 1795 commits deep"}
 {"seq": 4609, "at": "2026-10-23T04:30:37+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1795: the count of times this repo was pushed, not the work done"}
 {"seq": 4610, "at": "2026-10-23T04:34:08+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 4609 strokes written so far into 1190 files"}
+{"seq": 4611, "at": "2026-10-23T05:03:20+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 258292 lines across 1190 tracked files, 1796 commits deep"}
