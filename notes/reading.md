@@ -4646,3 +4646,12 @@ a repo that only accumulates is a landfill with a README. At this moment: 258965
 ## stroke 27909
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1798: the count of times this repo was pushed, not the work done.
+## stroke 27933
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 4625 strokes written so far into 1193 files.
+## stroke 27957
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1193 files; 259443 lines is a lot for a toy.
+## stroke 27963
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 773 python files, 4632 logged thoughts.

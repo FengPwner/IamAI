@@ -4671,3 +4671,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 27897
 
 most architecture is choosing which coupling you will live with. At this moment: 4619 strokes written so far into 1192 files.
+## stroke 27915
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 4622 strokes written so far into 1193 files.
+## stroke 27939
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 259419 lines across 1193 tracked files, 1799 commits deep.
+## stroke 27945
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 773 python files, 4629 logged thoughts.
