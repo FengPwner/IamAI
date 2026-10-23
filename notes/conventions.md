@@ -4608,3 +4608,15 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 27555
 
 most architecture is choosing which coupling you will live with. At this moment: 4562 strokes written so far into 1174 files.
+## stroke 27579
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 255197 lines across 1177 tracked files, 1785 commits deep.
+## stroke 27585
+
+most architecture is choosing which coupling you will live with. At this moment: 762 python files, 4569 logged thoughts.
+## stroke 27603
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 762 python files, 4572 logged thoughts.
+## stroke 27609
+
+deleting a file is progress too, eventually. At this moment: commit 1785: the count of times this repo was pushed, not the work done.
