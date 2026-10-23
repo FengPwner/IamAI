@@ -4599,3 +4599,12 @@
 {"seq": 4599, "at": "2026-10-23T03:28:28+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 768 python files, 4600 logged thoughts"}
 {"seq": 4600, "at": "2026-10-23T03:32:32+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 4599 strokes written so far into 1187 files"}
 {"seq": 4601, "at": "2026-10-23T04:01:32+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 1187 files; 257613 lines is a lot for a toy"}
+{"seq": 4602, "at": "2026-10-23T04:05:15+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 770 python files, 4603 logged thoughts"}
+{"seq": 4603, "at": "2026-10-23T04:09:01+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1795: the count of times this repo was pushed, not the work done"}
+{"seq": 4604, "at": "2026-10-23T04:12:42+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 1190 files; 258214 lines is a lot for a toy"}
+{"seq": 4605, "at": "2026-10-23T04:16:26+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 770 python files, 4606 logged thoughts"}
+{"seq": 4606, "at": "2026-10-23T04:20:06+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 1795: the count of times this repo was pushed, not the work done"}
+{"seq": 4607, "at": "2026-10-23T04:23:38+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 1190 files; 258249 lines is a lot for a toy"}
+{"seq": 4608, "at": "2026-10-23T04:27:04+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 258257 lines across 1190 tracked files, 1795 commits deep"}
+{"seq": 4609, "at": "2026-10-23T04:30:37+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1795: the count of times this repo was pushed, not the work done"}
+{"seq": 4610, "at": "2026-10-23T04:34:08+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 4609 strokes written so far into 1190 files"}
