@@ -1,219 +1,213 @@
-"""commit_rhythm — measure how regularly commits land on the expected cadence.
+"""commit_rhythm — analyze commit spacing patterns for health signals.
 
-The batch committer targets a 10-minute interval (``--interval 600``).
-A healthy repo commits like a metronome; a sick one commits in bursts
-separated by silence.  This module quantifies the difference.
+Healthy autonomous writers commit at a roughly steady cadence.
+When commit intervals become erratic — long silences followed by
+burst dumps, or accelerating frequency approaching zero-length gaps —
+the underlying process is usually degraded.
 
-Given a list of commit timestamps (ISO-8601 strings or datetimes), it
-computes:
+This module provides:
 
-- **gaps** — seconds between consecutive commits
-- **mean_gap** / **median_gap** — central tendency of gaps
-- **max_gap** — longest silence between two commits
-- **cv** — coefficient of variation (stdev / mean); low = regular
-- **cadence_hit_rate** — fraction of gaps within ±25 % of the target
-- **verdict** — one of ``regular``, ``irregular``, ``bursty``, ``stalled``
+- **rhythm_score**: 0.0 (completely erratic) to 1.0 (perfectly steady)
+- **interval_stats**: mean, median, std-dev, min, max of commit gaps
+- **pattern classification**: steady, drifting, bursty, stalled
 
-Verdict rules
--------------
-- **regular**   — cv ≤ 0.30 *and* cadence_hit_rate ≥ 0.70
-- **irregular** — cv ≤ 0.60 *and* cadence_hit_rate ≥ 0.40
-- **bursty**    — cv > 0.60 *or* max_gap > 3× target
-- **stalled**   — the trailing gap (since the last commit) exceeds 2× target
+Pattern definitions:
 
-The trailing gap is checked first: even if historical rhythm was perfect,
-a 25-minute silence right now means stalled.
+==========  =========================================================
+pattern     meaning
+==========  =========================================================
+steady      intervals cluster tightly around the target cadence
+drifting    intervals slowly increasing or decreasing over time
+bursty      long gaps alternating with rapid-fire clusters
+stalled     one or more gaps exceed 10× the target cadence
+==========  =========================================================
 
 Usage::
 
-    from iamai.commit_rhythm import rhythm_report, rhythm_summary
+    from iamai.commit_rhythm import analyze_rhythm
 
-    report = rhythm_report(timestamps, target_seconds=600)
-    print(rhythm_summary(report))
+    timestamps = [
+        "2026-10-24T01:00:00+08:00",
+        "2026-10-24T01:10:00+08:00",
+        "2026-10-24T01:20:00+08:00",
+        "2026-10-24T01:30:00+08:00",
+    ]
+
+    result = analyze_rhythm(timestamps, target_interval_seconds=600)
+    print(result["score"])    # ~1.0
+    print(result["pattern"])  # "steady"
 """
 
 from __future__ import annotations
 
 import math
 import statistics
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import List, Optional, Sequence
+from datetime import datetime
+from typing import Any
 
 
-# ---------------------------------------------------------------------------
-# Data classes
-# ---------------------------------------------------------------------------
-
-@dataclass
-class RhythmReport:
-    """Summary of commit timing regularity."""
-
-    commit_count: int = 0
-    gaps: list[float] = field(default_factory=list)
-    mean_gap: float = 0.0
-    median_gap: float = 0.0
-    max_gap: float = 0.0
-    min_gap: float = 0.0
-    stdev_gap: float = 0.0
-    cv: float = 0.0
-    cadence_hit_rate: float = 0.0
-    trailing_gap: float = 0.0
-    target_seconds: float = 600.0
-    verdict: str = "unknown"
+_STALL_MULTIPLIER = 10.0       # gap > 10× target → stalled
+_BURST_CV_THRESHOLD = 0.8      # coefficient of variation indicating bursty
+_DRIFT_CORRELATION_THRESHOLD = 0.5  # trend correlation for drifting
 
 
-# ---------------------------------------------------------------------------
-# Parsing helpers
-# ---------------------------------------------------------------------------
-
-def _parse_ts(raw: str | datetime) -> Optional[datetime]:
-    """Accept ISO-8601 string or datetime; return UTC-aware datetime or None."""
-    if isinstance(raw, datetime):
-        if raw.tzinfo is None:
-            return raw.replace(tzinfo=timezone.utc)
-        return raw
-    if not raw or not isinstance(raw, str):
-        return None
-    s = raw.strip()
-    # Normalise 'Z' suffix for fromisoformat (Python < 3.11)
-    if s.endswith("Z"):
-        s = s[:-1] + "+00:00"
-    try:
-        dt = datetime.fromisoformat(s)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt
-    except (ValueError, TypeError):
-        return None
+def _parse_ts(ts: str | datetime) -> datetime:
+    """Parse a timestamp string or return datetime as-is."""
+    if isinstance(ts, datetime):
+        return ts
+    return datetime.fromisoformat(ts)
 
 
-def _to_epoch(dt: datetime) -> float:
-    return dt.timestamp()
-
-
-# ---------------------------------------------------------------------------
-# Core computation
-# ---------------------------------------------------------------------------
-
-def compute_gaps(timestamps: Sequence[str | datetime]) -> list[float]:
-    """Return sorted-chronological list of inter-commit gaps in seconds."""
-    parsed = [_parse_ts(t) for t in timestamps]
-    parsed = [p for p in parsed if p is not None]
-    if len(parsed) < 2:
-        return []
-    epochs = sorted(_to_epoch(p) for p in parsed)
-    return [epochs[i + 1] - epochs[i] for i in range(len(epochs) - 1)]
-
-
-def _classify(
-    cv: float,
-    cadence_hit_rate: float,
-    max_gap: float,
-    trailing_gap: float,
-    target: float,
-) -> str:
-    """Apply verdict rules in priority order."""
-    # Stalled takes priority: current silence is too long
-    if trailing_gap > 2.0 * target:
-        return "stalled"
-    # Bursty: high variance or extreme outlier gap
-    if cv > 0.60 or max_gap > 3.0 * target:
-        return "bursty"
-    # Regular: tight and on-target
-    if cv <= 0.30 and cadence_hit_rate >= 0.70:
-        return "regular"
-    # Irregular: moderate variance but not chaotic
-    if cv <= 0.60 and cadence_hit_rate >= 0.40:
-        return "irregular"
-    # Fallback
-    return "bursty"
-
-
-def rhythm_report(
-    timestamps: Sequence[str | datetime],
-    target_seconds: float = 600.0,
-    now: Optional[datetime] = None,
-) -> RhythmReport:
-    """Build a RhythmReport from a sequence of commit timestamps."""
-    parsed = [_parse_ts(t) for t in timestamps]
-    parsed = [p for p in parsed if p is not None]
-
-    if not parsed:
-        return RhythmReport(target_seconds=target_seconds, verdict="stalled")
-
-    epochs = sorted(_to_epoch(p) for p in parsed)
-    gaps = [epochs[i + 1] - epochs[i] for i in range(len(epochs) - 1)]
-
-    # Trailing gap: time since the most recent commit
-    ref_now = now or datetime.now(timezone.utc)
-    trailing_gap = _to_epoch(ref_now) - epochs[-1]
-    if trailing_gap < 0:
-        trailing_gap = 0.0
-
-    if not gaps:
-        # Only one commit: can't compute rhythm, but trailing gap matters
-        return RhythmReport(
-            commit_count=1,
-            trailing_gap=trailing_gap,
-            target_seconds=target_seconds,
-            verdict="stalled" if trailing_gap > 2.0 * target_seconds else "unknown",
-        )
-
-    mean_gap = statistics.mean(gaps)
-    median_gap = statistics.median(gaps)
-    max_gap = max(gaps)
-    min_gap = min(gaps)
-    stdev_gap = statistics.stdev(gaps) if len(gaps) >= 2 else 0.0
-    cv = stdev_gap / mean_gap if mean_gap > 0 else 0.0
-
-    # Cadence hit rate: fraction of gaps within ±25% of target
-    lo, hi = target_seconds * 0.75, target_seconds * 1.25
-    hits = sum(1 for g in gaps if lo <= g <= hi)
-    cadence_hit_rate = hits / len(gaps)
-
-    verdict = _classify(cv, cadence_hit_rate, max_gap, trailing_gap, target_seconds)
-
-    return RhythmReport(
-        commit_count=len(parsed),
-        gaps=gaps,
-        mean_gap=mean_gap,
-        median_gap=median_gap,
-        max_gap=max_gap,
-        min_gap=min_gap,
-        stdev_gap=stdev_gap,
-        cv=cv,
-        cadence_hit_rate=cadence_hit_rate,
-        trailing_gap=trailing_gap,
-        target_seconds=target_seconds,
-        verdict=verdict,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Summary
-# ---------------------------------------------------------------------------
-
-def rhythm_summary(r: RhythmReport) -> str:
-    """One-line human-readable summary of the rhythm report."""
-    if r.commit_count == 0:
-        return "commit-rhythm: no commits found — stalled"
-
-    def _fmt(s: float) -> str:
-        if s >= 3600:
-            return f"{s / 3600:.1f}h"
-        if s >= 60:
-            return f"{s / 60:.1f}m"
-        return f"{s:.0f}s"
-
-    parts = [
-        f"commits={r.commit_count}",
-        f"mean_gap={_fmt(r.mean_gap)}",
-        f"median={_fmt(r.median_gap)}",
-        f"max={_fmt(r.max_gap)}",
-        f"cv={r.cv:.2f}",
-        f"hit_rate={r.cadence_hit_rate:.0%}",
-        f"trailing={_fmt(r.trailing_gap)}",
-        f"verdict={r.verdict}",
+def _compute_intervals(timestamps: list[str | datetime]) -> list[float]:
+    """Compute sorted intervals (seconds) between consecutive timestamps."""
+    parsed = sorted(_parse_ts(t) for t in timestamps)
+    return [
+        (parsed[i + 1] - parsed[i]).total_seconds()
+        for i in range(len(parsed) - 1)
     ]
-    return "commit-rhythm: " + " | ".join(parts)
+
+
+def _coefficient_of_variation(values: list[float]) -> float:
+    """Coefficient of variation (std / mean). Returns 0.0 for single values."""
+    if len(values) < 2:
+        return 0.0
+    mean = statistics.mean(values)
+    if mean == 0:
+        return float("inf")
+    return statistics.stdev(values) / mean
+
+
+def _trend_correlation(values: list[float]) -> float:
+    """Pearson correlation between index and value. -1 to +1."""
+    n = len(values)
+    if n < 3:
+        return 0.0
+    indices = list(range(n))
+    mean_x = statistics.mean(indices)
+    mean_y = statistics.mean(values)
+    num = sum((x - mean_x) * (y - mean_y) for x, y in zip(indices, values))
+    den_x = math.sqrt(sum((x - mean_x) ** 2 for x in indices))
+    den_y = math.sqrt(sum((y - mean_y) ** 2 for y in values))
+    if den_x == 0 or den_y == 0:
+        return 0.0
+    return num / (den_x * den_y)
+
+
+def rhythm_score(
+    intervals: list[float],
+    target_interval_seconds: float = 600.0,
+) -> float:
+    """Score rhythm regularity from 0.0 (erratic) to 1.0 (perfect).
+
+    Scoring:
+    - Perfect score when all intervals equal the target
+    - Penalized by deviation from target (normalized by target)
+    - Score drops to 0.0 when deviation exceeds target
+    """
+    if not intervals:
+        return 0.0
+
+    deviations = [
+        abs(iv - target_interval_seconds) / target_interval_seconds
+        for iv in intervals
+    ]
+    mean_deviation = statistics.mean(deviations)
+    # Clamp: 0 deviation → 1.0, deviation ≥ 1.0 → 0.0
+    return max(0.0, 1.0 - mean_deviation)
+
+
+def classify_pattern(
+    intervals: list[float],
+    target_interval_seconds: float = 600.0,
+) -> str:
+    """Classify the commit interval pattern.
+
+    Returns one of: 'steady', 'drifting', 'bursty', 'stalled'.
+    Priority: stalled > bursty > drifting > steady.
+    """
+    if not intervals:
+        return "stalled"
+
+    # Check stalled: any gap > 10× target
+    stall_threshold = target_interval_seconds * _STALL_MULTIPLIER
+    if any(iv > stall_threshold for iv in intervals):
+        return "stalled"
+
+    # Check bursty: high coefficient of variation
+    cv = _coefficient_of_variation(intervals)
+    if cv > _BURST_CV_THRESHOLD:
+        return "bursty"
+
+    # Check drifting: strong trend in intervals
+    corr = _trend_correlation(intervals)
+    if abs(corr) > _DRIFT_CORRELATION_THRESHOLD:
+        return "drifting"
+
+    return "steady"
+
+
+def interval_stats(intervals: list[float]) -> dict[str, Any]:
+    """Compute descriptive statistics for commit intervals."""
+    if not intervals:
+        return {
+            "count": 0,
+            "mean": 0.0,
+            "median": 0.0,
+            "stdev": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+        }
+    result: dict[str, Any] = {
+        "count": len(intervals),
+        "mean": statistics.mean(intervals),
+        "median": statistics.median(intervals),
+        "min": min(intervals),
+        "max": max(intervals),
+    }
+    if len(intervals) >= 2:
+        result["stdev"] = statistics.stdev(intervals)
+    else:
+        result["stdev"] = 0.0
+    return result
+
+
+def analyze_rhythm(
+    timestamps: list[str | datetime],
+    target_interval_seconds: float = 600.0,
+) -> dict[str, Any]:
+    """Full rhythm analysis: score, pattern, and interval statistics.
+
+    Parameters
+    ----------
+    timestamps:
+        List of commit timestamps (ISO strings or datetimes).
+        Need not be sorted — will be sorted internally.
+    target_interval_seconds:
+        Expected commit interval in seconds (default: 600 = 10 min).
+
+    Returns
+    -------
+    dict with keys:
+        - score: float 0.0–1.0
+        - pattern: str (steady|drifting|bursty|stalled)
+        - intervals: dict of descriptive stats
+        - cv: coefficient of variation
+        - trend: Pearson correlation of interval over time
+    """
+    if len(timestamps) < 2:
+        return {
+            "score": 0.0,
+            "pattern": "stalled" if not timestamps else "steady",
+            "intervals": interval_stats([]),
+            "cv": 0.0,
+            "trend": 0.0,
+        }
+
+    ivs = _compute_intervals(timestamps)
+    return {
+        "score": rhythm_score(ivs, target_interval_seconds),
+        "pattern": classify_pattern(ivs, target_interval_seconds),
+        "intervals": interval_stats(ivs),
+        "cv": _coefficient_of_variation(ivs),
+        "trend": _trend_correlation(ivs),
+    }
