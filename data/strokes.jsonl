@@ -4591,3 +4591,10 @@
 {"seq": 4591, "at": "2026-10-23T02:29:54+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 4590 strokes written so far into 1184 files"}
 {"seq": 4592, "at": "2026-10-23T02:33:23+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 256852 lines across 1184 tracked files, 1791 commits deep"}
 {"seq": 4593, "at": "2026-10-23T03:03:38+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1792: the count of times this repo was pushed, not the work done"}
+{"seq": 4594, "at": "2026-10-23T03:07:56+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 4593 strokes written so far into 1187 files"}
+{"seq": 4595, "at": "2026-10-23T03:12:11+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 257532 lines across 1187 tracked files, 1793 commits deep"}
+{"seq": 4596, "at": "2026-10-23T03:16:17+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 768 python files, 4597 logged thoughts"}
+{"seq": 4597, "at": "2026-10-23T03:20:30+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 4596 strokes written so far into 1187 files"}
+{"seq": 4598, "at": "2026-10-23T03:24:31+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 1187 files; 257578 lines is a lot for a toy"}
+{"seq": 4599, "at": "2026-10-23T03:28:28+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 768 python files, 4600 logged thoughts"}
+{"seq": 4600, "at": "2026-10-23T03:32:32+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 4599 strokes written so far into 1187 files"}
