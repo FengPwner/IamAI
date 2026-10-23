@@ -4670,3 +4670,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 28161
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 4663 strokes written so far into 1205 files.
+## stroke 28179
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 4666 strokes written so far into 1205 files.
