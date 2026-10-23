@@ -4643,3 +4643,15 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 28005
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1801: the count of times this repo was pushed, not the work done.
+## stroke 28023
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1803: the count of times this repo was pushed, not the work done.
+## stroke 28029
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 4641 strokes written so far into 1199 files.
+## stroke 28053
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 260735 lines across 1199 tracked files, 1803 commits deep.
+## stroke 28059
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 777 python files, 4648 logged thoughts.
