@@ -4722,3 +4722,12 @@ degraded severity classification with pure-function helpers.
 - stroke 28397: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 28403: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 28409: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 28415: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 28421: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 28427: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 28433: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 28439: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 28445: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 28451: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 28457: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 28463: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there

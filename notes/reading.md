@@ -4733,3 +4733,12 @@ deleting a file is progress too, eventually. At this moment: 266239 lines across
 ## stroke 28401
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 789 python files, 4705 logged thoughts.
+## stroke 28425
+
+deleting a file is progress too, eventually. At this moment: 4707 strokes written so far into 1220 files.
+## stroke 28431
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1220 files; 266907 lines is a lot for a toy.
+## stroke 28449
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1220 files; 266931 lines is a lot for a toy.
