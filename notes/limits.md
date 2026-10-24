@@ -4823,3 +4823,12 @@ a repo that only accumulates is a landfill with a README. At this moment: 4804 s
 ## stroke 29037
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 1247 files; 274226 lines is a lot for a toy.
+## stroke 29067
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1843: the count of times this repo was pushed, not the work done.
+## stroke 29085
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1843: the count of times this repo was pushed, not the work done.
+## stroke 29091
+
+deleting a file is progress too, eventually. At this moment: 4817 strokes written so far into 1250 files.

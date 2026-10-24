@@ -4809,3 +4809,11 @@
 {"seq": 4809, "at": "2026-10-24T01:32:29+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 274231 lines across 1247 tracked files, 1841 commits deep"}
 {"seq": 4810, "at": "2026-10-24T01:36:11+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 809 python files, 4811 logged thoughts"}
 {"seq": 4811, "at": "2026-10-24T02:03:23+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 4810 strokes written so far into 1247 files"}
+{"seq": 4812, "at": "2026-10-24T02:07:16+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 275000 lines across 1250 tracked files, 1843 commits deep"}
+{"seq": 4813, "at": "2026-10-24T02:11:04+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 811 python files, 4814 logged thoughts"}
+{"seq": 4814, "at": "2026-10-24T02:14:53+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 4813 strokes written so far into 1250 files"}
+{"seq": 4815, "at": "2026-10-24T02:18:50+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 1250 files; 275024 lines is a lot for a toy"}
+{"seq": 4816, "at": "2026-10-24T02:22:37+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 811 python files, 4817 logged thoughts"}
+{"seq": 4817, "at": "2026-10-24T02:26:24+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 4816 strokes written so far into 1250 files"}
+{"seq": 4818, "at": "2026-10-24T02:30:13+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1250 files; 275059 lines is a lot for a toy"}
+{"seq": 4819, "at": "2026-10-24T02:33:58+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 811 python files, 4820 logged thoughts"}
