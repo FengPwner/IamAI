@@ -23224,3 +23224,19 @@ round 30140  bloom 100.0%  plants  146/384
 - stroke 30146: round 30146  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 30152: round 30152  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 30158: round 30158  bloom 100.0%  plants  146/384, bloom 100.0%
+```
+round 30164  bloom 100.0%  plants  146/384
+...@...@@.@.......@....@.@........@.@..@..@...@.
+@..@.@@.@@@@..@@..@.....@.@......@....@.@..@.@@.
+...@@...@@.....@.@@@@@...@.......@@..@@@@@.@....
+..@.........@..@.@.@@@...@........@@@@.@......@@
+@@.@@@.@@...@@..@@.@.@..@...@..@@@@.@.........@.
+@..@.@@@@..@@@....@..@.@...........@@..@@..@@...
+........@@...@.@...@.@..@@@@@@......@....@@@@@.@
+@@..@..@..@.@@@.@..@@..@.@@.@.@...@@.@...@.@.@@.
+```
+
+- stroke 30170: round 30170  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 30176: round 30176  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 30181: round 30181  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 30182: the skeleton does not grow by adding bones -- it grows by making each bone denser -- caretaker visit 354: repo_skeletal_system.py adds structural integrity scoring

@@ -5024,3 +5024,4 @@ deleting a file is progress too, eventually. At this moment: tree is 1303 files;
 ## stroke 30159
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 291338 lines across 1303 tracked files, 1883 commits deep.
+- stroke 30178: `repo_skeletal_system.py` — bone inventory, fracture detection, osteoporosis scoring, load-bearing analysis
