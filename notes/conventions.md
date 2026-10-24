@@ -4952,3 +4952,15 @@ what mode it is in right now — sprint, steady, drip, dormant, or stalled.
 median beats mean here because one long restart gap should not reclassify
 a healthy writer as "dormant." 49 tests cover every boundary, the FIFO
 window, transition labels, and the confidence ladder.
+## stroke 29577
+
+most architecture is choosing which coupling you will live with. At this moment: 831 python files, 4899 logged thoughts.
+## stroke 29601
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 4901 strokes written so far into 1277 files.
+## stroke 29619
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 4904 strokes written so far into 1277 files.
+## stroke 29625
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1277 files; 283836 lines is a lot for a toy.
