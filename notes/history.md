@@ -4896,3 +4896,15 @@ degraded severity classification with pure-function helpers.
 - stroke 29447: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 29453: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 29459: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 29465: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+
+## 2026-10-24: stroke velocity tracker added
+
+new script `scripts/stroke_velocity_tracker.py` measures the writing system's momentum and cadence health. it parses `data/strokes.jsonl` and scores four dimensions:
+
+1. **recent stroke rate** — how many strokes/hour in the last 6 hours vs the 240/hr target
+2. **rate trend** — momentum: is the recent rate accelerating, steady, or decelerating compared to the prior 18 hours
+3. **cadence regularity** — coefficient of variation of inter-stroke gaps (lower = more predictable)
+4. **kind balance** — how evenly distributed are the 6 stroke kinds (garden, metrics, note, snippet, devlog, thought)
+
+grades from STALLED (0–20) to CRUISING (71–100). 75 unit tests cover all metrics, edge cases, and integration scenarios. designed for caretaker dashboards and process health monitoring.
