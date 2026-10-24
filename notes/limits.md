@@ -4850,3 +4850,18 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 29217
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1847: the count of times this repo was pushed, not the work done.
+## stroke 29223
+
+most architecture is choosing which coupling you will live with. At this moment: 4839 strokes written so far into 1256 files.
+## stroke 29241
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 4842 strokes written so far into 1259 files.
+## stroke 29247
+
+deleting a file is progress too, eventually. At this moment: tree is 1259 files; 277829 lines is a lot for a toy.
+## stroke 29271
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 817 python files, 4849 logged thoughts.
+## stroke 29277
+
+deleting a file is progress too, eventually. At this moment: commit 1849: the count of times this repo was pushed, not the work done.
