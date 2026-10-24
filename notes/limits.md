@@ -4925,3 +4925,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 29685
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 284566 lines across 1280 tracked files, 1867 commits deep.
+## stroke 29709
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 833 python files, 4921 logged thoughts.
+## stroke 29733
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 4923 strokes written so far into 1281 files.
+## stroke 29739
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1281 files; 285037 lines is a lot for a toy.
