@@ -4973,3 +4973,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 29991
 
 deleting a file is progress too, eventually. At this moment: 842 python files, 4968 logged thoughts.
+## stroke 29997
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1879: the count of times this repo was pushed, not the work done.
+## stroke 30021
+
+deleting a file is progress too, eventually. At this moment: tree is 1296 files; 289143 lines is a lot for a toy.
+## stroke 30027
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 289151 lines across 1296 tracked files, 1879 commits deep.

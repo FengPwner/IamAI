@@ -4997,3 +4997,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 29979
 
 deleting a file is progress too, eventually. At this moment: 4964 strokes written so far into 1293 files.
+## stroke 30003
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1296 files; 289097 lines is a lot for a toy.
+## stroke 30009
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 289116 lines across 1296 tracked files, 1879 commits deep.
+## stroke 30033
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1879: the count of times this repo was pushed, not the work done.
