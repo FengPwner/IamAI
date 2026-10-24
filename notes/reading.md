@@ -4988,3 +4988,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 29925
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 4955 strokes written so far into 1291 files.
+## stroke 29949
+
+deleting a file is progress too, eventually. At this moment: 288120 lines across 1293 tracked files, 1877 commits deep.
+## stroke 29955
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 842 python files, 4962 logged thoughts.
+## stroke 29979
+
+deleting a file is progress too, eventually. At this moment: 4964 strokes written so far into 1293 files.
