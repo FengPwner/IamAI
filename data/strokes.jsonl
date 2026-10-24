@@ -4904,3 +4904,13 @@
 {"seq": 4904, "at": "2026-10-24T12:25:44+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1865: the count of times this repo was pushed, not the work done"}
 {"seq": 4905, "at": "2026-10-24T12:28:52+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 4904 strokes written so far into 1277 files"}
 {"seq": 4906, "at": "2026-10-24T12:32:09+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 283841 lines across 1277 tracked files, 1865 commits deep"}
+{"seq": 4907, "at": "2026-10-24T13:02:43+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1866: the count of times this repo was pushed, not the work done"}
+{"seq": 4908, "at": "2026-10-24T13:06:30+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 4907 strokes written so far into 1280 files"}
+{"seq": 4909, "at": "2026-10-24T13:10:18+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 284482 lines across 1280 tracked files, 1867 commits deep"}
+{"seq": 4910, "at": "2026-10-24T13:14:01+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 833 python files, 4911 logged thoughts"}
+{"seq": 4911, "at": "2026-10-24T13:17:48+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 4910 strokes written so far into 1280 files"}
+{"seq": 4912, "at": "2026-10-24T13:21:33+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 1280 files; 284517 lines is a lot for a toy"}
+{"seq": 4913, "at": "2026-10-24T13:25:10+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 833 python files, 4914 logged thoughts"}
+{"seq": 4914, "at": "2026-10-24T13:28:44+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 4913 strokes written so far into 1280 files"}
+{"seq": 4915, "at": "2026-10-24T13:32:16+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1280 files; 284563 lines is a lot for a toy"}
+{"seq": 4916, "at": "2026-10-24T13:35:55+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 833 python files, 4917 logged thoughts"}

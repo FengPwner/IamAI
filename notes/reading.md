@@ -4934,3 +4934,12 @@ a repo that only accumulates is a landfill with a README. At this moment: 831 py
 ## stroke 29613
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 831 python files, 4905 logged thoughts.
+## stroke 29643
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1280 files; 284477 lines is a lot for a toy.
+## stroke 29649
+
+most architecture is choosing which coupling you will live with. At this moment: 284496 lines across 1280 tracked files, 1867 commits deep.
+## stroke 29667
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 284531 lines across 1280 tracked files, 1867 commits deep.
