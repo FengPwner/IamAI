@@ -4967,3 +4967,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 29799
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 286052 lines across 1284 tracked files, 1871 commits deep.
+## stroke 29823
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 838 python files, 4940 logged thoughts.
+## stroke 29847
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 4942 strokes written so far into 1287 files.
+## stroke 29853
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1287 files; 286863 lines is a lot for a toy.
