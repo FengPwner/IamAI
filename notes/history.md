@@ -4908,3 +4908,11 @@ new script `scripts/stroke_velocity_tracker.py` measures the writing system's mo
 4. **kind balance** — how evenly distributed are the 6 stroke kinds (garden, metrics, note, snippet, devlog, thought)
 
 grades from STALLED (0–20) to CRUISING (71–100). 75 unit tests cover all metrics, edge cases, and integration scenarios. designed for caretaker dashboards and process health monitoring.
+- stroke 29471: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 29477: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 29483: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 29489: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 29495: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 29501: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 29507: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 29513: `retry.py` is already in the pool of 9 modules, nothing new to add there
