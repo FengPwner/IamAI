@@ -4944,3 +4944,11 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 29571
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 283150 lines across 1275 tracked files, 1862 commits deep.
+## stroke (caretaker 345): add stroke_tempo_classifier
+
+a median-based tempo regime classifier. rhythm tells you how the writer
+breathes; pacer tells you whether it will hit a target; tempo tells you
+what mode it is in right now — sprint, steady, drip, dormant, or stalled.
+median beats mean here because one long restart gap should not reclassify
+a healthy writer as "dormant." 49 tests cover every boundary, the FIFO
+window, transition labels, and the confidence ladder.
