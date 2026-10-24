@@ -4799,3 +4799,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 28911
 
 most architecture is choosing which coupling you will live with. At this moment: 805 python files, 4789 logged thoughts.
+## stroke 28929
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 805 python files, 4792 logged thoughts.
