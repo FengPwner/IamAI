@@ -5010,3 +5010,5 @@
 {"seq": 5010, "at": "2026-10-24T22:31:01+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 292942 lines across 1306 tracked files, 1885 commits deep"}
 {"seq": 5011, "at": "2026-10-24T22:34:32+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1885: the count of times this repo was pushed, not the work done"}
 {"seq": 5012, "at": "2026-10-24T22:37:50+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 5011 strokes written so far into 1306 files"}
+{"seq": 5013, "at": "2026-10-24T23:01:20+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 292977 lines across 1306 tracked files, 1886 commits deep"}
+{"seq": 5014, "at": "2026-10-24T23:05:00+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 851 python files, 5015 logged thoughts"}
