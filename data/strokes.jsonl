@@ -4847,3 +4847,10 @@
 {"seq": 4847, "at": "2026-10-24T05:27:12+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 277869 lines across 1259 tracked files, 1849 commits deep"}
 {"seq": 4848, "at": "2026-10-24T05:30:28+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1849: the count of times this repo was pushed, not the work done"}
 {"seq": 4849, "at": "2026-10-24T05:33:56+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 4848 strokes written so far into 1259 files"}
+{"seq": 4850, "at": "2026-10-24T06:09:39+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 819 python files, 4851 logged thoughts"}
+{"seq": 4851, "at": "2026-10-24T06:14:00+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 4850 strokes written so far into 1262 files"}
+{"seq": 4852, "at": "2026-10-24T06:18:11+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1262 files; 278752 lines is a lot for a toy"}
+{"seq": 4853, "at": "2026-10-24T06:22:27+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 819 python files, 4854 logged thoughts"}
+{"seq": 4854, "at": "2026-10-24T06:26:46+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 4853 strokes written so far into 1262 files"}
+{"seq": 4855, "at": "2026-10-24T06:30:58+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 1262 files; 278798 lines is a lot for a toy"}
+{"seq": 4856, "at": "2026-10-24T06:35:03+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 819 python files, 4857 logged thoughts"}
