@@ -5009,3 +5009,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 30177
 
 deleting a file is progress too, eventually. At this moment: 291415 lines across 1303 tracked files, 1884 commits deep.
+## stroke 30183
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 851 python files, 5006 logged thoughts.
+## stroke 30201
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 851 python files, 5009 logged thoughts.
+## stroke 30231
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1306 files; 292972 lines is a lot for a toy.

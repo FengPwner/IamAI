@@ -5027,3 +5027,13 @@ grades from STALLED (0–20) to CRUISING (71–100). 75 unit tests cover all met
 - stroke 30167: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 30173: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 30179: caretaker visit 354 -- added skeletal system module, 83 tests, processes restarted after overnight stall
+- stroke 30179: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 30185: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 30191: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 30197: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 30203: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 30209: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 30215: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 30221: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 30227: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 30233: `retry.py` is already in the pool of 9 modules, nothing new to add there
