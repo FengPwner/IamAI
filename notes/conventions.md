@@ -4982,3 +4982,18 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 29757
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1281 files; 285083 lines is a lot for a toy.
+## stroke 29763 (visit 347)
+
+a single metric is a vanity number, a composite score is a diagnosis -- added commit_hygiene.py: 5 signals (message quality, size health, focus, regularity, type diversity) combined into one 0-100 score, with 57 tests. At this moment: tree is 1284 files; commit 1870.
+## stroke 29775
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1284 files; 286020 lines is a lot for a toy.
+## stroke 29781
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 286028 lines across 1284 tracked files, 1871 commits deep.
+## stroke 29805
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1871: the count of times this repo was pushed, not the work done.
+## stroke 29811
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 4936 strokes written so far into 1284 files.
