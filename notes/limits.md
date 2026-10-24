@@ -4997,3 +4997,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 30099
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 1300 files; 290170 lines is a lot for a toy.
+## stroke 30129
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1883: the count of times this repo was pushed, not the work done.
+## stroke 30147
+
+deleting a file is progress too, eventually. At this moment: commit 1883: the count of times this repo was pushed, not the work done.
+## stroke 30153
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 4993 strokes written so far into 1303 files.
