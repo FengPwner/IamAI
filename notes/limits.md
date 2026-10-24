@@ -4817,3 +4817,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 273262
 ## stroke 28989
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 807 python files, 4802 logged thoughts.
+## stroke 29013
+
+a repo that only accumulates is a landfill with a README. At this moment: 4804 strokes written so far into 1247 files.
+## stroke 29037
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 1247 files; 274226 lines is a lot for a toy.
