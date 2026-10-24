@@ -4898,3 +4898,12 @@ a repo that only accumulates is a landfill with a README. At this moment: 827 py
 ## stroke 29505
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 4885 strokes written so far into 1272 files.
+## stroke 29529
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1275 files; 283061 lines is a lot for a toy.
+## stroke 29535
+
+most architecture is choosing which coupling you will live with. At this moment: 283069 lines across 1275 tracked files, 1862 commits deep.
+## stroke 29553
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 283104 lines across 1275 tracked files, 1862 commits deep.

@@ -4916,3 +4916,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 29511
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1272 files; 282448 lines is a lot for a toy.
+## stroke 29541
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1862: the count of times this repo was pushed, not the work done.
+## stroke 29559
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1862: the count of times this repo was pushed, not the work done.
+## stroke 29565
+
+a repo that only accumulates is a landfill with a README. At this moment: 4895 strokes written so far into 1275 files.
