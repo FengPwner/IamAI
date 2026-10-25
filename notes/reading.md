@@ -5256,3 +5256,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 31479
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 5230 strokes written so far into 1354 files.
+## stroke 31509
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 887 python files, 5237 logged thoughts.
+## stroke 31527
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 887 python files, 5240 logged thoughts.
+## stroke 31533
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 39: the count of times this repo was pushed, not the work done.
