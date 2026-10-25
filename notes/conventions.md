@@ -5138,3 +5138,12 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 30633
 
 most architecture is choosing which coupling you will live with. At this moment: 303335 lines across 1325 tracked files, 1900 commits deep.
+## stroke 30663
+
+most architecture is choosing which coupling you will live with. At this moment: 5093 strokes written so far into 1328 files.
+## stroke 30681
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 5096 strokes written so far into 1328 files.
+## stroke 30687
+
+deleting a file is progress too, eventually. At this moment: tree is 1328 files; 304657 lines is a lot for a toy.
