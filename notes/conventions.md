@@ -5213,3 +5213,16 @@ deleting a file is progress too, eventually. At this moment: tree is 1339 files;
 ## stroke 31047
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 1339 files; 307420 lines is a lot for a toy.
+## stroke 5159 (visit 25 — caretaker manual intervention)
+
+a push that fails silently is worse than no push at all, because the local
+commit log grows fat and the remote grows stale and nobody notices until
+the merge conflict is measured in hours instead of minutes.
+
+convention: before starting the writer pipeline, verify that the SSH key
+used for `git push` is registered on the remote. A `Permission denied
+(publickey)` error is not transient — it will not fix itself on retry.
+the push_lag_monitor tool measures the gap; if it exceeds one batch
+interval, the pipeline should pause and alert rather than accumulate
+invisible commits.
+
