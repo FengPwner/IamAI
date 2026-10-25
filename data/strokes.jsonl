@@ -5040,3 +5040,4 @@
 {"seq": 5040, "at": "2026-10-25T00:32:58+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 296608 lines across 1310 tracked files, 1889 commits deep"}
 {"seq": 5041, "at": "2026-10-25T00:36:28+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 855 python files, 5042 logged thoughts"}
 {"seq": 5042, "at": "2026-10-25T00:39:54+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 5041 strokes written so far into 1310 files"}
+{"seq": 5043, "at": "2026-10-25T01:03:27+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 296632 lines across 1310 tracked files, 1890 commits deep"}

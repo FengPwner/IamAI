@@ -5061,3 +5061,9 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 30345
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1310 files; 296603 lines is a lot for a toy.
+## stroke 30363
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 1310 files; 296627 lines is a lot for a toy.
+## stroke 30369
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 296646 lines across 1310 tracked files, 1890 commits deep.
