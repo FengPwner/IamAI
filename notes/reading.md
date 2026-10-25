@@ -5052,3 +5052,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 30291
 
 deleting a file is progress too, eventually. At this moment: 294689 lines across 1308 tracked files, 1887 commits deep.
+## stroke 30309
+
+a repo that only accumulates is a landfill with a README. At this moment: 296522 lines across 1310 tracked files, 1889 commits deep.
+## stroke 30315
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 855 python files, 5036 logged thoughts.
+## stroke 30345
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1310 files; 296603 lines is a lot for a toy.
