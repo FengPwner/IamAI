@@ -5068,3 +5068,5 @@
 {"seq": 5068, "at": "2026-10-25T03:28:31+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 1320 files; 300101 lines is a lot for a toy"}
 {"seq": 5069, "at": "2026-10-25T03:32:24+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 863 python files, 5070 logged thoughts"}
 {"seq": 5070, "at": "2026-10-25T03:36:20+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1896: the count of times this repo was pushed, not the work done"}
+{"seq": 5071, "at": "2026-10-25T04:04:04+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 1320 files; 300147 lines is a lot for a toy"}
+{"seq": 5072, "at": "2026-10-25T04:05:15+00:00", "kind": "thought", "text": "a kidney that never filters is just decoration, and a repo that never deletes is a landfill with a README -- measured now: tree is 1322 files; the renal system arrives to ask what should leave"}
