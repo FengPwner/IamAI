@@ -5262,3 +5262,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 31287
 
 most architecture is choosing which coupling you will live with. At this moment: commit 28: the count of times this repo was pushed, not the work done.
+## stroke 31305
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 31: the count of times this repo was pushed, not the work done.
+## stroke 31329
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1349 files; 309050 lines is a lot for a toy.
+## stroke 31335
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 309058 lines across 1349 tracked files, 31 commits deep.
