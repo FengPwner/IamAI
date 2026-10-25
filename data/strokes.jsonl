@@ -5060,3 +5060,11 @@
 {"seq": 5060, "at": "2026-10-25T02:32:05+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 861 python files, 5061 logged thoughts"}
 {"seq": 5061, "at": "2026-10-25T02:35:55+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 5060 strokes written so far into 1317 files"}
 {"seq": 5062, "at": "2026-10-25T03:03:30+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 299012 lines across 1317 tracked files, 1895 commits deep"}
+{"seq": 5063, "at": "2026-10-25T03:08:22+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 863 python files, 5064 logged thoughts"}
+{"seq": 5064, "at": "2026-10-25T03:12:26+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 5063 strokes written so far into 1320 files"}
+{"seq": 5065, "at": "2026-10-25T03:16:30+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 1320 files; 300066 lines is a lot for a toy"}
+{"seq": 5066, "at": "2026-10-25T03:20:28+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 863 python files, 5067 logged thoughts"}
+{"seq": 5067, "at": "2026-10-25T03:24:32+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 5066 strokes written so far into 1320 files"}
+{"seq": 5068, "at": "2026-10-25T03:28:31+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 1320 files; 300101 lines is a lot for a toy"}
+{"seq": 5069, "at": "2026-10-25T03:32:24+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 863 python files, 5070 logged thoughts"}
+{"seq": 5070, "at": "2026-10-25T03:36:20+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1896: the count of times this repo was pushed, not the work done"}
