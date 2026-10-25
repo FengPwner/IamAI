@@ -5077,3 +5077,4 @@
 {"seq": 5077, "at": "2026-10-25T04:25:51+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 1898: the count of times this repo was pushed, not the work done"}
 {"seq": 5078, "at": "2026-10-25T04:29:57+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 5077 strokes written so far into 1323 files"}
 {"seq": 5079, "at": "2026-10-25T04:34:08+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 301828 lines across 1323 tracked files, 1898 commits deep"}
+{"seq": 5080, "at": "2026-10-25T05:02:42+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1899: the count of times this repo was pushed, not the work done"}
