@@ -5153,3 +5153,9 @@ deleting a file is progress too, eventually. At this moment: 306788 lines across
 ## stroke 30981
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 10: the count of times this repo was pushed, not the work done.
+## stroke 31005
+
+a repo that only accumulates is a landfill with a README. At this moment: 5150 strokes written so far into 1339 files.
+## stroke 31035
+
+a repo that only accumulates is a landfill with a README. At this moment: 878 python files, 5157 logged thoughts.

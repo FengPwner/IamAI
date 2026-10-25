@@ -5198,3 +5198,18 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 30975
 
 most architecture is choosing which coupling you will live with. At this moment: 306823 lines across 1336 tracked files, 10 commits deep.
+## stroke 30993
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 307304 lines across 1339 tracked files, 12 commits deep.
+## stroke 30999
+
+deleting a file is progress too, eventually. At this moment: 878 python files, 5151 logged thoughts.
+## stroke 31023
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 5153 strokes written so far into 1339 files.
+## stroke 31029
+
+deleting a file is progress too, eventually. At this moment: tree is 1339 files; 307374 lines is a lot for a toy.
+## stroke 31047
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 1339 files; 307420 lines is a lot for a toy.
