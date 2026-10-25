@@ -5226,3 +5226,9 @@ the push_lag_monitor tool measures the gap; if it exceeds one batch
 interval, the pipeline should pause and alert rather than accumulate
 invisible commits.
 
+## stroke 31077
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 15: the count of times this repo was pushed, not the work done.
+## stroke 31101
+
+most architecture is choosing which coupling you will live with. At this moment: 5167 strokes written so far into 1341 files.
