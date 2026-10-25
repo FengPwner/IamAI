@@ -1,327 +1,296 @@
-#!/usr/bin/env python3
-"""Tests for tools/repo_reflex.py — repo self-healing reflex scorer."""
+"""Tests for iamai.repo_reflex — reflex-arc measurement."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import time
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / "tools"))
-
-from repo_reflex import (
-    ReflexMetric,
-    ReflexReport,
-    grade,
-    exit_code_for_grade,
-    score_stroke_recovery,
-    score_backlog_clearance,
-    score_restart_latency,
-    score_cadence_return,
-    _clamp,
-    _intervals_from_timestamps,
-    assess,
-    as_text,
-    as_json,
+from iamai.repo_reflex import (
+    ReflexResult,
+    SegmentScore,
+    _classify,
+    _recommend,
+    _score_effector,
+    _score_motor,
+    _score_sensory,
+    measure_reflex,
 )
-from datetime import datetime, timezone, timedelta
 
 
-# ── _clamp ────────────────────────────────────────────────────────────
+# ===========================================================================
+# SegmentScore
+# ===========================================================================
 
 
-class TestClamp:
-    def test_within_range(self):
-        assert _clamp(12.5) == 12.5
+class TestSegmentScore:
+    def test_is_areflexic_when_zero(self):
+        s = SegmentScore(name="x", latency_s=9999, score=0.0)
+        assert s.is_areflexic
 
-    def test_below_zero(self):
-        assert _clamp(-5.0) == 0.0
+    def test_is_areflexic_at_boundary(self):
+        s = SegmentScore(name="x", latency_s=100, score=5.0)
+        assert s.is_areflexic
 
-    def test_above_max(self):
-        assert _clamp(30.0) == 25.0
-
-    def test_custom_range(self):
-        assert _clamp(50.0, 0.0, 100.0) == 50.0
-        assert _clamp(-1.0, 0.0, 100.0) == 0.0
-        assert _clamp(150.0, 0.0, 100.0) == 100.0
+    def test_not_areflexic(self):
+        s = SegmentScore(name="x", latency_s=10, score=50.0)
+        assert not s.is_areflexic
 
 
-# ── score_stroke_recovery ─────────────────────────────────────────────
+# ===========================================================================
+# Sensory scoring
+# ===========================================================================
 
 
-class TestScoreStrokeRecovery:
-    def test_no_gaps_perfect(self):
-        m = score_stroke_recovery([])
-        assert m.value == 25.0
-        assert "no stalls" in m.detail
+class TestScoreSensory:
+    def test_instant(self):
+        assert _score_sensory(0) == 100.0
 
-    def test_no_stall_events(self):
-        """All gaps are within 2× cadence → no stalls."""
-        gaps = [30.0, 45.0, 50.0, 60.0]
-        m = score_stroke_recovery(gaps, cadence_s=60.0)
-        assert m.value == 25.0
+    def test_just_under_30(self):
+        assert _score_sensory(29) == 100.0
 
-    def test_small_stall(self):
-        """A 200s stall with 60s cadence (threshold 120s)."""
-        gaps = [200.0]
-        m = score_stroke_recovery(gaps, cadence_s=60.0)
-        assert m.value > 20  # 200/1800 ≈ 0.11 → ~22.2
+    def test_at_30(self):
+        assert _score_sensory(30) == 80.0
 
-    def test_large_stall(self):
-        """A 1800s stall → score 0."""
-        gaps = [1800.0]
-        m = score_stroke_recovery(gaps, cadence_s=60.0)
-        assert m.value == 0.0
+    def test_5_minutes(self):
+        assert _score_sensory(300) == 50.0
 
-    def test_median_of_multiple(self):
-        """Multiple stalls: median used."""
-        gaps = [300.0, 600.0, 900.0]
-        m = score_stroke_recovery(gaps, cadence_s=60.0)
-        # median is 600 → 25 * (1 - 600/1800) = 25 * 0.667 ≈ 16.67
-        assert 15 < m.value < 18
+    def test_15_minutes(self):
+        assert _score_sensory(900) == 20.0
 
-    def test_detail_includes_event_count(self):
-        gaps = [300.0, 600.0]
-        m = score_stroke_recovery(gaps, cadence_s=60.0)
-        assert "2 events" in m.detail
+    def test_1_hour(self):
+        assert _score_sensory(3600) == 0.0
+
+    def test_monotone_decreasing(self):
+        points = [0, 10, 30, 100, 300, 500, 900, 1800, 3600, 7200]
+        scores = [_score_sensory(t) for t in points]
+        for i in range(1, len(scores)):
+            assert scores[i] <= scores[i - 1]
 
 
-# ── score_backlog_clearance ───────────────────────────────────────────
+# ===========================================================================
+# Motor scoring
+# ===========================================================================
 
 
-class TestScoreBacklogClearance:
-    def test_no_events(self):
-        m = score_backlog_clearance([])
-        assert m.value == 25.0
-        assert "no backlog" in m.detail
+class TestScoreMotor:
+    def test_instant(self):
+        assert _score_motor(0) == 100.0
 
-    def test_fast_clearance(self):
-        """60s clearance → nearly full score."""
-        m = score_backlog_clearance([60.0])
-        # 25 * (1 - 60/1800) = 25 * 0.967 ≈ 24.17
-        assert m.value > 23
+    def test_just_under_60(self):
+        assert _score_motor(59) == 100.0
 
-    def test_slow_clearance(self):
-        """1800s clearance → 0."""
-        m = score_backlog_clearance([1800.0])
-        assert m.value == 0.0
+    def test_10_minutes(self):
+        assert _score_motor(600) == 30.0
 
-    def test_medium_clearance(self):
-        """900s → 12.5."""
-        m = score_backlog_clearance([900.0])
-        assert m.value == 12.5
+    def test_30_minutes(self):
+        assert _score_motor(1800) == 0.0
 
-    def test_multiple_events_uses_median(self):
-        m = score_backlog_clearance([100.0, 500.0, 1200.0])
-        # median 500 → 25 * (1 - 500/1800) ≈ 18.06
-        assert 17 < m.value < 19
+    def test_monotone_decreasing(self):
+        points = [0, 30, 60, 300, 600, 1200, 1800, 3600]
+        scores = [_score_motor(t) for t in points]
+        for i in range(1, len(scores)):
+            assert scores[i] <= scores[i - 1]
 
 
-# ── score_restart_latency ─────────────────────────────────────────────
+# ===========================================================================
+# Effector scoring
+# ===========================================================================
 
 
-class TestScoreRestartLatency:
-    def test_no_restarts(self):
-        m = score_restart_latency([])
-        assert m.value == 25.0
-        assert "no restarts" in m.detail
+class TestScoreEffector:
+    def test_instant(self):
+        assert _score_effector(0) == 100.0
 
-    def test_instant_restart(self):
-        """Near-zero latency → full score."""
-        m = score_restart_latency([1.0])
-        assert m.value > 24
+    def test_2_minutes(self):
+        assert _score_effector(120) == 75.0
 
-    def test_300s_restart(self):
-        """300s → 12.5."""
-        m = score_restart_latency([300.0])
-        assert m.value == 12.5
+    def test_10_minutes(self):
+        assert _score_effector(600) == 30.0
 
-    def test_over_600s(self):
-        """600s+ → 0."""
-        m = score_restart_latency([600.0])
-        assert m.value == 0.0
+    def test_1_hour(self):
+        assert _score_effector(3600) == 0.0
 
-    def test_multiple_median(self):
-        m = score_restart_latency([100.0, 200.0, 400.0])
-        # median 200 → 25 * (1 - 200/600) ≈ 16.67
-        assert 15 < m.value < 18
+    def test_monotone_decreasing(self):
+        points = [0, 60, 120, 300, 600, 1800, 3600, 7200]
+        scores = [_score_effector(t) for t in points]
+        for i in range(1, len(scores)):
+            assert scores[i] <= scores[i - 1]
 
 
-# ── score_cadence_return ──────────────────────────────────────────────
+# ===========================================================================
+# Classification
+# ===========================================================================
 
 
-class TestScoreCadenceReturn:
-    def test_too_few_intervals(self):
-        m = score_cadence_return([600.0])
-        assert m.value == 25.0
-        assert "too few" in m.detail
-
-    def test_perfect_cadence(self):
-        """All intervals at target → full score."""
-        intervals = [600.0] * 10
-        m = score_cadence_return(intervals, target_s=600.0)
-        assert m.value == 25.0
-
-    def test_drift_then_recovery(self):
-        """One big drift followed by quick recovery."""
-        intervals = [600.0, 600.0, 1500.0, 600.0, 600.0]
-        m = score_cadence_return(intervals, target_s=600.0)
-        # Drift at index 2, recovered at index 3 → 1 cycle recovery
-        assert m.value > 20
-
-    def test_persistent_drift(self):
-        """Drift that never recovers → score based on mean deviation."""
-        intervals = [1500.0, 1500.0, 1500.0]
-        m = score_cadence_return(intervals, target_s=600.0)
-        # deviation = 150% each → mean 1.5 → score = 25*(1-1.5) = clamped to 0
-        assert m.value == 0.0
-
-    def test_moderate_drift(self):
-        """Some drift within bounds."""
-        intervals = [600.0, 750.0, 650.0, 600.0]
-        m = score_cadence_return(intervals, target_s=600.0)
-        # No deviation >50%, so no recovery_times → mean deviation path
-        assert m.value > 15
-
-
-# ── grade ─────────────────────────────────────────────────────────────
-
-
-class TestGrade:
+class TestClassify:
     def test_sharp(self):
-        assert grade(100.0) == "sharp"
-        assert grade(80.0) == "sharp"
+        assert _classify(100) == "sharp"
+        assert _classify(80) == "sharp"
 
-    def test_responsive(self):
-        assert grade(79.9) == "responsive"
-        assert grade(50.0) == "responsive"
+    def test_adequate(self):
+        assert _classify(79) == "adequate"
+        assert _classify(50) == "adequate"
 
     def test_sluggish(self):
-        assert grade(49.9) == "sluggish"
-        assert grade(20.0) == "sluggish"
+        assert _classify(49) == "sluggish"
+        assert _classify(20) == "sluggish"
 
-    def test_numb(self):
-        assert grade(19.9) == "numb"
-        assert grade(0.0) == "numb"
-
-
-class TestExitCode:
-    def test_sharp_zero(self):
-        assert exit_code_for_grade("sharp") == 0
-
-    def test_responsive_zero(self):
-        assert exit_code_for_grade("responsive") == 0
-
-    def test_sluggish_one(self):
-        assert exit_code_for_grade("sluggish") == 1
-
-    def test_numb_two(self):
-        assert exit_code_for_grade("numb") == 2
-
-    def test_unknown_three(self):
-        assert exit_code_for_grade("???") == 3
+    def test_areflexic(self):
+        assert _classify(19) == "areflexic"
+        assert _classify(0) == "areflexic"
 
 
-# ── _intervals_from_timestamps ────────────────────────────────────────
+# ===========================================================================
+# Recommendations
+# ===========================================================================
 
 
-class TestIntervalsFromTimestamps:
-    def test_empty(self):
-        assert _intervals_from_timestamps([]) == []
+class TestRecommend:
+    def test_sharp_has_no_action(self):
+        rec = _recommend("sharp", None)
+        assert "healthy" in rec.lower() or "responsive" in rec.lower()
 
-    def test_single(self):
-        now = datetime.now(timezone.utc)
-        assert _intervals_from_timestamps([now]) == []
+    def test_sluggish_effector_mentions_push(self):
+        seg = SegmentScore(name="effector", latency_s=600, score=30)
+        rec = _recommend("sluggish", seg)
+        assert "push" in rec.lower() or "credential" in rec.lower()
 
-    def test_two_timestamps(self):
-        t0 = datetime(2026, 10, 24, 0, 0, 0, tzinfo=timezone.utc)
-        t1 = datetime(2026, 10, 24, 0, 10, 0, tzinfo=timezone.utc)
-        intervals = _intervals_from_timestamps([t0, t1])
-        assert len(intervals) == 1
-        assert intervals[0] == 600.0
+    def test_sluggish_sensory_mentions_writer(self):
+        seg = SegmentScore(name="sensory", latency_s=2000, score=20)
+        rec = _recommend("sluggish", seg)
+        assert "writer" in rec.lower() or "stall" in rec.lower()
 
-    def test_unsorted_input(self):
-        """Should sort internally."""
-        t0 = datetime(2026, 10, 24, 0, 10, 0, tzinfo=timezone.utc)
-        t1 = datetime(2026, 10, 24, 0, 0, 0, tzinfo=timezone.utc)
-        intervals = _intervals_from_timestamps([t0, t1])
-        assert intervals[0] == 600.0
-
-    def test_three_timestamps(self):
-        base = datetime(2026, 10, 24, 0, 0, 0, tzinfo=timezone.utc)
-        ts = [base, base + timedelta(minutes=10), base + timedelta(minutes=25)]
-        intervals = _intervals_from_timestamps(ts)
-        assert len(intervals) == 2
-        assert intervals[0] == 600.0
-        assert intervals[1] == 900.0
+    def test_areflexic_mentions_intervention(self):
+        rec = _recommend("areflexic", None)
+        assert "intervention" in rec.lower() or "broken" in rec.lower()
 
 
-# ── assess (integration) ─────────────────────────────────────────────
+# ===========================================================================
+# ReflexResult
+# ===========================================================================
 
 
-class TestAssess:
-    def test_returns_report(self):
-        report = assess(n_commits=10)
-        assert isinstance(report, ReflexReport)
-        assert report.grade in ("sharp", "responsive", "sluggish", "numb")
-        assert 0 <= report.total <= 100
-        assert len(report.metrics) == 4
+class TestReflexResult:
+    def test_empty_total_latency(self):
+        r = ReflexResult()
+        assert r.total_latency_s == 0.0
 
-    def test_metric_names(self):
-        report = assess(n_commits=10)
-        names = [m.name for m in report.metrics]
-        assert "stroke_recovery" in names
-        assert "backlog_clearance" in names
-        assert "restart_latency" in names
-        assert "cadence_return" in names
+    def test_total_latency_sums(self):
+        r = ReflexResult(segments=[
+            SegmentScore("a", 10, 50),
+            SegmentScore("b", 20, 50),
+        ])
+        assert r.total_latency_s == 30.0
 
-    def test_zero_commits(self):
-        report = assess(n_commits=0)
-        assert report.scanned_commits == 0
-        # With no data, defaults should produce reasonable scores.
-        assert report.total >= 0
+    def test_weakest_segment(self):
+        r = ReflexResult(segments=[
+            SegmentScore("a", 10, 80),
+            SegmentScore("b", 100, 10),
+            SegmentScore("c", 50, 50),
+        ])
+        assert r.weakest_segment.name == "b"
+
+    def test_weakest_empty(self):
+        assert ReflexResult().weakest_segment is None
+
+    def test_to_dict_keys(self):
+        r = ReflexResult(segments=[SegmentScore("sensory", 5, 100)])
+        d = r.to_dict()
+        assert "segments" in d
+        assert "composite_score" in d
+        assert "classification" in d
+        assert "recommendation" in d
+        assert "total_latency_s" in d
+        assert "weakest_segment" in d
+
+    def test_to_dict_weakest_none(self):
+        r = ReflexResult()
+        assert r.to_dict()["weakest_segment"] is None
 
 
-# ── formatting ────────────────────────────────────────────────────────
+# ===========================================================================
+# measure_reflex (mocked git)
+# ===========================================================================
 
 
-class TestFormatting:
-    def test_as_text_contains_grade(self):
-        report = ReflexReport(
-            metrics=[ReflexMetric("test", 20.0, "detail")],
-            total=80.0,
-            grade="sharp",
-            scanned_commits=50,
-            checked_at="2026-10-24T00:00:00",
-        )
-        text = as_text(report)
-        assert "SHARP" in text
-        assert "80.0" in text
-        assert "test" in text
+class TestMeasureReflex:
+    """Integration-level tests with mocked git helpers."""
 
-    def test_as_json_valid(self):
-        report = ReflexReport(
-            metrics=[ReflexMetric("test", 20.0, "detail")],
-            total=80.0,
-            grade="sharp",
-            scanned_commits=50,
-            checked_at="2026-10-24T00:00:00",
-        )
-        import json
-        data = json.loads(as_json(report))
-        assert data["grade"] == "sharp"
-        assert data["total"] == 80.0
-        assert len(data["metrics"]) == 1
+    @patch("iamai.repo_reflex._has_unpushed_commits", return_value=False)
+    @patch("iamai.repo_reflex._latest_commit_time", return_value=1000.0)
+    @patch("iamai.repo_reflex._newest_uncommitted_mtime", return_value=None)
+    def test_clean_repo_sharp(self, mock_mtime, mock_commit, mock_unpushed, tmp_path):
+        # Simulate "now" shortly after last commit
+        result = measure_reflex(repo=tmp_path, now=1060.0)
+        assert result.classification in ("sharp", "adequate")
+        assert len(result.segments) == 3
 
-    def test_bar_visual(self):
-        report = ReflexReport(
-            metrics=[ReflexMetric("test", 25.0, "full")],
-            total=25.0,
-            grade="sharp",
-            scanned_commits=10,
-            checked_at="now",
-        )
-        text = as_text(report)
-        assert "█" in text
+    @patch("iamai.repo_reflex._has_unpushed_commits", return_value=True)
+    @patch("iamai.repo_reflex._latest_commit_push_time", return_value=500.0)
+    @patch("iamai.repo_reflex._latest_commit_time", return_value=1000.0)
+    @patch("iamai.repo_reflex._newest_uncommitted_mtime", return_value=990.0)
+    def test_unpushed_degrades_effector(
+        self, mock_mtime, mock_commit, mock_push, mock_unpushed, tmp_path
+    ):
+        # effector latency = commit_time - push_time = 500s → score 75
+        result = measure_reflex(repo=tmp_path, now=1010.0)
+        effector = [s for s in result.segments if s.name == "effector"][0]
+        assert effector.latency_s == 500.0
+        assert effector.score == 75.0
+
+    @patch("iamai.repo_reflex._has_unpushed_commits", return_value=False)
+    @patch("iamai.repo_reflex._latest_commit_time", return_value=None)
+    @patch("iamai.repo_reflex._newest_uncommitted_mtime", return_value=None)
+    def test_no_commits_no_files(self, mock_mtime, mock_commit, mock_unpushed, tmp_path):
+        result = measure_reflex(repo=tmp_path, now=1000.0)
+        # All latencies should be 0
+        assert all(s.latency_s == 0.0 for s in result.segments)
+        assert result.classification == "sharp"
+
+    @patch("iamai.repo_reflex._has_unpushed_commits", return_value=False)
+    @patch("iamai.repo_reflex._latest_commit_time", return_value=100.0)
+    @patch("iamai.repo_reflex._newest_uncommitted_mtime", return_value=50.0)
+    def test_stale_files_degrade_sensory(
+        self, mock_mtime, mock_commit, mock_unpushed, tmp_path
+    ):
+        # sensory latency = now - mtime = 1000 - 50 = 950s → score 20
+        result = measure_reflex(repo=tmp_path, now=1000.0)
+        sensory = [s for s in result.segments if s.name == "sensory"][0]
+        assert sensory.latency_s == 950.0
+        assert sensory.score == 20.0
+
+    @patch("iamai.repo_reflex._has_unpushed_commits", return_value=False)
+    @patch("iamai.repo_reflex._latest_commit_time", return_value=100.0)
+    @patch("iamai.repo_reflex._newest_uncommitted_mtime", return_value=None)
+    def test_composite_weights(self, mock_mtime, mock_commit, mock_unpushed, tmp_path):
+        """Verify composite uses correct weights."""
+        result = measure_reflex(repo=tmp_path, now=110.0)
+        # sensory: 10s → 100, motor: 10s → 100, effector: 0 → 100
+        expected = 0.3 * 100 + 0.3 * 100 + 0.4 * 100
+        assert abs(result.composite_score - expected) < 0.01
+
+
+# ===========================================================================
+# Edge cases
+# ===========================================================================
+
+
+class TestEdgeCases:
+    def test_negative_latency_clamped(self):
+        """Latency should never be negative."""
+        # If "now" is before mtime (clock skew), should clamp to 0
+        with patch("iamai.repo_reflex._newest_uncommitted_mtime", return_value=2000.0):
+            with patch("iamai.repo_reflex._latest_commit_time", return_value=2000.0):
+                with patch("iamai.repo_reflex._has_unpushed_commits", return_value=False):
+                    result = measure_reflex(repo=None, now=1000.0)
+                    assert all(s.latency_s >= 0 for s in result.segments)
+
+    def test_all_segment_names_present(self):
+        with patch("iamai.repo_reflex._newest_uncommitted_mtime", return_value=None):
+            with patch("iamai.repo_reflex._latest_commit_time", return_value=None):
+                with patch("iamai.repo_reflex._has_unpushed_commits", return_value=False):
+                    result = measure_reflex(repo=None, now=1000.0)
+                    names = {s.name for s in result.segments}
+                    assert names == {"sensory", "motor", "effector"}
