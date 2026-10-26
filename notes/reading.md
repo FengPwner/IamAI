@@ -5286,3 +5286,15 @@ deleting a file is progress too, eventually. At this moment: 891 python files, 5
 ## stroke 31665
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 45: the count of times this repo was pushed, not the work done.
+## stroke 31683
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 46: the count of times this repo was pushed, not the work done.
+## stroke 31689
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 5265 strokes written so far into 1365 files.
+## stroke 31713
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 311608 lines across 1365 tracked files, 46 commits deep.
+## stroke 31719
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 893 python files, 5272 logged thoughts.
