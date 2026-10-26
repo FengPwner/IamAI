@@ -1,225 +1,174 @@
-"""recovery_latency — measure stall-to-recovery duration.
+#!/usr/bin/env python3
+"""recovery_latency — measure time-to-first-stroke after process restart.
 
-When the automated writing system stalls (writer stops producing strokes),
-the time from stall onset to recovery matters.  This module answers:
+When the writer process is reclaimed and restarted, there's a gap between
+the restart command and the first actual stroke landing in the tree.
+This module tracks that gap so we can answer: "how long does cold recovery
+actually take?"
 
-    "How long has the system been down, and how fast did we recover?"
+Usage:
+    from iamai.recovery_latency import RecoveryTracker
 
-It reads the strokes.jsonl log to find the last stroke timestamp, then
-compares it against the current time (or a given reference time) to
-compute recovery latency.
+    tracker = RecoveryTracker()
+    tracker.mark_restart()       # call right after run_both.sh
+    tracker.mark_first_stroke()  # call when first stroke lands
 
-Key concepts
-~~~~~~~~~~~~
+    print(f"recovery took {tracker.latency_seconds:.1f}s")
 
-- **stall onset**: timestamp of the last stroke before a gap exceeding
-  ``cadence * stall_multiplier`` (default: 10x the normal cadence).
-- **recovery time**: the timestamp of the first stroke *after* the gap.
-- **recovery latency**: ``recovery_time - stall_onset`` in seconds.
-
-If the system is still stalled (no recovery stroke yet), recovery latency
-is measured as ``now - stall_onset`` and the ``recovered`` flag is False.
-
-Usage::
-
-    from iamai.recovery_latency import measure_recovery
-
-    result = measure_recovery(repo, cadence_seconds=15)
-    print(result["latency_seconds"])  # 1423.0
-    print(result["recovered"])        # True or False
+CLI:
+    python3 -m iamai.recovery_latency --check
+    python3 -m iamai.recovery_latency --history
 """
 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+import time
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
-from typing import Any
+from typing import List, Optional
 
 
-def _parse_iso(ts: str) -> datetime:
-    """Parse an ISO-8601 timestamp string into a timezone-aware datetime."""
-    # Handle various ISO formats
-    ts = ts.strip()
-    if ts.endswith("Z"):
-        ts = ts[:-1] + "+00:00"
-    return datetime.fromisoformat(ts)
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+STATE_FILE = DATA_DIR / "recovery_latency.json"
 
 
-def _load_strokes(strokes_path: Path) -> list[dict[str, Any]]:
-    """Load stroke entries from the JSONL file."""
-    if not strokes_path.exists():
-        return []
-    strokes = []
-    with open(strokes_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                try:
-                    strokes.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
-    return strokes
+@dataclass
+class RecoveryEvent:
+    """A single restart → first-stroke measurement."""
+    restart_time: float       # unix timestamp of restart
+    first_stroke_time: Optional[float] = None  # unix timestamp of first stroke
+    latency_seconds: Optional[float] = None
+    writer_id: str = "qwen"
+    restart_pid: Optional[int] = None
+    stroke_count_since: int = 0
+
+    def complete(self, stroke_time: float, stroke_count: int = 1) -> None:
+        """Mark the first stroke after restart."""
+        self.first_stroke_time = stroke_time
+        self.latency_seconds = stroke_time - self.restart_time
+        self.stroke_count_since = stroke_count
+
+    @property
+    def is_complete(self) -> bool:
+        return self.first_stroke_time is not None
+
+    @property
+    def is_pending(self) -> bool:
+        return not self.is_complete
 
 
-def find_stall_gaps(
-    strokes: list[dict[str, Any]],
-    cadence_seconds: float = 15.0,
-    stall_multiplier: float = 10.0,
-) -> list[dict[str, Any]]:
-    """Find all gaps in stroke production that exceed the stall threshold.
+@dataclass
+class RecoveryState:
+    """Persistent state: current pending recovery + history."""
+    current: Optional[RecoveryEvent] = None
+    history: List[RecoveryEvent] = field(default_factory=list)
 
-    Returns a list of gap records, each containing:
-    - ``before_seq``: seq number of the last stroke before the gap
-    - ``after_seq``: seq number of the first stroke after the gap (or None)
-    - ``before_ts``: timestamp of the last stroke before the gap
-    - ``after_ts``: timestamp of the first stroke after the gap (or None)
-    - ``gap_seconds``: duration of the gap in seconds
-    - ``recovered``: True if a stroke appeared after the gap
+    def to_dict(self) -> dict:
+        return {
+            "current": asdict(self.current) if self.current else None,
+            "history": [asdict(e) for e in self.history[-50:]],  # keep last 50
+        }
 
-    Parameters
-    ----------
-    strokes : list of stroke dicts (must have ``at`` and ``seq`` keys)
-    cadence_seconds : expected interval between strokes
-    stall_multiplier : gap must exceed ``cadence * stall_multiplier`` to
-                       count as a stall
-    """
-    threshold = cadence_seconds * stall_multiplier
-    gaps: list[dict[str, Any]] = []
-
-    if len(strokes) < 2:
-        return gaps
-
-    for i in range(len(strokes) - 1):
-        try:
-            ts_before = _parse_iso(strokes[i]["at"])
-            ts_after = _parse_iso(strokes[i + 1]["at"])
-        except (KeyError, ValueError):
-            continue
-
-        gap = (ts_after - ts_before).total_seconds()
-        if gap > threshold:
-            gaps.append({
-                "before_seq": strokes[i].get("seq"),
-                "after_seq": strokes[i + 1].get("seq"),
-                "before_ts": strokes[i]["at"],
-                "after_ts": strokes[i + 1]["at"],
-                "gap_seconds": gap,
-                "recovered": True,
-            })
-
-    return gaps
+    @classmethod
+    def from_dict(cls, d: dict) -> RecoveryState:
+        current = None
+        if d.get("current"):
+            current = RecoveryEvent(**d["current"])
+        history = []
+        for item in d.get("history", []):
+            history.append(RecoveryEvent(**item))
+        return cls(current=current, history=history)
 
 
-def measure_recovery(
-    repo: Path,
-    cadence_seconds: float = 15.0,
-    stall_multiplier: float = 10.0,
-    now: datetime | None = None,
-    strokes_path: Path | None = None,
-) -> dict[str, Any]:
-    """Measure the most recent stall and recovery status.
+class RecoveryTracker:
+    """Track and persist recovery latency measurements."""
 
-    Returns a dict with:
-    - ``stalled``: True if a stall was detected at any point
-    - ``recovered``: True if the most recent stall has been recovered
-    - ``latency_seconds``: seconds from stall onset to recovery (or to now)
-    - ``stall_onset``: ISO timestamp of the last stroke before the stall
-    - ``recovery_time``: ISO timestamp of recovery (or None if still stalled)
-    - ``total_stalls``: total number of stall events in history
-    - ``recovered_stalls``: number of recovered stall events
-    - ``longest_gap_seconds``: longest stall gap ever recorded
+    def __init__(self, state_file: Optional[Path] = None, writer_id: str = "qwen"):
+        self.state_file = state_file or STATE_FILE
+        self.writer_id = writer_id
+        self.state = self._load()
 
-    Parameters
-    ----------
-    repo : Path to the repository root
-    cadence_seconds : expected interval between strokes
-    stall_multiplier : gap must exceed ``cadence * stall_multiplier`` to
-                       count as a stall
-    now : reference time (defaults to current UTC time)
-    strokes_path : override path to strokes.jsonl (for testing)
-    """
-    if now is None:
-        now = datetime.now(timezone.utc)
+    def _load(self) -> RecoveryState:
+        if self.state_file.exists():
+            try:
+                data = json.loads(self.state_file.read_text(encoding="utf-8"))
+                return RecoveryState.from_dict(data)
+            except (json.JSONDecodeError, KeyError, TypeError):
+                return RecoveryState()
+        return RecoveryState()
 
-    if strokes_path is None:
-        strokes_path = repo / "data" / "strokes.jsonl"
-
-    strokes = _load_strokes(strokes_path)
-    gaps = find_stall_gaps(strokes, cadence_seconds, stall_multiplier)
-
-    result: dict[str, Any] = {
-        "stalled": False,
-        "recovered": False,
-        "latency_seconds": 0.0,
-        "stall_onset": None,
-        "recovery_time": None,
-        "total_stalls": len(gaps),
-        "recovered_stalls": sum(1 for g in gaps if g["recovered"]),
-        "longest_gap_seconds": 0.0,
-    }
-
-    if gaps:
-        result["longest_gap_seconds"] = max(g["gap_seconds"] for g in gaps)
-
-    if not strokes:
-        return result
-
-    # Check if currently stalled: is the last stroke too old?
-    last_stroke = strokes[-1]
-    try:
-        last_ts = _parse_iso(last_stroke["at"])
-    except (KeyError, ValueError):
-        return result
-
-    age = (now - last_ts).total_seconds()
-    threshold = cadence_seconds * stall_multiplier
-
-    if age > threshold:
-        # Currently stalled
-        result["stalled"] = True
-        result["recovered"] = False
-        result["stall_onset"] = last_stroke["at"]
-        result["latency_seconds"] = age
-        result["total_stalls"] = len(gaps) + 1  # include current
-    elif gaps:
-        # Not currently stalled, but had stalls in the past
-        last_gap = gaps[-1]
-        result["stalled"] = True
-        result["recovered"] = True
-        result["stall_onset"] = last_gap["before_ts"]
-        result["recovery_time"] = last_gap["after_ts"]
-        result["latency_seconds"] = last_gap["gap_seconds"]
-
-    return result
-
-
-def recovery_report(
-    repo: Path,
-    cadence_seconds: float = 15.0,
-    stall_multiplier: float = 10.0,
-    now: datetime | None = None,
-) -> str:
-    """Human-readable recovery latency report."""
-    result = measure_recovery(repo, cadence_seconds, stall_multiplier, now)
-
-    if not result["stalled"]:
-        return "no stalls detected — system has been healthy"
-
-    lines = []
-    lines.append(f"total stall events: {result['total_stalls']}")
-    lines.append(f"recovered: {result['recovered_stalls']}")
-    lines.append(f"longest gap: {result['longest_gap_seconds']:.0f}s")
-
-    if result["recovered"]:
-        lines.append(
-            f"last stall: {result['stall_onset']} -> {result['recovery_time']} "
-            f"({result['latency_seconds']:.0f}s latency)"
-        )
-    else:
-        lines.append(
-            f"CURRENTLY STALLED since {result['stall_onset']} "
-            f"({result['latency_seconds']:.0f}s and counting)"
+    def _save(self) -> None:
+        self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        self.state_file.write_text(
+            json.dumps(self.state.to_dict(), indent=2) + "\n",
+            encoding="utf-8",
         )
 
-    return "\n".join(lines)
+    def mark_restart(self, pid: Optional[int] = None, timestamp: Optional[float] = None) -> RecoveryEvent:
+        """Record a process restart event."""
+        # Archive any existing pending recovery
+        if self.state.current and self.state.current.is_pending:
+            self.state.history.append(self.state.current)
+
+        event = RecoveryEvent(
+            restart_time=timestamp or time.time(),
+            writer_id=self.writer_id,
+            restart_pid=pid,
+        )
+        self.state.current = event
+        self._save()
+        return event
+
+    def mark_first_stroke(self, timestamp: Optional[float] = None) -> Optional[float]:
+        """Record the first stroke after restart. Returns latency in seconds."""
+        if not self.state.current or self.state.current.is_complete:
+            return None
+
+        self.state.current.complete(timestamp or time.time())
+        latency = self.state.current.latency_seconds
+        # Move to history
+        self.state.history.append(self.state.current)
+        self.state.current = None
+        self._save()
+        return latency
+
+    @property
+    def pending(self) -> bool:
+        """True if we're waiting for the first stroke after a restart."""
+        return self.state.current is not None and self.state.current.is_pending
+
+    @property
+    def last_latency(self) -> Optional[float]:
+        """Most recent completed recovery latency in seconds."""
+        completed = [e for e in self.state.history if e.is_complete]
+        if not completed:
+            return None
+        return completed[-1].latency_seconds
+
+    @property
+    def average_latency(self) -> Optional[float]:
+        """Average recovery latency across all completed events."""
+        completed = [e for e in self.state.history if e.is_complete]
+        if not completed:
+            return None
+        return sum(e.latency_seconds for e in completed) / len(completed)
+
+    @property
+    def history_count(self) -> int:
+        """Total number of recorded recovery events."""
+        return len(self.state.history)
+
+    def summary(self) -> dict:
+        """Human-readable summary of recovery state."""
+        completed = [e for e in self.state.history if e.is_complete]
+        latencies = [e.latency_seconds for e in completed]
+        return {
+            "pending": self.pending,
+            "total_recoveries": len(self.state.history),
+            "completed": len(completed),
+            "avg_latency_s": round(sum(latencies) / len(latencies), 1) if latencies else None,
+            "min_latency_s": round(min(latencies), 1) if latencies else None,
+            "max_latency_s": round(max(latencies), 1) if latencies else None,
+            "last_latency_s": round(latencies[-1], 1) if latencies else None,
+        }

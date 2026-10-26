@@ -1,345 +1,161 @@
-"""tests for iamai.recovery_latency — stall detection and recovery measurement.
-
-Covers:
-- no strokes (empty file)
-- single stroke (not enough data)
-- all strokes within cadence (no stall)
-- single stall gap, recovered
-- multiple stall gaps, all recovered
-- current stall (last stroke too old, no recovery)
-- malformed timestamps (graceful skip)
-- stall threshold tuning
-- longest gap tracking
-- report output format
-"""
-
-from __future__ import annotations
+#!/usr/bin/env python3
+"""Tests for iamai.recovery_latency — recovery time tracker."""
 
 import json
-import textwrap
-from datetime import datetime, timezone, timedelta
+import tempfile
 from pathlib import Path
 
 import pytest
 
-# Ensure the repo root is on sys.path
-REPO = Path(__file__).resolve().parent.parent
 import sys
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from iamai.recovery_latency import (
-    find_stall_gaps,
-    measure_recovery,
-    recovery_report,
-    _parse_iso,
-)
+from iamai.recovery_latency import RecoveryTracker, RecoveryEvent, RecoveryState
 
 
-# ---------------------------------------------------------------------------
-# helpers
-# ---------------------------------------------------------------------------
-
-def _mk_stroke(seq: int, ts: str, kind: str = "thought") -> dict:
-    return {"seq": seq, "at": ts, "kind": kind, "text": f"test stroke {seq}"}
+@pytest.fixture
+def tmp_state(tmp_path):
+    """Provide a temporary state file path."""
+    return tmp_path / "recovery_latency.json"
 
 
-def _write_strokes(path: Path, strokes: list[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        for s in strokes:
-            f.write(json.dumps(s) + "\n")
+@pytest.fixture
+def tracker(tmp_state):
+    """Provide a tracker with a temporary state file."""
+    return RecoveryTracker(state_file=tmp_state)
 
 
-# ---------------------------------------------------------------------------
-# _parse_iso
-# ---------------------------------------------------------------------------
+class TestRecoveryEvent:
+    """RecoveryEvent dataclass tests."""
 
-class TestParseIso:
-    def test_standard_format(self):
-        dt = _parse_iso("2026-10-19T15:00:00+00:00")
-        assert dt.year == 2026
-        assert dt.month == 10
-        assert dt.hour == 15
+    def test_create_pending(self):
+        e = RecoveryEvent(restart_time=1000.0)
+        assert e.is_pending
+        assert not e.is_complete
+        assert e.latency_seconds is None
 
-    def test_z_suffix(self):
-        dt = _parse_iso("2026-10-19T15:00:00Z")
-        assert dt.tzinfo is not None
+    def test_complete_event(self):
+        e = RecoveryEvent(restart_time=1000.0)
+        e.complete(1005.5)
+        assert e.is_complete
+        assert not e.is_pending
+        assert e.latency_seconds == pytest.approx(5.5)
 
-    def test_offset_format(self):
-        dt = _parse_iso("2026-10-19T23:00:00+08:00")
-        assert dt.utcoffset() == timedelta(hours=8)
+    def test_complete_with_stroke_count(self):
+        e = RecoveryEvent(restart_time=1000.0)
+        e.complete(1010.0, stroke_count=42)
+        assert e.stroke_count_since == 42
 
+    def test_writer_id_default(self):
+        e = RecoveryEvent(restart_time=1000.0)
+        assert e.writer_id == "qwen"
 
-# ---------------------------------------------------------------------------
-# find_stall_gaps
-# ---------------------------------------------------------------------------
+    def test_writer_id_custom(self):
+        e = RecoveryEvent(restart_time=1000.0, writer_id="doubao")
+        assert e.writer_id == "doubao"
 
-class TestFindStallGaps:
-    def test_empty_strokes(self):
-        assert find_stall_gaps([]) == []
-
-    def test_single_stroke(self):
-        strokes = [_mk_stroke(1, "2026-10-19T15:00:00+00:00")]
-        assert find_stall_gaps(strokes) == []
-
-    def test_no_gaps(self):
-        """All strokes within normal cadence — no stall."""
-        base = datetime(2026, 10, 19, 15, 0, 0, tzinfo=timezone.utc)
-        strokes = []
-        for i in range(10):
-            ts = (base + timedelta(seconds=i * 15)).isoformat()
-            strokes.append(_mk_stroke(i + 1, ts))
-        gaps = find_stall_gaps(strokes, cadence_seconds=15, stall_multiplier=10)
-        assert gaps == []
-
-    def test_single_gap_recovered(self):
-        """One stall gap followed by recovery."""
-        base = datetime(2026, 10, 19, 15, 0, 0, tzinfo=timezone.utc)
-        strokes = [
-            _mk_stroke(1, base.isoformat()),
-            _mk_stroke(2, (base + timedelta(seconds=15)).isoformat()),
-            # 300-second gap (20x the 15s cadence)
-            _mk_stroke(3, (base + timedelta(seconds=315)).isoformat()),
-            _mk_stroke(4, (base + timedelta(seconds=330)).isoformat()),
-        ]
-        gaps = find_stall_gaps(strokes, cadence_seconds=15, stall_multiplier=10)
-        assert len(gaps) == 1
-        assert gaps[0]["before_seq"] == 2
-        assert gaps[0]["after_seq"] == 3
-        assert gaps[0]["gap_seconds"] == pytest.approx(300.0, abs=1)
-        assert gaps[0]["recovered"] is True
-
-    def test_multiple_gaps(self):
-        """Two separate stall events."""
-        base = datetime(2026, 10, 19, 15, 0, 0, tzinfo=timezone.utc)
-        strokes = [
-            _mk_stroke(1, base.isoformat()),
-            _mk_stroke(2, (base + timedelta(seconds=15)).isoformat()),
-            # gap 1: 200s
-            _mk_stroke(3, (base + timedelta(seconds=215)).isoformat()),
-            _mk_stroke(4, (base + timedelta(seconds=230)).isoformat()),
-            # gap 2: 500s
-            _mk_stroke(5, (base + timedelta(seconds=730)).isoformat()),
-            _mk_stroke(6, (base + timedelta(seconds=745)).isoformat()),
-        ]
-        gaps = find_stall_gaps(strokes, cadence_seconds=15, stall_multiplier=10)
-        assert len(gaps) == 2
-        assert gaps[0]["gap_seconds"] == pytest.approx(200.0, abs=1)
-        assert gaps[1]["gap_seconds"] == pytest.approx(500.0, abs=1)
-
-    def test_malformed_timestamp_skipped(self):
-        """Bad timestamps are skipped, not crashed."""
-        strokes = [
-            _mk_stroke(1, "2026-10-19T15:00:00+00:00"),
-            _mk_stroke(2, "NOT_A_TIMESTAMP"),
-            _mk_stroke(3, "2026-10-19T15:05:00+00:00"),
-        ]
-        # Should not raise
-        gaps = find_stall_gaps(strokes, cadence_seconds=15, stall_multiplier=10)
-        # The gap between stroke 1 and 3 is 300s, but stroke 2 has bad ts
-        # so we skip the 1->2 pair. The 2->3 pair also fails to parse.
-        # Result depends on which pairs are parseable.
-        assert isinstance(gaps, list)
-
-    def test_threshold_tuning(self):
-        """A gap that's a stall at 10x might not be at 50x."""
-        base = datetime(2026, 10, 19, 15, 0, 0, tzinfo=timezone.utc)
-        strokes = [
-            _mk_stroke(1, base.isoformat()),
-            _mk_stroke(2, (base + timedelta(seconds=200)).isoformat()),
-        ]
-        # At 10x (150s threshold): 200s gap is a stall
-        gaps_strict = find_stall_gaps(strokes, cadence_seconds=15, stall_multiplier=10)
-        assert len(gaps_strict) == 1
-
-        # At 50x (750s threshold): 200s gap is NOT a stall
-        gaps_loose = find_stall_gaps(strokes, cadence_seconds=15, stall_multiplier=50)
-        assert len(gaps_loose) == 0
+    def test_restart_pid(self):
+        e = RecoveryEvent(restart_time=1000.0, restart_pid=12345)
+        assert e.restart_pid == 12345
 
 
-# ---------------------------------------------------------------------------
-# measure_recovery
-# ---------------------------------------------------------------------------
+class TestRecoveryState:
+    """RecoveryState serialization tests."""
 
-class TestMeasureRecovery:
-    def test_no_strokes_file(self, tmp_path):
-        result = measure_recovery(
-            tmp_path,
-            strokes_path=tmp_path / "nonexistent.jsonl",
-        )
-        assert result["stalled"] is False
-        assert result["total_stalls"] == 0
+    def test_empty_state(self):
+        s = RecoveryState()
+        d = s.to_dict()
+        assert d["current"] is None
+        assert d["history"] == []
 
-    def test_empty_strokes_file(self, tmp_path):
-        sp = tmp_path / "data" / "strokes.jsonl"
-        sp.parent.mkdir(parents=True)
-        sp.write_text("")
-        result = measure_recovery(tmp_path, strokes_path=sp)
-        assert result["stalled"] is False
+    def test_roundtrip(self):
+        s = RecoveryState()
+        s.current = RecoveryEvent(restart_time=1000.0, writer_id="qwen")
+        s.history.append(RecoveryEvent(restart_time=900.0))
+        s.history[0].complete(905.0)
+        d = s.to_dict()
+        restored = RecoveryState.from_dict(d)
+        assert restored.current.restart_time == 1000.0
+        assert len(restored.history) == 1
+        assert restored.history[0].latency_seconds == pytest.approx(5.0)
 
-    def test_healthy_system(self, tmp_path):
-        """All strokes close together, last one is recent."""
-        sp = tmp_path / "data" / "strokes.jsonl"
-        now = datetime(2026, 10, 19, 15, 10, 0, tzinfo=timezone.utc)
-        base = now - timedelta(seconds=30)
-        strokes = [
-            _mk_stroke(i, (base + timedelta(seconds=i * 15)).isoformat())
-            for i in range(1, 4)
-        ]
-        _write_strokes(sp, strokes)
-
-        result = measure_recovery(
-            tmp_path, cadence_seconds=15, stall_multiplier=10, now=now,
-            strokes_path=sp,
-        )
-        assert result["stalled"] is False
-        assert result["recovered"] is False
-
-    def test_currently_stalled(self, tmp_path):
-        """Last stroke is old — system is currently stalled."""
-        sp = tmp_path / "data" / "strokes.jsonl"
-        now = datetime(2026, 10, 19, 16, 0, 0, tzinfo=timezone.utc)
-        base = now - timedelta(hours=1)
-        strokes = [
-            _mk_stroke(1, base.isoformat()),
-            _mk_stroke(2, (base + timedelta(seconds=15)).isoformat()),
-        ]
-        _write_strokes(sp, strokes)
-
-        result = measure_recovery(
-            tmp_path, cadence_seconds=15, stall_multiplier=10, now=now,
-            strokes_path=sp,
-        )
-        assert result["stalled"] is True
-        assert result["recovered"] is False
-        assert result["latency_seconds"] > 3000  # ~1 hour
-        assert result["total_stalls"] >= 1
-
-    def test_recovered_stall(self, tmp_path):
-        """A stall happened and was recovered. System is healthy now."""
-        sp = tmp_path / "data" / "strokes.jsonl"
-        base = datetime(2026, 10, 19, 15, 0, 0, tzinfo=timezone.utc)
-        strokes = [
-            _mk_stroke(1, base.isoformat()),
-            _mk_stroke(2, (base + timedelta(seconds=15)).isoformat()),
-            # 300s stall
-            _mk_stroke(3, (base + timedelta(seconds=315)).isoformat()),
-            # then healthy cadence resumes
-            _mk_stroke(4, (base + timedelta(seconds=330)).isoformat()),
-            _mk_stroke(5, (base + timedelta(seconds=345)).isoformat()),
-        ]
-        _write_strokes(sp, strokes)
-
-        # now is close to the last stroke so the system is NOT currently stalled
-        now = base + timedelta(seconds=360)
-
-        result = measure_recovery(
-            tmp_path, cadence_seconds=15, stall_multiplier=10, now=now,
-            strokes_path=sp,
-        )
-        assert result["stalled"] is True  # had a stall in history
-        assert result["recovered"] is True
-        assert result["latency_seconds"] == pytest.approx(300.0, abs=1)
-
-    def test_longest_gap_tracking(self, tmp_path):
-        """Longest gap is correctly identified across multiple stalls."""
-        sp = tmp_path / "data" / "strokes.jsonl"
-        now = datetime(2026, 10, 19, 16, 0, 0, tzinfo=timezone.utc)
-        base = datetime(2026, 10, 19, 15, 0, 0, tzinfo=timezone.utc)
-        strokes = [
-            _mk_stroke(1, base.isoformat()),
-            # 200s gap
-            _mk_stroke(2, (base + timedelta(seconds=200)).isoformat()),
-            _mk_stroke(3, (base + timedelta(seconds=215)).isoformat()),
-            # 600s gap
-            _mk_stroke(4, (base + timedelta(seconds=815)).isoformat()),
-            _mk_stroke(5, (base + timedelta(seconds=830)).isoformat()),
-            # 180s gap
-            _mk_stroke(6, (base + timedelta(seconds=1010)).isoformat()),
-            _mk_stroke(7, (base + timedelta(seconds=1025)).isoformat()),
-        ]
-        _write_strokes(sp, strokes)
-
-        result = measure_recovery(
-            tmp_path, cadence_seconds=15, stall_multiplier=10, now=now,
-            strokes_path=sp,
-        )
-        assert result["longest_gap_seconds"] == pytest.approx(600.0, abs=1)
-
-    def test_recovered_stalls_count(self, tmp_path):
-        """Count of recovered stalls is accurate."""
-        sp = tmp_path / "data" / "strokes.jsonl"
-        base = datetime(2026, 10, 19, 15, 0, 0, tzinfo=timezone.utc)
-        strokes = [
-            _mk_stroke(1, base.isoformat()),
-            _mk_stroke(2, (base + timedelta(seconds=200)).isoformat()),
-            _mk_stroke(3, (base + timedelta(seconds=215)).isoformat()),
-            _mk_stroke(4, (base + timedelta(seconds=500)).isoformat()),
-            _mk_stroke(5, (base + timedelta(seconds=515)).isoformat()),
-        ]
-        _write_strokes(sp, strokes)
-
-        # now close to last stroke — system is healthy at present
-        now = base + timedelta(seconds=530)
-
-        result = measure_recovery(
-            tmp_path, cadence_seconds=15, stall_multiplier=10, now=now,
-            strokes_path=sp,
-        )
-        assert result["total_stalls"] == 2
-        assert result["recovered_stalls"] == 2
+    def test_history_cap(self):
+        s = RecoveryState()
+        for i in range(100):
+            e = RecoveryEvent(restart_time=float(i))
+            e.complete(float(i) + 1)
+            s.history.append(e)
+        d = s.to_dict()
+        assert len(d["history"]) == 50  # capped at 50
 
 
-# ---------------------------------------------------------------------------
-# recovery_report
-# ---------------------------------------------------------------------------
+class TestRecoveryTracker:
+    """RecoveryTracker functional tests."""
 
-class TestRecoveryReport:
-    def test_healthy_report(self, tmp_path):
-        sp = tmp_path / "data" / "strokes.jsonl"
-        now = datetime(2026, 10, 19, 15, 5, 0, tzinfo=timezone.utc)
-        base = now - timedelta(seconds=30)
-        strokes = [
-            _mk_stroke(i, (base + timedelta(seconds=i * 15)).isoformat())
-            for i in range(1, 4)
-        ]
-        _write_strokes(sp, strokes)
+    def test_mark_restart(self, tracker):
+        event = tracker.mark_restart(timestamp=1000.0)
+        assert tracker.pending
+        assert event.restart_time == 1000.0
 
-        report = recovery_report(
-            tmp_path, cadence_seconds=15, stall_multiplier=10, now=now,
-        )
-        assert "no stalls" in report.lower() or "healthy" in report.lower()
+    def test_mark_first_stroke(self, tracker):
+        tracker.mark_restart(timestamp=1000.0)
+        latency = tracker.mark_first_stroke(timestamp=1003.0)
+        assert latency == pytest.approx(3.0)
+        assert not tracker.pending
 
-    def test_stalled_report(self, tmp_path):
-        sp = tmp_path / "data" / "strokes.jsonl"
-        now = datetime(2026, 10, 19, 16, 0, 0, tzinfo=timezone.utc)
-        strokes = [
-            _mk_stroke(1, "2026-10-19T15:00:00+00:00"),
-            _mk_stroke(2, "2026-10-19T15:00:15+00:00"),
-        ]
-        _write_strokes(sp, strokes)
+    def test_no_restart_returns_none(self, tracker):
+        assert tracker.mark_first_stroke(timestamp=1000.0) is None
 
-        report = recovery_report(
-            tmp_path, cadence_seconds=15, stall_multiplier=10, now=now,
-        )
-        assert "currently stalled" in report.lower() or "stalled" in report.lower()
+    def test_double_stroke_returns_none(self, tracker):
+        tracker.mark_restart(timestamp=1000.0)
+        tracker.mark_first_stroke(timestamp=1003.0)
+        assert tracker.mark_first_stroke(timestamp=1005.0) is None
 
-    def test_recovered_report(self, tmp_path):
-        sp = tmp_path / "data" / "strokes.jsonl"
-        now = datetime(2026, 10, 19, 15, 30, 0, tzinfo=timezone.utc)
-        base = datetime(2026, 10, 19, 15, 0, 0, tzinfo=timezone.utc)
-        strokes = [
-            _mk_stroke(1, base.isoformat()),
-            _mk_stroke(2, (base + timedelta(seconds=15)).isoformat()),
-            _mk_stroke(3, (base + timedelta(seconds=315)).isoformat()),
-            _mk_stroke(4, (base + timedelta(seconds=330)).isoformat()),
-            _mk_stroke(5, (base + timedelta(seconds=345)).isoformat()),
-        ]
-        _write_strokes(sp, strokes)
+    def test_persistence(self, tmp_state):
+        t1 = RecoveryTracker(state_file=tmp_state)
+        t1.mark_restart(timestamp=1000.0)
 
-        report = recovery_report(
-            tmp_path, cadence_seconds=15, stall_multiplier=10, now=now,
-        )
-        assert "recovered" in report.lower()
-        assert "300" in report or "latency" in report.lower()
+        t2 = RecoveryTracker(state_file=tmp_state)
+        assert t2.pending
+        assert t2.state.current.restart_time == 1000.0
+
+    def test_last_latency(self, tracker):
+        tracker.mark_restart(timestamp=1000.0)
+        tracker.mark_first_stroke(timestamp=1007.0)
+        assert tracker.last_latency == pytest.approx(7.0)
+
+    def test_average_latency(self, tracker):
+        tracker.mark_restart(timestamp=1000.0)
+        tracker.mark_first_stroke(timestamp=1004.0)
+        tracker.mark_restart(timestamp=2000.0)
+        tracker.mark_first_stroke(timestamp=2008.0)
+        assert tracker.average_latency == pytest.approx(6.0)
+
+    def test_summary_empty(self, tracker):
+        s = tracker.summary()
+        assert s["pending"] is False
+        assert s["total_recoveries"] == 0
+        assert s["avg_latency_s"] is None
+
+    def test_summary_with_data(self, tracker):
+        tracker.mark_restart(timestamp=1000.0)
+        tracker.mark_first_stroke(timestamp=1005.0)
+        s = tracker.summary()
+        assert s["completed"] == 1
+        assert s["avg_latency_s"] == 5.0
+        assert s["min_latency_s"] == 5.0
+        assert s["max_latency_s"] == 5.0
+
+    def test_history_count(self, tracker):
+        assert tracker.history_count == 0
+        tracker.mark_restart(timestamp=1000.0)
+        tracker.mark_first_stroke(timestamp=1005.0)
+        assert tracker.history_count == 1
+        tracker.mark_restart(timestamp=2000.0)
+        assert tracker.history_count == 1  # pending doesn't count
+
+    def test_restart_archives_pending(self, tracker):
+        tracker.mark_restart(timestamp=1000.0)
+        assert tracker.pending
+        tracker.mark_restart(timestamp=2000.0)
+        assert tracker.history_count == 1  # old pending archived
