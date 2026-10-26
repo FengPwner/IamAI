@@ -5433,3 +5433,11 @@
 {"seq": 5433, "at": "2026-10-26T17:33:18+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 5432 strokes written so far into 1405 files"}
 {"seq": 5434, "at": "2026-10-26T18:03:32+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 322500 lines across 1405 tracked files, 83 commits deep"}
 {"seq": 5435, "at": "2026-10-26T18:07:47+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 83: the count of times this repo was pushed, not the work done"}
+{"seq": 5436, "at": "2026-10-26T18:11:46+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 5435 strokes written so far into 1408 files"}
+{"seq": 5437, "at": "2026-10-26T18:15:41+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 323206 lines across 1408 tracked files, 84 commits deep"}
+{"seq": 5438, "at": "2026-10-26T18:19:47+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 919 python files, 5439 logged thoughts"}
+{"seq": 5439, "at": "2026-10-26T18:23:45+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 5438 strokes written so far into 1408 files"}
+{"seq": 5440, "at": "2026-10-26T18:27:33+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 323252 lines across 1408 tracked files, 84 commits deep"}
+{"seq": 5441, "at": "2026-10-26T18:31:24+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 919 python files, 5442 logged thoughts"}
+{"seq": 5442, "at": "2026-10-26T18:35:16+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 5441 strokes written so far into 1408 files"}
+{"seq": 5443, "at": "2026-10-26T18:39:10+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 1408 files; 323287 lines is a lot for a toy"}
