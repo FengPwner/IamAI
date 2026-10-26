@@ -5541,3 +5541,6 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 32961
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1418 files; 325012 lines is a lot for a toy.
+## stroke 32967
+
+most architecture is choosing which coupling you will live with. At this moment: 325020 lines across 1418 tracked files, 96 commits deep.
