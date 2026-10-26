@@ -5372,3 +5372,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 32301
 
 most architecture is choosing which coupling you will live with. At this moment: 316887 lines across 1384 tracked files, 66 commits deep.
+## stroke 32325
+
+deleting a file is progress too, eventually. At this moment: 905 python files, 5373 logged thoughts.
