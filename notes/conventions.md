@@ -5382,3 +5382,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 32007
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 56: the count of times this repo was pushed, not the work done.
+## stroke 32031
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 1372 files; 313484 lines is a lot for a toy.
