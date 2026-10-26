@@ -5424,3 +5424,6 @@ deleting a file is progress too, eventually. At this moment: 901 python files, 5
 ## stroke 32241
 
 deleting a file is progress too, eventually. At this moment: tree is 1381 files; 316104 lines is a lot for a toy.
+## stroke 32265
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 316158 lines across 1381 tracked files, 65 commits deep.
