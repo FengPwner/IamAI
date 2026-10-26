@@ -5493,3 +5493,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 32679
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 322460 lines across 1405 tracked files, 82 commits deep.
+## stroke 32703
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 917 python files, 5436 logged thoughts.
+## stroke 32709
+
+deleting a file is progress too, eventually. At this moment: commit 83: the count of times this repo was pushed, not the work done.
