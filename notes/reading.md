@@ -5379,3 +5379,12 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 32259
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 1381 files; 316139 lines is a lot for a toy.
+## stroke 32277
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1384 files; 316833 lines is a lot for a toy.
+## stroke 32283
+
+deleting a file is progress too, eventually. At this moment: 316852 lines across 1384 tracked files, 66 commits deep.
+## stroke 32307
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 905 python files, 5370 logged thoughts.
