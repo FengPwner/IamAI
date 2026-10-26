@@ -5378,3 +5378,11 @@
 {"seq": 5378, "at": "2026-10-26T11:31:37+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 907 python files, 5379 logged thoughts"}
 {"seq": 5379, "at": "2026-10-26T11:35:31+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 5378 strokes written so far into 1387 files"}
 {"seq": 5380, "at": "2026-10-26T12:03:34+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 317949 lines across 1387 tracked files, 69 commits deep"}
+{"seq": 5381, "at": "2026-10-26T12:07:30+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 909 python files, 5382 logged thoughts"}
+{"seq": 5382, "at": "2026-10-26T12:11:18+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 5381 strokes written so far into 1390 files"}
+{"seq": 5383, "at": "2026-10-26T12:15:10+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 1390 files; 318924 lines is a lot for a toy"}
+{"seq": 5384, "at": "2026-10-26T12:19:16+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 909 python files, 5385 logged thoughts"}
+{"seq": 5385, "at": "2026-10-26T12:23:09+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 5384 strokes written so far into 1390 files"}
+{"seq": 5386, "at": "2026-10-26T12:26:56+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1390 files; 318948 lines is a lot for a toy"}
+{"seq": 5387, "at": "2026-10-26T12:30:46+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 909 python files, 5388 logged thoughts"}
+{"seq": 5388, "at": "2026-10-26T12:34:33+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 70: the count of times this repo was pushed, not the work done"}
