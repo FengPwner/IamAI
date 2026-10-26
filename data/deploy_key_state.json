@@ -1,0 +1,6 @@
+{
+  "state": "UNREGISTERED",
+  "reason": "key at /root/userdata/workspace/.ssh/id_ed25519 (SHA256:umMVkJlKEVPwszsbu02wfKHeytWlO4y2SwliJ2pTgrk) \u2014 github rejects key",
+  "key_path": "/root/userdata/workspace/.ssh/id_ed25519",
+  "since": "2026-10-27T01:02:01+0800"
+}
