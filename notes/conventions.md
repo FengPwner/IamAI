@@ -5313,3 +5313,12 @@ deleting a file is progress too, eventually. At this moment: commit 41: the coun
 ## stroke 31593
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 5249 strokes written so far into 1359 files.
+## stroke 31617
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1362 files; 311019 lines is a lot for a toy.
+## stroke 31641
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 891 python files, 5259 logged thoughts.
+## stroke 31647
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 44: the count of times this repo was pushed, not the work done.
