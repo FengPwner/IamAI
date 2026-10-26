@@ -5300,3 +5300,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 31857
 
 deleting a file is progress too, eventually. At this moment: 5293 strokes written so far into 1366 files.
+## stroke 31863
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1366 files; 311685 lines is a lot for a toy.
+## stroke 31887
+
+deleting a file is progress too, eventually. At this moment: 893 python files, 5300 logged thoughts.
