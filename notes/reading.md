@@ -5430,3 +5430,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 32541
 
 most architecture is choosing which coupling you will live with. At this moment: 5407 strokes written so far into 1395 files.
+## stroke 32571
+
+most architecture is choosing which coupling you will live with. At this moment: 913 python files, 5414 logged thoughts.
+## stroke 32589
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 913 python files, 5417 logged thoughts.
