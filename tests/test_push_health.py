@@ -1,309 +1,264 @@
-"""Tests for iamai.push_health module."""
+#!/usr/bin/env python3
+"""Tests for iamai.push_health — push readiness checker."""
 
-from __future__ import annotations
+import json
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 import pytest
 
-from iamai.push_health import (
-    CRITICAL,
-    DEGRADED,
-    HEALTHY,
-    PushHealth,
-)
+# Add parent to path for imports
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from iamai.push_health import PushHealth, PushStatus
 
 
-# ---------------------------------------------------------------------------
-# construction
-# ---------------------------------------------------------------------------
-
-class TestInit:
-    def test_defaults(self):
-        ph = PushHealth()
-        assert ph.window == 20
-        assert ph.attempts == 0
-        assert ph.score() == 1.0
-        assert ph.consecutive_failures == 0
-
-    def test_custom_window(self):
-        ph = PushHealth(window=5)
-        assert ph.window == 5
-
-    def test_custom_thresholds(self):
-        ph = PushHealth(degrade_threshold=0.8, critical_threshold=0.5)
-        assert ph.degrade_threshold == 0.8
-        assert ph.critical_threshold == 0.5
-
-
-# ---------------------------------------------------------------------------
-# recording
-# ---------------------------------------------------------------------------
-
-class TestRecord:
-    def test_single_success(self):
-        ph = PushHealth()
-        ph.record(True)
-        assert ph.attempts == 1
-        assert ph.successes == 1
-        assert ph.failures == 0
-        assert ph.consecutive_failures == 0
-
-    def test_single_failure(self):
-        ph = PushHealth()
-        ph.record(False)
-        assert ph.attempts == 1
-        assert ph.successes == 0
-        assert ph.failures == 1
-        assert ph.consecutive_failures == 1
-
-    def test_mixed(self):
-        ph = PushHealth()
-        for s in [True, False, True, True, False]:
-            ph.record(s)
-        assert ph.attempts == 5
-        assert ph.successes == 3
-        assert ph.failures == 2
-
-    def test_consecutive_failures_reset_on_success(self):
-        ph = PushHealth()
-        ph.record(False)
-        ph.record(False)
-        assert ph.consecutive_failures == 2
-        ph.record(True)
-        assert ph.consecutive_failures == 0
-
-    def test_consecutive_failures_streak(self):
-        ph = PushHealth()
-        ph.record(True)
-        for _ in range(5):
-            ph.record(False)
-        assert ph.consecutive_failures == 5
+class TestPushStatus:
+    """PushStatus dataclass tests."""
+    
+    def test_ready_status(self):
+        s = PushStatus(ready=True, status="ready")
+        assert s.ready is True
+        assert s.status == "ready"
+        assert s.error is None
+    
+    def test_no_key_status(self):
+        s = PushStatus(ready=False, status="no_key", error="missing")
+        assert s.ready is False
+        assert s.status == "no_key"
+        assert s.error == "missing"
+    
+    def test_default_fields(self):
+        s = PushStatus(ready=False, status="no_key")
+        assert s.ssh_key_path is None
+        assert s.ssh_key_exists is False
+        assert s.ssh_key_readable is False
+        assert s.ssh_agent_has_key is False
+        assert s.dry_run_success is False
 
 
-# ---------------------------------------------------------------------------
-# window eviction
-# ---------------------------------------------------------------------------
-
-class TestWindowEviction:
-    def test_evicts_oldest(self):
-        ph = PushHealth(window=3)
-        ph.record(False)
-        ph.record(False)
-        ph.record(False)
-        assert ph.failures == 3
-        # This push evicts the oldest (first False)
-        ph.record(True)
-        assert ph.attempts == 3
-        assert ph.successes == 1
-        assert ph.failures == 2
-
-    def test_large_window(self):
-        ph = PushHealth(window=50)
-        for i in range(100):
-            ph.record(i % 2 == 0)
-        # Only last 50 kept
-        assert ph.attempts == 50
-        # Last 50: 50..99, even numbers succeed -> 25 successes
-        assert ph.successes == 25
+class TestPushHealthInit:
+    """PushHealth initialization tests."""
+    
+    def test_default_repo_path(self):
+        checker = PushHealth()
+        assert checker.repo_path == Path(".").resolve()
+    
+    def test_explicit_repo_path(self, tmp_path):
+        checker = PushHealth(repo_path=str(tmp_path))
+        assert checker.repo_path == tmp_path.resolve()
+    
+    def test_explicit_key_path(self, tmp_path):
+        key = tmp_path / "my_key"
+        key.write_text("fake key")
+        checker = PushHealth(key_path=str(key))
+        assert checker.key_path == key
+    
+    def test_no_key_path(self):
+        checker = PushHealth()
+        assert checker.key_path is None
 
 
-# ---------------------------------------------------------------------------
-# score
-# ---------------------------------------------------------------------------
-
-class TestScore:
-    def test_empty_window_score(self):
-        ph = PushHealth()
-        assert ph.score() == 1.0
-
-    def test_all_success(self):
-        ph = PushHealth()
-        for _ in range(10):
-            ph.record(True)
-        assert ph.score() == 1.0
-
-    def test_all_failure(self):
-        ph = PushHealth()
-        for _ in range(5):
-            ph.record(False)
-        assert ph.score() == 0.0
-
-    def test_half_half(self):
-        ph = PushHealth()
-        for i in range(10):
-            ph.record(i % 2 == 0)
-        assert ph.score() == 0.5
-
-    def test_score_after_eviction(self):
-        ph = PushHealth(window=4)
-        # 4 failures -> score 0.0
-        for _ in range(4):
-            ph.record(False)
-        assert ph.score() == 0.0
-        # 4 successes evict all failures -> score 1.0
-        for _ in range(4):
-            ph.record(True)
-        assert ph.score() == 1.0
+class TestFindSSHKey:
+    """SSH key discovery tests."""
+    
+    def test_finds_explicit_key(self, tmp_path):
+        key = tmp_path / "id_ed25519"
+        key.write_text("-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----")
+        checker = PushHealth(key_path=str(key))
+        found = checker._find_ssh_key()
+        assert found == key
+    
+    def test_returns_none_for_missing_explicit_key(self, tmp_path):
+        checker = PushHealth(key_path=str(tmp_path / "nonexistent"))
+        assert checker._find_ssh_key() is None
+    
+    def test_finds_key_in_default_locations(self, tmp_path, monkeypatch):
+        fake_ssh = tmp_path / ".ssh"
+        fake_ssh.mkdir()
+        key = fake_ssh / "id_ed25519"
+        key.write_text("-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----")
+        
+        monkeypatch.setattr(Path, "expanduser", lambda self: Path(str(self).replace("~", str(tmp_path))))
+        checker = PushHealth()
+        found = checker._find_ssh_key()
+        assert found is not None
+    
+    def test_returns_none_when_no_keys_exist(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(Path, "expanduser", lambda self: Path(str(self).replace("~", str(tmp_path))))
+        checker = PushHealth()
+        assert checker._find_ssh_key() is None
 
 
-# ---------------------------------------------------------------------------
-# lifetime rate
-# ---------------------------------------------------------------------------
-
-class TestLifetimeRate:
-    def test_no_pushes(self):
-        ph = PushHealth()
-        assert ph.lifetime_rate == 1.0
-
-    def test_basic(self):
-        ph = PushHealth()
-        ph.record(True)
-        ph.record(False)
-        assert ph.lifetime_rate == 0.5
-
-    def test_not_affected_by_eviction(self):
-        ph = PushHealth(window=2)
-        ph.record(True)
-        ph.record(True)
-        ph.record(False)
-        # Window has only 2 items (True, False), but lifetime tracks all 3
-        assert ph.attempts == 2
-        assert abs(ph.lifetime_rate - 2 / 3) < 1e-9
-
-
-# ---------------------------------------------------------------------------
-# diagnose
-# ---------------------------------------------------------------------------
-
-class TestDiagnose:
-    def test_healthy_empty(self):
-        ph = PushHealth()
-        assert ph.diagnose() == HEALTHY
-
-    def test_healthy_all_success(self):
-        ph = PushHealth()
-        for _ in range(10):
-            ph.record(True)
-        assert ph.diagnose() == HEALTHY
-
-    def test_degraded(self):
-        ph = PushHealth()
-        # Score = 5/10 = 0.5 < 0.6 -> degraded
-        # Interleave so no 3+ consecutive failures at end
-        results = [True, False, True, False, True, False, True, False, True, False]
-        for r in results:
-            ph.record(r)
-        assert ph.consecutive_failures < 3
-        assert ph.diagnose() == DEGRADED
-
-    def test_critical_low_score(self):
-        ph = PushHealth()
-        # 2/10 = 0.2 < 0.3 threshold -> critical
-        for i in range(10):
-            ph.record(i < 2)
-        assert ph.diagnose() == CRITICAL
-
-    def test_critical_consecutive_failures_override(self):
-        ph = PushHealth(consecutive_alert=3)
-        # Score is still 0.7 (7/10) but 3 consecutive failures at the end
-        for i in range(7):
-            ph.record(True)
-        for _ in range(3):
-            ph.record(False)
-        assert ph.diagnose() == CRITICAL
-
-    def test_consecutive_alert_boundary(self):
-        ph = PushHealth(consecutive_alert=4)
-        # 3 consecutive failures (below alert threshold) + score ok
-        for i in range(7):
-            ph.record(True)
-        for _ in range(3):
-            ph.record(False)
-        # Score = 0.7, consecutive = 3 (< 4) -> healthy
-        assert ph.diagnose() == HEALTHY
-
-    def test_custom_thresholds_degraded(self):
-        ph = PushHealth(degrade_threshold=0.9, critical_threshold=0.5)
-        # 8/10 = 0.8 < 0.9 -> degraded
-        for i in range(10):
-            ph.record(i < 8)
-        assert ph.diagnose() == DEGRADED
-
-    def test_custom_thresholds_critical(self):
-        ph = PushHealth(degrade_threshold=0.9, critical_threshold=0.5)
-        # 4/10 = 0.4 < 0.5 -> critical
-        for i in range(10):
-            ph.record(i < 4)
-        assert ph.diagnose() == CRITICAL
+class TestKeyReadable:
+    """SSH key readability tests."""
+    
+    def test_readable_valid_key(self, tmp_path):
+        key = tmp_path / "id_ed25519"
+        key.write_text("-----BEGIN OPENSSH PRIVATE KEY-----\nfake content\n-----END OPENSSH PRIVATE KEY-----")
+        checker = PushHealth()
+        assert checker._key_readable(key) is True
+    
+    def test_unreadable_empty_file(self, tmp_path):
+        key = tmp_path / "id_ed25519"
+        key.write_text("")
+        checker = PushHealth()
+        assert checker._key_readable(key) is False
+    
+    def test_unreadable_wrong_content(self, tmp_path):
+        key = tmp_path / "id_ed25519"
+        key.write_text("this is not a key file")
+        checker = PushHealth()
+        assert checker._key_readable(key) is False
+    
+    def test_unreadable_missing_file(self, tmp_path):
+        checker = PushHealth()
+        assert checker._key_readable(tmp_path / "nope") is False
 
 
-# ---------------------------------------------------------------------------
-# advise
-# ---------------------------------------------------------------------------
-
-class TestAdvise:
-    def test_healthy_advice(self):
-        ph = PushHealth()
-        assert "fine" in ph.advise().lower()
-
-    def test_degraded_advice(self):
-        ph = PushHealth()
-        results = [True, False, True, False, True, False, True, False, True, False]
-        for r in results:
-            ph.record(r)
-        assert ph.diagnose() == DEGRADED
-        assert "rebase" in ph.advise().lower()
-
-    def test_critical_consecutive_advice(self):
-        ph = PushHealth()
-        for _ in range(5):
-            ph.record(False)
-        assert ph.diagnose() == CRITICAL
-        advice = ph.advise()
-        assert "stop" in advice.lower() or "fetch" in advice.lower()
-
-    def test_critical_low_rate_advice(self):
-        ph = PushHealth(consecutive_alert=99)  # disable consecutive trigger
-        for i in range(10):
-            ph.record(i < 2)  # 2/10 = 0.2 -> critical
-        assert ph.diagnose() == CRITICAL
-        assert "credentials" in ph.advise().lower() or "remote" in ph.advise().lower()
+class TestSSHAgent:
+    """ssh-agent detection tests."""
+    
+    def test_agent_has_keys(self):
+        checker = PushHealth()
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "2048 SHA256:abc key1 (RSA)"
+        with patch("subprocess.run", return_value=mock_result):
+            assert checker._check_ssh_agent() is True
+    
+    def test_agent_no_identities(self):
+        checker = PushHealth()
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stdout = "The agent has no identities."
+        with patch("subprocess.run", return_value=mock_result):
+            assert checker._check_ssh_agent() is False
+    
+    def test_agent_ssh_add_missing(self):
+        checker = PushHealth()
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            assert checker._check_ssh_agent() is False
+    
+    def test_agent_timeout(self):
+        checker = PushHealth()
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("ssh-add", 5)):
+            assert checker._check_ssh_agent() is False
 
 
-# ---------------------------------------------------------------------------
-# reset
-# ---------------------------------------------------------------------------
+class TestDryRunPush:
+    """Push dry-run tests."""
+    
+    def test_successful_push(self, tmp_path):
+        checker = PushHealth(repo_path=str(tmp_path))
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+        mock_result.stdout = "Everything up-to-date"
+        with patch("subprocess.run", return_value=mock_result):
+            ok, err = checker._dry_run_push()
+            assert ok is True
+            assert err is None
+    
+    def test_failed_push(self, tmp_path):
+        checker = PushHealth(repo_path=str(tmp_path))
+        mock_result = MagicMock()
+        mock_result.returncode = 128
+        mock_result.stderr = "Permission denied (publickey)."
+        mock_result.stdout = ""
+        with patch("subprocess.run", return_value=mock_result):
+            ok, err = checker._dry_run_push()
+            assert ok is False
+            assert "Permission denied" in err
+    
+    def test_timeout_push(self, tmp_path):
+        checker = PushHealth(repo_path=str(tmp_path))
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("git", 30)):
+            ok, err = checker._dry_run_push()
+            assert ok is False
+            assert "timed out" in err.lower()
 
-class TestReset:
-    def test_reset_clears_everything(self):
-        ph = PushHealth()
-        for _ in range(5):
-            ph.record(False)
-        ph.reset()
-        assert ph.attempts == 0
-        assert ph.score() == 1.0
-        assert ph.consecutive_failures == 0
-        assert ph.lifetime_rate == 1.0
-        assert ph.diagnose() == HEALTHY
+
+class TestFullCheck:
+    """Integration-level check tests."""
+    
+    def test_no_key_returns_no_key(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(Path, "expanduser", lambda self: Path(str(self).replace("~", str(tmp_path))))
+        checker = PushHealth()
+        result = checker.check()
+        assert result.ready is False
+        assert result.status == "no_key"
+    
+    def test_ready_when_all_good(self, tmp_path):
+        key = tmp_path / "id_ed25519"
+        key.write_text("-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----")
+        checker = PushHealth(repo_path=str(tmp_path), key_path=str(key))
+        
+        with patch.object(checker, "_check_ssh_agent", return_value=True), \
+             patch.object(checker, "_dry_run_push", return_value=(True, None)):
+            result = checker.check()
+            assert result.ready is True
+            assert result.status == "ready"
+            assert result.dry_run_success is True
+    
+    def test_push_failed_status(self, tmp_path):
+        key = tmp_path / "id_ed25519"
+        key.write_text("-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----")
+        checker = PushHealth(repo_path=str(tmp_path), key_path=str(key))
+        
+        with patch.object(checker, "_check_ssh_agent", return_value=False), \
+             patch.object(checker, "_dry_run_push", return_value=(False, "remote error")):
+            result = checker.check()
+            assert result.ready is False
+            assert result.status == "push_failed"
+            assert result.error == "remote error"
 
 
-# ---------------------------------------------------------------------------
-# repr
-# ---------------------------------------------------------------------------
+class TestCLI:
+    """CLI output tests."""
+    
+    def test_json_output(self, tmp_path, capsys):
+        key = tmp_path / "id_ed25519"
+        key.write_text("-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----")
+        
+        from iamai.push_health import main
+        with patch("sys.argv", ["push_health", "--repo", str(tmp_path), "--key", str(key), "--json"]):
+            with patch.object(PushHealth, "check", return_value=PushStatus(ready=True, status="ready")):
+                main()
+        
+        output = capsys.readouterr().out
+        data = json.loads(output)
+        assert data["ready"] is True
+        assert data["status"] == "ready"
+    
+    def test_text_output_ready(self, tmp_path, capsys):
+        from iamai.push_health import main
+        with patch("sys.argv", ["push_health", "--repo", str(tmp_path)]):
+            with patch.object(PushHealth, "check", return_value=PushStatus(
+                ready=True, status="ready", ssh_key_path="/root/.ssh/id_ed25519"
+            )):
+                main()
+        
+        output = capsys.readouterr().out
+        assert "✓" in output
+        assert "ready" in output
+    
+    def test_text_output_not_ready(self, tmp_path, capsys):
+        from iamai.push_health import main
+        with patch("sys.argv", ["push_health", "--repo", str(tmp_path)]):
+            with patch.object(PushHealth, "check", return_value=PushStatus(
+                ready=False, status="no_key", error="No SSH key found"
+            )):
+                main()
+        
+        output = capsys.readouterr().out
+        assert "✗" in output
+        assert "no_key" in output
 
-class TestRepr:
-    def test_repr_contains_key_info(self):
-        ph = PushHealth()
-        ph.record(True)
-        ph.record(False)
-        r = repr(ph)
-        assert "PushHealth" in r
-        assert "score=" in r
-        assert "tier=" in r
 
-    def test_repr_after_failures(self):
-        ph = PushHealth()
-        for _ in range(5):
-            ph.record(False)
-        r = repr(ph)
-        assert "critical" in r
-        assert "streak_fails=5" in r
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
