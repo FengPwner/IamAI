@@ -5558,3 +5558,10 @@
 {"seq": 5558, "at": "2026-10-27T07:31:15+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 944 python files, 5559 logged thoughts"}
 {"seq": 5559, "at": "2026-10-27T07:35:23+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 5558 strokes written so far into 1448 files"}
 {"seq": 5560, "at": "2026-10-27T08:04:26+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 1448 files; 332302 lines is a lot for a toy"}
+{"seq": 5561, "at": "2026-10-27T08:08:46+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 947 python files, 5562 logged thoughts"}
+{"seq": 5562, "at": "2026-10-27T08:12:57+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 5561 strokes written so far into 1452 files"}
+{"seq": 5563, "at": "2026-10-27T08:17:17+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 1452 files; 332996 lines is a lot for a toy"}
+{"seq": 5564, "at": "2026-10-27T08:21:41+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 947 python files, 5565 logged thoughts"}
+{"seq": 5565, "at": "2026-10-27T08:26:00+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 122: the count of times this repo was pushed, not the work done"}
+{"seq": 5566, "at": "2026-10-27T08:30:08+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 1452 files; 333031 lines is a lot for a toy"}
+{"seq": 5567, "at": "2026-10-27T08:34:18+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 947 python files, 5568 logged thoughts"}
