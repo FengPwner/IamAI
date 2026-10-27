@@ -5654,3 +5654,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 34011
 
 most architecture is choosing which coupling you will live with. At this moment: 974 python files, 5654 logged thoughts.
+## stroke 34029
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 974 python files, 5657 logged thoughts.
