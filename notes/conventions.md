@@ -5595,3 +5595,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 33297
 
 deleting a file is progress too, eventually. At this moment: 5533 strokes written so far into 1438 files.
+## stroke 33303
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1441 files; 330836 lines is a lot for a toy.
+## stroke 33327
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 330879 lines across 1441 tracked files, 116 commits deep.

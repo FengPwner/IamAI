@@ -5556,3 +5556,12 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 33291
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 937 python files, 5534 logged thoughts.
+## stroke 33321
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 1441 files; 330871 lines is a lot for a toy.
+## stroke 33339
+
+deleting a file is progress too, eventually. At this moment: tree is 1441 files; 330895 lines is a lot for a toy.
+## stroke 33345
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 330914 lines across 1441 tracked files, 116 commits deep.

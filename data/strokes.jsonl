@@ -5532,3 +5532,11 @@
 {"seq": 5532, "at": "2026-10-27T04:30:58+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 330225 lines across 1438 tracked files, 114 commits deep"}
 {"seq": 5533, "at": "2026-10-27T04:34:48+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 114: the count of times this repo was pushed, not the work done"}
 {"seq": 5534, "at": "2026-10-27T05:02:41+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 5533 strokes written so far into 1438 files"}
+{"seq": 5535, "at": "2026-10-27T05:06:31+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 330841 lines across 1441 tracked files, 116 commits deep"}
+{"seq": 5536, "at": "2026-10-27T05:10:27+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 939 python files, 5537 logged thoughts"}
+{"seq": 5537, "at": "2026-10-27T05:14:26+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 5536 strokes written so far into 1441 files"}
+{"seq": 5538, "at": "2026-10-27T05:18:26+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 330876 lines across 1441 tracked files, 116 commits deep"}
+{"seq": 5539, "at": "2026-10-27T05:22:29+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 939 python files, 5540 logged thoughts"}
+{"seq": 5540, "at": "2026-10-27T05:26:18+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 5539 strokes written so far into 1441 files"}
+{"seq": 5541, "at": "2026-10-27T05:30:03+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 1441 files; 330900 lines is a lot for a toy"}
+{"seq": 5542, "at": "2026-10-27T05:33:53+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 939 python files, 5543 logged thoughts"}
