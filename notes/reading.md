@@ -5640,3 +5640,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 33807
 
 deleting a file is progress too, eventually. At this moment: commit 135: the count of times this repo was pushed, not the work done.
+## stroke 33837
+
+deleting a file is progress too, eventually. At this moment: 337757 lines across 1475 tracked files, 137 commits deep.
+## stroke 33861
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 967 python files, 5629 logged thoughts.
