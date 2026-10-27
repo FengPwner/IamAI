@@ -1,249 +1,269 @@
-"""stroke_density — measure information density of writer strokes.
+"""stroke_density — measure writing intensity via sliding-window density bands.
 
-A long-running automated writer produces strokes that follow template
-patterns.  Over time, if the templates become too rigid, the actual
-information content per stroke drops — the writer is *churning* rather
-than *saying something*.
+the writer produces strokes at a nominal cadence of one every 15 seconds,
+but real behaviour is bursty: dense clusters of rapid output separated by
+quiet stretches.  cadence modules measure the *gaps*; session segmenters
+find *runs*.  density sits between them — it answers "how intense was
+the last N minutes?" on a continuous scale.
 
-This module quantifies stroke density along three axes:
+density bands
+~~~~~~~~~~~~~
 
-1. **Lexical diversity** — ratio of unique tokens to total tokens in a
-   single stroke.  A stroke that says "growth that never stops is a
-   tumour, not a garden" has high diversity; one that repeats
-   boilerplate has low diversity.
+============  ============  ============================================
+band          strokes/min   meaning
+============  ============  ============================================
+dormant       < 0.5         writer effectively idle
+sparse        0.5 – 1.5     occasional output, low focus
+steady        1.5 – 3.5     normal working pace
+dense         3.5 – 6.0     high-intensity burst
+hyper         > 6.0         unsustainable sprint or replay artefact
+============  ============  ============================================
 
-2. **Novelty ratio** — fraction of tokens in a stroke that have NOT
-   appeared in the preceding *window* strokes.  Measures how much
-   *new* vocabulary each stroke introduces.
+a healthy repo spends most of its time in *steady* with occasional *dense*
+bursts after a restart catch-up.  prolonged *dormant* means the writer
+died; prolonged *hyper* means timestamps are wrong or the writer is
+replaying old data.
 
-3. **Content fraction** — proportion of non-boilerplate tokens.
-   Boilerplate tokens are those that appear in more than *threshold*
-   fraction of all observed strokes (e.g., "measured now:", "commit",
-   "the count of times").
+public api
+~~~~~~~~~~
 
-Design decisions:
-
-- **Stateful analyser** — ``StrokeDensityAnalyser`` keeps a sliding
-  window of recent stroke texts so novelty and content fraction can
-  be computed incrementally.
-- **Pure Python** — no subprocess, no filesystem I/O; all inputs are
-  passed as strings.
-- **Lightweight tokenization** — splits on whitespace and strips
-  punctuation; good enough for English prose without pulling in NLTK.
-
-Usage::
-
-    from iamai.stroke_density import StrokeDensityAnalyser
-
-    a = StrokeDensityAnalyser(window=20)
-    a.feed("growth that never stops is a tumour, not a garden")
-    a.feed("an append-only log forces you to be wrong in public")
-    a.feed("if a number in a diary is not measured, it is fiction")
-
-    a.lexical_diversity()      # diversity of the latest stroke
-    a.novelty_ratio()          # novelty of the latest stroke
-    a.content_fraction()       # non-boilerplate fraction
-    a.density_score()          # composite 0–1 score
-    a.summarize()              # dict with all metrics + trend
-
-Scoring weights (sum to 1.0):
-
-- **lexical_diversity** (0.30) — unique-token ratio, latest stroke.
-- **novelty**           (0.40) — new-vocabulary fraction.
-- **content_fraction**  (0.30) — non-boilerplate proportion.
-
-The final score is the weighted sum, clamped to [0, 1].
+- ``parse_strokes_jsonl(lines)``  — parse raw JSONL lines → list of dicts
+- ``window_density(strokes, window_minutes, step_minutes)``
+    → list of window dicts with density, band, count, start, end
+- ``density_summary(windows)``
+    → aggregate: band distribution, mean density, peak window
+- ``density_report(lines, window_minutes, step_minutes)``
+    → one-call convenience: parse → window → summary
 """
 
 from __future__ import annotations
 
-import re
-import string
-from collections import Counter, deque
-from typing import Dict, List, Optional
+import json
+from datetime import datetime, timezone
+from typing import Any
 
 
 # ---------------------------------------------------------------------------
-# Tokenization
+# band thresholds (strokes per minute)
 # ---------------------------------------------------------------------------
 
-_STRIP = str.maketrans("", "", string.punctuation)
+_BANDS = [
+    ("dormant", 0.0, 0.5),
+    ("sparse",  0.5, 1.5),
+    ("steady",  1.5, 3.5),
+    ("dense",   3.5, 6.0),
+    ("hyper",   6.0, float("inf")),
+]
 
 
-def _tokenize(text: str) -> List[str]:
-    """Lowercase, strip punctuation, split on whitespace."""
-    return text.lower().translate(_STRIP).split()
+def classify_density(strokes_per_min: float) -> str:
+    """Return the density band for a given strokes-per-minute value.
 
-
-# ---------------------------------------------------------------------------
-# Single-stroke metrics
-# ---------------------------------------------------------------------------
-
-
-def lexical_diversity_of(tokens: List[str]) -> float:
-    """Unique-token ratio for a single token list.
-
-    Returns 1.0 when all tokens are unique, 0.0 for an empty list.
+    >>> classify_density(0.0)
+    'dormant'
+    >>> classify_density(2.0)
+    'steady'
+    >>> classify_density(5.0)
+    'dense'
+    >>> classify_density(10.0)
+    'hyper'
     """
-    if not tokens:
-        return 0.0
-    return len(set(tokens)) / len(tokens)
+    for band, lo, hi in _BANDS:
+        if lo <= strokes_per_min < hi:
+            return band
+    return "hyper"  # fallback for inf / nan edge cases
 
 
 # ---------------------------------------------------------------------------
-# Analyser (stateful, rolling window)
+# parsing
 # ---------------------------------------------------------------------------
 
 
-class StrokeDensityAnalyser:
-    """Rolling-window stroke density monitor.
+def parse_strokes_jsonl(lines: list[str]) -> list[dict[str, Any]]:
+    """Parse raw JSONL lines from data/strokes.jsonl.
 
-    Parameters
+    each line must be valid JSON with at least ``at`` (ISO-8601 timestamp).
+    lines that fail to parse or lack ``at`` are silently skipped.
+
+    returns a list of dicts sorted by timestamp ascending.
+    """
+    strokes: list[dict[str, Any]] = []
+    for raw in lines:
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            obj = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        ts_str = obj.get("at")
+        if not ts_str:
+            continue
+        try:
+            ts = datetime.fromisoformat(str(ts_str))
+        except (ValueError, TypeError):
+            continue
+        strokes.append({
+            "seq": obj.get("seq"),
+            "at": ts,
+            "kind": obj.get("kind", "unknown"),
+            "text": obj.get("text", ""),
+        })
+    strokes.sort(key=lambda s: s["at"])
+    return strokes
+
+
+# ---------------------------------------------------------------------------
+# sliding window density
+# ---------------------------------------------------------------------------
+
+
+def window_density(
+    strokes: list[dict[str, Any]],
+    window_minutes: int = 10,
+    step_minutes: int = 5,
+) -> list[dict[str, Any]]:
+    """Compute density for each sliding window across the stroke timeline.
+
+    parameters
     ----------
-    window : int
-        Number of recent strokes to keep for novelty / boilerplate
-        calculations.  Default 20.
-    boilerplate_freq : float
-        A token is considered "boilerplate" if it appears in more than
-        this fraction of the window's strokes.  Default 0.5 (i.e., a
-        token seen in >50 % of recent strokes).
+    strokes : list of stroke dicts (must have ``at`` key as datetime)
+    window_minutes : width of each analysis window
+    step_minutes : step size between consecutive windows
+
+    returns a list of window dicts::
+
+        {
+            "start": datetime,
+            "end": datetime,
+            "count": int,          # strokes in this window
+            "duration_min": float, # window width in minutes
+            "density": float,      # strokes per minute
+            "band": str,           # density band name
+            "kinds": {kind: count} # kind distribution within window
+        }
+
+    returns an empty list when fewer than 2 strokes are provided.
     """
+    if len(strokes) < 2:
+        return []
 
-    def __init__(self, window: int = 20, boilerplate_freq: float = 0.5) -> None:
-        if window < 1:
-            raise ValueError("window must be >= 1")
-        if not 0.0 < boilerplate_freq <= 1.0:
-            raise ValueError("boilerplate_freq must be in (0, 1]")
-        self._window = window
-        self._bf = boilerplate_freq
-        self._history: deque[List[str]] = deque(maxlen=window)
-        self._scores: deque[float] = deque(maxlen=window)
-        # cumulative counters
-        self._total_fed: int = 0
+    from datetime import timedelta
 
-    # -- ingestion -----------------------------------------------------------
+    window_td = timedelta(minutes=window_minutes)
+    step_td = timedelta(minutes=step_minutes)
 
-    def feed(self, text: str) -> Dict[str, float]:
-        """Record a new stroke and return its per-stroke metrics."""
-        tokens = _tokenize(text)
-        self._history.append(tokens)
-        self._total_fed += 1
+    t_start = strokes[0]["at"]
+    t_end = strokes[-1]["at"]
 
-        ld = lexical_diversity_of(tokens)
-        nv = self._novelty(tokens)
-        cf = self._content_fraction(tokens)
-        score = 0.30 * ld + 0.40 * nv + 0.30 * cf
-        self._scores.append(score)
+    windows: list[dict[str, Any]] = []
+    cursor = t_start
 
+    while cursor + window_td <= t_end + step_td:
+        w_end = cursor + window_td
+        in_window = [s for s in strokes if cursor <= s["at"] < w_end]
+        count = len(in_window)
+        density = count / window_minutes if window_minutes > 0 else 0.0
+        kinds: dict[str, int] = {}
+        for s in in_window:
+            k = s.get("kind", "unknown")
+            kinds[k] = kinds.get(k, 0) + 1
+
+        windows.append({
+            "start": cursor,
+            "end": w_end,
+            "count": count,
+            "duration_min": float(window_minutes),
+            "density": round(density, 4),
+            "band": classify_density(density),
+            "kinds": kinds,
+        })
+        cursor += step_td
+
+    return windows
+
+
+# ---------------------------------------------------------------------------
+# summary
+# ---------------------------------------------------------------------------
+
+
+def density_summary(windows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate statistics across all density windows.
+
+    returns::
+
+        {
+            "total_windows": int,
+            "band_distribution": {band: count, ...},
+            "mean_density": float,
+            "peak_density": float,
+            "peak_window": {start, end, count, density, band} or None,
+            "dominant_band": str,  # most frequent band
+        }
+    """
+    if not windows:
         return {
-            "lexical_diversity": round(ld, 4),
-            "novelty_ratio": round(nv, 4),
-            "content_fraction": round(cf, 4),
-            "density_score": round(score, 4),
+            "total_windows": 0,
+            "band_distribution": {},
+            "mean_density": 0.0,
+            "peak_density": 0.0,
+            "peak_window": None,
+            "dominant_band": "dormant",
         }
 
-    # -- latest-stroke queries -----------------------------------------------
+    band_counts: dict[str, int] = {}
+    for w in windows:
+        b = w["band"]
+        band_counts[b] = band_counts.get(b, 0) + 1
 
-    def lexical_diversity(self) -> float:
-        """Lexical diversity of the most recent stroke."""
-        if not self._history:
-            return 0.0
-        return lexical_diversity_of(self._history[-1])
+    densities = [w["density"] for w in windows]
+    peak_idx = densities.index(max(densities))
+    peak_w = windows[peak_idx]
 
-    def novelty_ratio(self) -> float:
-        """Fraction of tokens in the latest stroke that are new
-        (not seen in any prior stroke in the window)."""
-        if not self._history:
-            return 0.0
-        return self._novelty(self._history[-1])
+    dominant = max(band_counts, key=lambda b: band_counts[b])
 
-    def content_fraction(self) -> float:
-        """Non-boilerplate fraction of the latest stroke."""
-        if not self._history:
-            return 0.0
-        return self._content_fraction(self._history[-1])
+    return {
+        "total_windows": len(windows),
+        "band_distribution": band_counts,
+        "mean_density": round(sum(densities) / len(densities), 4),
+        "peak_density": peak_w["density"],
+        "peak_window": {
+            "start": peak_w["start"].isoformat(),
+            "end": peak_w["end"].isoformat(),
+            "count": peak_w["count"],
+            "density": peak_w["density"],
+            "band": peak_w["band"],
+        },
+        "dominant_band": dominant,
+    }
 
-    def density_score(self) -> float:
-        """Composite density score for the latest stroke."""
-        if not self._scores:
-            return 0.0
-        return self._scores[-1]
 
-    # -- aggregate queries ---------------------------------------------------
+# ---------------------------------------------------------------------------
+# convenience: full report
+# ---------------------------------------------------------------------------
 
-    def average_score(self, n: Optional[int] = None) -> float:
-        """Mean density score over the last *n* strokes (default: all)."""
-        if not self._scores:
-            return 0.0
-        data = list(self._scores)[-n:] if n else list(self._scores)
-        return sum(data) / len(data)
 
-    def trend(self) -> str:
-        """Compare first-half average to second-half average.
+def density_report(
+    lines: list[str],
+    window_minutes: int = 10,
+    step_minutes: int = 5,
+) -> dict[str, Any]:
+    """One-call entry point: parse JSONL → compute windows → summarise.
 
-        Returns ``"improving"``, ``"declining"``, or ``"flat"``.
-        Requires at least 4 strokes; otherwise returns ``"flat"``.
-        """
-        scores = list(self._scores)
-        if len(scores) < 4:
-            return "flat"
-        mid = len(scores) // 2
-        first = sum(scores[:mid]) / mid
-        second = sum(scores[mid:]) / (len(scores) - mid)
-        delta = second - first
-        if delta > 0.03:
-            return "improving"
-        if delta < -0.03:
-            return "declining"
-        return "flat"
+    returns::
 
-    def summarize(self) -> dict:
-        """Return a dict with all current metrics."""
-        return {
-            "total_strokes": self._total_fed,
-            "window_size": self._window,
-            "latest": {
-                "lexical_diversity": round(self.lexical_diversity(), 4),
-                "novelty_ratio": round(self.novelty_ratio(), 4),
-                "content_fraction": round(self.content_fraction(), 4),
-                "density_score": round(self.density_score(), 4),
-            },
-            "average_score": round(self.average_score(), 4),
-            "trend": self.trend(),
+        {
+            "strokes_parsed": int,
+            "windows": [...],
+            "summary": {...}
         }
-
-    def reset(self) -> None:
-        """Clear all history and counters."""
-        self._history.clear()
-        self._scores.clear()
-        self._total_fed = 0
-
-    # -- internals -----------------------------------------------------------
-
-    def _novelty(self, tokens: List[str]) -> float:
-        """Fraction of *tokens* not seen in any other stroke in the window."""
-        if not tokens or len(self._history) < 2:
-            return 1.0  # first stroke is all novel by definition
-        # build vocabulary from all strokes EXCEPT the last one
-        prior_vocab: set = set()
-        for prior_tokens in list(self._history)[:-1]:
-            prior_vocab.update(prior_tokens)
-        if not prior_vocab:
-            return 1.0
-        novel = sum(1 for t in tokens if t not in prior_vocab)
-        return novel / len(tokens)
-
-    def _content_fraction(self, tokens: List[str]) -> float:
-        """Fraction of tokens that are NOT boilerplate."""
-        if not tokens or len(self._history) < 3:
-            return 1.0  # not enough data to identify boilerplate
-        # count how many strokes each token appears in
-        stroke_count: Counter = Counter()
-        for prior_tokens in self._history:
-            stroke_count.update(set(prior_tokens))
-        n_strokes = len(self._history)
-        threshold = self._bf * n_strokes
-        content = sum(
-            1 for t in tokens if stroke_count.get(t, 0) <= threshold
-        )
-        return content / len(tokens)
+    """
+    strokes = parse_strokes_jsonl(lines)
+    windows = window_density(strokes, window_minutes, step_minutes)
+    summary = density_summary(windows)
+    return {
+        "strokes_parsed": len(strokes),
+        "windows": windows,
+        "summary": summary,
+    }

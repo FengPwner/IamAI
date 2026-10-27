@@ -5630,3 +5630,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 33855
 
 most architecture is choosing which coupling you will live with. At this moment: 337792 lines across 1475 tracked files, 137 commits deep.
+## stroke 33879
+
+deleting a file is progress too, eventually. At this moment: 967 python files, 5632 logged thoughts.
