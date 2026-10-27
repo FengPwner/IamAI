@@ -5577,3 +5577,8 @@ and time-sensitive fixtures.
 - `2026-10-27T08:26:41+00:00` stroke 33487: 947 python files, 5567 logged thoughts
 - `2026-10-27T08:30:49+00:00` stroke 33493: 5566 strokes written so far into 1452 files
 - `2026-10-27T08:34:58+00:00` stroke 33499: tree is 1452 files; 333040 lines is a lot for a toy
+- `2026-10-27T09:03:07+00:00` stroke 33505: 947 python files, 5570 logged thoughts
+
+## stroke 33510
+
+feat: add commit_churn_index — detect writer rewrite loops (23 tests); caretaker visit 394 at 17:01, restarted both processes after container recycle, committed backlog (2 files from writer drift) and new tool with test suite, added churn analysis measuring file overlap and rewrite ratio to detect when writer is editing same files repeatedly instead of producing additive content; writer observed in repetitive loop cycling through retry/chunk_text/parse_kv; push still blocked by UNREGISTERED deploy key (122+ commits unpushed)
