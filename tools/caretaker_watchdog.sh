@@ -102,13 +102,13 @@ case "${1:-once}" in
         exit 0
     fi
     echo "Starting watchdog daemon (interval=${CHECK_INTERVAL}s)..."
-    (
-        echo $$ > "$WATCHDOG_PID"
+    bash -c '
+        echo $BASHPID > "'"$WATCHDOG_PID"'"
         while true; do
-            run_one_check
-            sleep "$CHECK_INTERVAL"
+            bash "'"$HERE/caretaker_watchdog.sh"'" once
+            sleep "'"$CHECK_INTERVAL"'"
         done
-    ) >> "$WATCHDOG_LOG" 2>&1 &
+    ' >> "$WATCHDOG_LOG" 2>&1 &
     disown
     sleep 1
     if alive "$WATCHDOG_PID"; then
