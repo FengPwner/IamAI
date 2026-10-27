@@ -5594,3 +5594,4 @@
 {"seq": 5594, "at": "2026-10-27T11:26:12+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 5593 strokes written so far into 1463 files"}
 {"seq": 5595, "at": "2026-10-27T11:30:34+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 334946 lines across 1463 tracked files, 129 commits deep"}
 {"seq": 5596, "at": "2026-10-27T11:34:58+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 956 python files, 5597 logged thoughts"}
+{"seq": 5597, "at": "2026-10-27T12:01:44+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 5596 strokes written so far into 1463 files"}
