@@ -5541,3 +5541,10 @@
 {"seq": 5541, "at": "2026-10-27T05:30:03+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 1441 files; 330900 lines is a lot for a toy"}
 {"seq": 5542, "at": "2026-10-27T05:33:53+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 939 python files, 5543 logged thoughts"}
 {"seq": 5543, "at": "2026-10-27T06:03:34+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 5542 strokes written so far into 1441 files"}
+{"seq": 5544, "at": "2026-10-27T06:07:41+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 1444 files; 331564 lines is a lot for a toy"}
+{"seq": 5545, "at": "2026-10-27T06:11:44+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 941 python files, 5546 logged thoughts"}
+{"seq": 5546, "at": "2026-10-27T06:15:46+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 118: the count of times this repo was pushed, not the work done"}
+{"seq": 5547, "at": "2026-10-27T06:19:58+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1444 files; 331599 lines is a lot for a toy"}
+{"seq": 5548, "at": "2026-10-27T06:23:59+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 331607 lines across 1444 tracked files, 118 commits deep"}
+{"seq": 5549, "at": "2026-10-27T06:28:00+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 118: the count of times this repo was pushed, not the work done"}
+{"seq": 5550, "at": "2026-10-27T06:32:01+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 1444 files; 331623 lines is a lot for a toy"}
