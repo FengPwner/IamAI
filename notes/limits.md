@@ -5606,3 +5606,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 33723
 
 deleting a file is progress too, eventually. At this moment: 335591 lines across 1466 tracked files, 131 commits deep.
+## stroke 33729
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 959 python files, 5607 logged thoughts.
