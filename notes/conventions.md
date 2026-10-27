@@ -5724,3 +5724,9 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 34023
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 1484 files; 339729 lines is a lot for a toy.
+## stroke 34053
+
+most architecture is choosing which coupling you will live with. At this moment: commit 147: the count of times this repo was pushed, not the work done.
+## stroke 34077
+
+deleting a file is progress too, eventually. At this moment: 5663 strokes written so far into 1485 files.
