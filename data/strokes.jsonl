@@ -5610,3 +5610,4 @@
 {"seq": 5610, "at": "2026-10-27T13:23:55+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1469 files; 336274 lines is a lot for a toy"}
 {"seq": 5611, "at": "2026-10-27T13:28:21+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 336293 lines across 1469 tracked files, 133 commits deep"}
 {"seq": 5612, "at": "2026-10-27T13:32:37+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 133: the count of times this repo was pushed, not the work done"}
+{"seq": 5613, "at": "2026-10-27T14:02:28+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 5612 strokes written so far into 1469 files"}
