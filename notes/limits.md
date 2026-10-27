@@ -5609,3 +5609,9 @@ deleting a file is progress too, eventually. At this moment: 335591 lines across
 ## stroke 33729
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 959 python files, 5607 logged thoughts.
+## stroke 33747
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 961 python files, 5610 logged thoughts.
+## stroke 33771
+
+a repo that only accumulates is a landfill with a README. At this moment: 5612 strokes written so far into 1469 files.
