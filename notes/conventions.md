@@ -5592,3 +5592,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 937 py
 ## stroke 33273
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 937 python files, 5531 logged thoughts.
+## stroke 33297
+
+deleting a file is progress too, eventually. At this moment: 5533 strokes written so far into 1438 files.
