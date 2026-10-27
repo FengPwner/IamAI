@@ -5477,3 +5477,12 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 32949
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 925 python files, 5477 logged thoughts.
+## stroke 32973
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 97: the count of times this repo was pushed, not the work done.
+## stroke 32997
+
+a repo that only accumulates is a landfill with a README. At this moment: 5483 strokes written so far into 1421 files.
+## stroke 33003
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 325533 lines across 1421 tracked files, 97 commits deep.

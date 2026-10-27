@@ -5476,3 +5476,12 @@
 {"seq": 5476, "at": "2026-10-26T22:28:06+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 95: the count of times this repo was pushed, not the work done"}
 {"seq": 5477, "at": "2026-10-26T22:32:09+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 5476 strokes written so far into 1418 files"}
 {"seq": 5478, "at": "2026-10-26T23:01:24+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 325017 lines across 1418 tracked files, 96 commits deep"}
+{"seq": 5479, "at": "2026-10-26T23:04:58+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 927 python files, 5480 logged thoughts"}
+{"seq": 5480, "at": "2026-10-26T23:08:35+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 5479 strokes written so far into 1421 files"}
+{"seq": 5481, "at": "2026-10-26T23:12:11+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 1421 files; 325484 lines is a lot for a toy"}
+{"seq": 5482, "at": "2026-10-26T23:15:54+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 927 python files, 5483 logged thoughts"}
+{"seq": 5483, "at": "2026-10-26T23:19:37+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 5482 strokes written so far into 1421 files"}
+{"seq": 5484, "at": "2026-10-26T23:23:21+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1421 files; 325530 lines is a lot for a toy"}
+{"seq": 5485, "at": "2026-10-26T23:26:52+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 927 python files, 5486 logged thoughts"}
+{"seq": 5486, "at": "2026-10-26T23:30:30+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 97: the count of times this repo was pushed, not the work done"}
+{"seq": 5487, "at": "2026-10-26T23:34:11+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 1421 files; 325565 lines is a lot for a toy"}
