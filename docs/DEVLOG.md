@@ -5582,3 +5582,15 @@ and time-sensitive fixtures.
 ## stroke 33510
 
 feat: add commit_churn_index — detect writer rewrite loops (23 tests); caretaker visit 394 at 17:01, restarted both processes after container recycle, committed backlog (2 files from writer drift) and new tool with test suite, added churn analysis measuring file overlap and rewrite ratio to detect when writer is editing same files repeatedly instead of producing additive content; writer observed in repetitive loop cycling through retry/chunk_text/parse_kv; push still blocked by UNREGISTERED deploy key (122+ commits unpushed)
+- `2026-10-27T09:07:21+00:00` stroke 33511: commit 125: the count of times this repo was pushed, not the work done
+- `2026-10-27T09:11:31+00:00` stroke 33517: tree is 1456 files; 333596 lines is a lot for a toy
+- `2026-10-27T09:15:37+00:00` stroke 33523: 333604 lines across 1456 tracked files, 125 commits deep
+- `2026-10-27T09:19:49+00:00` stroke 33529: commit 125: the count of times this repo was pushed, not the work done
+- `2026-10-27T09:24:10+00:00` stroke 33535: tree is 1456 files; 333631 lines is a lot for a toy
+- `2026-10-27T09:28:23+00:00` stroke 33541: 333639 lines across 1456 tracked files, 125 commits deep
+- `2026-10-27T09:32:35+00:00` stroke 33547: commit 125: the count of times this repo was pushed, not the work done
+- `2026-10-27T09:36:46+00:00` stroke 33553: 5576 strokes written so far into 1456 files
+- `2026-10-27T09:40:46+00:00` stroke 33559: 333674 lines across 1456 tracked files, 125 commits deep
+- `2026-10-27T09:45:10+00:00` stroke 33565: commit 125: the count of times this repo was pushed, not the work done
+- `2026-10-27T09:49:19+00:00` stroke 33571: 5579 strokes written so far into 1456 files
+- `2026-10-27T09:53:34+00:00` stroke 33577: 333698 lines across 1456 tracked files, 125 commits deep

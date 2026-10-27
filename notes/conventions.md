@@ -5631,3 +5631,18 @@ deleting a file is progress too, eventually. At this moment: commit 122: the cou
 ## stroke 33507
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 5568 strokes written so far into 1452 files.
+## stroke 33513
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1456 files; 333590 lines is a lot for a toy.
+## stroke 33531
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 1456 files; 333625 lines is a lot for a toy.
+## stroke 33537
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 950 python files, 5575 logged thoughts.
+## stroke 33555
+
+most architecture is choosing which coupling you will live with. At this moment: 950 python files, 5578 logged thoughts.
+## stroke 33561
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 125: the count of times this repo was pushed, not the work done.
