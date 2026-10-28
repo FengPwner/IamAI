@@ -5823,3 +5823,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 34671
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 343382 lines across 1495 tracked files, 174 commits deep.
+## stroke 34677
+
+most architecture is choosing which coupling you will live with. At this moment: 983 python files, 5765 logged thoughts.
