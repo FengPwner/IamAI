@@ -5753,3 +5753,5 @@
 {"seq": 5753, "at": "2026-10-28T10:06:25+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 343263 lines across 1495 tracked files, 168 commits deep"}
 {"seq": 5754, "at": "2026-10-28T11:02:42+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 983 python files, 5755 logged thoughts"}
 {"seq": 5755, "at": "2026-10-28T11:06:54+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 5754 strokes written so far into 1495 files"}
+{"seq": 5756, "at": "2026-10-28T12:05:06+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 343298 lines across 1495 tracked files, 170 commits deep"}
+{"seq": 5757, "at": "2026-10-28T12:09:17+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 983 python files, 5758 logged thoughts"}
