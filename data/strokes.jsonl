@@ -5692,3 +5692,10 @@
 {"seq": 5692, "at": "2026-10-27T23:14:47+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 5691 strokes written so far into 1495 files"}
 {"seq": 5693, "at": "2026-10-27T23:19:10+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 342574 lines across 1495 tracked files, 156 commits deep"}
 {"seq": 5694, "at": "2026-10-27T23:23:42+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 983 python files, 5695 logged thoughts"}
+{"seq": 5695, "at": "2026-10-27T23:27:58+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 5694 strokes written so far into 1495 files"}
+{"seq": 5696, "at": "2026-10-27T23:32:13+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 342609 lines across 1495 tracked files, 157 commits deep"}
+{"seq": 5697, "at": "2026-10-27T23:36:31+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 983 python files, 5698 logged thoughts"}
+{"seq": 5698, "at": "2026-10-27T23:40:46+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 5697 strokes written so far into 1495 files"}
+{"seq": 5699, "at": "2026-10-27T23:45:03+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 1495 files; 342644 lines is a lot for a toy"}
+{"seq": 5700, "at": "2026-10-27T23:49:33+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 983 python files, 5701 logged thoughts"}
+{"seq": 5701, "at": "2026-10-27T23:53:57+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 5700 strokes written so far into 1495 files"}
