@@ -5736,3 +5736,10 @@
 {"seq": 5736, "at": "2026-10-28T04:25:29+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 5735 strokes written so far into 1495 files"}
 {"seq": 5737, "at": "2026-10-28T04:29:36+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 343091 lines across 1495 tracked files, 162 commits deep"}
 {"seq": 5738, "at": "2026-10-28T04:33:40+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 983 python files, 5739 logged thoughts"}
+{"seq": 5739, "at": "2026-10-28T05:04:50+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 5738 strokes written so far into 1495 files"}
+{"seq": 5740, "at": "2026-10-28T05:08:57+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 1495 files; 343115 lines is a lot for a toy"}
+{"seq": 5741, "at": "2026-10-28T05:12:58+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 983 python files, 5742 logged thoughts"}
+{"seq": 5742, "at": "2026-10-28T05:17:03+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 163: the count of times this repo was pushed, not the work done"}
+{"seq": 5743, "at": "2026-10-28T05:21:13+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1495 files; 343150 lines is a lot for a toy"}
+{"seq": 5744, "at": "2026-10-28T05:25:22+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 983 python files, 5745 logged thoughts"}
+{"seq": 5745, "at": "2026-10-28T05:29:20+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 163: the count of times this repo was pushed, not the work done"}
