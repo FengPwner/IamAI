@@ -26808,3 +26808,5 @@ round 34694  bloom 100.0%  plants  146/384
 ```
 
 - stroke 34700: round 34700  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 34706: round 34706  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 34712: round 34712  bloom 100.0%  plants  146/384, bloom 100.0%
