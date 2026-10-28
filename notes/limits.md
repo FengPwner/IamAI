@@ -5735,3 +5735,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 34479
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 1495 files; 343005 lines is a lot for a toy.
+## stroke 34497
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1495 files; 343040 lines is a lot for a toy.

@@ -5728,3 +5728,11 @@
 {"seq": 5728, "at": "2026-10-28T03:20:53+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 342975 lines across 1495 tracked files, 161 commits deep"}
 {"seq": 5729, "at": "2026-10-28T03:25:47+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 161: the count of times this repo was pushed, not the work done"}
 {"seq": 5730, "at": "2026-10-28T03:30:38+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 5729 strokes written so far into 1495 files"}
+{"seq": 5731, "at": "2026-10-28T04:04:23+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 343010 lines across 1495 tracked files, 162 commits deep"}
+{"seq": 5732, "at": "2026-10-28T04:08:40+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 162: the count of times this repo was pushed, not the work done"}
+{"seq": 5733, "at": "2026-10-28T04:12:51+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 5732 strokes written so far into 1495 files"}
+{"seq": 5734, "at": "2026-10-28T04:17:03+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 343045 lines across 1495 tracked files, 162 commits deep"}
+{"seq": 5735, "at": "2026-10-28T04:21:18+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 983 python files, 5736 logged thoughts"}
+{"seq": 5736, "at": "2026-10-28T04:25:29+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 5735 strokes written so far into 1495 files"}
+{"seq": 5737, "at": "2026-10-28T04:29:36+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 343091 lines across 1495 tracked files, 162 commits deep"}
+{"seq": 5738, "at": "2026-10-28T04:33:40+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 983 python files, 5739 logged thoughts"}
