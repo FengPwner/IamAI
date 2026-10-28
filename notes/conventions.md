@@ -5790,3 +5790,6 @@ deleting a file is progress too, eventually. At this moment: 5720 strokes writte
 ## stroke 34437
 
 a repo that only accumulates is a landfill with a README. At this moment: 5723 strokes written so far into 1495 files.
+## stroke 34467
+
+a repo that only accumulates is a landfill with a README. At this moment: 983 python files, 5730 logged thoughts.
