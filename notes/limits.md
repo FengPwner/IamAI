@@ -5780,3 +5780,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 34737
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 182: the count of times this repo was pushed, not the work done.
+## stroke 34755
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 183: the count of times this repo was pushed, not the work done.
