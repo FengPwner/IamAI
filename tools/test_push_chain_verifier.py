@@ -133,12 +133,17 @@ class TestCheckSshKey:
         key = tmp_path / "test_key"
         key.write_text("fake key")
         key.chmod(0o644)  # too open
-        with patch("push_chain_verifier.Path") as mock_path:
-            mock_path.return_value = key
-            mock_path.return_value.exists.return_value = True
-            # The actual function checks /tmp/ssh_deploy_key, so we mock
+        # Patch the hardcoded path inside the function
+        with patch("push_chain_verifier.Path") as MockPath:
+            mock_instance = MagicMock()
+            mock_instance.exists.return_value = True
+            mock_instance.stat.return_value = MagicMock(st_mode=0o100644)
+            MockPath.return_value = mock_instance
             result = check_ssh_key()
             assert isinstance(result, StageResult)
+            assert result.name == "ssh_key"
+            assert result.healthy is False
+            assert "bad permissions" in result.detail
 
 
 class TestCheckRemote:
