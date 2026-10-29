@@ -5841,3 +5841,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 35007
 
 a repo that only accumulates is a landfill with a README. At this moment: 5818 strokes written so far into 1539 files.
+## stroke 35025
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 5821 strokes written so far into 1542 files.
