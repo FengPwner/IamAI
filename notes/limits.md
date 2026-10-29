@@ -5831,3 +5831,6 @@ deleting a file is progress too, eventually. At this moment: 1018 python files, 
 ## stroke 35097
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 62: the count of times this repo was pushed, not the work done.
+## stroke 35121
+
+deleting a file is progress too, eventually. At this moment: tree is 1552 files; 352630 lines is a lot for a toy.

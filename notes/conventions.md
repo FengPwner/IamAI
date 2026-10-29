@@ -5901,3 +5901,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 35115
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 65: the count of times this repo was pushed, not the work done.
+## stroke 35133
+
+deleting a file is progress too, eventually. At this moment: commit 67: the count of times this repo was pushed, not the work done.
