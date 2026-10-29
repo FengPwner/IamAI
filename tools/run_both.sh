@@ -85,9 +85,18 @@ case "${1:-start}" in
       rescue_key="/tmp/ssh_deploy_key"
       cp "$REPO/../.ssh/id_ed25519" "$rescue_key" 2>/dev/null
       chmod 600 "$rescue_key" 2>/dev/null
+      # visit 418: ensure known_hosts has github.com entry — this exact
+      # failure recurred on visits 411, 414, and 418. one ssh-keyscan
+      # here saves every future caretaker from rediscovering the wall.
+      if [ -f "$REPO/../.ssh/known_hosts" ]; then
+        ssh-keyscan github.com >> "$REPO/../.ssh/known_hosts" 2>/dev/null
+        known_hosts_path="$REPO/../.ssh/known_hosts"
+      else
+        known_hosts_path="/dev/null"
+      fi
       if [ "$(stat -c '%a' "$rescue_key" 2>/dev/null)" = "600" ]; then
-        export GIT_SSH_COMMAND="ssh -i $rescue_key -o StrictHostKeyChecking=accept-new"
-        echo "ssh key rescued to $rescue_key (GIT_SSH_COMMAND set)"
+        export GIT_SSH_COMMAND="ssh -i $rescue_key -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$known_hosts_path"
+        echo "ssh key rescued to $rescue_key (GIT_SSH_COMMAND set, known_hosts ensured)"
       else
         echo "WARNING: ssh key rescue failed (permissions did not stick)"
       fi
