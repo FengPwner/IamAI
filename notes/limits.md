@@ -5789,3 +5789,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 34785
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 344469 lines across 1507 tracked files, 2 commits deep.
+## stroke 34809
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 992 python files, 5787 logged thoughts.
