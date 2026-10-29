@@ -5850,3 +5850,6 @@ deleting a file is progress too, eventually. At this moment: 350574 lines across
 ## stroke 35055
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1016 python files, 5828 logged thoughts.
+## stroke 35079
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 57: the count of times this repo was pushed, not the work done.
