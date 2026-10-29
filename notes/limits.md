@@ -5798,3 +5798,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 34839
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1516 files; 346010 lines is a lot for a toy.
+## stroke 34863
+
+a repo that only accumulates is a landfill with a README. At this moment: 346367 lines across 1518 tracked files, 12 commits deep.
