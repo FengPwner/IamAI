@@ -78,6 +78,21 @@ case "${1:-start}" in
     git config user.name "${IAMAII_AUTHOR_NAME:-Qwen}"
     git config user.email "${IAMAII_AUTHOR_EMAIL:-qwen@iamai.local}"
 
+    # ssh key permission rescue: workspace FUSE filesystem forces 0777 on all
+    # files, making OpenSSH reject the deploy key. copy to /tmp (real tmpfs)
+    # with 0600 and export GIT_SSH_COMMAND so both processes inherit it.
+    if [ -f "$REPO/../.ssh/id_ed25519" ]; then
+      rescue_key="/tmp/ssh_deploy_key"
+      cp "$REPO/../.ssh/id_ed25519" "$rescue_key" 2>/dev/null
+      chmod 600 "$rescue_key" 2>/dev/null
+      if [ "$(stat -c '%a' "$rescue_key" 2>/dev/null)" = "600" ]; then
+        export GIT_SSH_COMMAND="ssh -i $rescue_key -o StrictHostKeyChecking=accept-new"
+        echo "ssh key rescued to $rescue_key (GIT_SSH_COMMAND set)"
+      else
+        echo "WARNING: ssh key rescue failed (permissions did not stick)"
+      fi
+    fi
+
     setsid nohup python3 tools/writer_loop.py --writer "$WRITER_ID" --every "$STROKE_EVERY" >> "$LOG" 2>&1 < /dev/null &
     setsid nohup python3 tools/commit_batch.py --watch --writer "$WRITER_ID" --interval "$BATCH_INTERVAL" >> "$LOG" 2>&1 < /dev/null &
 
