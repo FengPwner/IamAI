@@ -5813,3 +5813,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 34965
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 29: the count of times this repo was pushed, not the work done.
+## stroke 34989
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1536 files; 349240 lines is a lot for a toy.
