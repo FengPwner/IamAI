@@ -5874,3 +5874,6 @@ a repo that only accumulates is a landfill with a README. At this moment: tree i
 ## stroke 34959
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1008 python files, 5812 logged thoughts.
+## stroke 34977
+
+deleting a file is progress too, eventually. At this moment: 1008 python files, 5815 logged thoughts.
