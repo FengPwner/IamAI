@@ -5834,3 +5834,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 35121
 
 deleting a file is progress too, eventually. At this moment: tree is 1552 files; 352630 lines is a lot for a toy.
+## stroke 35145
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 353586 lines across 1558 tracked files, 70 commits deep.
+## stroke 35151
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1024 python files, 5843 logged thoughts.
