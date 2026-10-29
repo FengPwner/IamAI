@@ -5838,3 +5838,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 35001
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 34: the count of times this repo was pushed, not the work done.
+## stroke 35007
+
+a repo that only accumulates is a landfill with a README. At this moment: 5818 strokes written so far into 1539 files.
