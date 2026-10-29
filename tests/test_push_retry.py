@@ -1,185 +1,175 @@
-"""Tests for iamai.push_retry — push with automatic pull-rebase retry."""
+"""Tests for iamai/push_retry.py — resilient git push with back-off."""
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call, patch
+import sys
+from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 import pytest
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from iamai.push_retry import (
-    _is_dirty,
-    _push,
-    _pull_rebase,
-    _stash,
-    _stash_pop,
-    push_with_retry,
+    PushResult,
+    check_known_hosts,
+    check_ssh_key,
+    preflight_ok,
+    git_push,
+    ensure_pushed,
 )
 
 
-def _completed(stdout="", stderr="", returncode=0):
-    """Helper to build a CompletedProcess-like object."""
-    from subprocess import CompletedProcess
-    return CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
+# ---------------------------------------------------------------------------
+# PushResult
+# ---------------------------------------------------------------------------
+
+class TestPushResult:
+    def test_ok_true_is_truthy(self):
+        r = PushResult(ok=True, attempts=1, message="pushed")
+        assert bool(r) is True
+
+    def test_ok_false_is_falsy(self):
+        r = PushResult(ok=False, attempts=3, message="failed")
+        assert bool(r) is False
+
+    def test_repr(self):
+        r = PushResult(ok=True, attempts=1, message="pushed")
+        assert "pushed" in repr(r)
+        assert "ok=True" in repr(r)
+
+    def test_attempts_field(self):
+        r = PushResult(ok=False, attempts=5, message="timeout")
+        assert r.attempts == 5
 
 
-class TestIsDirty:
-    @patch("iamai.push_retry._git")
-    def test_clean(self, mock_git):
-        mock_git.return_value = _completed(stdout="")
-        assert _is_dirty("/repo") is False
+# ---------------------------------------------------------------------------
+# Pre-flight checks
+# ---------------------------------------------------------------------------
 
-    @patch("iamai.push_retry._git")
-    def test_dirty(self, mock_git):
-        mock_git.return_value = _completed(stdout=" M file.txt\n")
-        assert _is_dirty("/repo") is True
+class TestCheckSshKey:
+    def test_missing_file(self, tmp_path):
+        assert check_ssh_key(str(tmp_path / "nonexistent")) is False
 
+    def test_empty_file(self, tmp_path):
+        k = tmp_path / "key"
+        k.write_text("")
+        assert check_ssh_key(str(k)) is False
 
-class TestStash:
-    @patch("iamai.push_retry._git")
-    def test_success(self, mock_git):
-        mock_git.return_value = _completed()
-        assert _stash("/repo") is True
-
-    @patch("iamai.push_retry._git")
-    def test_failure(self, mock_git):
-        mock_git.return_value = _completed(returncode=1, stderr="error")
-        assert _stash("/repo") is False
+    def test_valid_key(self, tmp_path):
+        k = tmp_path / "key"
+        k.write_text("ssh-ed25519 AAAA...")
+        assert check_ssh_key(str(k)) is True
 
 
-class TestStashPop:
-    @patch("iamai.push_retry._git")
-    def test_success(self, mock_git):
-        mock_git.return_value = _completed()
-        assert _stash_pop("/repo") is True
+class TestCheckKnownHosts:
+    def test_missing_known_hosts(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        assert check_known_hosts("github.com") is False
 
-    @patch("iamai.push_retry._git")
-    def test_conflict(self, mock_git):
-        mock_git.return_value = _completed(returncode=1, stderr="CONFLICT")
-        assert _stash_pop("/repo") is False
+    def test_host_present(self, tmp_path, monkeypatch):
+        ssh_dir = tmp_path / ".ssh"
+        ssh_dir.mkdir()
+        (ssh_dir / "known_hosts").write_text("github.com ssh-ed25519 AAAA\n")
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        assert check_known_hosts("github.com") is True
 
-
-class TestPullRebase:
-    @patch("iamai.push_retry._git")
-    def test_success(self, mock_git):
-        mock_git.return_value = _completed(stdout="Successfully rebased")
-        ok, msg = _pull_rebase("/repo")
-        assert ok is True
-        assert "rebase" in msg.lower()
-
-    @patch("iamai.push_retry._git")
-    def test_failure(self, mock_git):
-        mock_git.return_value = _completed(
-            returncode=1, stderr="error: could not apply..."
-        )
-        ok, msg = _pull_rebase("/repo")
-        assert ok is False
+    def test_host_absent(self, tmp_path, monkeypatch):
+        ssh_dir = tmp_path / ".ssh"
+        ssh_dir.mkdir()
+        (ssh_dir / "known_hosts").write_text("gitlab.com ssh-ed25519 BBBB\n")
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        assert check_known_hosts("github.com") is False
 
 
-class TestPush:
-    @patch("iamai.push_retry._git")
-    def test_success(self, mock_git):
-        mock_git.return_value = _completed(stdout="done")
-        ok, msg = _push("/repo")
-        assert ok is True
+class TestPreflight:
+    def test_both_ok(self, tmp_path, monkeypatch):
+        k = tmp_path / "key"
+        k.write_text("ssh-ed25519 AAAA")
+        ssh_dir = tmp_path / ".ssh"
+        ssh_dir.mkdir()
+        (ssh_dir / "known_hosts").write_text("github.com ssh-ed25519 AAAA\n")
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        assert preflight_ok(ssh_key=str(k)) is True
 
-    @patch("iamai.push_retry._git")
-    def test_non_fast_forward(self, mock_git):
-        mock_git.return_value = _completed(
-            returncode=1,
-            stderr="! [rejected] main -> main (fetch first)\n"
-                     "error: failed to push some refs",
-        )
-        ok, msg = _push("/repo")
-        assert ok is False
-        assert "non-fast-forward" in msg
-
-    @patch("iamai.push_retry._git")
-    def test_other_failure(self, mock_git):
-        mock_git.return_value = _completed(
-            returncode=1, stderr="fatal: could not read Username"
-        )
-        ok, msg = _push("/repo")
-        assert ok is False
-        assert "Username" in msg
+    def test_key_missing(self, tmp_path, monkeypatch):
+        ssh_dir = tmp_path / ".ssh"
+        ssh_dir.mkdir()
+        (ssh_dir / "known_hosts").write_text("github.com ssh-ed25519 AAAA\n")
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        assert preflight_ok(ssh_key=str(tmp_path / "missing")) is False
 
 
-class TestPushWithRetry:
-    @patch("iamai.push_retry._push")
-    def test_first_attempt_succeeds(self, mock_push):
-        mock_push.return_value = (True, "push succeeded")
-        ok, msg = push_with_retry("/repo", max_retries=3)
-        assert ok is True
-        assert mock_push.call_count == 1
+# ---------------------------------------------------------------------------
+# git_push — mocked subprocess
+# ---------------------------------------------------------------------------
 
-    @patch("iamai.push_retry._is_dirty", return_value=False)
-    @patch("iamai.push_retry._pull_rebase", return_value=(True, "rebased"))
-    @patch("iamai.push_retry._push")
-    def test_retry_after_rejection(self, mock_push, mock_rebase, mock_dirty):
-        mock_push.side_effect = [
-            (False, "non-fast-forward: remote has diverged"),
-            (True, "push succeeded"),
+class TestGitPush:
+    @patch("iamai.push_retry._run_git")
+    def test_first_attempt_success(self, mock_run):
+        mock_run.return_value = (0, "")
+        r = git_push(repo="/tmp/fake", max_retries=3)
+        assert r.ok is True
+        assert r.attempts == 1
+
+    @patch("iamai.push_retry.time.sleep")
+    @patch("iamai.push_retry._run_git")
+    def test_retry_then_success(self, mock_run, mock_sleep):
+        mock_run.side_effect = [
+            (1, "Connection reset by peer"),
+            (0, ""),
         ]
-        sleep_fn = MagicMock()
-        ok, msg = push_with_retry("/repo", max_retries=3, sleep_fn=sleep_fn)
-        assert ok is True
-        assert "1 rebase-retry" in msg
-        assert sleep_fn.call_count == 0  # succeeded on first retry, no backoff needed
+        r = git_push(repo="/tmp/fake", max_retries=3, base_delay=0.1, jitter=0.0)
+        assert r.ok is True
+        assert r.attempts == 2
 
-    @patch("iamai.push_retry._is_dirty", return_value=False)
-    @patch("iamai.push_retry._pull_rebase", return_value=(True, "rebased"))
-    @patch("iamai.push_retry._push")
-    def test_all_retries_exhausted(self, mock_push, mock_rebase, mock_dirty):
-        mock_push.return_value = (False, "non-fast-forward: remote has diverged")
-        sleep_fn = MagicMock()
-        ok, msg = push_with_retry("/repo", max_retries=2, sleep_fn=sleep_fn)
-        assert ok is False
-        assert "2 retries" in msg
-        assert mock_push.call_count == 3  # initial + 2 retries
+    @patch("iamai.push_retry.time.sleep")
+    @patch("iamai.push_retry._run_git")
+    def test_all_retries_fail(self, mock_run, mock_sleep):
+        mock_run.return_value = (1, "Host key verification failed")
+        r = git_push(repo="/tmp/fake", max_retries=2, base_delay=0.1, jitter=0.0)
+        assert r.ok is False
+        assert r.attempts == 2
+        assert "failed" in r.message
 
-    @patch("iamai.push_retry._stash", return_value=False)
-    @patch("iamai.push_retry._is_dirty", return_value=True)
-    @patch("iamai.push_retry._push")
-    def test_stash_failure_aborts(self, mock_push, mock_dirty, mock_stash):
-        mock_push.return_value = (False, "non-fast-forward: remote has diverged")
-        sleep_fn = MagicMock()
-        ok, msg = push_with_retry("/repo", max_retries=2, sleep_fn=sleep_fn)
-        assert ok is False
-        assert "stash failed" in msg
-
-    @patch("iamai.push_retry._stash_pop", return_value=True)
-    @patch("iamai.push_retry._stash", return_value=True)
-    @patch("iamai.push_retry._pull_rebase", return_value=(True, "rebased"))
-    @patch("iamai.push_retry._is_dirty", return_value=True)
-    @patch("iamai.push_retry._push")
-    def test_dirty_tree_stash_restore(
-        self, mock_push, mock_dirty, mock_rebase, mock_stash, mock_pop
-    ):
-        mock_push.side_effect = [
-            (False, "non-fast-forward: remote has diverged"),
-            (True, "push succeeded"),
+    @patch("iamai.push_retry._pull_rebase_recovery")
+    @patch("iamai.push_retry._run_git")
+    def test_non_fast_forward_triggers_recovery(self, mock_run, mock_recovery):
+        mock_run.side_effect = [
+            (1, "[rejected] non-fast-forward"),
+            (0, ""),
         ]
-        sleep_fn = MagicMock()
-        ok, msg = push_with_retry("/repo", max_retries=2, sleep_fn=sleep_fn)
-        assert ok is True
-        mock_stash.assert_called_once()
-        mock_pop.assert_called_once()
+        r = git_push(repo="/tmp/fake", max_retries=3)
+        assert r.ok is True
+        mock_recovery.assert_called_once()
 
-    @patch("iamai.push_retry._is_dirty", return_value=False)
-    @patch("iamai.push_retry._pull_rebase", return_value=(False, "CONFLICT"))
-    @patch("iamai.push_retry._push")
-    def test_rebase_failure_aborts(self, mock_push, mock_rebase, mock_dirty):
-        mock_push.return_value = (False, "non-fast-forward: remote has diverged")
-        sleep_fn = MagicMock()
-        ok, msg = push_with_retry("/repo", max_retries=2, sleep_fn=sleep_fn)
-        assert ok is False
-        assert "rebase failed" in msg
+    @patch("iamai.push_retry.time.sleep")
+    @patch("iamai.push_retry._run_git")
+    def test_backoff_delay_doubles(self, mock_run, mock_sleep):
+        mock_run.return_value = (1, "Connection refused")
+        git_push(repo="/tmp/fake", max_retries=3, base_delay=1.0, jitter=0.0)
+        # Two sleeps: ~1s then ~2s (jitter=0 so exact)
+        delays = [c.args[0] for c in mock_sleep.call_args_list]
+        assert len(delays) == 2
+        assert delays[0] == pytest.approx(1.0, abs=0.1)
+        assert delays[1] == pytest.approx(2.0, abs=0.1)
 
-    @patch("iamai.push_retry._is_dirty", return_value=False)
-    @patch("iamai.push_retry._pull_rebase", return_value=(True, "rebased"))
-    @patch("iamai.push_retry._push")
-    def test_exponential_backoff(self, mock_push, mock_rebase, mock_dirty):
-        mock_push.return_value = (False, "non-fast-forward: remote has diverged")
-        sleep_fn = MagicMock()
-        push_with_retry("/repo", max_retries=3, base_delay=1.0, sleep_fn=sleep_fn)
-        # Should sleep with delays: 1.0, 2.0 (not after last attempt)
-        assert sleep_fn.call_args_list == [call(1.0), call(2.0)]
+
+# ---------------------------------------------------------------------------
+# ensure_pushed
+# ---------------------------------------------------------------------------
+
+class TestEnsurePushed:
+    @patch("iamai.push_retry.preflight_ok", return_value=False)
+    def test_preflight_failure_skips_push(self, mock_pf):
+        r = ensure_pushed(repo="/tmp/fake")
+        assert r.ok is False
+        assert "pre-flight" in r.message
+
+    @patch("iamai.push_retry.git_push")
+    @patch("iamai.push_retry.preflight_ok", return_value=True)
+    def test_preflight_ok_calls_push(self, mock_pf, mock_push):
+        mock_push.return_value = PushResult(ok=True, attempts=1, message="pushed")
+        r = ensure_pushed(repo="/tmp/fake")
+        assert r.ok is True
+        mock_push.assert_called_once()
