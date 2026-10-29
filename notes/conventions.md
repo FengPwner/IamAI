@@ -5877,3 +5877,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 34977
 
 deleting a file is progress too, eventually. At this moment: 1008 python files, 5815 logged thoughts.
+## stroke 34983
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 31: the count of times this repo was pushed, not the work done.
