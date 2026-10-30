@@ -5955,3 +5955,6 @@ a restart is recovery the first time and a pattern the fourth. the gap between t
 ## stroke 35421
 
 most architecture is choosing which coupling you will live with. At this moment: 5883 strokes written so far into 1601 files.
+## stroke 35427
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 1604 files; 360911 lines is a lot for a toy.
