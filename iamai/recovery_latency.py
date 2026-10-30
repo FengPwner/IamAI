@@ -172,3 +172,107 @@ class RecoveryTracker:
             "max_latency_s": round(max(latencies), 1) if latencies else None,
             "last_latency_s": round(latencies[-1], 1) if latencies else None,
         }
+
+
+# ---------------------------------------------------------------------------
+# RecoveryChain — track the three-phase recovery sequence
+# ---------------------------------------------------------------------------
+
+@dataclass
+class RecoveryChain:
+    """A full recovery chain: restart → backlog commit → push.
+
+    The three phases are:
+      1. restart   — writer and batch processes are alive
+      2. backlog   — uncommitted changes are bundled into a catch-up commit
+      3. push      — local commits reach the remote without rejection
+
+    Each phase records a timestamp and a success flag.  The chain is
+    *complete* when all three phases have been marked, regardless of
+    whether every phase succeeded.  A chain where any phase failed is
+    *complete but degraded*.
+    """
+    restart_ts: Optional[float] = None
+    restart_ok: bool = False
+    restart_pid: Optional[int] = None
+
+    backlog_ts: Optional[float] = None
+    backlog_ok: bool = False
+    backlog_files: int = 0
+    backlog_commit: Optional[str] = None
+
+    push_ts: Optional[float] = None
+    push_ok: bool = False
+    push_remote_ref: Optional[str] = None
+
+    @property
+    def is_complete(self) -> bool:
+        return (
+            self.restart_ts is not None
+            and self.backlog_ts is not None
+            and self.push_ts is not None
+        )
+
+    @property
+    def is_degraded(self) -> bool:
+        """True when the chain finished but at least one phase failed."""
+        return self.is_complete and not (
+            self.restart_ok and self.backlog_ok and self.push_ok
+        )
+
+    @property
+    def total_seconds(self) -> Optional[float]:
+        """Wall-clock seconds from restart to push."""
+        if self.restart_ts is None or self.push_ts is None:
+            return None
+        return self.push_ts - self.restart_ts
+
+    @property
+    def phases_done(self) -> int:
+        return sum([
+            self.restart_ts is not None,
+            self.backlog_ts is not None,
+            self.push_ts is not None,
+        ])
+
+    def mark_restart(self, ts: Optional[float] = None, pid: Optional[int] = None, ok: bool = True) -> None:
+        self.restart_ts = ts or time.time()
+        self.restart_ok = ok
+        self.restart_pid = pid
+
+    def mark_backlog(self, ts: Optional[float] = None, ok: bool = True,
+                     files: int = 0, commit: Optional[str] = None) -> None:
+        self.backlog_ts = ts or time.time()
+        self.backlog_ok = ok
+        self.backlog_files = files
+        self.backlog_commit = commit
+
+    def mark_push(self, ts: Optional[float] = None, ok: bool = True,
+                  remote_ref: Optional[str] = None) -> None:
+        self.push_ts = ts or time.time()
+        self.push_ok = ok
+        self.push_remote_ref = remote_ref
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "RecoveryChain":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+    def summary(self) -> str:
+        parts = []
+        for name, ok in [
+            ("restart", self.restart_ok),
+            ("backlog", self.backlog_ok),
+            ("push", self.push_ok),
+        ]:
+            ts = getattr(self, f"{name}_ts")
+            if ts is None:
+                parts.append(f"{name}=pending")
+            else:
+                status = "ok" if ok else "FAIL"
+                parts.append(f"{name}={status}@{ts:.0f}")
+        elapsed = f"{self.total_seconds:.1f}s" if self.total_seconds is not None else "n/a"
+        degraded = " [DEGRADED]" if self.is_degraded else ""
+        return f"RecoveryChain({', '.join(parts)}, total={elapsed}{degraded})"
