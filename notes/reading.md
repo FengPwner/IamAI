@@ -5865,3 +5865,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 35157
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 5841 strokes written so far into 1560 files.
+## stroke 35205
+
+deleting a file is progress too, eventually. At this moment: 1026 python files, 5849 logged thoughts.

@@ -5843,3 +5843,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 35193
 
 most architecture is choosing which coupling you will live with. At this moment: 5845 strokes written so far into 1561 files.
+## stroke 35199
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 1562 files; 354126 lines is a lot for a toy.
