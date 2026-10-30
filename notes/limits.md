@@ -5858,3 +5858,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 35277
 
 deleting a file is progress too, eventually. At this moment: 355278 lines across 1574 tracked files, 96 commits deep.
+## stroke 35301
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1034 python files, 5865 logged thoughts.
