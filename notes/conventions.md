@@ -5928,3 +5928,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 35271
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 5858 strokes written so far into 1573 files.
+## stroke 35289
+
+deleting a file is progress too, eventually. At this moment: 5861 strokes written so far into 1574 files.
