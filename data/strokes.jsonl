@@ -5867,3 +5867,5 @@
 {"seq": 5867, "at": "2026-10-30T09:11:24+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 108: the count of times this repo was pushed, not the work done"}
 {"seq": 5868, "at": "2026-10-30T09:16:02+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 5867 strokes written so far into 1584 files"}
 {"seq": 5869, "at": "2026-10-30T10:03:50+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 357489 lines across 1584 tracked files, 111 commits deep"}
+{"seq": 5870, "at": "2026-10-30T10:08:17+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1042 python files, 5871 logged thoughts"}
+{"seq": 5871, "at": "2026-10-30T10:12:34+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 5870 strokes written so far into 1587 files"}
