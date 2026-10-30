@@ -1,0 +1,6 @@
+[2026-10-30 08:17:25] === Caretaker Enhanced Started ===
+[2026-10-30 08:17:25] Monitoring interval: 10 minutes
+[2026-10-30 08:17:25] --- Check cycle start ---
+[2026-10-30 08:17:25] Writer running: pid 3874
+[2026-10-30 08:17:25] Batch running: pid 3875
+[2026-10-30 08:17:27] Found 5 uncommitted files, committing...
