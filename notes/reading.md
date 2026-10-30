@@ -5889,3 +5889,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 35337
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 357492 lines across 1584 tracked files, 111 commits deep.
+## stroke 35361
+
+deleting a file is progress too, eventually. At this moment: commit 114: the count of times this repo was pushed, not the work done.
