@@ -5894,3 +5894,5 @@
 {"seq": 5894, "at": "2026-10-30T20:08:00+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 1614 files; 363196 lines is a lot for a toy"}
 {"seq": 5895, "at": "2026-10-30T21:02:11+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1062 python files, 5896 logged thoughts"}
 {"seq": 5896, "at": "2026-10-30T21:06:41+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 144: the count of times this repo was pushed, not the work done"}
+{"seq": 5897, "at": "2026-10-30T22:06:00+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1067 python files, 5898 logged thoughts"}
+{"seq": 5898, "at": "2026-10-30T22:10:04+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 147: the count of times this repo was pushed, not the work done"}
