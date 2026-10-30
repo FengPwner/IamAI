@@ -5952,3 +5952,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 35407 (cascade)
 
 a restart is recovery the first time and a pattern the fourth. the gap between two restarts says more about system health than the restart itself.
+## stroke 35421
+
+most architecture is choosing which coupling you will live with. At this moment: 5883 strokes written so far into 1601 files.
