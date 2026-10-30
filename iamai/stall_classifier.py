@@ -1,232 +1,257 @@
-"""Stall classifier — diagnose why the writer went silent.
+"""Stall classifier: categorise silence gaps by cause and pattern.
 
-Given observable signals (stroke timestamps, process status, lock file
-presence, system resource snapshots), this module classifies a writer
-stall into one of five root-cause categories:
+When the writer stops producing strokes, the silence has a shape. A
+container recycle leaves a clean gap of 20-60 seconds (the restart
+overhead) followed by immediate resumption. A push divergence leaves a
+longer gap (minutes) because the batch committer retries and eventually
+gives up. A network blip is a short gap (one or two missed cadences)
+that self-heals.
 
-Categories
-----------
+This module reads the strokes log and classifies each gap above a
+threshold into one of four buckets:
 
-1. **process_death** — the writer process was killed by the container
-   runtime or OOM killer.  Signals: process absent, last stroke abrupt,
-   off-peak hour, bundled deaths with batch committer.
+- **recycle**: clean restart, short gap (15-120s), stroke sequence
+  continuous (no seq numbers skipped).
+- **push_divergence**: longer gap (2-30 min), coincides with a commit
+  batch failure and remote advancement.
+- **network_blip**: very short gap (15-45s), self-healing, no seq break.
+- **unknown**: anything that doesn't fit the above patterns.
 
-2. **lock_contention** — a stale ``.git/index.lock`` blocked commits,
-   causing the writer to back off.  Signals: lock file present, process
-   alive but idle, commit gap >> stroke gap.
-
-3. **resource_exhaustion** — disk full, memory pressure, or I/O errors.
-   Signals: disk usage > 90 %, dmesg OOM lines, ENOSPC in recent logs.
-
-4. **natural_gap** — the pause is within normal operating parameters.
-   The writer has a stochastic cadence; not every gap is a stall.
-   Signals: gap < 2× modal interval, process alive, no error signals.
-
-5. **unknown** — insufficient evidence to classify.
-
-Usage::
-
-    from iamai.stall_classifier import classify_stall
-
-    evidence = {
-        "gap_seconds": 1600,
-        "modal_interval": 400,
-        "process_alive": False,
-        "batch_alive": False,
-        "lock_present": False,
-        "hour_gmt8": 4,
-        "disk_usage_pct": 45,
-        "dmesg_oom": False,
-    }
-
-    result = classify_stall(evidence)
-    print(result["label"])        # "process_death"
-    print(result["confidence"])   # 0.92
-    print(result["reasons"])      # ["off_peak", "bundled_death", ...]
+The point isn't prediction — it's building a vocabulary for what went
+wrong, so caretaker visits can say "three recycles and one push
+divergence" instead of "it stopped four times."
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
-from typing import Any
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Sequence
+
+# Stall categories
+RECYCLE = "recycle"
+PUSH_DIVERGENCE = "push_divergence"
+NETWORK_BLIP = "network_blip"
+UNKNOWN = "unknown"
+
+# Threshold boundaries (seconds)
+_RECYCLE_MAX = 120        # container restarts resolve within 2 min
+_NETWORK_MAX = 45         # network blips self-heal within ~3 cadences
+_DIVERGENCE_MIN = 120     # push divergence takes at least one batch cycle
+_DIVERGENCE_MAX = 1800    # 30 min; beyond that, something else happened
 
 
-# ---------------------------------------------------------------------------
-# signal weights for each category
-# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class Stall:
+    """A classified silence gap in the stroke log."""
 
-_WEIGHTS: dict[str, dict[str, float]] = {
-    "process_death": {
-        "process_dead": 0.30,
-        "batch_dead": 0.15,
-        "off_peak": 0.25,
-        "abrupt_last_stroke": 0.10,
-        "no_lock": 0.05,
-        "long_gap": 0.15,
-    },
-    "lock_contention": {
-        "lock_present": 0.40,
-        "process_alive": 0.25,
-        "commit_gap_exceeds_stroke_gap": 0.20,
-        "no_dmesg_oom": 0.05,
-        "disk_ok": 0.10,
-    },
-    "resource_exhaustion": {
-        "high_disk": 0.30,
-        "dmesg_oom": 0.35,
-        "process_dead": 0.15,
-        "io_errors": 0.15,
-        "long_gap": 0.05,
-    },
-    "natural_gap": {
-        "process_alive": 0.30,
-        "short_gap": 0.35,
-        "no_lock": 0.10,
-        "disk_ok": 0.10,
-        "peak_hour": 0.10,
-        "no_dmesg_oom": 0.05,
-    },
-}
+    seq_before: int
+    seq_after: int
+    gap_seconds: float
+    timestamp: str          # ISO 8601, the stroke *after* the gap
+    category: str
+    seq_continuous: bool    # True if no seq numbers were skipped
 
-# off-peak window in GMT+8 (container runtime sweeps aggressively)
-_OFF_PEAK_START = 1  # 01:00
-_OFF_PEAK_END = 6    # 06:00
+    @property
+    def seq_gap(self) -> int:
+        return self.seq_after - self.seq_before
+
+    def to_dict(self) -> dict:
+        return {
+            "seq_before": self.seq_before,
+            "seq_after": self.seq_after,
+            "gap_seconds": round(self.gap_seconds, 1),
+            "timestamp": self.timestamp,
+            "category": self.category,
+            "seq_continuous": self.seq_continuous,
+        }
 
 
-def _is_off_peak(hour_gmt8: int) -> bool:
-    """Return True if *hour_gmt8* falls in the 01:00–06:00 sweep window."""
-    return _OFF_PEAK_START <= hour_gmt8 < _OFF_PEAK_END
+@dataclass
+class StallReport:
+    """Summary of all stalls found in a stroke log."""
+
+    stalls: list[Stall] = field(default_factory=list)
+    total_gap_seconds: float = 0.0
+    stroke_count: int = 0
+
+    @property
+    def stall_count(self) -> int:
+        return len(self.stalls)
+
+    @property
+    def category_counts(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for s in self.stalls:
+            counts[s.category] = counts.get(s.category, 0) + 1
+        return counts
+
+    @property
+    def longest_stall(self) -> Stall | None:
+        if not self.stalls:
+            return None
+        return max(self.stalls, key=lambda s: s.gap_seconds)
+
+    @property
+    def uptime_fraction(self) -> float:
+        """Fraction of time spent writing vs. stalled.
+
+        Computed as: (total_time - total_gap) / total_time, where
+        total_time is from first to last stroke.
+        """
+        if self.stroke_count < 2:
+            return 1.0
+        return max(0.0, 1.0 - self.total_gap_seconds / max(self._total_span, 1))
+
+    @property
+    def _total_span(self) -> float:
+        if len(self.stalls) == 0:
+            return 0.0
+        # approximate: sum of all gaps + time spent writing
+        # writing time ≈ stroke_count * median_cadence (15s)
+        return self.total_gap_seconds + self.stroke_count * 15
+
+    def to_dict(self) -> dict:
+        return {
+            "stall_count": self.stall_count,
+            "total_gap_seconds": round(self.total_gap_seconds, 1),
+            "stroke_count": self.stroke_count,
+            "category_counts": self.category_counts,
+            "uptime_fraction": round(self.uptime_fraction, 4),
+            "longest": self.longest_stall.to_dict() if self.longest_stall else None,
+            "stalls": [s.to_dict() for s in self.stalls],
+        }
 
 
-def _is_long_gap(gap_seconds: float, modal_interval: float) -> bool:
-    """Return True if the gap is more than 2× the modal interval."""
-    if modal_interval <= 0:
-        return True
-    return gap_seconds > 2 * modal_interval
+def _parse_ts(ts_str: str) -> datetime | None:
+    if not ts_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(ts_str.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
-def _collect_signals(evidence: dict[str, Any]) -> dict[str, dict[str, bool]]:
-    """Map raw evidence to boolean signals per category."""
-    gap = evidence.get("gap_seconds", 0)
-    modal = evidence.get("modal_interval", 400)
-    proc = evidence.get("process_alive", True)
-    batch = evidence.get("batch_alive", True)
-    lock = evidence.get("lock_present", False)
-    hour = evidence.get("hour_gmt8", 12)
-    disk = evidence.get("disk_usage_pct", 0)
-    oom = evidence.get("dmesg_oom", False)
-    io_err = evidence.get("io_errors", False)
-    abrupt = evidence.get("abrupt_last_stroke", False)
-    commit_gap_exceeds = evidence.get("commit_gap_exceeds_stroke_gap", False)
+def _classify_gap(gap_seconds: float, seq_continuous: bool) -> str:
+    """Assign a category to a single silence gap.
 
-    long_gap = _is_long_gap(gap, modal)
-    off_peak = _is_off_peak(hour)
+    Rules (order matters — first match wins):
 
-    return {
-        "process_death": {
-            "process_dead": not proc,
-            "batch_dead": not batch,
-            "off_peak": off_peak,
-            "abrupt_last_stroke": abrupt,
-            "no_lock": not lock,
-            "long_gap": long_gap,
-        },
-        "lock_contention": {
-            "lock_present": lock,
-            "process_alive": proc,
-            "commit_gap_exceeds_stroke_gap": commit_gap_exceeds,
-            "no_dmesg_oom": not oom,
-            "disk_ok": disk < 90,
-        },
-        "resource_exhaustion": {
-            "high_disk": disk >= 90,
-            "dmesg_oom": oom,
-            "process_dead": not proc,
-            "io_errors": io_err,
-            "long_gap": long_gap,
-        },
-        "natural_gap": {
-            "process_alive": proc,
-            "short_gap": not long_gap,
-            "no_lock": not lock,
-            "disk_ok": disk < 90,
-            "peak_hour": not off_peak,
-            "no_dmesg_oom": not oom,
-        },
-    }
-
-
-def _score_category(
-    category: str, signals: dict[str, bool]
-) -> tuple[float, list[str]]:
-    """Compute weighted score for one category, return (score, reasons)."""
-    weights = _WEIGHTS[category]
-    score = 0.0
-    reasons: list[str] = []
-    for signal_name, weight in weights.items():
-        if signals.get(signal_name, False):
-            score += weight
-            reasons.append(signal_name)
-    return round(score, 4), reasons
-
-
-def classify_stall(evidence: dict[str, Any]) -> dict[str, Any]:
-    """Classify a writer stall from observable evidence.
-
-    Parameters
-    ----------
-    evidence : dict
-        Observable signals.  See module docstring for the full schema.
-
-    Returns
-    -------
-    dict with keys:
-        - ``label`` (str): winning category name
-        - ``confidence`` (float): score of the winning category [0, 1]
-        - ``reasons`` (list[str]): signals that contributed to the win
-        - ``scores`` (dict[str, float]): all category scores
+    1. gap <= _NETWORK_MAX and seq continuous → network_blip
+    2. gap <= _RECYCLE_MAX and seq continuous → recycle
+    3. _DIVERGENCE_MIN <= gap <= _DIVERGENCE_MAX → push_divergence
+    4. everything else → unknown
     """
-    signal_map = _collect_signals(evidence)
-    scores: dict[str, float] = {}
-    all_reasons: dict[str, list[str]] = {}
-
-    for category in _WEIGHTS:
-        s, r = _score_category(category, signal_map[category])
-        scores[category] = s
-        all_reasons[category] = r
-
-    # pick the highest-scoring category
-    label = max(scores, key=lambda k: scores[k])
-    confidence = scores[label]
-
-    return {
-        "label": label,
-        "confidence": confidence,
-        "reasons": all_reasons[label],
-        "scores": scores,
-    }
+    if gap_seconds <= _NETWORK_MAX and seq_continuous:
+        return NETWORK_BLIP
+    if gap_seconds <= _RECYCLE_MAX and seq_continuous:
+        return RECYCLE
+    if _DIVERGENCE_MIN <= gap_seconds <= _DIVERGENCE_MAX:
+        return PUSH_DIVERGENCE
+    return UNKNOWN
 
 
-def classify_stalls_batch(
-    events: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Classify a list of stall events.  Convenience wrapper."""
-    return [classify_stall(e) for e in events]
+def classify_strokes(
+    strokes: Sequence[dict],
+    gap_threshold: float = 30.0,
+) -> StallReport:
+    """Find and classify all silence gaps in a stroke sequence.
 
+    Args:
+        strokes: list of stroke dicts with at least ``seq`` and ``at`` keys.
+        gap_threshold: minimum gap in seconds to count as a stall.
+            Default 30s (2x the 15s cadence).
 
-def summarise(classifications: list[dict[str, Any]]) -> dict[str, int]:
-    """Count how many stalls fell into each category.
-
-    Parameters
-    ----------
-    classifications : list
-        Output of :func:`classify_stalls_batch`.
-
-    Returns
-    -------
-    dict mapping category labels to integer counts.
+    Returns:
+        A StallReport with all classified stalls.
     """
-    counts: dict[str, int] = {cat: 0 for cat in _WEIGHTS}
-    for c in classifications:
-        counts[c["label"]] = counts.get(c["label"], 0) + 1
-    return counts
+    report = StallReport(stroke_count=len(strokes))
+
+    if len(strokes) < 2:
+        return report
+
+    for i in range(1, len(strokes)):
+        prev = strokes[i - 1]
+        curr = strokes[i]
+
+        seq_before = prev.get("seq", 0)
+        seq_after = curr.get("seq", 0)
+
+        ts_before = _parse_ts(prev.get("at", ""))
+        ts_after = _parse_ts(curr.get("at", ""))
+
+        if ts_before is None or ts_after is None:
+            continue
+
+        gap = (ts_after - ts_before).total_seconds()
+
+        if gap < gap_threshold:
+            continue
+
+        seq_continuous = (seq_after - seq_before) == 1
+        category = _classify_gap(gap, seq_continuous)
+
+        stall = Stall(
+            seq_before=seq_before,
+            seq_after=seq_after,
+            gap_seconds=gap,
+            timestamp=curr.get("at", ""),
+            category=category,
+            seq_continuous=seq_continuous,
+        )
+        report.stalls.append(stall)
+        report.total_gap_seconds += gap
+
+    return report
+
+
+def classify_from_file(
+    path: str | Path,
+    gap_threshold: float = 30.0,
+) -> StallReport:
+    """Load a strokes.jsonl file and classify its stalls.
+
+    Reads the file line by line, parsing each JSON object. Skips
+    malformed lines silently (the log is append-only and occasionally
+    has partial writes at the tail).
+    """
+    path = Path(path)
+    if not path.exists():
+        return StallReport()
+
+    strokes: list[dict] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            strokes.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+
+    return classify_strokes(strokes, gap_threshold=gap_threshold)
+
+
+def summarize(report: StallReport) -> str:
+    """One-line human-readable summary of a stall report."""
+    if report.stall_count == 0:
+        return f"no stalls in {report.stroke_count} strokes"
+
+    cats = report.category_counts
+    parts = [f"{count} {cat}" for cat, count in sorted(cats.items())]
+    longest = report.longest_stall
+    longest_str = ""
+    if longest:
+        longest_str = f", longest: {longest.gap_seconds:.0f}s ({longest.category})"
+
+    return (
+        f"{report.stall_count} stalls in {report.stroke_count} strokes "
+        f"({', '.join(parts)}), "
+        f"uptime {report.uptime_fraction:.1%}"
+        f"{longest_str}"
+    )
