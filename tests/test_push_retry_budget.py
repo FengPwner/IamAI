@@ -54,36 +54,36 @@ class TestRecordAndCount(unittest.TestCase):
     def test_single_failure(self):
         b = PushRetryBudget(max_retries=3)
         b.record_attempt(success=False, error="timeout", now=_now())
-        self.assertEqual(b.failures_in_window(), 1)
-        self.assertEqual(b.remaining(), 2)
-        self.assertTrue(b.can_retry())
+        self.assertEqual(b.failures_in_window(now=_now()), 1)
+        self.assertEqual(b.remaining(now=_now()), 2)
+        self.assertTrue(b.can_retry(now=_now()))
 
     def test_exhausted(self):
         b = PushRetryBudget(max_retries=2)
         b.record_attempt(success=False, error="e1", now=_now())
         b.record_attempt(success=False, error="e2", now=_now())
-        self.assertEqual(b.failures_in_window(), 2)
-        self.assertEqual(b.remaining(), 0)
-        self.assertFalse(b.can_retry())
+        self.assertEqual(b.failures_in_window(now=_now()), 2)
+        self.assertEqual(b.remaining(now=_now()), 0)
+        self.assertFalse(b.can_retry(now=_now()))
 
     def test_success_does_not_count_against_budget(self):
         b = PushRetryBudget(max_retries=2)
         b.record_attempt(success=True, now=_now())
         b.record_attempt(success=True, now=_now())
         b.record_attempt(success=True, now=_now())
-        self.assertEqual(b.failures_in_window(), 0)
-        self.assertEqual(b.successes_in_window(), 3)
-        self.assertEqual(b.remaining(), 2)
-        self.assertTrue(b.can_retry())
+        self.assertEqual(b.failures_in_window(now=_now()), 0)
+        self.assertEqual(b.successes_in_window(now=_now()), 3)
+        self.assertEqual(b.remaining(now=_now()), 2)
+        self.assertTrue(b.can_retry(now=_now()))
 
     def test_mixed_attempts(self):
         b = PushRetryBudget(max_retries=5)
         b.record_attempt(success=False, error="e1", now=_now())
         b.record_attempt(success=True, now=_now())
         b.record_attempt(success=False, error="e2", now=_now())
-        self.assertEqual(b.failures_in_window(), 2)
-        self.assertEqual(b.successes_in_window(), 1)
-        self.assertEqual(b.remaining(), 3)
+        self.assertEqual(b.failures_in_window(now=_now()), 2)
+        self.assertEqual(b.successes_in_window(now=_now()), 1)
+        self.assertEqual(b.remaining(now=_now()), 3)
 
 
 class TestSlidingWindow(unittest.TestCase):
