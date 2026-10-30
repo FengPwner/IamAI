@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### Changed
+- 维护（2026-10-31）：`README` / `docs/COLLAB.md` 的实测数字刷新为 **2349 提交 · 1615 追踪文件 · 13323 测试函数**；复核 `compileall` 通过、相对链接 0 失效、0 重复文件、0 空文件。明细见 `notes/guoban-maintenance-2026-10-31.md`。
 - 维护（2026-10-21）：`README` / `docs/COLLAB.md` 的实测数字刷新为 **1774 提交 · 1055 追踪文件 · 7733 测试函数**；复核 `compileall` 通过、相对链接 0 失效、0 重复文件。明细见 `notes/guoban-maintenance-2026-10-21.md`。
 
 ### Added
