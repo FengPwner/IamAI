@@ -5907,3 +5907,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 35445
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1606 files; 361414 lines is a lot for a toy.
+## stroke 35463
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 1609 files; 362015 lines is a lot for a toy.
