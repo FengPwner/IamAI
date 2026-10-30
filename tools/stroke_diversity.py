@@ -1,149 +1,183 @@
-#!/usr/bin/env python3
-"""stroke_diversity.py — measure how evenly strokes spread across kinds.
+"""Stroke diversity — measure how evenly stroke kinds are distributed.
 
-The writer targets six kinds (devlog, garden, metrics, note, snippet,
-thought) in roughly equal proportions. In practice, writer restarts,
-stash conflicts, and category-specific failures can skew the distribution:
-one kind pulls ahead while another silently starves.
+A healthy repo has strokes spread across multiple categories
+(thought, note, snippet, devlog, garden, metrics, etc.).  When the
+writer fixates on one kind, content quality degrades even if
+throughput stays high.
 
-This tool computes a simple imbalance score:
-  - perfect balance → 0.0
-  - all strokes in one kind → 1.0
+This module answers one question: *how imbalanced is the recent
+stroke distribution?*
 
-An imbalance above 0.4 over a large window usually means one kind's
-generator is broken or the round-robin scheduler is skipping a slot.
+===========  ============================================================
+verdict      meaning
+===========  ============================================================
+balanced     kinds are roughly equally represented
+mild-skew    one or two kinds slightly over-represented
+noticeable   clear bias — worth investigating why
+starved      nearly all strokes are one kind — content is collapsing
+===========  ============================================================
 
-Usage:
-    python3 tools/stroke_diversity.py [--window 100]
-    python3 tools/stroke_diversity.py --json
+Design goals:
+
+1. **Pure Python** — no git, no external deps.
+2. **Windowed** — only looks at the most recent N strokes (default 100).
+3. **Shannon entropy** — provides an information-theoretic complement
+   to the simple imbalance score.
+4. **Forgiving** — malformed JSONL lines are skipped, not raised.
+
+Usage::
+
+    from tools import stroke_diversity as sd
+
+    strokes = sd.load_recent_strokes("data/strokes.jsonl", window=100)
+    score = sd.compute_imbalance(strokes)
+    label = sd.classify_imbalance(score)
+    entropy = sd.compute_entropy(strokes)
+    print(f"{label} (score={score:.2f}, H={entropy:.2f} bits)")
 """
 
-import argparse
+from __future__ import annotations
+
 import json
 import math
-import sys
-from collections import Counter
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parent.parent
-STROKES_PATH = REPO / "data" / "strokes.jsonl"
+# The canonical set of stroke kinds the writer should be cycling through.
 DEFAULT_KINDS = ("devlog", "garden", "metrics", "note", "snippet", "thought")
 
+# Threshold boundaries for classify_imbalance.
+_THRESHOLDS = [
+    (0.10, "balanced"),
+    (0.25, "mild-skew"),
+    (0.40, "noticeable"),
+]
+_FALLBACK_LABEL = "starved"
 
-def load_recent_strokes(path: Path, window: int) -> list[dict]:
-    """Load the last `window` strokes from the JSONL file.
-
-    Reads from the tail to avoid loading the entire file for large histories.
-    """
-    if not path.exists():
-        return []
-    lines = path.read_text(encoding="utf-8").strip().splitlines()
-    tail = lines[-window:] if len(lines) > window else lines
-    strokes = []
-    for line in tail:
-        try:
-            strokes.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return strokes
+# Module-level default path — monkeypatch-friendly for tests.
+STROKES_PATH = Path("data/strokes.jsonl")
 
 
-def compute_imbalance(strokes: list[dict], expected_kinds: tuple[str, ...] = DEFAULT_KINDS) -> float:
-    """Compute imbalance score in [0, 1].
+def compute_imbalance(strokes: list[dict]) -> float:
+    """Return an imbalance score in [0, 1] for a list of strokes.
 
-    Uses normalized deviation from uniform distribution:
-      imbalance = sum(|observed_i - expected_i|) / (2 * n)
-    where expected_i = n / k for each kind.
+    0 = perfectly balanced across all DEFAULT_KINDS.
+    1 = every stroke belongs to a single kind.
 
-    Returns 0.0 for perfect balance, approaches 1.0 for maximum skew.
-    Returns 0.0 if there are no strokes (vacuously balanced).
+    The score is the sum of absolute deviations from the expected
+    uniform count, normalised so that the worst case (all strokes
+    in one kind) equals 1.
+
+    Empty input returns 0.0 by convention.
     """
     if not strokes:
         return 0.0
 
-    counts = Counter(s.get("kind", "unknown") for s in strokes)
+    k = len(DEFAULT_KINDS)
     n = len(strokes)
-    k = len(expected_kinds)
-    expected = n / k
 
-    deviation = sum(abs(counts.get(kind, 0) - expected) for kind in expected_kinds)
-    # Normalize: max deviation is 2*n*(k-1)/k when all strokes land in one kind
-    max_deviation = 2 * n * (k - 1) / k
+    counts: dict[str, int] = {kind: 0 for kind in DEFAULT_KINDS}
+    for s in strokes:
+        kind = s.get("kind", "")
+        if kind in counts:
+            counts[kind] += 1
+
+    expected = n / k
+    deviation = sum(abs(c - expected) for c in counts.values())
+
+    # Maximum deviation occurs when all strokes fall in one kind:
+    # that kind deviates by n - n/k, the other k-1 kinds each by n/k.
+    max_deviation = (n - expected) + (k - 1) * expected  # = n*(k-1)*2/k  simplified
     if max_deviation == 0:
         return 0.0
-    return round(deviation / max_deviation, 4)
+
+    return deviation / max_deviation
 
 
-def compute_entropy(strokes: list[dict], expected_kinds: tuple[str, ...] = DEFAULT_KINDS) -> float:
-    """Compute Shannon entropy of the kind distribution (in bits).
+def compute_entropy(strokes: list[dict]) -> float:
+    """Shannon entropy of the stroke kind distribution (in bits).
 
-    Maximum entropy = log2(k) when perfectly balanced.
-    Minimum entropy = 0 when all strokes are one kind.
+    Only counts kinds present in DEFAULT_KINDS.  Zero-entropy kinds
+    (not present in the data) are excluded from the sum, so a
+    two-kind 50/50 split gives exactly 1.0 bit.
+
+    Empty input returns 0.0.
     """
     if not strokes:
         return 0.0
 
-    counts = Counter(s.get("kind", "unknown") for s in strokes)
     n = len(strokes)
+    counts: dict[str, int] = {kind: 0 for kind in DEFAULT_KINDS}
+    for s in strokes:
+        kind = s.get("kind", "")
+        if kind in counts:
+            counts[kind] += 1
+
+    # Count only the strokes that matched a known kind
+    matched = sum(counts.values())
+    if matched == 0:
+        return 0.0
+
     entropy = 0.0
-    for kind in expected_kinds:
-        c = counts.get(kind, 0)
+    for c in counts.values():
         if c > 0:
-            p = c / n
+            p = c / matched
             entropy -= p * math.log2(p)
-    return round(entropy, 4)
+
+    return entropy
 
 
 def classify_imbalance(score: float) -> str:
-    """Human-readable label for the imbalance score."""
-    if score < 0.1:
-        return "balanced"
-    elif score < 0.25:
-        return "mild-skew"
-    elif score < 0.4:
-        return "noticeable"
-    else:
-        return "starved"
+    """Map an imbalance score to a human-readable label.
+
+    Parameters
+    ----------
+    score:
+        Value in [0, 1] from ``compute_imbalance``.
+
+    Returns
+    -------
+    One of ``"balanced"``, ``"mild-skew"``, ``"noticeable"``,
+    or ``"starved"``.
+    """
+    for threshold, label in _THRESHOLDS:
+        if score < threshold:
+            return label
+    return _FALLBACK_LABEL
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Measure stroke kind diversity")
-    parser.add_argument("--window", type=int, default=100,
-                        help="Number of recent strokes to analyze (default: 100)")
-    parser.add_argument("--json", action="store_true",
-                        help="Output as JSON")
-    args = parser.parse_args()
+def load_recent_strokes(path: Path | str, window: int = 100) -> list[dict]:
+    """Load the last *window* strokes from a JSONL file.
 
-    strokes = load_recent_strokes(STROKES_PATH, args.window)
-    if not strokes:
-        if args.json:
-            print(json.dumps({"error": "no strokes found"}))
-        else:
-            print("no strokes found", file=sys.stderr)
-        sys.exit(1)
+    Reads the entire file and returns the tail.  For very large files
+    a seek-from-end strategy would be better, but strokes.jsonl is
+    typically under 50k lines — cheap enough to read linearly.
 
-    counts = Counter(s.get("kind", "unknown") for s in strokes)
-    imbalance = compute_imbalance(strokes)
-    entropy = compute_entropy(strokes)
-    label = classify_imbalance(imbalance)
+    Malformed lines are silently skipped.
 
-    result = {
-        "window": len(strokes),
-        "imbalance": imbalance,
-        "entropy_bits": entropy,
-        "max_entropy": round(math.log2(len(DEFAULT_KINDS)), 4),
-        "classification": label,
-        "counts": dict(sorted(counts.items())),
-    }
+    Parameters
+    ----------
+    path:
+        Path to a JSONL file of stroke records.
+    window:
+        Maximum number of recent strokes to return.
 
-    if args.json:
-        print(json.dumps(result, indent=2))
-    else:
-        print(f"stroke diversity: {label} (imbalance={imbalance}, entropy={entropy}/{result['max_entropy']} bits)")
-        for kind, count in sorted(counts.items()):
-            pct = round(count / len(strokes) * 100, 1)
-            print(f"  {kind:10s} {count:5d}  ({pct}%)")
+    Returns
+    -------
+    List of parsed stroke dicts (most recent last).
+    """
+    path = Path(path)
+    if not path.exists():
+        return []
 
+    strokes: list[dict] = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                strokes.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
 
-if __name__ == "__main__":
-    main()
+    return strokes[-window:]

@@ -1,206 +1,178 @@
-"""Tests for iamai.commit_message_quality — commit message scoring.
+#!/usr/bin/env python3
+"""Tests for commit_message_quality.py — the four-dimension scorer."""
 
-Each test isolates one rule so that a regression in scoring logic
-points directly at the broken check rather than at an opaque total.
-"""
+import sys
+import os
 
-import pytest
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
 
-from iamai.commit_message_quality import (
+from commit_message_quality import (
+    _length_score,
+    _verb_score,
+    _object_score,
+    _context_score,
     score_message,
-    score_history,
-    _check_length,
-    _check_capitalization,
-    _check_trailing_period,
-    _check_imperative,
-    _check_vague,
+    score_recent,
 )
 
 
-# --- Length ---
+# ── length_score ─────────────────────────────────────────────────────
 
 
-class TestLength:
-    def test_normal_subject_passes(self):
-        assert _check_length("add retry_budget snippet (11 tests)") == []
-
-    def test_exactly_72_chars_passes(self):
-        subject = "a" * 72
-        assert _check_length(subject) == []
-
-    def test_over_72_chars_fails(self):
-        subject = "a" * 73
-        assert _check_length(subject) == ["too_long"]
-
-    def test_very_short_fails(self):
-        assert _check_length("ab") == ["too_short"]
-
-    def test_empty_passes_length_check(self):
-        # Empty is caught by other checks, not length.
-        assert _check_length("") == ["too_short"]
+def test_length_short_is_zero():
+    assert _length_score("fix") == 0.0
 
 
-# --- Capitalization ---
+def test_length_medium_scales():
+    score = _length_score("refactor the push gate to check remote drift")
+    assert 0.0 < score < 1.0
 
 
-class TestCapitalization:
-    def test_lowercase_start_ok(self):
-        assert _check_capitalization("add feature") == []
-
-    def test_uppercase_start_ok(self):
-        assert _check_capitalization("Add feature") == []
-
-    def test_digit_start_fails(self):
-        assert _check_capitalization("3rd attempt") == ["non_alpha_start"]
-
-    def test_symbol_start_fails(self):
-        assert _check_capitalization("!fix") == ["non_alpha_start"]
-
-    def test_empty_fails(self):
-        assert _check_capitalization("") == ["empty"]
+def test_length_long_is_one():
+    msg = "a" * 60
+    assert _length_score(msg) == 1.0
 
 
-# --- Trailing Period ---
+def test_length_boundary_ten():
+    assert _length_score("a" * 10) == 0.0
 
 
-class TestTrailingPeriod:
-    def test_no_period_passes(self):
-        assert _check_trailing_period("add feature") == []
-
-    def test_period_fails(self):
-        assert _check_trailing_period("add feature.") == ["trailing_period"]
-
-    def test_trailing_whitespace_then_period(self):
-        assert _check_trailing_period("add feature.  ") == ["trailing_period"]
+def test_length_boundary_fifty():
+    assert _length_score("a" * 50) == 1.0
 
 
-# --- Imperative Mood ---
+# ── verb_score ───────────────────────────────────────────────────────
 
 
-class TestImperative:
-    def test_imperative_add(self):
-        assert _check_imperative("add") == []
-
-    def test_imperative_fix(self):
-        # "fix" as first word is fine (imperative); "fix" as entire
-        # subject is caught by _check_vague, not here.
-        assert _check_imperative("fix") == []
-
-    def test_past_tense_fixed(self):
-        assert _check_imperative("fixed") == ["past_tense"]
-
-    def test_past_tense_updated(self):
-        assert _check_imperative("updated") == ["past_tense"]
-
-    def test_gerund_fixing(self):
-        assert _check_imperative("fixing") == ["gerund"]
-
-    def test_gerund_adding(self):
-        assert _check_imperative("adding") == ["gerund"]
-
-    def test_unrelated_word_passes(self):
-        assert _check_imperative("refactor") == []
+def test_verb_strong_first_word():
+    assert _verb_score("add heartbeat module for writer liveness") == 1.0
 
 
-# --- Vague Subjects ---
+def test_verb_conventional_prefix():
+    assert _verb_score("feat: add stroke dedup gate") == 1.0
 
 
-class TestVague:
-    def test_vague_update(self):
-        assert _check_vague("update") == ["vague"]
-
-    def test_vague_wip(self):
-        assert _check_vague("WIP") == ["vague"]
-
-    def test_vague_fix(self):
-        assert _check_vague("fix") == ["vague"]
-
-    def test_specific_passes(self):
-        assert _check_vague("fix push race in batch loop") == []
-
-    def test_vague_case_insensitive(self):
-        assert _check_vague("Update") == ["vague"]
+def test_verb_second_word_scope():
+    score = _verb_score("guoban: fix push race in batch committer")
+    assert score == 0.7
 
 
-# --- Composite score_message ---
+def test_verb_weak_returns_low():
+    score = _verb_score("update stuff")
+    # "update" is in STRONG_VERBS so it should still score reasonably
+    assert score > 0.0
 
 
-class TestScoreMessage:
-    def test_perfect_message(self):
-        result = score_message("add commit_message_quality module with tests")
-        assert result["score"] == 100
-        assert result["issues"] == []
-
-    def test_typical_good_message(self):
-        result = score_message("caretaker visit 80: add retry_budget snippet (11 tests)")
-        assert result["score"] >= 80
-
-    def test_past_tense_penalty(self):
-        result = score_message("Fixed the bug in writer loop")
-        assert "past_tense" in result["issues"]
-        assert result["score"] <= 80
-
-    def test_vague_message_heavily_penalized(self):
-        result = score_message("update")
-        # "update" is vague and too short (6 chars) → both fire
-        # Wait, 6 chars is fine for length. Just vague.
-        assert "vague" in result["issues"]
-        assert result["score"] <= 80
-
-    def test_terrible_message(self):
-        result = score_message("Fixed stuff.")
-        # past_tense + trailing_period = -40; "Fixed stuff." is not
-        # in the vague set (that checks exact single words).
-        assert result["score"] <= 60
-        assert "past_tense" in result["issues"]
-        assert "trailing_period" in result["issues"]
-
-    def test_empty_message(self):
-        result = score_message("")
-        assert result["score"] == 0
-        assert "empty" in result["issues"]
-
-    def test_multiline_extracts_subject(self):
-        msg = "add feature X\n\nThis is the body of the commit message."
-        result = score_message(msg)
-        assert result["subject"] == "add feature X"
-
-    def test_too_long_subject(self):
-        result = score_message("a" * 80)
-        assert "too_long" in result["issues"]
+def test_verb_no_verb_at_all():
+    score = _verb_score("blah blah blah")
+    assert score <= 0.2
 
 
-# --- Batch scoring (score_history) ---
+def test_verb_empty_message():
+    assert _verb_score("") == 0.0
 
 
-class TestScoreHistory:
-    def test_empty_batch(self):
-        result = score_history([])
-        assert result["mean_score"] == 0
-        assert result["total"] == 0
+# ── object_score ─────────────────────────────────────────────────────
 
-    def test_uniform_good_batch(self):
-        messages = [
-            "add feature X",
-            "fix push race condition",
-            "refactor batch loop for clarity",
-        ]
-        result = score_history(messages)
-        assert result["mean_score"] >= 80
-        assert result["total"] == 3
 
-    def test_mixed_batch_tracks_issues(self):
-        messages = [
-            "add feature X",       # good
-            "Fixed stuff.",         # bad
-            "update",               # vague
-        ]
-        result = score_history(messages)
-        assert result["total"] == 3
-        assert "past_tense" in result["issues_count"]
-        assert "vague" in result["issues_count"]
+def test_object_with_file_path():
+    assert _object_score("fix push_gate.py to handle remote drift") == 1.0
 
-    def test_worst_message_identified(self):
-        messages = ["add feature X", "Fixed stuff."]
-        result = score_history(messages)
-        assert result["worst"]["subject"] == "Fixed stuff."
+
+def test_object_with_backticks():
+    assert _object_score("refactor `commit_batch` interval logic") == 1.0
+
+
+def test_object_compound_name():
+    score = _object_score("add push-readiness probe")
+    assert score >= 0.8
+
+
+def test_object_vague_short():
+    assert _object_score("misc stuff") == 0.0
+
+
+def test_object_multi_word():
+    score = _object_score("refactor the heartbeat decay tracker module")
+    assert score >= 0.6
+
+
+# ── context_score ────────────────────────────────────────────────────
+
+
+def test_context_with_scope_and_reason():
+    msg = "feat(writer): add heartbeat because silent death was undetected"
+    score = _context_score(msg)
+    assert score >= 0.7
+
+
+def test_context_multi_clause():
+    msg = "fix push lag, reduce batch interval, add retry backoff"
+    score = _context_score(msg)
+    assert score >= 0.3
+
+
+def test_context_bare():
+    assert _context_score("fix") == 0.0
+
+
+def test_context_only_reason():
+    score = _context_score("add retry so the push survives transient failures")
+    assert score >= 0.3
+
+
+# ── score_message composite ──────────────────────────────────────────
+
+
+def test_composite_strong_message():
+    msg = "feat(push): add pre-push sync to prevent race conditions when remote diverges"
+    s = score_message("abc1234", msg)
+    assert s.composite >= 0.7
+
+
+def test_composite_weak_message():
+    s = score_message("abc1234", "fix")
+    assert s.composite < 0.4
+
+
+def test_composite_medium_message():
+    s = score_message("abc1234", "refactor commit batch interval logic")
+    assert 0.3 <= s.composite <= 0.8
+
+
+def test_score_message_fields():
+    s = score_message("deadbeef", "add test")
+    assert s.hash == "deadbeef"
+    assert s.message == "add test"
+    assert isinstance(s.composite, float)
+
+
+# ── score_recent (integration, skipped if no git) ───────────────────
+
+
+def test_score_recent_returns_list():
+    """Should return a list (possibly empty if not in a git repo)."""
+    result = score_recent(count=5)
+    assert isinstance(result, list)
+
+
+# ── entry point ──────────────────────────────────────────────────────
+
+
+if __name__ == "__main__":
+    passed = 0
+    failed = 0
+    for name, fn in sorted(globals().items()):
+        if not name.startswith("test_") or not callable(fn):
+            continue
+        try:
+            fn()
+            passed += 1
+        except AssertionError as e:
+            print(f"FAIL: {name}: {e}")
+            failed += 1
+        except Exception as e:
+            print(f"ERROR: {name}: {e}")
+            failed += 1
+    print(f"\n{passed} passed, {failed} failed")
+    sys.exit(1 if failed else 0)

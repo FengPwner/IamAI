@@ -1,194 +1,302 @@
-"""Measure how quickly a writer produces its first stroke after restart.
+"""restart_warmup — measure post-restart recovery latency.
 
-A writer that takes 30 s to warm up is fine; one that takes 5 min is
-sick.  This module records every (restart, first-stroke) pair so we can
-track cold-start latency over time and spot degradation.
+After a process restart, there is a *warmup* period before the writer
+produces its first stroke.  This module measures that gap and classifies
+recovery quality.
 
-Events are appended to ``data/restart_warmup.jsonl``.  Each line is a
-JSON object:
+The warmup model:
 
-==============  ========================================================
-key             meaning
-==============  ========================================================
-writer          writer identity (e.g. ``"qwen"``)
-event           ``"restart"`` | ``"first_stroke"``
-ts              ISO-8601 timestamp
-pid             process id (may be ``null``)
-stroke_seq      stroke sequence number (``null`` for restart events)
-==============  ========================================================
+- ``restart`` event: process was started (PID assigned).
+- ``first_stroke`` event: writer produced its first output.
+- Latency = time between the two events.
+- Quality classification:
 
-The ``warmup_report`` function pairs each restart with its next
-first-stroke and computes latency statistics.
+============  ==============================================
+quality       meaning
+============  ==============================================
+instant       < 5 s — negligible disruption
+fast          5–30 s — normal startup
+normal        30–120 s — acceptable, some init overhead
+slow          120–600 s — concerning, may indicate issues
+degraded      > 600 s — restart took longer than 10 min
+============  ==============================================
 
-Usage::
+Trend analysis (over the last N samples):
 
-    from iamai.restart_warmup import record_restart, record_first_stroke, warmup_report
+- ``improving``: warmup times are getting shorter
+- ``stable``: warmup times are roughly constant
+- ``degrading``: warmup times are getting longer
 
-    record_restart(repo, writer="qwen", pid=1411)
-    # ... writer produces first stroke ...
-    record_first_stroke(repo, writer="qwen", pid=1411, stroke_seq=12468)
+Public API::
 
-    report = warmup_report(repo, writer="qwen")
-    print(report["pairs"])          # e.g. 42
-    print(report["mean_seconds"])   # e.g. 8.3
-    print(report["p95_seconds"])    # e.g. 24.1
-    print(report["max_seconds"])    # e.g. 312.0
-    print(report["slow_count"])     # pairs > 60 s
+    from iamai.restart_warmup import RestartWarmup
+
+    w = RestartWarmup()
+    w.record_restart(ts=1000.0, pid=42)
+    w.record_first_stroke(ts=1012.0, pid=42)
+    w.last_latency()            # 12.0
+    w.quality()                 # "fast"
+    w.trend(window=10)          # "stable"
+    w.summary()                 # human-readable one-liner
+
+Design:
+
+- Pure Python, no subprocess, no filesystem side-effects.
+- All inputs are arguments (testable without mocking).
+- Frozen dataclass reports — immutable snapshots.
+- Ring buffer caps memory at ``DEFAULT_BUFFER_SIZE`` samples.
 """
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-
-LEDGER = "data/restart_warmup.jsonl"
-
-# Threshold (seconds) above which a warmup is considered "slow".
-SLOW_THRESHOLD_SEC = 60.0
+from collections import deque
+from dataclasses import dataclass, field
+from typing import Deque, Dict, List, Optional, Tuple
 
 
-def ledger_path(repo: Path | str) -> Path:
-    return Path(repo) / LEDGER
+# Thresholds in seconds for quality classification
+THRESHOLD_INSTANT: float = 5.0
+THRESHOLD_FAST: float = 30.0
+THRESHOLD_NORMAL: float = 120.0
+THRESHOLD_SLOW: float = 600.0
+
+DEFAULT_BUFFER_SIZE: int = 500  # max warmup samples kept
 
 
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
+@dataclass(frozen=True)
+class WarmupSample:
+    """A single restart→first_stroke measurement."""
+    restart_ts: float
+    stroke_ts: float
+    pid: Optional[int] = None
+
+    @property
+    def latency(self) -> float:
+        """Warmup latency in seconds."""
+        return self.stroke_ts - self.restart_ts
 
 
-def _append(repo: Path | str, record: Dict[str, Any]) -> Dict[str, Any]:
-    path = ledger_path(repo)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
-    return record
+@dataclass(frozen=True)
+class WarmupReport:
+    """Immutable snapshot of warmup statistics."""
+    samples: int
+    last_latency_s: Optional[float]
+    mean_latency_s: Optional[float]
+    median_latency_s: Optional[float]
+    max_latency_s: Optional[float]
+    min_latency_s: Optional[float]
+    quality: str
+    trend: str
+
+    def one_liner(self) -> str:
+        if self.samples == 0:
+            return "no warmup data"
+        return (
+            f"warmup: {self.quality} "
+            f"(last={self.last_latency_s:.1f}s, "
+            f"mean={self.mean_latency_s:.1f}s, "
+            f"n={self.samples}, trend={self.trend})"
+        )
 
 
-def record_restart(
-    repo: Path | str,
-    writer: str,
-    pid: Optional[int] = None,
-    ts: Optional[datetime] = None,
-) -> Dict[str, Any]:
-    """Record a writer restart event."""
-    record = {
-        "writer": writer,
-        "event": "restart",
-        "ts": (ts or _now()).isoformat(),
-        "pid": pid,
-        "stroke_seq": None,
-    }
-    return _append(repo, record)
+class RestartWarmup:
+    """Track and classify post-restart warmup latency."""
 
+    def __init__(self, buffer_size: int = DEFAULT_BUFFER_SIZE) -> None:
+        self._buffer: Deque[WarmupSample] = deque(maxlen=buffer_size)
+        self._pending_restart: Dict[int, float] = {}  # pid -> restart_ts
+        self._last_restart_ts: Optional[float] = None  # for pid-less matching
 
-def record_first_stroke(
-    repo: Path | str,
-    writer: str,
-    pid: Optional[int] = None,
-    stroke_seq: Optional[int] = None,
-    ts: Optional[datetime] = None,
-) -> Dict[str, Any]:
-    """Record the first stroke produced after a restart."""
-    record = {
-        "writer": writer,
-        "event": "first_stroke",
-        "ts": (ts or _now()).isoformat(),
-        "pid": pid,
-        "stroke_seq": stroke_seq,
-    }
-    return _append(repo, record)
+    # ── recording ──────────────────────────────────────────────
 
+    def record_restart(self, ts: float, pid: Optional[int] = None) -> None:
+        """Record a restart event."""
+        if pid is not None:
+            self._pending_restart[pid] = ts
+        self._last_restart_ts = ts
 
-def read_events(repo: Path | str, writer: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Read all warmup events, optionally filtered by writer."""
-    path = ledger_path(repo)
-    if not path.exists():
-        return []
-    events: List[Dict[str, Any]] = []
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                obj = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if writer and obj.get("writer") != writer:
-                continue
-            events.append(obj)
-    return events
+    def record_first_stroke(
+        self, ts: float, pid: Optional[int] = None
+    ) -> Optional[WarmupSample]:
+        """Record a first_stroke event; returns the matched sample or None."""
+        restart_ts: Optional[float] = None
 
+        if pid is not None and pid in self._pending_restart:
+            restart_ts = self._pending_restart.pop(pid)
+        elif self._last_restart_ts is not None:
+            restart_ts = self._last_restart_ts
+            self._last_restart_ts = None
 
-def _pair_events(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Match each restart with its next first_stroke, compute latency."""
-    pairs: List[Dict[str, Any]] = []
-    pending_restart: Optional[Dict[str, Any]] = None
+        if restart_ts is None:
+            return None
 
-    for ev in events:
-        if ev["event"] == "restart":
-            pending_restart = ev
-        elif ev["event"] == "first_stroke" and pending_restart is not None:
-            restart_ts = datetime.fromisoformat(pending_restart["ts"])
-            stroke_ts = datetime.fromisoformat(ev["ts"])
-            delta = (stroke_ts - restart_ts).total_seconds()
-            pairs.append({
-                "restart_ts": pending_restart["ts"],
-                "first_stroke_ts": ev["ts"],
-                "latency_sec": max(delta, 0.0),
-                "restart_pid": pending_restart.get("pid"),
-                "stroke_pid": ev.get("pid"),
-                "stroke_seq": ev.get("stroke_seq"),
-            })
-            pending_restart = None  # consumed
+        if ts < restart_ts:
+            return None  # stroke before restart — clock skew, ignore
 
-    return pairs
+        sample = WarmupSample(
+            restart_ts=restart_ts,
+            stroke_ts=ts,
+            pid=pid,
+        )
+        self._buffer.append(sample)
+        return sample
 
+    def add_sample(
+        self,
+        restart_ts: float,
+        stroke_ts: float,
+        pid: Optional[int] = None,
+    ) -> WarmupSample:
+        """Directly add a pre-matched sample (for bulk imports)."""
+        sample = WarmupSample(
+            restart_ts=restart_ts,
+            stroke_ts=stroke_ts,
+            pid=pid,
+        )
+        self._buffer.append(sample)
+        return sample
 
-def _percentile(values: List[float], pct: float) -> float:
-    """Simple nearest-rank percentile on a sorted list."""
-    if not values:
-        return 0.0
-    s = sorted(values)
-    k = max(0, min(len(s) - 1, int(len(s) * pct / 100.0)))
-    return s[k]
+    # ── queries ────────────────────────────────────────────────
 
+    def sample_count(self) -> int:
+        return len(self._buffer)
 
-def warmup_report(
-    repo: Path | str,
-    writer: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Compute warmup latency statistics from the ledger.
+    def last_latency(self) -> Optional[float]:
+        """Latency of the most recent warmup sample."""
+        if not self._buffer:
+            return None
+        return self._buffer[-1].latency
 
-    Returns a dict with keys: ``pairs`` (count), ``mean_seconds``,
-    ``p50_seconds``, ``p95_seconds``, ``max_seconds``, ``slow_count``,
-    ``slow_threshold_sec``, and ``last_latency_sec`` (most recent pair).
-    """
-    events = read_events(repo, writer=writer)
-    pairs = _pair_events(events)
-    latencies = [p["latency_sec"] for p in pairs]
+    def quality(self) -> str:
+        """Classify the most recent warmup latency."""
+        lat = self.last_latency()
+        if lat is None:
+            return "unknown"
+        return classify_quality(lat)
 
-    if not latencies:
+    def trend(self, window: int = 10) -> str:
+        """Analyse warmup trend over the last *window* samples.
+
+        Uses linear regression slope on latencies:
+        - slope < -1.0 → improving
+        - slope > +1.0 → degrading
+        - otherwise    → stable
+        """
+        n = min(window, len(self._buffer))
+        if n < 3:
+            return "insufficient_data"
+
+        latencies = [s.latency for s in list(self._buffer)[-n:]]
+        slope = _linear_slope(latencies)
+
+        if slope < -1.0:
+            return "improving"
+        elif slope > 1.0:
+            return "degrading"
+        return "stable"
+
+    def statistics(self) -> Dict:
+        """Return summary statistics dict."""
+        if not self._buffer:
+            return {
+                "samples": 0,
+                "mean": None,
+                "median": None,
+                "min": None,
+                "max": None,
+            }
+        latencies = sorted(s.latency for s in self._buffer)
+        n = len(latencies)
         return {
-            "pairs": 0,
-            "mean_seconds": 0.0,
-            "p50_seconds": 0.0,
-            "p95_seconds": 0.0,
-            "max_seconds": 0.0,
-            "slow_count": 0,
-            "slow_threshold_sec": SLOW_THRESHOLD_SEC,
-            "last_latency_sec": None,
+            "samples": n,
+            "mean": sum(latencies) / n,
+            "median": _median_sorted(latencies),
+            "min": latencies[0],
+            "max": latencies[-1],
         }
 
-    slow = sum(1 for v in latencies if v > SLOW_THRESHOLD_SEC)
-    return {
-        "pairs": len(latencies),
-        "mean_seconds": round(sum(latencies) / len(latencies), 2),
-        "p50_seconds": round(_percentile(latencies, 50), 2),
-        "p95_seconds": round(_percentile(latencies, 95), 2),
-        "max_seconds": round(max(latencies), 2),
-        "slow_count": slow,
-        "slow_threshold_sec": SLOW_THRESHOLD_SEC,
-        "last_latency_sec": round(latencies[-1], 2),
-    }
+    def report(self) -> WarmupReport:
+        """Generate an immutable snapshot report."""
+        stats = self.statistics()
+        return WarmupReport(
+            samples=stats["samples"],
+            last_latency_s=self.last_latency(),
+            mean_latency_s=stats["mean"],
+            median_latency_s=stats["median"],
+            max_latency_s=stats["max"],
+            min_latency_s=stats["min"],
+            quality=self.quality(),
+            trend=self.trend(),
+        )
+
+    def summary(self) -> str:
+        """Human-readable one-liner."""
+        return self.report().one_liner()
+
+    # ── bulk helpers ───────────────────────────────────────────
+
+    def ingest_events(self, events: List[Dict]) -> int:
+        """Ingest a list of event dicts with keys ``event``, ``ts``, ``pid``.
+
+        Returns the number of matched warmup pairs added.
+        """
+        added = 0
+        for ev in events:
+            event_type = ev.get("event", "")
+            ts = float(ev.get("ts", 0))
+            pid = ev.get("pid")
+
+            if event_type == "restart":
+                self.record_restart(ts=ts, pid=pid)
+            elif event_type == "first_stroke":
+                sample = self.record_first_stroke(ts=ts, pid=pid)
+                if sample is not None:
+                    added += 1
+        return added
+
+    def clear(self) -> None:
+        """Reset all state."""
+        self._buffer.clear()
+        self._pending_restart.clear()
+        self._last_restart_ts = None
+
+
+# ── module-level helpers ───────────────────────────────────────
+
+
+def classify_quality(latency_s: float) -> str:
+    """Classify a single latency value."""
+    if latency_s < THRESHOLD_INSTANT:
+        return "instant"
+    if latency_s < THRESHOLD_FAST:
+        return "fast"
+    if latency_s < THRESHOLD_NORMAL:
+        return "normal"
+    if latency_s < THRESHOLD_SLOW:
+        return "slow"
+    return "degraded"
+
+
+def _linear_slope(values: List[float]) -> float:
+    """Simple OLS slope over integer x-axis [0, 1, 2, …]."""
+    n = len(values)
+    if n < 2:
+        return 0.0
+    x_mean = (n - 1) / 2.0
+    y_mean = sum(values) / n
+    numerator = sum((i - x_mean) * (v - y_mean) for i, v in enumerate(values))
+    denominator = sum((i - x_mean) ** 2 for i in range(n))
+    if denominator == 0:
+        return 0.0
+    return numerator / denominator
+
+
+def _median_sorted(sorted_values: List[float]) -> float:
+    """Median of an already-sorted list."""
+    n = len(sorted_values)
+    if n == 0:
+        return 0.0
+    mid = n // 2
+    if n % 2 == 0:
+        return (sorted_values[mid - 1] + sorted_values[mid]) / 2.0
+    return sorted_values[mid]

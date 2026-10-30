@@ -10,3 +10,4 @@ venv/
 .DS_Store
 .git-creds
 writer.log
+logs/

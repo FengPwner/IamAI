@@ -16,6 +16,11 @@ import re
 import subprocess
 from pathlib import Path
 
+try:
+    from iamai.ssh_key_rescue import rescue_env as _ssh_rescue_env
+except ImportError:
+    _ssh_rescue_env = lambda: dict(__import__('os').environ)
+
 STATE_PATH_RE = re.compile(r"^data/[^/]*state[^/]*\.json$")
 
 FORCE_FLAGS = ("--force", "--force-with-lease", "-f", "--no-verify")
@@ -27,7 +32,8 @@ def _run(repo: Path, *args: str) -> tuple[int, str]:
     for flag in FORCE_FLAGS:
         if flag in args:
             raise ValueError(f"refusing to run a destructive git command: {joined}")
-    proc = subprocess.run(cmd, cwd=repo, capture_output=True, text=True, timeout=120)
+    proc = subprocess.run(cmd, cwd=repo, capture_output=True, text=True, timeout=120,
+                          env=_ssh_rescue_env())
     return proc.returncode, (proc.stdout + proc.stderr).strip()
 
 

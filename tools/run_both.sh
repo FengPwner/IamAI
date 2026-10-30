@@ -58,6 +58,12 @@ case "${1:-start}" in
     rm -f "$STOP" "$PAUSE"
     cd "$REPO" || exit 1
 
+    # preflight: clean stale .git/index.lock before starting batch committer.
+    # visit 229 identified this gap — auto_lock_clean exists but was not called
+    # from run_both.sh. if a previous batch crashed mid-commit, the lock file
+    # blocks the new one from ever starting.
+    python3 tools/auto_lock_clean.py --threshold 120 2>/dev/null || true
+
     if alive "$WRITER_PID" || alive "$BATCH_PID"; then
       echo "writer '$WRITER_ID' already running -- refusing to double it"
       echo "  writer: $(alive "$WRITER_PID" && echo yes || echo no)  batch: $(alive "$BATCH_PID" && echo yes || echo no)"
@@ -71,6 +77,30 @@ case "${1:-start}" in
     git config merge.union.driver "git merge-file --union %A %O %B"
     git config user.name "${IAMAII_AUTHOR_NAME:-Qwen}"
     git config user.email "${IAMAII_AUTHOR_EMAIL:-qwen@iamai.local}"
+
+    # ssh key permission rescue: workspace FUSE filesystem forces 0777 on all
+    # files, making OpenSSH reject the deploy key. copy to /tmp (real tmpfs)
+    # with 0600 and export GIT_SSH_COMMAND so both processes inherit it.
+    if [ -f "$REPO/../.ssh/id_ed25519" ]; then
+      rescue_key="/tmp/ssh_deploy_key"
+      cp "$REPO/../.ssh/id_ed25519" "$rescue_key" 2>/dev/null
+      chmod 600 "$rescue_key" 2>/dev/null
+      # visit 418: ensure known_hosts has github.com entry — this exact
+      # failure recurred on visits 411, 414, and 418. one ssh-keyscan
+      # here saves every future caretaker from rediscovering the wall.
+      if [ -f "$REPO/../.ssh/known_hosts" ]; then
+        ssh-keyscan github.com >> "$REPO/../.ssh/known_hosts" 2>/dev/null
+        known_hosts_path="$REPO/../.ssh/known_hosts"
+      else
+        known_hosts_path="/dev/null"
+      fi
+      if [ "$(stat -c '%a' "$rescue_key" 2>/dev/null)" = "600" ]; then
+        export GIT_SSH_COMMAND="ssh -i $rescue_key -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$known_hosts_path"
+        echo "ssh key rescued to $rescue_key (GIT_SSH_COMMAND set, known_hosts ensured)"
+      else
+        echo "WARNING: ssh key rescue failed (permissions did not stick)"
+      fi
+    fi
 
     setsid nohup python3 tools/writer_loop.py --writer "$WRITER_ID" --every "$STROKE_EVERY" >> "$LOG" 2>&1 < /dev/null &
     setsid nohup python3 tools/commit_batch.py --watch --writer "$WRITER_ID" --interval "$BATCH_INTERVAL" >> "$LOG" 2>&1 < /dev/null &

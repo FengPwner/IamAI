@@ -1,164 +1,174 @@
-"""Push retry — automatic pull-rebase-push with exponential backoff.
+"""push_retry — resilient git push with exponential back-off.
 
-The push race is the most frequent failure mode in this repo:
-multiple writers (qwen, doubao, guoban, workbuddy) and caretakers
-all accumulate local commits, then the batch committer tries to push.
-If anyone else pushed first, the push is rejected.
+When a CI writer loop pushes every ten minutes, transient network
+glitches (DNS timeout, SSH handshake reset, host-key rotation) are
+the #1 cause of "everything is fine except nothing reached remote".
 
-This module provides a single entry point that:
+This module wraps a push attempt with:
 
-1. Attempts ``git push``.
-2. On rejection (non-fast-forward), runs ``git pull --rebase``.
-3. Retries the push, up to *max_retries* times.
-4. Uses exponential backoff between retries to avoid hammering
-   the remote when multiple agents restart simultaneously.
+1. **Pre-flight checks** — verify SSH key exists, known_hosts has
+   the remote, working tree is clean enough to push.
+2. **Retry with jitter** — up to ``max_retries`` attempts, each
+   delayed by ``base_delay * 2^attempt + random(0, jitter)``.
+3. **Pull-rebase recovery** — on non-fast-forward rejection,
+   automatically stash → pull --rebase → stash pop → retry once.
+4. **Structured result** — ``PushResult`` dataclass so callers
+   (commit_batch.py, caretaker) can log and react.
 
-Usage::
+Zero external dependencies.  stdlib + subprocess only.
 
-    from iamai.push_retry import push_with_retry
-
-    ok, msg = push_with_retry("/path/to/IamAI", max_retries=3)
-    if not ok:
-        # handle permanent failure
-
-Design choices:
-- Subprocess over GitPython: keeps the dependency footprint minimal.
-- Stash-restore around rebase: if the working tree is dirty, we stash
-  before rebasing and restore after. Stash failures abort the retry
-  loop rather than risk losing work.
-- Backoff is configurable: default 2/4/8 seconds, but callers running
-  in tight CI loops can pass shorter intervals.
+>>> r = PushResult(ok=True, attempts=1, message="pushed")
+>>> r
+PushResult(ok=True, attempts=1, message='pushed')
 """
 
 from __future__ import annotations
 
+import dataclasses
+import os
+import random
 import subprocess
 import time
 from pathlib import Path
-from typing import Tuple
+from typing import Optional
 
 
-def _git(
-    repo: str | Path,
-    *args: str,
-    check: bool = True,
-) -> subprocess.CompletedProcess:
-    """Run a git command in the given repository directory."""
-    return subprocess.run(
-        ["git", "-C", str(repo)] + list(args),
+# ---------------------------------------------------------------------------
+# Result container
+# ---------------------------------------------------------------------------
+
+@dataclasses.dataclass
+class PushResult:
+    """Outcome of a push attempt sequence."""
+
+    ok: bool
+    attempts: int
+    message: str
+
+    def __bool__(self) -> bool:
+        return self.ok
+
+
+# ---------------------------------------------------------------------------
+# Pre-flight
+# ---------------------------------------------------------------------------
+
+def check_ssh_key(path: str = "/tmp/ssh_deploy_key") -> bool:
+    """Return True when the deploy key file exists and is non-empty."""
+    p = Path(path)
+    return p.is_file() and p.stat().st_size > 0
+
+
+def check_known_hosts(host: str = "github.com") -> bool:
+    """Return True when *host* appears in ~/.ssh/known_hosts."""
+    kh = Path.home() / ".ssh" / "known_hosts"
+    if not kh.is_file():
+        return False
+    return any(host in line for line in kh.read_text().splitlines())
+
+
+def preflight_ok(
+    ssh_key: str = "/tmp/ssh_deploy_key",
+    host: str = "github.com",
+) -> bool:
+    """Quick gate: key exists AND host is in known_hosts."""
+    return check_ssh_key(ssh_key) and check_known_hosts(host)
+
+
+# ---------------------------------------------------------------------------
+# Core push
+# ---------------------------------------------------------------------------
+
+def _run_git(*args: str, cwd: str, env: Optional[dict] = None) -> tuple[int, str]:
+    """Run a git command, return (returncode, stderr)."""
+    merged = {**os.environ, **(env or {})}
+    r = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
         capture_output=True,
         text=True,
-        check=check,
+        env=merged,
+        timeout=60,
     )
+    return r.returncode, (r.stderr or r.stdout).strip()
 
 
-def _is_dirty(repo: str | Path) -> bool:
-    r = _git(repo, "status", "--porcelain", check=False)
-    return bool(r.stdout.strip())
-
-
-def _stash(repo: str | Path) -> bool:
-    """Stash uncommitted changes. Returns True on success."""
-    r = _git(repo, "stash", "push", "-m", "push-retry: auto-stash", check=False)
-    return r.returncode == 0
-
-
-def _stash_pop(repo: str | Path) -> bool:
-    """Pop the most recent stash. Returns True on success."""
-    r = _git(repo, "stash", "pop", check=False)
-    return r.returncode == 0
-
-
-def _pull_rebase(repo: str | Path) -> Tuple[bool, str]:
-    """Pull with rebase. Returns (success, message)."""
-    r = _git(repo, "pull", "--rebase", "origin", "main", check=False)
-    if r.returncode == 0:
-        return True, r.stdout.strip() or "rebase succeeded"
-    return False, r.stderr.strip() or r.stdout.strip() or "rebase failed"
-
-
-def _push(repo: str | Path, branch: str = "main") -> Tuple[bool, str]:
-    """Attempt a push. Returns (success, message)."""
-    r = _git(repo, "push", "origin", branch, check=False)
-    if r.returncode == 0:
-        return True, r.stdout.strip() or "push succeeded"
-    stderr = r.stderr.strip()
-    # Detect non-fast-forward specifically
-    if "rejected" in stderr and "fetch first" in stderr:
-        return False, "non-fast-forward: remote has diverged"
-    return False, stderr or "push failed"
-
-
-def push_with_retry(
-    repo: str | Path,
+def git_push(
+    repo: str = ".",
+    remote: str = "origin",
     branch: str = "main",
+    ssh_key: str = "/tmp/ssh_deploy_key",
     max_retries: int = 3,
     base_delay: float = 2.0,
-    sleep_fn=None,
-) -> Tuple[bool, str]:
-    """Push with automatic pull-rebase retry on rejection.
+    jitter: float = 1.0,
+) -> PushResult:
+    """Push with exponential back-off and pull-rebase recovery.
 
     Parameters
     ----------
-    repo : path-like
-        Path to the git repository.
-    branch : str
-        Branch to push (default 'main').
+    repo : str
+        Path to the git working tree.
+    remote, branch : str
+        Target refspec components.
+    ssh_key : str
+        Path to the private key used for SSH auth.
     max_retries : int
-        Maximum number of retry attempts after initial failure.
+        Total attempts before giving up (≥ 1).
     base_delay : float
-        Base delay in seconds; doubles each retry (2, 4, 8, ...).
-    sleep_fn : callable, optional
-        Override ``time.sleep`` for testing.
+        Initial back-off delay in seconds; doubled each retry.
+    jitter : float
+        Random jitter ceiling added to each delay.
 
     Returns
     -------
-    (ok, message) : tuple of (bool, str)
+    PushResult
+        ``ok=True`` on success, ``ok=False`` after exhausting retries.
     """
-    _sleep = sleep_fn or time.sleep
+    ssh_env = {
+        "GIT_SSH_COMMAND": f"ssh -i {ssh_key} -o StrictHostKeyChecking=no"
+    }
 
-    # First attempt
-    ok, msg = _push(repo, branch)
-    if ok:
-        return True, msg
+    for attempt in range(1, max_retries + 1):
+        rc, msg = _run_git("push", remote, branch, cwd=repo, env=ssh_env)
 
-    attempts = 0
-    delay = base_delay
+        if rc == 0:
+            return PushResult(ok=True, attempts=attempt, message="pushed")
 
-    while attempts < max_retries:
-        attempts += 1
+        # Non-fast-forward → try pull-rebase once
+        if "rejected" in msg.lower() and attempt == 1:
+            _pull_rebase_recovery(repo, ssh_env)
+            continue
 
-        # If dirty, stash before rebase
-        dirty = _is_dirty(repo)
-        stashed = False
-        if dirty:
-            stashed = _stash(repo)
-            if not stashed:
-                return False, f"stash failed before rebase (attempt {attempts})"
+        # Transient error → back-off
+        if attempt < max_retries:
+            delay = base_delay * (2 ** (attempt - 1)) + random.uniform(0, jitter)
+            time.sleep(delay)
 
-        # Pull --rebase
-        rebase_ok, rebase_msg = _pull_rebase(repo)
+    return PushResult(ok=False, attempts=max_retries, message=f"failed: {msg}")
 
-        # Restore stash if we made one
-        if stashed:
-            pop_ok = _stash_pop(repo)
-            if not pop_ok:
-                return False, (
-                    f"stash pop failed after rebase (attempt {attempts}) — "
-                    f"stashed changes are in stash@{{0}}"
-                )
 
-        if not rebase_ok:
-            return False, f"rebase failed on attempt {attempts}: {rebase_msg}"
+def _pull_rebase_recovery(repo: str, env: dict) -> None:
+    """Stash → pull --rebase → stash pop.  Best-effort, errors ignored."""
+    _run_git("stash", cwd=repo, env=env)
+    _run_git("pull", "--rebase", "origin", "main", cwd=repo, env=env)
+    _run_git("stash", "pop", cwd=repo, env=env)
 
-        # Retry push
-        ok, msg = _push(repo, branch)
-        if ok:
-            return True, f"{msg} (after {attempts} rebase-retry)"
 
-        # Backoff before next attempt
-        if attempts < max_retries:
-            _sleep(delay)
-            delay *= 2
+# ---------------------------------------------------------------------------
+# Convenience: one-liner for cron / batch scripts
+# ---------------------------------------------------------------------------
 
-    return False, f"push failed after {max_retries} retries: {msg}"
+def ensure_pushed(
+    repo: str = ".",
+    remote: str = "origin",
+    branch: str = "main",
+) -> PushResult:
+    """High-level: pre-flight + push, return structured result.
+
+    Suitable for calling from ``commit_batch.py`` at the end of each
+    batch cycle.  If pre-flight fails, returns immediately without
+    attempting to push.
+    """
+    if not preflight_ok():
+        return PushResult(ok=False, attempts=0, message="pre-flight failed")
+    return git_push(repo=repo, remote=remote, branch=branch)

@@ -1,158 +1,150 @@
-"""commit_age.py — measure how long uncommitted changes wait before being committed.
+"""commit_age — how stale are unpushed commits?
 
-When the batch committer dies between caretaker visits, the writer keeps
-producing strokes that accumulate as uncommitted modifications. These
-changes are locally visible but invisible to anyone reading the remote.
-The "age" of an uncommitted file (time since last modification) quantifies
-how stale the remote's view of the repo has become.
+When the push pipeline breaks (SSH key rotated, network flap, force-push
+protection), local commits pile up.  The *age* of the oldest unpushed
+commit is a direct measure of data-loss exposure: if the disk dies,
+everything older than the last successful push is gone.
 
-This module provides:
-  - file_age_seconds(path): seconds since a file was last modified
-  - uncommitted_ages(repo_path): dict mapping modified file paths to their ages
-  - commit_age_summary(repo_path): summary with min/max/mean/median ages
+Metrics
+-------
 
-Usage:
-    python3 -c "from iamai.commit_age import commit_age_summary; print(commit_age_summary())"
+``commit_age()`` returns a dict with:
+
+- ``oldest_unpushed_seconds``: seconds since the oldest unpushed commit
+- ``unpushed_count``: total number of unpushed commits
+- ``risk``: one of ``"low"``, ``"moderate"``, ``"high"``, ``"critical"``
+
+Risk tiers
+==========
+
+========  =================================================
+risk      meaning
+========  =================================================
+low       < 1 hour of unpushed work — normal batch window
+moderate  1–6 hours — push is overdue, investigate
+high      6–24 hours — significant data-loss exposure
+critical  > 24 hours — stop everything and fix the push
+========  =================================================
+
+Usage::
+
+    from iamai.commit_age import commit_age, commit_age_summary
+
+    info = commit_age()
+    # {"oldest_unpushed_seconds": 3600, "unpushed_count": 12, "risk": "moderate"}
+
+    print(commit_age_summary())
+    # "12 unpushed commits, oldest 1h0m ago — moderate risk"
 """
 
 from __future__ import annotations
 
 import subprocess
-import time
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
-REPO = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
-
-def file_age_seconds(path: str | Path, now: Optional[float] = None) -> float:
-    """Return seconds since `path` was last modified.
-
-    Args:
-        path: File path to check.
-        now: Override for current time (for testing). Defaults to time.time().
-
-    Returns:
-        Seconds since last modification.
-
-    Raises:
-        FileNotFoundError: If path does not exist.
-    """
-    p = Path(path)
-    if not p.exists():
-        raise FileNotFoundError(f"path does not exist: {p}")
-    if now is None:
-        now = time.time()
-    return now - p.stat().st_mtime
+# Risk thresholds in seconds
+TIER_MODERATE = 3600      # 1 hour
+TIER_HIGH = 21600         # 6 hours
+TIER_CRITICAL = 86400     # 24 hours
 
 
-def _get_modified_files(repo_path: str | Path) -> list[str]:
-    """Return list of modified file paths (staged + unstaged) relative to repo root."""
-    result = subprocess.run(
-        ["git", "status", "--porcelain", "-uno"],
-        capture_output=True,
-        text=True,
-        cwd=str(repo_path),
-    )
-    if result.returncode != 0:
+def _git_unpushed_shas() -> list[str]:
+    """Return SHAs of commits not yet on origin/main."""
+    try:
+        raw = subprocess.run(
+            ["git", "log", "origin/main..HEAD", "--format=%H"],
+            capture_output=True, text=True, cwd=REPO_ROOT,
+        ).stdout.strip()
+    except Exception:
         return []
-    files = []
-    for line in result.stdout.strip().splitlines():
-        if len(line) >= 4:
-            # porcelain format: "XY filename"
-            filepath = line[3:].strip()
-            # handle renames: "R  old -> new"
-            if " -> " in filepath:
-                filepath = filepath.split(" -> ")[1]
-            files.append(filepath)
-    return files
+    return [s for s in raw.splitlines() if s]
 
 
-def uncommitted_ages(
-    repo_path: str | Path | None = None,
-    now: Optional[float] = None,
-) -> dict[str, float]:
-    """Return ages (seconds) of all uncommitted modified files.
+def _git_oldest_unpushed_ts(shas: list[str]) -> datetime | None:
+    """Get the timestamp of the oldest unpushed commit."""
+    if not shas:
+        return None
+    oldest_sha = shas[-1]  # git log outputs newest first
+    try:
+        raw = subprocess.run(
+            ["git", "log", "-1", "--format=%aI", oldest_sha],
+            capture_output=True, text=True, cwd=REPO_ROOT,
+        ).stdout.strip()
+        return datetime.fromisoformat(raw)
+    except Exception:
+        return None
 
-    Args:
-        repo_path: Path to the git repository root. Defaults to REPO.
-        now: Override for current time (for testing).
 
-    Returns:
-        Dict mapping relative file paths to their age in seconds.
-        Empty dict if repo is clean or not a git repo.
+def _classify_risk(seconds: float) -> str:
+    """Classify risk based on age of oldest unpushed commit."""
+    if seconds < TIER_MODERATE:
+        return "low"
+    if seconds < TIER_HIGH:
+        return "moderate"
+    if seconds < TIER_CRITICAL:
+        return "high"
+    return "critical"
+
+
+def commit_age() -> dict[str, Any]:
+    """Compute commit-age metrics for the current repo.
+
+    Returns a dict with keys: ``oldest_unpushed_seconds``,
+    ``unpushed_count``, ``risk``.  When there are no unpushed commits,
+    ``oldest_unpushed_seconds`` is 0 and ``risk`` is ``"low"``.
     """
-    if repo_path is None:
-        repo_path = REPO
-    repo_path = Path(repo_path)
-    if now is None:
-        now = time.time()
+    shas = _git_unpushed_shas()
+    count = len(shas)
 
-    modified = _get_modified_files(repo_path)
-    ages = {}
-    for rel_path in modified:
-        abs_path = repo_path / rel_path
-        try:
-            ages[rel_path] = now - abs_path.stat().st_mtime
-        except (FileNotFoundError, OSError):
-            # file may have been deleted between git status and stat
-            continue
-    return ages
-
-
-def commit_age_summary(
-    repo_path: str | Path | None = None,
-    now: Optional[float] = None,
-) -> dict:
-    """Return summary statistics for uncommitted file ages.
-
-    Returns:
-        Dict with keys: count, min_seconds, max_seconds, mean_seconds,
-        median_seconds, files (list of (path, age) sorted by age desc).
-        If no uncommitted changes, count=0 and all stats are 0.
-    """
-    ages = uncommitted_ages(repo_path, now)
-    if not ages:
+    if count == 0:
         return {
-            "count": 0,
-            "min_seconds": 0,
-            "max_seconds": 0,
-            "mean_seconds": 0,
-            "median_seconds": 0,
-            "files": [],
+            "oldest_unpushed_seconds": 0,
+            "unpushed_count": 0,
+            "risk": "low",
         }
 
-    values = list(ages.values())
-    values_sorted = sorted(ages.items(), key=lambda x: x[1], reverse=True)
+    oldest_ts = _git_oldest_unpushed_ts(shas)
+    if oldest_ts is None:
+        return {
+            "oldest_unpushed_seconds": -1,
+            "unpushed_count": count,
+            "risk": "high",  # can't determine age — assume bad
+        }
 
-    n = len(values)
-    mean_val = sum(values) / n
-    # median
-    sorted_vals = sorted(values)
-    if n % 2 == 1:
-        median_val = sorted_vals[n // 2]
-    else:
-        median_val = (sorted_vals[n // 2 - 1] + sorted_vals[n // 2]) / 2
+    now = datetime.now(timezone.utc)
+    age_seconds = (now - oldest_ts).total_seconds()
+    risk = _classify_risk(age_seconds)
 
     return {
-        "count": n,
-        "min_seconds": round(min(values), 2),
-        "max_seconds": round(max(values), 2),
-        "mean_seconds": round(mean_val, 2),
-        "median_seconds": round(median_val, 2),
-        "files": [(p, round(a, 2)) for p, a in values_sorted],
+        "oldest_unpushed_seconds": round(age_seconds, 1),
+        "unpushed_count": count,
+        "risk": risk,
     }
 
 
-if __name__ == "__main__":
-    summary = commit_age_summary()
-    if summary["count"] == 0:
-        print("no uncommitted changes")
+def commit_age_summary() -> str:
+    """One-line human summary of commit-age status."""
+    info = commit_age()
+    count = info["unpushed_count"]
+    risk = info["risk"]
+
+    if count == 0:
+        return "all commits pushed — low risk"
+
+    seconds = info["oldest_unpushed_seconds"]
+    if seconds < 0:
+        return f"{count} unpushed commits, age unknown — high risk"
+
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+
+    if hours > 0:
+        age_str = f"{hours}h{minutes}m"
     else:
-        print(f"{summary['count']} uncommitted files:")
-        print(f"  youngest: {summary['min_seconds']:.0f}s")
-        print(f"  oldest:   {summary['max_seconds']:.0f}s")
-        print(f"  mean:     {summary['mean_seconds']:.0f}s")
-        print(f"  median:   {summary['median_seconds']:.0f}s")
-        for path, age in summary["files"]:
-            print(f"  {age:7.0f}s  {path}")
+        age_str = f"{minutes}m"
+
+    return f"{count} unpushed commits, oldest {age_str} ago — {risk} risk"

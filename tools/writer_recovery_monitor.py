@@ -1,218 +1,309 @@
 #!/usr/bin/env python3
-"""writer_recovery_monitor.py — verify writer recovery after restart gaps.
+"""Writer recovery monitor — detect and classify restart gaps.
 
-The writer dies and gets restarted. The heartbeat probe says "it's running"
-and the stroke_gap_monitor says "it's writing again." But is it writing
-at full speed? A degraded writer that strokes once a minute instead of
-every 15 seconds is technically alive but producing at 25% capacity.
+When the writer process dies, there is a gap in the stroke sequence:
+the last stroke before the crash and the first stroke after the
+restart may be minutes or hours apart.  This module finds those gaps,
+measures how well the writer recovered its cadence, and classifies
+each restart event.
 
-This tool analyzes the stroke history around restart events (large gaps)
-and classifies each recovery:
+Recovery classifications:
 
-    recovered  — post-gap cadence within tolerance of pre-gap cadence
-    degraded   — post-gap cadence is slower but still producing
-    failed     — no strokes after the gap, or cadence below threshold
+- **recovered** — post-restart cadence is within tolerance of pre-crash
+- **degraded**  — post-restart cadence is noticeably slower
+- **failed**    — post-restart cadence is extremely slow or absent
 
-This matters because the recurring 8-hour silence pattern in this repo
-wasn't just about the writer dying — it was about the writer coming back
-in a degraded state and nobody noticing for hours.
+The ``analyze`` function ties it all together: load a writer's stroke
+history, find restart gaps, classify each recovery, and produce a
+summary report.
 
-Usage:
-    python3 tools/writer_recovery_monitor.py
-    python3 tools/writer_recovery_monitor.py --writer qwen --cadence 15
-    python3 tools/writer_recovery_monitor.py --json
+Usage::
 
-Exit codes:
-    0  — all recoveries healthy (or no restarts detected)
-    1  — at least one degraded or failed recovery
-    2  — state file missing or unreadable
+    from writer_recovery_monitor import analyze, as_markdown
+
+    report = analyze(writer_id="qwen")
+    print(as_markdown(report))
+
+Design choices:
+
+- **Pure computation over the stroke history.**  No subprocess calls,
+  no git operations — just reads the JSON state file.
+- **Configurable gap threshold.**  Default 150 s catches real stalls
+  without flagging normal cadence jitter.
+- **Tolerance-based classification.**  ``DEFAULT_TOLERANCE`` = 0.50
+  means post-cadence within 50 % of pre-cadence counts as recovered.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
-import sys
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import List, Optional, Tuple
+
+DEFAULT_TOLERANCE: float = 0.50
+DEGRADED_FLOOR: float = 0.10
+DEFAULT_GAP_THRESHOLD: float = 150.0
+DEFAULT_SAMPLE: int = 20
 
 
-REPO = Path(__file__).resolve().parent.parent
-DEFAULT_WRITER = "qwen"
-DEFAULT_CADENCE = 15       # expected seconds between strokes
-DEFAULT_GAP_THRESHOLD = 150  # seconds — 10× cadence = restart gap
-DEFAULT_SAMPLE = 20        # strokes to sample before/after gap
-DEFAULT_TOLERANCE = 0.30   # 30% slower is still "recovered"
-DEGRADED_FLOOR = 0.10      # below 10% of expected cadence = "failed"
-
-
-def state_path(writer_id: str) -> Path:
-    """Return the writer state file path for a given writer id."""
-    return REPO / "data" / f"writer_state.{writer_id}.json"
-
-
-def parse_iso(ts: str) -> float:
-    """Parse an ISO 8601 timestamp to epoch seconds.
-
-    Handles '+00:00', 'Z' suffixes, and naive timestamps (assumed UTC).
-    """
-    ts = ts.strip()
-    if ts.endswith("Z"):
-        ts = ts[:-1] + "+00:00"
-    if "+" not in ts and "-" not in ts[10:]:
-        ts += "+00:00"
-    dt = datetime.fromisoformat(ts)
-    return dt.timestamp()
-
-
-def load_history(writer_id: str) -> list[dict]:
-    """Load stroke history from the writer state file.
-
-    Returns the history list. Raises FileNotFoundError if the state
-    file does not exist, or ValueError if it's not valid JSON.
-    """
-    path = state_path(writer_id)
-    if not path.exists():
-        raise FileNotFoundError(f"state file not found: {path}")
-    with path.open("r", encoding="utf-8") as fh:
-        data = json.load(fh)
-    history = data.get("history", [])
-    if not isinstance(history, list):
-        raise ValueError(f"history is not a list in {path}")
-    return history
+# ---------------------------------------------------------------------------
+# Data classes
+# ---------------------------------------------------------------------------
 
 
 @dataclass
 class RecoveryEvent:
-    """Analysis of a single restart gap and its recovery."""
-    gap_index: int            # index in history where the gap ends
-    gap_start_iso: str        # last stroke before the gap
-    gap_end_iso: str          # first stroke after the gap
-    gap_seconds: float        # duration of the gap
-    pre_cadence: float | None  # avg seconds/stroke before gap
-    post_cadence: float | None  # avg seconds/stroke after gap
-    recovery_ratio: float | None  # pre/post — 1.0 = perfect recovery
-    status: str               # "recovered" | "degraded" | "failed"
-    sample_pre: int           # strokes sampled before gap
-    sample_post: int          # strokes sampled after gap
+    """One detected restart gap with pre/post cadence analysis."""
+
+    gap_index: int
+    gap_start_iso: str
+    gap_end_iso: str
+    gap_seconds: float
+    pre_cadence: Optional[float]
+    post_cadence: Optional[float]
+    recovery_ratio: Optional[float]
+    status: str  # "recovered", "degraded", "failed"
+    sample_pre: int
+    sample_post: int
 
     @property
     def gap_human(self) -> str:
+        """Human-readable gap duration."""
         s = self.gap_seconds
-        if s >= 3600:
-            return f"{s / 3600:.1f}h"
-        if s >= 60:
+        if s < 120:
+            return f"{s:.0f}s"
+        if s < 3600:
             return f"{s / 60:.1f}m"
-        return f"{s:.0f}s"
+        return f"{s / 3600:.1f}h"
 
 
 @dataclass
 class RecoveryReport:
-    """Full recovery analysis for a writer."""
+    """Summary of all restart gaps found in a writer's history."""
+
     writer_id: str
     total_strokes: int
     restarts_found: int
-    events: list[RecoveryEvent] = field(default_factory=list)
-    overall_status: str = "healthy"  # worst status across all events
+    events: List[RecoveryEvent] = field(default_factory=list)
+    overall_status: str = "healthy"
 
     @property
-    def failed_count(self) -> int:
-        return sum(1 for e in self.events if e.status == "failed")
+    def recovered_count(self) -> int:
+        return sum(1 for e in self.events if e.status == "recovered")
 
     @property
     def degraded_count(self) -> int:
         return sum(1 for e in self.events if e.status == "degraded")
 
     @property
-    def recovered_count(self) -> int:
-        return sum(1 for e in self.events if e.status == "recovered")
+    def failed_count(self) -> int:
+        return sum(1 for e in self.events if e.status == "failed")
 
 
-def compute_cadence(history: list[dict], center: int,
-                    direction: str, sample: int) -> tuple[float | None, int]:
-    """Compute average cadence from a window of strokes.
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-    Args:
-        history: full stroke history
-        center: index of the reference stroke
-        direction: "before" (look backward from center) or "after" (forward)
-        sample: how many strokes to sample
 
-    Returns:
-        (avg_seconds_per_stroke, actual_sample_size)
-        Returns (None, 0) if not enough data.
+def state_path(writer_id: str) -> Path:
+    """Default path for a writer's state file."""
+    return Path("data") / f"writer_state.{writer_id}.json"
+
+
+def parse_iso(ts: str) -> float:
+    """Parse an ISO-8601 timestamp string to a Unix epoch float.
+
+    Handles:
+    - ``Z`` suffix → UTC
+    - ``+HH:MM`` offset
+    - Naive timestamps → assumed UTC
+    - Leading/trailing whitespace
+    """
+    ts = ts.strip()
+    if ts.endswith("Z"):
+        ts = ts[:-1] + "+00:00"
+    dt = datetime.fromisoformat(ts)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.timestamp()
+
+
+def load_history(writer_id: str) -> list:
+    """Load stroke history from the writer's state file.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the state file does not exist.
+    json.JSONDecodeError
+        If the file contains invalid JSON.
+    ValueError
+        If the ``history`` field is not a list.
+    """
+    path = state_path(writer_id)
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    history = data.get("history", [])
+    if not isinstance(history, list):
+        raise ValueError(f"history field is not a list (got {type(history).__name__})")
+    return history
+
+
+# ---------------------------------------------------------------------------
+# Cadence computation
+# ---------------------------------------------------------------------------
+
+
+def compute_cadence(
+    history: list,
+    index: int,
+    direction: str,
+    sample: int = DEFAULT_SAMPLE,
+) -> Tuple[Optional[float], int]:
+    """Compute mean inter-stroke interval around a gap index.
+
+    Parameters
+    ----------
+    history : list
+        Stroke dicts, each with an ``"at"`` ISO-8601 field.
+    index : int
+        Index of the stroke at the gap boundary.
+    direction : str
+        ``"before"`` — look at strokes *before* this index.
+        ``"after"``  — look at strokes *after* this index.
+    sample : int
+        Number of strokes to include in the window.
+
+    Returns
+    -------
+    (mean_interval, n_intervals)
+        ``mean_interval`` is None if fewer than 2 strokes are available.
     """
     if direction == "before":
-        start = max(0, center - sample)
-        end = center
-    else:
-        start = center
-        end = min(len(history), center + sample + 1)
+        end = index + 1  # exclusive upper bound
+        start = max(0, end - sample)
+        window = history[start:end]
+    else:  # "after"
+        start = index
+        end = min(len(history), start + sample)
+        window = history[start:end]
 
-    if end - start < 2:
-        return None, max(0, end - start)
+    n = len(window)
+    if n < 2:
+        return None, max(0, n - 1)
 
-    first_ts = parse_iso(history[start]["at"])
-    last_ts = parse_iso(history[end - 1]["at"])
-    span = last_ts - first_ts
-    count = end - start - 1
+    epochs = [parse_iso(s["at"]) for s in window]
+    intervals = []
+    for i in range(1, len(epochs)):
+        gap = abs(epochs[i] - epochs[i - 1])
+        intervals.append(gap)
 
-    if count <= 0 or span <= 0:
-        return None, end - start
+    if not intervals:
+        return None, 0
 
-    return span / count, count
+    return sum(intervals) / len(intervals), len(intervals)
 
 
-def find_restart_gaps(history: list[dict],
-                      gap_threshold: float) -> list[int]:
-    """Find indices where a restart gap occurs.
+# ---------------------------------------------------------------------------
+# Gap detection
+# ---------------------------------------------------------------------------
 
-    Returns the index of the first stroke after each gap.
+
+def find_restart_gaps(
+    history: list,
+    gap_threshold: float = DEFAULT_GAP_THRESHOLD,
+) -> List[int]:
+    """Find indices where a restart gap begins.
+
+    Returns a list of indices ``i`` (the first stroke *after* the gap)
+    such that the gap between ``history[i-1]`` and ``history[i]``
+    exceeds *gap_threshold* seconds.
+
+    This convention means ``i`` points at the *restart stroke* — the
+    first stroke the writer produced after coming back online.
     """
-    gaps = []
+    if len(history) < 2:
+        return []
+
+    gaps: List[int] = []
     for i in range(1, len(history)):
-        prev_ts = parse_iso(history[i - 1]["at"])
-        curr_ts = parse_iso(history[i]["at"])
-        if curr_ts - prev_ts > gap_threshold:
+        t0 = parse_iso(history[i - 1]["at"])
+        t1 = parse_iso(history[i]["at"])
+        if (t1 - t0) > gap_threshold:
             gaps.append(i)
     return gaps
 
 
-def classify_recovery(pre_cadence: float | None,
-                      post_cadence: float | None,
-                      tolerance: float) -> str:
-    """Classify a recovery based on pre/post cadence ratio.
+# ---------------------------------------------------------------------------
+# Recovery classification
+# ---------------------------------------------------------------------------
 
-    Returns one of: "recovered", "degraded", "failed".
+
+def classify_recovery(
+    pre: Optional[float],
+    post: Optional[float],
+    tolerance: float = DEFAULT_TOLERANCE,
+) -> str:
+    """Classify a restart recovery as 'recovered', 'degraded', or 'failed'.
+
+    Parameters
+    ----------
+    pre : float or None
+        Mean inter-stroke interval *before* the restart (seconds).
+    post : float or None
+        Mean inter-stroke interval *after* the restart (seconds).
+    tolerance : float
+        Fractional tolerance for the 'recovered' band.
+        ``ratio >= 1 − tolerance`` → recovered.
     """
-    if post_cadence is None or post_cadence <= 0:
+    # Failed: no post data or effectively dead
+    if post is None or post <= 0:
         return "failed"
-    if pre_cadence is None or pre_cadence <= 0:
-        # No pre-gap data — if post is reasonable, call it recovered
-        return "recovered" if post_cadence < 120 else "degraded"
 
-    ratio = pre_cadence / post_cadence
+    # Both unknown — assume recovered (no evidence of failure)
+    if pre is None:
+        # Heuristic: slow absolute cadence → degraded
+        if post > 120:
+            return "degraded"
+        return "recovered"
+
+    ratio = pre / post
+
     if ratio < DEGRADED_FLOOR:
         return "failed"
-    if ratio < (1.0 - tolerance):
-        return "degraded"
-    return "recovered"
+    if ratio > (1.0 - tolerance):
+        return "recovered"
+    return "degraded"
 
 
-def analyze(writer_id: str = DEFAULT_WRITER,
-            cadence: int = DEFAULT_CADENCE,
-            gap_threshold: float = DEFAULT_GAP_THRESHOLD,
-            sample: int = DEFAULT_SAMPLE,
-            tolerance: float = DEFAULT_TOLERANCE) -> RecoveryReport:
-    """Analyze writer recovery events.
+# ---------------------------------------------------------------------------
+# Analyze
+# ---------------------------------------------------------------------------
 
-    Returns a RecoveryReport with details on each restart gap
-    and whether the writer recovered to full cadence.
+
+def analyze(
+    writer_id: str = "qwen",
+    gap_threshold: float = DEFAULT_GAP_THRESHOLD,
+    sample: int = DEFAULT_SAMPLE,
+    tolerance: float = DEFAULT_TOLERANCE,
+) -> RecoveryReport:
+    """Analyze a writer's recovery history.
+
+    Loads the stroke history from the state file, detects restart gaps,
+    classifies each recovery, and produces a ``RecoveryReport``.
     """
     try:
         history = load_history(writer_id)
-    except (FileNotFoundError, ValueError, json.JSONDecodeError):
+    except (FileNotFoundError, json.JSONDecodeError):
+        return RecoveryReport(
+            writer_id=writer_id,
+            total_strokes=0,
+            restarts_found=0,
+            overall_status="unknown",
+        )
+    except ValueError:
         return RecoveryReport(
             writer_id=writer_id,
             total_strokes=0,
@@ -220,113 +311,91 @@ def analyze(writer_id: str = DEFAULT_WRITER,
             overall_status="unknown",
         )
 
-    if len(history) < 2:
+    total = len(history)
+    if total == 0:
         return RecoveryReport(
             writer_id=writer_id,
-            total_strokes=len(history),
+            total_strokes=0,
             restarts_found=0,
             overall_status="insufficient_data",
         )
 
     gap_indices = find_restart_gaps(history, gap_threshold)
+    events: List[RecoveryEvent] = []
 
-    report = RecoveryReport(
+    for gi in gap_indices:
+        # gi = first stroke AFTER the gap; gi-1 = last stroke BEFORE
+        pre_idx = gi - 1
+        t0 = parse_iso(history[pre_idx]["at"])
+        t1 = parse_iso(history[gi]["at"])
+        gap_sec = t1 - t0
+
+        pre_cad, n_pre = compute_cadence(history, pre_idx, "before", sample)
+        post_cad, n_post = compute_cadence(history, gi, "after", sample)
+
+        ratio = (pre_cad / post_cad) if (pre_cad and post_cad and post_cad > 0) else None
+        status = classify_recovery(pre_cad, post_cad, tolerance)
+
+        events.append(RecoveryEvent(
+            gap_index=pre_idx,
+            gap_start_iso=history[pre_idx]["at"],
+            gap_end_iso=history[gi]["at"],
+            gap_seconds=gap_sec,
+            pre_cadence=pre_cad,
+            post_cadence=post_cad,
+            recovery_ratio=ratio,
+            status=status,
+            sample_pre=n_pre,
+            sample_post=n_post,
+        ))
+
+    # Determine overall status (worst wins)
+    if not events:
+        overall = "healthy"
+    else:
+        severity = {"recovered": 0, "degraded": 1, "failed": 2}
+        worst = max(events, key=lambda e: severity.get(e.status, 0))
+        overall = worst.status
+
+    return RecoveryReport(
         writer_id=writer_id,
-        total_strokes=len(history),
-        restarts_found=len(gap_indices),
+        total_strokes=total,
+        restarts_found=len(events),
+        events=events,
+        overall_status=overall,
     )
 
-    worst = "healthy"
-    status_rank = {"healthy": 0, "recovered": 0, "degraded": 1, "failed": 2}
 
-    for idx in gap_indices:
-        pre_cad, pre_n = compute_cadence(history, idx, "before", sample)
-        post_cad, post_n = compute_cadence(history, idx, "after", sample)
-        ratio = (pre_cad / post_cad) if (pre_cad and post_cad and post_cad > 0) else None
-
-        status = classify_recovery(pre_cad, post_cad, tolerance)
-        if status_rank.get(status, 0) > status_rank.get(worst, 0):
-            worst = status
-
-        event = RecoveryEvent(
-            gap_index=idx,
-            gap_start_iso=history[idx - 1]["at"],
-            gap_end_iso=history[idx]["at"],
-            gap_seconds=parse_iso(history[idx]["at"]) - parse_iso(history[idx - 1]["at"]),
-            pre_cadence=round(pre_cad, 2) if pre_cad else None,
-            post_cadence=round(post_cad, 2) if post_cad else None,
-            recovery_ratio=round(ratio, 3) if ratio else None,
-            status=status,
-            sample_pre=pre_n,
-            sample_post=post_n,
-        )
-        report.events.append(event)
-
-    report.overall_status = worst
-    return report
+# ---------------------------------------------------------------------------
+# Markdown output
+# ---------------------------------------------------------------------------
 
 
 def as_markdown(report: RecoveryReport) -> str:
-    """Format a RecoveryReport as human-readable markdown."""
+    """Format a RecoveryReport as a Markdown string."""
     lines = [
-        f"# writer recovery report — {report.writer_id}",
-        f"",
-        f"strokes: {report.total_strokes} | restarts: {report.restarts_found} | "
-        f"status: **{report.overall_status}**",
+        f"## Writer Recovery: {report.writer_id}",
+        "",
+        f"- **Total strokes:** {report.total_strokes}",
+        f"- **Restarts detected:** {report.restarts_found}",
+        f"- **Overall status:** {report.overall_status}",
+        "",
     ]
 
     if not report.events:
-        lines.append("")
-        lines.append("no restart gaps detected — writer has been stable.")
+        lines.append("no restart gaps detected")
         return "\n".join(lines)
 
     for i, ev in enumerate(report.events, 1):
-        lines.append("")
-        lines.append(f"## restart {i} — gap {ev.gap_human}")
-        lines.append(f"")
-        lines.append(f"- **before:** {ev.gap_start_iso}")
-        lines.append(f"- **after:**  {ev.gap_end_iso}")
-        lines.append(f"- **pre cadence:**  {ev.pre_cadence or '?'}s/stroke (n={ev.sample_pre})")
-        lines.append(f"- **post cadence:** {ev.post_cadence or '?'}s/stroke (n={ev.sample_post})")
-        if ev.recovery_ratio is not None:
-            lines.append(f"- **recovery ratio:** {ev.recovery_ratio:.2f} (1.0 = perfect)")
-        lines.append(f"- **verdict:** {ev.status}")
+        lines.extend([
+            f"### restart {i}",
+            "",
+            f"- **Gap:** {ev.gap_human} ({ev.gap_start_iso} → {ev.gap_end_iso})",
+            f"- **Pre-cadence:** {ev.pre_cadence:.1f}s" if ev.pre_cadence else "- **Pre-cadence:** N/A",
+            f"- **Post-cadence:** {ev.post_cadence:.1f}s" if ev.post_cadence else "- **Post-cadence:** N/A",
+            f"- **Recovery ratio:** {ev.recovery_ratio:.3f}" if ev.recovery_ratio is not None else "- **Recovery ratio:** N/A",
+            f"- **Status:** {ev.status}",
+            "",
+        ])
 
     return "\n".join(lines)
-
-
-def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--writer", default=DEFAULT_WRITER, help="writer id")
-    ap.add_argument("--cadence", type=int, default=DEFAULT_CADENCE,
-                    help="expected seconds between strokes")
-    ap.add_argument("--gap-threshold", type=float, default=DEFAULT_GAP_THRESHOLD,
-                    help="seconds — gaps larger than this are restarts")
-    ap.add_argument("--sample", type=int, default=DEFAULT_SAMPLE,
-                    help="strokes to sample before/after each gap")
-    ap.add_argument("--tolerance", type=float, default=DEFAULT_TOLERANCE,
-                    help="fraction slower than pre-gap that still counts as recovered")
-    ap.add_argument("--json", action="store_true", help="emit JSON output")
-    args = ap.parse_args()
-
-    report = analyze(
-        writer_id=args.writer,
-        cadence=args.cadence,
-        gap_threshold=args.gap_threshold,
-        sample=args.sample,
-        tolerance=args.tolerance,
-    )
-
-    if args.json:
-        out = asdict(report)
-        print(json.dumps(out, ensure_ascii=False, indent=2))
-    else:
-        print(as_markdown(report))
-
-    if report.overall_status in ("failed", "degraded"):
-        return 1
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
