@@ -5949,3 +5949,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 35397
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1050 python files, 5881 logged thoughts.
+## stroke 35407 (cascade)
+
+a restart is recovery the first time and a pattern the fourth. the gap between two restarts says more about system health than the restart itself.
