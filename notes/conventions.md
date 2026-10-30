@@ -5964,3 +5964,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 35475
 
 deleting a file is progress too, eventually. At this moment: commit 139: the count of times this repo was pushed, not the work done.
+## stroke 35481
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 5893 strokes written so far into 1614 files.
