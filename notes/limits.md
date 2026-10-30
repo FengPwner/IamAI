@@ -5876,3 +5876,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 35409
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1601 files; 360397 lines is a lot for a toy.
+## stroke 35433
+
+deleting a file is progress too, eventually. At this moment: 1054 python files, 5887 logged thoughts.
