@@ -46,10 +46,10 @@ class TestInit(unittest.TestCase):
 class TestRecordAndCount(unittest.TestCase):
     def test_empty_budget(self):
         b = PushRetryBudget()
-        self.assertEqual(b.failures_in_window(), 0)
-        self.assertEqual(b.successes_in_window(), 0)
-        self.assertEqual(b.remaining(), 5)
-        self.assertTrue(b.can_retry())
+        self.assertEqual(b.failures_in_window(now=_now()), 0)
+        self.assertEqual(b.successes_in_window(now=_now()), 0)
+        self.assertEqual(b.remaining(now=_now()), 5)
+        self.assertTrue(b.can_retry(now=_now()))
 
     def test_single_failure(self):
         b = PushRetryBudget(max_retries=3)

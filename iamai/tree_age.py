@@ -42,6 +42,7 @@ Design choices:
 
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -114,7 +115,9 @@ def directory_ages(
 
     ages: dict[str, float] = {}
 
-    for dirpath, dirnames, filenames in root.walk():
+    # os.walk, not Path.walk(): Path.walk() requires Python 3.12, the house
+    # runs 3.11.  os.walk is str/Path-agnostic and prunes via dirnames in place.
+    for dirpath, dirnames, filenames in os.walk(root):
         # Prune ignored directories.
         dirnames[:] = [d for d in dirnames if d not in _IGNORE]
 

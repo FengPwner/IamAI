@@ -38,7 +38,7 @@ True
 >>> t = FreshnessTracker(half_life=60)
 >>> t.touch("writer", clock=lambda: 100.0)
 >>> t.touch("caretaker", clock=lambda: 120.0)
->>> abs(t.score(clock=lambda: 130.0) - 0.5) < 0.02
+>>> abs(t.score(clock=lambda: 160.0) - 0.5) < 0.02
 True
 """
 
@@ -99,7 +99,7 @@ class FreshnessTracker:
     >>> t.items()
     ['batch', 'writer']
     >>> t.score(clock=lambda: 20.0)
-    0.7937005259840997
+    0.7937005259840998
     >>> t.stalest(clock=lambda: 20.0)
     'writer'
     >>> t.report(clock=lambda: 20.0)

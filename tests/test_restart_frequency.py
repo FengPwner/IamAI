@@ -168,12 +168,17 @@ class TestRecentRestarts:
             assert events == []
 
     def test_events_have_required_keys(self, tmp_path):
+        from datetime import datetime, timedelta
         log = tmp_path / "iamai-testwriter.log"
+        # time-relative fixtures (fixed dates rot as the calendar advances):
+        # two sessions >60s apart, both inside the 24h window
+        base = datetime.now() - timedelta(minutes=130)
+        b2 = datetime.now() - timedelta(minutes=5)
         lines = [
-            "2026-10-15 18:00:00 s1\n",
-            "2026-10-15 18:00:15 s2\n",
-            "2026-10-15 19:05:00 s3\n",
-            "2026-10-15 19:05:15 s4\n",
+            base.strftime("%Y-%m-%d %H:%M:%S") + " s1\n",
+            (base + timedelta(seconds=15)).strftime("%Y-%m-%d %H:%M:%S") + " s2\n",
+            b2.strftime("%Y-%m-%d %H:%M:%S") + " s3\n",
+            (b2 + timedelta(seconds=15)).strftime("%Y-%m-%d %H:%M:%S") + " s4\n",
         ]
         log.write_text("".join(lines))
         with patch("iamai.restart_frequency._LOG_DIR", tmp_path), \
@@ -187,10 +192,12 @@ class TestRecentRestarts:
                 assert "verdict" in ev
 
     def test_first_event_has_no_gap(self, tmp_path):
+        from datetime import datetime, timedelta
         log = tmp_path / "iamai-firstev.log"
+        base = datetime.now() - timedelta(minutes=70)
         lines = [
-            "2026-10-15 18:00:00 s1\n",
-            "2026-10-15 19:05:00 s2\n",
+            base.strftime("%Y-%m-%d %H:%M:%S") + " s1\n",
+            (base + timedelta(minutes=65)).strftime("%Y-%m-%d %H:%M:%S") + " s2\n",
         ]
         log.write_text("".join(lines))
         with patch("iamai.restart_frequency._LOG_DIR", tmp_path), \
@@ -238,14 +245,17 @@ class TestMeanTimeBetweenRestarts:
             assert result is None
 
     def test_two_events_returns_average(self, tmp_path):
+        from datetime import datetime, timedelta
         log = tmp_path / "iamai-twoev.log"
+        base = datetime.now() - timedelta(minutes=130)
+        b2 = datetime.now() - timedelta(minutes=5)
         lines = [
-            "2026-10-15 18:00:00 s1\n",
-            "2026-10-15 18:00:15 s2\n",
-            "2026-10-15 19:05:00 s3\n",
-            "2026-10-15 19:05:15 s4\n",
-            "2026-10-15 20:10:00 s5\n",
-            "2026-10-15 20:10:15 s6\n",
+            base.strftime("%Y-%m-%d %H:%M:%S") + " s1\n",
+            (base + timedelta(seconds=15)).strftime("%Y-%m-%d %H:%M:%S") + " s2\n",
+            b2.strftime("%Y-%m-%d %H:%M:%S") + " s3\n",
+            (b2 + timedelta(seconds=15)).strftime("%Y-%m-%d %H:%M:%S") + " s4\n",
+            (b2 + timedelta(minutes=65)).strftime("%Y-%m-%d %H:%M:%S") + " s5\n",
+            (b2 + timedelta(minutes=65, seconds=15)).strftime("%Y-%m-%d %H:%M:%S") + " s6\n",
         ]
         log.write_text("".join(lines))
         with patch("iamai.restart_frequency._LOG_DIR", tmp_path), \

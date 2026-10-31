@@ -121,7 +121,10 @@ def pool_diversity(
 
     if ratio < stuck_ratio or max_streak >= stuck_streak:
         verdict = "stuck"
-    elif ratio < 0.5 or max_streak >= 30:
+    elif ratio < 0.5:
+        # per the documented table: diverse has no streak limit, narrowing
+        # is purely the 0.2 <= ratio < 0.5 band (the hidden streak>=30
+        # clause contradicted both the docstring table and the test)
         verdict = "narrowing"
     else:
         verdict = "diverse"

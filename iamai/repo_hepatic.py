@@ -211,7 +211,8 @@ def detect_deprecated_api_usage(root: Path, py_files: List[Path]) -> ToxinSignal
             continue
         try:
             tree = ast.parse(source, filename=str(pyf))
-        except SyntaxError:
+        except (SyntaxError, ValueError):
+            # ValueError: binary / null-byte files are not parseable source
             continue
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -271,7 +272,8 @@ def detect_orphan_imports(root: Path, py_files: List[Path]) -> ToxinSignal:
             continue
         try:
             tree = ast.parse(source, filename=str(pyf))
-        except SyntaxError:
+        except (SyntaxError, ValueError):
+            # ValueError: binary / null-byte files are not parseable source
             continue
 
         imported_names: List[tuple] = []  # (name, lineno)
@@ -401,7 +403,8 @@ def detect_type_debt(root: Path, py_files: List[Path]) -> ToxinSignal:
             continue
         try:
             tree = ast.parse(source, filename=str(pyf))
-        except SyntaxError:
+        except (SyntaxError, ValueError):
+            # ValueError: binary / null-byte files are not parseable source
             continue
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -450,7 +453,8 @@ def detect_docstring_decay(root: Path, py_files: List[Path]) -> ToxinSignal:
             continue
         try:
             tree = ast.parse(source, filename=str(pyf))
-        except SyntaxError:
+        except (SyntaxError, ValueError):
+            # ValueError: binary / null-byte files are not parseable source
             continue
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):

@@ -150,15 +150,14 @@ class TestCheckRemoteUrl:
 # --- check_ssh_key_present ---
 
 class TestCheckSshKeyPresent:
-    @patch("push_blockage_analyzer.Path.exists")
+    @patch("push_blockage_analyzer.Path.exists", autospec=True)
     def test_key_found(self, mock_exists):
         # Simulate config file doesn't exist, but id_ed25519 does
-        def side_effect(self=None):
-            return True
-        mock_exists.return_value = True
+        # (selective mock: the old all-True mock made the module read a
+        # config that does not exist and crash with FileNotFoundError)
+        mock_exists.side_effect = lambda self: str(self).endswith("id_ed25519")
         result = check_ssh_key_present("/fake/repo")
-        # Either passed (key found) or failed (depends on path resolution)
-        assert isinstance(result.passed, bool)
+        assert result.passed is True
 
     def test_returns_push_check_result(self):
         result = check_ssh_key_present("/fake/repo")

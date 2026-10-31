@@ -76,8 +76,12 @@ class TestPlot:
 
     def test_sprout_at_planting_round(self):
         p = Plot(x=0, y=0, planted_at=5, growth=1)
-        assert p.stage(5) == 1
-        assert p.glyph(5) == ","
+        # module semantics (consistent with test_full_lifecycle):
+        # stage 0 = bare soil at planting, sprout (1) one growth-tick later
+        assert p.stage(5) == 0
+        assert p.glyph(5) == "."
+        assert p.stage(6) == 1
+        assert p.glyph(6) == ","
 
     def test_full_lifecycle(self):
         p = Plot(x=0, y=0, planted_at=0, growth=1)
@@ -91,11 +95,11 @@ class TestPlot:
 
     def test_growth_rate_slows_progression(self):
         p = Plot(x=0, y=0, planted_at=0, growth=3)
-        # stage advances one step per 3 rounds
-        assert p.stage(0) == 1  # just planted
-        assert p.stage(1) == 1  # still stage 1
-        assert p.stage(2) == 1
-        assert p.stage(3) == 2  # now stage 2
+        # stage advances one step per 3 rounds; planting round is bare soil
+        assert p.stage(0) == 0  # just planted (bare soil)
+        assert p.stage(1) == 0
+        assert p.stage(2) == 0
+        assert p.stage(3) == 1  # sprout after 3 rounds
 
     def test_glyphs_are_valid_plant_chars(self):
         p = Plot(x=0, y=0, planted_at=0, growth=1)
