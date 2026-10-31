@@ -107,10 +107,18 @@ def rescue_key(key_path: Optional[Path] = None) -> Dict[str, str]:
     os.chmod(str(RESCUE_KEY), 0o600)
 
     # Build the SSH command override.
+    # visit 438: use ~/.ssh/known_hosts instead of /dev/null — the latter
+    # meant every SSH connection treated github.com as a brand-new host,
+    # and if accept-new failed (network timing, DNS), the push died with
+    # "Host key verification failed". Using the system default known_hosts
+    # (populated by run_both.sh ssh-keyscan) gives SSH a real host key to
+    # verify against.
+    user_known_hosts = Path.home() / ".ssh" / "known_hosts"
+    user_known_hosts.parent.mkdir(parents=True, exist_ok=True)
     ssh_cmd = (
         f"ssh -i {RESCUE_KEY} "
         f"-o StrictHostKeyChecking=accept-new "
-        f"-o UserKnownHostsFile=/dev/null"
+        f"-o UserKnownHostsFile={user_known_hosts}"
     )
     return {"GIT_SSH_COMMAND": ssh_cmd}
 

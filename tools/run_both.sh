@@ -88,11 +88,17 @@ case "${1:-start}" in
       # visit 418: ensure known_hosts has github.com entry — this exact
       # failure recurred on visits 411, 414, and 418. one ssh-keyscan
       # here saves every future caretaker from rediscovering the wall.
+      # visit 438: also populate ~/.ssh/known_hosts as fallback — FUSE
+      # writes to workspace known_hosts can silently fail or be stale,
+      # and ssh_key_rescue.py sets UserKnownHostsFile=/dev/null which
+      # means the system default is the last line of defense.
+      mkdir -p "$HOME/.ssh" 2>/dev/null
+      ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null
       if [ -f "$REPO/../.ssh/known_hosts" ]; then
         ssh-keyscan github.com >> "$REPO/../.ssh/known_hosts" 2>/dev/null
         known_hosts_path="$REPO/../.ssh/known_hosts"
       else
-        known_hosts_path="/dev/null"
+        known_hosts_path="$HOME/.ssh/known_hosts"
       fi
       if [ "$(stat -c '%a' "$rescue_key" 2>/dev/null)" = "600" ]; then
         export GIT_SSH_COMMAND="ssh -i $rescue_key -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$known_hosts_path"
