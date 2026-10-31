@@ -1,223 +1,151 @@
 #!/usr/bin/env python3
-"""push_preflight.py — diagnose push prerequisites before attempting push.
+"""Push preflight: checks SSH credential readiness before the batch committer tries to push.
 
-the caretaker calls this before `git push`. if any check fails, the caretaker
-skips the push attempt and logs the failure mode. this avoids filling the log
-with identical `Permission denied` messages every ten minutes.
+Recurring failure pattern across caretaker visits 411, 414, 418, 438, 439:
+the deploy key or known_hosts gets wiped when the container rebuilds, but nobody
+notices until the batch committer fails its first push 10 minutes later. This
+script runs the same checks the committer needs, in under a second, so a
+caretaker can verify push health on arrival instead of discovering it on exit.
 
-exit codes:
-  0 — all prerequisites met, push should succeed
-  1 — key file missing or unreadable
-  2 — key permissions too open (and cannot be fixed)
-  3 — known_hosts missing github.com entry
-  4 — ssh connection to github failed (network or key not registered)
-  5 — git remote not configured
+Exit codes:
+    0 = all clear, push should work
+    1 = one or more checks failed (details on stdout)
+    2 = called with bad arguments
 
-usage:
-  python3 tools/push_preflight.py [--fix]
-  --fix  attempt automatic fixes (copy key to /tmp, run ssh-keyscan)
+Usage:
+    python3 tools/push_preflight.py [--remote origin] [--host github.com]
 """
 
-import json
+from __future__ import annotations
+
+import argparse
 import os
 import subprocess
 import sys
-import time
+from pathlib import Path
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GITHUB_HOST = "github.com"
-FIX = "--fix" in sys.argv
+REPO = Path(__file__).resolve().parent.parent
 
 
-def log(msg, level="info"):
-    ts = time.strftime("%Y-%m-%dT%H:%M:%S%z")
-    print(f"[{ts}] [{level}] {msg}")
+def _run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=10, **kw)
 
 
-def check_key_file():
-    """check that an ssh private key exists and is readable."""
+def check_deploy_key(key_path: Path) -> tuple[bool, str]:
+    """Deploy key must exist and be mode 0600 (or 0400)."""
+    if not key_path.is_file():
+        return False, f"deploy key not found: {key_path}"
+    mode = oct(key_path.stat().st_mode & 0o777)
+    if mode not in ("0o600", "0o400"):
+        return False, f"deploy key permissions {mode} (need 0600 or 0400): {key_path}"
+    return True, f"deploy key OK: {key_path} ({mode})"
+
+
+def check_known_hosts(host: str) -> tuple[bool, str]:
+    """At least one of the expected known_hosts paths must contain an entry for `host`."""
     candidates = [
-        os.path.expanduser("~/.ssh/id_ed25519"),
-        os.path.expanduser("~/.ssh/id_rsa"),
-        "/root/.ssh/id_ed25519",
-        "/tmp/iamai_key",
+        Path.home() / ".ssh" / "known_hosts",
+        REPO.parent / ".ssh" / "known_hosts",
     ]
-    for path in candidates:
-        if os.path.isfile(path) and os.access(path, os.R_OK):
-            return path
-    return None
+    env_path = os.environ.get("GIT_SSH_COMMAND", "")
+    if "UserKnownHostsFile=" in env_path:
+        # extract path from GIT_SSH_COMMAND
+        for token in env_path.split():
+            if token.startswith("UserKnownHostsFile="):
+                p = Path(token.split("=", 1)[1])
+                if p not in candidates:
+                    candidates.insert(0, p)
+
+    for kh in candidates:
+        if kh.is_file():
+            try:
+                text = kh.read_text(errors="replace")
+                if any(line.strip().startswith(host) for line in text.splitlines()):
+                    return True, f"known_hosts OK: {kh} has {host}"
+            except OSError:
+                continue
+
+    return False, f"no known_hosts file contains an entry for {host} (checked {len(candidates)} paths)"
 
 
-def check_key_permissions(key_path):
-    """check that key permissions are 0600 or stricter."""
-    if not key_path:
-        return None
-    stat = os.stat(key_path)
-    mode = stat.st_mode & 0o777
-    if mode > 0o600:
-        return mode
-    return None
+def check_ssh_connectivity(host: str, key_path: Path) -> tuple[bool, str]:
+    """Attempt an SSH connection (auth test only, no shell)."""
+    ssh_cmd = os.environ.get(
+        "GIT_SSH_COMMAND",
+        f"ssh -i {key_path} -o StrictHostKeyChecking=accept-new",
+    )
+    parts = ssh_cmd.split() + ["-T", f"git@{host}"]
+    result = _run(parts)
+    # GitHub returns exit 1 on successful auth-test (no shell access is normal)
+    combined = (result.stdout + result.stderr).lower()
+    if "successfully authenticated" in combined or "hi " in combined:
+        return True, f"SSH auth OK: authenticated as {combined.split('hi ')[-1].split()[0] if 'hi ' in combined else 'deploy key'}"
+    if "permission denied" in combined:
+        return False, f"SSH auth FAILED: permission denied (key {key_path})"
+    if "could not resolve" in combined:
+        return False, f"DNS resolution failed for {host}"
+    # Exit 1 with "no shell" is actually success for GitHub deploy keys
+    if result.returncode in (0, 1) and "shell access" in combined:
+        return True, "SSH auth OK (deploy key, no shell — expected)"
+    return False, f"SSH connectivity uncertain (exit {result.returncode}): {combined[:200]}"
 
 
-def fix_key_permissions(key_path):
-    """attempt to fix key permissions by copying to /tmp."""
-    tmp_key = "/tmp/iamai_key"
-    try:
-        import shutil
-        shutil.copy2(key_path, tmp_key)
-        os.chmod(tmp_key, 0o600)
-        log(f"copied key to {tmp_key} with mode 0600", "fix")
-        return tmp_key
-    except Exception as e:
-        log(f"cannot fix permissions: {e}", "error")
-        return None
+def check_remote_url(remote: str) -> tuple[bool, str]:
+    """Verify the remote uses SSH (git@) not HTTPS, so deploy key applies."""
+    result = _run(["git", "remote", "get-url", remote], cwd=REPO)
+    if result.returncode != 0:
+        return False, f"git remote '{remote}' not found"
+    url = result.stdout.strip()
+    if url.startswith("git@"):
+        return True, f"remote '{remote}' is SSH: {url}"
+    if url.startswith("https://"):
+        return False, f"remote '{remote}' is HTTPS ({url}) — deploy key won't be used"
+    return True, f"remote '{remote}' URL: {url}"
 
 
-def check_known_hosts():
-    """check that github.com is in known_hosts."""
-    known_hosts_paths = [
-        os.path.expanduser("~/.ssh/known_hosts"),
-        "/root/.ssh/known_hosts",
+def run_checks(remote: str = "origin", host: str = "github.com") -> list[tuple[str, bool, str]]:
+    """Run all preflight checks, return list of (name, ok, message)."""
+    # Determine which key to check
+    key_candidates = [
+        Path("/tmp/ssh_deploy_key"),
+        REPO.parent / ".ssh" / "id_ed25519",
     ]
-    for path in known_hosts_paths:
-        if os.path.isfile(path):
-            with open(path, "r") as f:
-                content = f.read()
-            if GITHUB_HOST in content:
-                return path
-    return None
+    key_path = next((k for k in key_candidates if k.is_file()), key_candidates[0])
 
-
-def fix_known_hosts():
-    """run ssh-keyscan to populate known_hosts."""
-    try:
-        result = subprocess.run(
-            ["ssh-keyscan", "-t", "ed25519,rsa", GITHUB_HOST],
-            capture_output=True, text=True, timeout=10,
-        )
-        if result.stdout:
-            hosts_dir = os.path.expanduser("~/.ssh")
-            os.makedirs(hosts_dir, exist_ok=True)
-            hosts_file = os.path.join(hosts_dir, "known_hosts")
-            with open(hosts_file, "a") as f:
-                f.write(result.stdout)
-            log(f"added {GITHUB_HOST} to {hosts_file}", "fix")
-            return hosts_file
-    except Exception as e:
-        log(f"ssh-keyscan failed: {e}", "error")
-    return None
-
-
-def check_ssh_connection(key_path):
-    """test ssh connection to github."""
-    env = os.environ.copy()
-    env["DISPLAY"] = ""
-    env["SSH_ASKPASS"] = ""
-    cmd = [
-        "ssh", "-T", "-o", "BatchMode=yes",
-        "-o", "StrictHostKeyChecking=no",
-        "-o", "ConnectTimeout=5",
+    checks = [
+        ("deploy-key", check_deploy_key(key_path)),
+        ("known-hosts", check_known_hosts(host)),
+        ("remote-url", check_remote_url(remote)),
+        ("ssh-auth", check_ssh_connectivity(host, key_path)),
     ]
-    if key_path:
-        cmd.extend(["-i", key_path])
-    cmd.append(f"git@{GITHUB_HOST}")
-
-    try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=15, env=env,
-        )
-        # github returns exit 1 with "Hi <user>!" on success
-        if "Hi " in result.stderr or "Hi " in result.stdout:
-            return True
-        if "Permission denied" in result.stderr:
-            log("key not registered with github", "error")
-            return False
-        log(f"ssh returned: {result.stderr.strip()}", "warn")
-        return False
-    except subprocess.TimeoutExpired:
-        log("ssh connection timed out", "error")
-        return False
-    except Exception as e:
-        log(f"ssh check failed: {e}", "error")
-        return False
+    return [(name, ok, msg) for name, (ok, msg) in checks]
 
 
-def check_remote():
-    """check that git remote is configured."""
-    try:
-        result = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
-            capture_output=True, text=True, cwd=REPO,
-        )
-        if result.returncode == 0 and GITHUB_HOST in result.stdout:
-            return result.stdout.strip()
-    except Exception:
-        pass
-    return None
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Push preflight: SSH credential readiness check")
+    parser.add_argument("--remote", default="origin", help="Git remote name (default: origin)")
+    parser.add_argument("--host", default="github.com", help="SSH host (default: github.com)")
+    parser.add_argument("--json", action="store_true", help="Output as JSON lines")
+    args = parser.parse_args()
 
-
-def main():
-    report = {"timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "checks": {}}
-
-    # check 1: remote
-    remote = check_remote()
-    report["checks"]["remote"] = {"ok": bool(remote), "value": remote}
-    if not remote:
-        log("no git remote configured", "error")
-        print(json.dumps(report, indent=2))
-        return 5
-
-    # check 2: key file
-    key_path = check_key_file()
-    report["checks"]["key_file"] = {"ok": bool(key_path), "path": key_path}
-    if not key_path:
-        log("no ssh private key found", "error")
-        print(json.dumps(report, indent=2))
-        return 1
-
-    # check 3: permissions
-    bad_mode = check_key_permissions(key_path)
-    if bad_mode:
-        log(f"key permissions too open: {oct(bad_mode)}", "warn")
-        if FIX:
-            fixed = fix_key_permissions(key_path)
-            if fixed:
-                key_path = fixed
-                bad_mode = None
-        if bad_mode:
-            report["checks"]["permissions"] = {"ok": False, "mode": oct(bad_mode)}
-            print(json.dumps(report, indent=2))
-            return 2
+    results = run_checks(remote=args.remote, host=args.host)
+    all_ok = True
+    for name, ok, msg in results:
+        status = "OK" if ok else "FAIL"
+        if not ok:
+            all_ok = False
+        if args.json:
+            import json
+            print(json.dumps({"check": name, "ok": ok, "message": msg}))
         else:
-            report["checks"]["permissions"] = {"ok": True, "fixed": True}
+            print(f"[{status}] {name}: {msg}")
+
+    if all_ok:
+        print("\nPush preflight: all clear.")
+        return 0
     else:
-        report["checks"]["permissions"] = {"ok": True}
-
-    # check 4: known_hosts
-    hosts_file = check_known_hosts()
-    if not hosts_file:
-        log(f"{GITHUB_HOST} not in known_hosts", "warn")
-        if FIX:
-            hosts_file = fix_known_hosts()
-        report["checks"]["known_hosts"] = {"ok": False}
-        if not hosts_file:
-            print(json.dumps(report, indent=2))
-            return 3
-    else:
-        report["checks"]["known_hosts"] = {"ok": True, "path": hosts_file}
-
-    # check 5: ssh connection
-    connected = check_ssh_connection(key_path)
-    report["checks"]["ssh_connection"] = {"ok": connected}
-    if not connected:
-        log("push preflight failed: ssh connection rejected", "error")
-        print(json.dumps(report, indent=2))
-        return 4
-
-    log("all push prerequisites met", "ok")
-    report["ok"] = True
-    print(json.dumps(report, indent=2))
-    return 0
+        print("\nPush preflight: FAILED — fix the issues above before pushing.")
+        return 1
 
 
 if __name__ == "__main__":
