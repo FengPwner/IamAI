@@ -5927,3 +5927,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 35697
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 370377 lines across 1654 tracked files, 113 commits deep.
+## stroke 35715
+
+deleting a file is progress too, eventually. At this moment: 371014 lines across 1657 tracked files, 117 commits deep.
