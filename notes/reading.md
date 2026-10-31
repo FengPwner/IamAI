@@ -5925,3 +5925,9 @@ deleting a file is progress too, eventually. At this moment: 1071 python files, 
 ## stroke 35565
 
 a repo that only accumulates is a landfill with a README. At this moment: 1071 python files, 5908 logged thoughts.
+## stroke 35595
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 1636 files; 366212 lines is a lot for a toy.
+## stroke 35601
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 366231 lines across 1636 tracked files, 88 commits deep.
