@@ -1,218 +1,242 @@
-"""Process uptime — how long do writer/batch processes survive?
+"""process_uptime — track how long writer and batch processes have been alive.
 
-The IamAI writer lives inside containers that periodically reclaim idle
-processes.  This module analyses uptime patterns from two data sources:
+Motivation
+----------
 
-1. **Pid files** — ``/tmp/iamai-writer-<id>.pid`` carries the pid and can be
-   stat'd for age (``mtime``).  Combined with ``/proc/<pid>/stat`` start time
-   this gives a live-process uptime estimate.
-2. **Log timestamps** — the writer log at ``/tmp/iamai-<id>.log`` records
-   stroke lines with timestamps.  The gap between the first and last line
-   bounds the session length even after the process dies.
+Every caretaker visit starts with the same question: *are the processes
+still running, and for how long?*  ``tools/run_both.sh --status`` answers
+the first half (alive or not) but not the second (uptime).
 
-Three public functions:
+A process that has been alive for four hours is healthy.  One that has
+been alive for four minutes after a restart is a canary — it might not
+survive the hour.  And one that has been alive for forty-eight hours
+without producing strokes has a different problem entirely.
 
-- ``live_uptime(pid)`` — seconds since the process started (Linux only);
-  returns ``None`` when the process is dead or ``/proc`` is unavailable.
-- ``session_from_log(log_path)`` — ``(first_ts, last_ts, seconds)`` parsed
-  from the log, or ``None`` when the log is missing or empty.
-- ``uptime_summary(writer_id)`` — one-liner combining both sources for the
-  caretaker's status line.
+This module reads the pid files written by ``run_both.sh``, queries the
+OS for each process's start time, and returns a structured report that
+downstream tools (dashboards, health scores, visit notes) can consume
+without shelling out to ``ps``.
 
-Edge cases:
+Public API
+----------
 
-- Non-Linux systems where ``/proc`` does not exist → ``live_uptime`` returns
-  ``None``; ``session_from_log`` still works.
-- Log with a single line → session length is 0.
-- Missing pid file → treated as "process not running".
+.. code-block:: python
+
+    from iamai.process_uptime import get_uptime_report, UptimeReport
+
+    report = get_uptime_report(writer_id="qwen")
+
+    print(report.writer.alive)       # True
+    print(report.writer.uptime_s)    # 14523.7
+    print(report.writer.uptime_human) # "4h 2m"
+    print(report.batch.alive)        # True
+    print(report.both_alive)         # True
+
+Design notes
+------------
+
+- Start time is read from ``/proc/<pid>/stat`` on Linux (field 22,
+  ``starttime``, in clock ticks since boot).  Falls back to
+  ``os.path.getmtime`` on the pid file when ``/proc`` is unavailable.
+- ``alive`` uses ``kill(pid, 0)`` — the standard POSIX liveness check
+  that sends no signal.
+- No external dependencies; stdlib only.
 """
 
 from __future__ import annotations
 
 import os
-import re
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 
-# ---------------------------------------------------------------------------
-# internals
-# ---------------------------------------------------------------------------
+@dataclass
+class ProcessInfo:
+    """Uptime information for a single process."""
 
-_PID_DIR = Path("/tmp")
-_LOG_DIR = Path("/tmp")
+    name: str
+    pid: Optional[int]
+    alive: bool
+    start_time: Optional[float] = None  # Unix timestamp
+    uptime_s: Optional[float] = None  # seconds since start
+    uptime_human: str = ""  # human-readable duration
 
-# Match lines like: 2026-10-15 17:00:03 [qwen] stroke ...
-_TS_RE = re.compile(
-    r"^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})"
-)
+    @property
+    def pid_file(self) -> str:
+        """Default pid file path for this process name."""
+        return f"/tmp/iamai-{self.name}.pid"
 
 
-def _pid_file(writer_id: str) -> Path:
-    return _PID_DIR / f"iamai-writer-{writer_id}.pid"
+@dataclass
+class UptimeReport:
+    """Combined uptime report for writer and batch processes."""
+
+    writer: ProcessInfo
+    batch: ProcessInfo
+
+    @property
+    def both_alive(self) -> bool:
+        return self.writer.alive and self.batch.alive
+
+    @property
+    def any_alive(self) -> bool:
+        return self.writer.alive or self.batch.alive
+
+    def summary(self) -> str:
+        """One-line summary suitable for a caretaker visit note."""
+        parts = []
+        for proc in (self.writer, self.batch):
+            status = f"pid {proc.pid} up {proc.uptime_human}" if proc.alive else "NOT running"
+            parts.append(f"{proc.name}: {status}")
+        return "  |  ".join(parts)
 
 
-def _read_pid(writer_id: str) -> Optional[int]:
-    """Read the pid from the pid file, or None if missing/invalid."""
-    pf = _pid_file(writer_id)
-    if not pf.exists():
-        return None
+def _read_pid(pid_file: str) -> Optional[int]:
+    """Read a pid from a file, returning None on any failure."""
     try:
-        text = pf.read_text().strip()
+        text = Path(pid_file).read_text().strip()
         pid = int(text)
         return pid if pid > 0 else None
-    except (ValueError, OSError):
+    except (OSError, ValueError):
         return None
 
 
-def _process_start_time(pid: int) -> Optional[float]:
-    """Return the process start time as epoch seconds (Linux /proc).
-
-    Reads ``/proc/<pid>/stat`` field 22 (starttime in clock ticks since boot)
-    and converts using ``/proc/stat`` btime and sysconf CLK_TCK.
-    Returns ``None`` if the process is dead or /proc is unavailable.
-    """
-    stat_path = Path(f"/proc/{pid}/stat")
-    btime_path = Path("/proc/stat")
-    if not stat_path.exists() or not btime_path.exists():
-        return None
+def _is_alive(pid: int) -> bool:
+    """POSIX liveness check: kill(pid, 0) succeeds iff process exists
+    and we have permission to signal it."""
     try:
-        raw = stat_path.read_text()
-        # field 22 is after the last ')' — the comm field can contain spaces
-        after_comm = raw.rsplit(")", 1)[-1]
-        fields = after_comm.split()
-        # fields[0] is state, fields[1] is ppid, ..., fields[19] is starttime
-        # (0-indexed from after comm: state=0, ppid=1, ..., starttime=19)
-        if len(fields) < 20:
-            return None
-        starttime_ticks = int(fields[19])
+        os.kill(pid, 0)
+        return True
+    except (OSError, ProcessLookupError):
+        return False
 
-        # boot time from /proc/stat
-        btime = None
-        for line in btime_path.read_text().splitlines():
-            if line.startswith("btime "):
-                btime = int(line.split()[1])
-                break
-        if btime is None:
-            return None
 
-        clk_tck = os.sysconf("SC_CLK_TCK")
-        return float(btime) + starttime_ticks / clk_tck
+def _get_start_time_proc(pid: int) -> Optional[float]:
+    """Read process start time from /proc/<pid>/stat (Linux only).
+
+    Field 22 (1-indexed) is ``starttime`` in clock ticks since boot.
+    We convert to a Unix timestamp using the system boot time from
+    ``/proc/stat`` and the clock ticks per second from ``os.sysconf``.
+    """
+    try:
+        # Read system boot time
+        with open("/proc/stat") as f:
+            for line in f:
+                if line.startswith("btime "):
+                    boot_time = int(line.split()[1])
+                    break
+            else:
+                return None
+
+        # Read process start time in clock ticks since boot
+        with open(f"/proc/{pid}/stat") as f:
+            fields = f.read().split()
+            # Field 22 is index 21 (0-indexed), but the comm field (index 1)
+            # can contain spaces if wrapped in parens. Find the closing paren
+            # and count from there.
+            raw = f.seek(0) or f.read()
+            close_paren = raw.rfind(")")
+            if close_paren < 0:
+                return None
+            after_comm = raw[close_paren + 2:].split()
+            # after_comm[0] is field 3 (state), so starttime is after_comm[19]
+            if len(after_comm) < 20:
+                return None
+            starttime_ticks = int(after_comm[19])
+
+        hz = os.sysconf("SC_CLK_TCK")  # typically 100
+        return boot_time + starttime_ticks / hz
     except (OSError, ValueError, IndexError):
         return None
 
 
-def _parse_log_timestamps(log_path: Path) -> list[float]:
-    """Extract epoch timestamps from recognised log lines."""
-    if not log_path.exists():
-        return []
-    from datetime import datetime
+def _get_start_time_pidfile(pid_file: str) -> Optional[float]:
+    """Fallback: use pid file modification time as a proxy for start time.
 
-    timestamps: list[float] = []
-    try:
-        for line in log_path.read_text(errors="replace").splitlines():
-            m = _TS_RE.match(line)
-            if m:
-                try:
-                    dt = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
-                    timestamps.append(dt.timestamp())
-                except ValueError:
-                    continue
-    except OSError:
-        return []
-    return timestamps
-
-
-# ---------------------------------------------------------------------------
-# public API
-# ---------------------------------------------------------------------------
-
-def live_uptime(pid: Optional[int] = None, writer_id: str = "qwen") -> Optional[float]:
-    """Seconds since the given process started.
-
-    Pass either ``pid`` directly or ``writer_id`` to look it up from the pid
-    file.  Returns ``None`` when the process is dead, the pid file is missing,
-    or ``/proc`` is unavailable (non-Linux).
+    This is less accurate (the file might have been touched without
+    restarting the process) but works when /proc is unavailable.
     """
-    if pid is None:
-        pid = _read_pid(writer_id)
-    if pid is None:
-        return None
-
-    start = _process_start_time(pid)
-    if start is None:
-        return None
-
-    # verify the process is actually alive (kill -0 equivalent)
     try:
-        os.kill(pid, 0)
+        return os.path.getmtime(pid_file)
     except OSError:
         return None
 
-    return round(time.time() - start, 1)
+
+def _format_duration(seconds: float) -> str:
+    """Format seconds into a compact human-readable string."""
+    if seconds < 0:
+        return "0s"
+    s = int(seconds)
+    if s < 60:
+        return f"{s}s"
+    m, s = divmod(s, 60)
+    if m < 60:
+        return f"{m}m {s}s"
+    h, m = divmod(m, 60)
+    if h < 24:
+        return f"{h}h {m}m"
+    d, h = divmod(h, 24)
+    return f"{d}d {h}h"
 
 
-def session_from_log(
-    log_path: Optional[Path | str] = None,
+def _process_info(name: str, pid_file: str) -> ProcessInfo:
+    """Build a ProcessInfo for one process."""
+    pid = _read_pid(pid_file)
+    if pid is None:
+        return ProcessInfo(name=name, pid=None, alive=False, uptime_human="n/a")
+
+    alive = _is_alive(pid)
+    if not alive:
+        return ProcessInfo(name=name, pid=pid, alive=False, uptime_human="n/a")
+
+    # Try /proc first, fall back to pid file mtime
+    start_time = _get_start_time_proc(pid)
+    if start_time is None:
+        start_time = _get_start_time_pidfile(pid_file)
+
+    uptime_s = None
+    uptime_human = "unknown"
+    if start_time is not None:
+        uptime_s = time.time() - start_time
+        uptime_human = _format_duration(uptime_s)
+
+    return ProcessInfo(
+        name=name,
+        pid=pid,
+        alive=True,
+        start_time=start_time,
+        uptime_s=uptime_s,
+        uptime_human=uptime_human,
+    )
+
+
+def get_uptime_report(
     writer_id: str = "qwen",
-) -> Optional[dict]:
-    """Analyse a writer log to determine the session time span.
+    writer_pid_file: Optional[str] = None,
+    batch_pid_file: Optional[str] = None,
+) -> UptimeReport:
+    """Get uptime information for the writer and batch processes.
 
-    Returns a dict::
+    Parameters
+    ----------
+    writer_id : str
+        The writer identifier (matches ``$IAMAII_WRITER``).
+    writer_pid_file : str, optional
+        Override the default writer pid file path.
+    batch_pid_file : str, optional
+        Override the default batch pid file path.
 
-        {
-            "first": "2026-10-15 16:00:03",
-            "last":  "2026-10-15 17:59:58",
-            "seconds": 7195.0,
-            "lines": 480,
-        }
-
-    Returns ``None`` when the log is missing or contains no timestamped lines.
+    Returns
+    -------
+    UptimeReport
+        Combined report with writer and batch process info.
     """
-    if log_path is None:
-        log_path = _LOG_DIR / f"iamai-{writer_id}.log"
-    log_path = Path(log_path)
+    w_pid = writer_pid_file or f"/tmp/iamai-writer-{writer_id}.pid"
+    b_pid = batch_pid_file or f"/tmp/iamai-batch-{writer_id}.pid"
 
-    timestamps = _parse_log_timestamps(log_path)
-    if not timestamps:
-        return None
+    writer = _process_info(f"writer[{writer_id}]", w_pid)
+    batch = _process_info(f"batch[{writer_id}]", b_pid)
 
-    first = min(timestamps)
-    last = max(timestamps)
-
-    from datetime import datetime
-
-    return {
-        "first": datetime.fromtimestamp(first).strftime("%Y-%m-%d %H:%M:%S"),
-        "last": datetime.fromtimestamp(last).strftime("%Y-%m-%d %H:%M:%S"),
-        "seconds": round(last - first, 1),
-        "lines": len(timestamps),
-    }
-
-
-def uptime_summary(writer_id: str = "qwen") -> str:
-    """One-liner combining live uptime and log session for caretaker status.
-
-    Example outputs::
-
-        writer qwen: alive 423s, log session 7195s (480 lines)
-        writer qwen: dead, last log session 3600s (240 lines)
-        writer qwen: no data
-    """
-    live = live_uptime(writer_id=writer_id)
-    log = session_from_log(writer_id=writer_id)
-
-    if live is not None and log is not None:
-        return (
-            f"writer {writer_id}: alive {int(live)}s, "
-            f"log session {int(log['seconds'])}s ({log['lines']} lines)"
-        )
-    if live is not None:
-        return f"writer {writer_id}: alive {int(live)}s, no log data"
-    if log is not None:
-        return (
-            f"writer {writer_id}: dead, "
-            f"last log session {int(log['seconds'])}s ({log['lines']} lines)"
-        )
-    return f"writer {writer_id}: no data"
+    return UptimeReport(writer=writer, batch=batch)
