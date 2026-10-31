@@ -5927,3 +5927,5 @@
 {"seq": 5927, "at": "2026-10-31T13:03:02+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1087 python files, 5928 logged thoughts"}
 {"seq": 5928, "at": "2026-10-31T13:07:02+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 5927 strokes written so far into 1657 files"}
 {"seq": 5929, "at": "2026-10-31T13:11:09+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 1657 files; 371011 lines is a lot for a toy"}
+{"seq": 5930, "at": "2026-10-31T14:07:33+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1090 python files, 5931 logged thoughts"}
+{"seq": 5931, "at": "2026-10-31T14:11:38+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 5930 strokes written so far into 1659 files"}

@@ -5949,3 +5949,6 @@ deleting a file is progress too, eventually. At this moment: tree is 1648 files;
 ## stroke 35703
 
 deleting a file is progress too, eventually. At this moment: commit 115: the count of times this repo was pushed, not the work done.
+## stroke 35721
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 120: the count of times this repo was pushed, not the work done.
