@@ -5919,3 +5919,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 35517
 
 deleting a file is progress too, eventually. At this moment: 5898 strokes written so far into 1620 files.
+## stroke 35547
+
+deleting a file is progress too, eventually. At this moment: 1071 python files, 5905 logged thoughts.
