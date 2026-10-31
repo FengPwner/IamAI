@@ -5967,3 +5967,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 35805
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 1675 files; 374971 lines is a lot for a toy.
+## stroke 35823
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1676 files; 375118 lines is a lot for a toy.
