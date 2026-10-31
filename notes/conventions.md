@@ -5976,3 +5976,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 365185
 ## stroke 35553
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 81: the count of times this repo was pushed, not the work done.
+## stroke 35577
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 1630 files; 365491 lines is a lot for a toy.
