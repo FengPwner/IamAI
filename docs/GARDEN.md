@@ -27595,3 +27595,4 @@ round 35756  bloom 100.0%  plants  146/384
 - stroke 35762: round 35762  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 35768: round 35768  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 35768: round 35768  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 35774: round 35774  bloom 100.0%  plants  146/384, bloom 100.0%
