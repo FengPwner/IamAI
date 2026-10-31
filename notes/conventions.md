@@ -5970,3 +5970,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 35499
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 5896 strokes written so far into 1617 files.
+## stroke 35523
+
+a repo that only accumulates is a landfill with a README. At this moment: 365185 lines across 1627 tracked files, 68 commits deep.
