@@ -1,198 +1,135 @@
-#!/usr/bin/env python3
-"""push_health — monitor SSH key presence and push readiness.
+"""Push health pre-flight checks — catch SSH problems before push fails.
 
-The repo has been stuck with 46+ unpushed commits due to missing SSH keys.
-This module provides a quick check for push readiness:
-- SSH key file exists and is readable
-- SSH key is registered with ssh-agent (optional)
-- git push --dry-run succeeds
+Born from Caretaker Visit 437: a push failed because the deploy key had
+mode 0777 (world-readable), which OpenSSH rightly refuses to use.  The
+error message (``UNPROTECTED PRIVATE KEY FILE``) is clear once you see it,
+but in an automated loop it just looks like "push rejected" and gets
+swallowed by generic retry logic.
 
-Usage:
-    from iamai.push_health import PushHealth
-    
-    checker = PushHealth()
-    result = checker.check()
-    print(f"Push ready: {result.ready} ({result.status})")
+This module exposes three pure-ish helpers:
 
-CLI:
-    python3 -m iamai.push_health
-    python3 -m iamai.push_health --json
+* ``key_mode_ok(path)`` → bool — is the key file mode tight enough?
+* ``diagnose_push(remote, key_path)`` → PushDiagnosis — full pre-flight
+* ``format_diagnosis(d)`` → str — human-readable one-liner for logs
+
+The functions are intentionally simple.  They do not fix anything; they
+report.  The caretaker decides what to do with the report.
 """
 
 from __future__ import annotations
 
-import json
 import os
+import stat
 import subprocess
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 
-@dataclass
-class PushStatus:
-    """Push readiness assessment."""
-    ready: bool
-    status: str  # "ready", "no_key", "key_not_registered", "push_failed"
-    ssh_key_path: Optional[str] = None
-    ssh_key_exists: bool = False
-    ssh_key_readable: bool = False
-    ssh_agent_has_key: bool = False
-    dry_run_success: bool = False
-    error: Optional[str] = None
+# Maximum allowed permission bits for an SSH private key.
+# Owner read+write (0600) is the OpenSSH requirement.
+_MAX_KEY_MODE = 0o600
 
 
-class PushHealth:
-    """Check if the repo can push to its remote."""
-    
-    DEFAULT_KEY_PATHS = [
-        "~/.ssh/id_ed25519",
-        "~/.ssh/id_rsa",
-        "~/.ssh/id_ecdsa",
+def key_mode_ok(key_path: str | Path) -> bool:
+    """Return True if *key_path* exists and its mode is ≤ 0600.
+
+    A missing file returns False (not an error — the caller decides
+    whether missing is fatal).
+    """
+    p = Path(key_path)
+    if not p.is_file():
+        return False
+    mode = stat.S_IMODE(p.stat().st_mode)
+    return mode <= _MAX_KEY_MODE
+
+
+def _ssh_test(remote_host: str, key_path: str | Path, timeout: int = 10) -> bool:
+    """Attempt a no-op SSH connection to *remote_host*.
+
+    Returns True if ssh exits 0 (or 1 with "authenticated" in stderr,
+    which GitHub returns for successful key auth with no shell).
+    """
+    cmd = [
+        "ssh",
+        "-i", str(key_path),
+        "-o", "IdentitiesOnly=yes",
+        "-o", "StrictHostKeyChecking=accept-new",
+        "-o", f"ConnectTimeout={timeout}",
+        "-T", f"git@{remote_host}",
     ]
-    
-    def __init__(self, repo_path: str = ".", key_path: Optional[str] = None):
-        """Initialize push health checker.
-        
-        Args:
-            repo_path: Path to the git repository
-            key_path: Explicit SSH key path (overrides auto-detection)
-        """
-        self.repo_path = Path(repo_path).resolve()
-        self.key_path = Path(key_path).expanduser() if key_path else None
-    
-    def check(self) -> PushStatus:
-        """Run all push readiness checks."""
-        # Step 1: Find SSH key
-        key_path = self._find_ssh_key()
-        if not key_path:
-            return PushStatus(
-                ready=False,
-                status="no_key",
-                error="No SSH key found in standard locations"
-            )
-        
-        # Step 2: Check key is readable
-        if not self._key_readable(key_path):
-            return PushStatus(
-                ready=False,
-                status="no_key",
-                ssh_key_path=str(key_path),
-                ssh_key_exists=True,
-                ssh_key_readable=False,
-                error=f"SSH key not readable: {key_path}"
-            )
-        
-        # Step 3: Check ssh-agent (optional, non-blocking)
-        agent_has_key = self._check_ssh_agent()
-        
-        # Step 4: Try dry-run push
-        dry_run_ok, error = self._dry_run_push()
-        
-        if dry_run_ok:
-            return PushStatus(
-                ready=True,
-                status="ready",
-                ssh_key_path=str(key_path),
-                ssh_key_exists=True,
-                ssh_key_readable=True,
-                ssh_agent_has_key=agent_has_key,
-                dry_run_success=True
-            )
-        else:
-            return PushStatus(
-                ready=False,
-                status="push_failed",
-                ssh_key_path=str(key_path),
-                ssh_key_exists=True,
-                ssh_key_readable=True,
-                ssh_agent_has_key=agent_has_key,
-                dry_run_success=False,
-                error=error
-            )
-    
-    def _find_ssh_key(self) -> Optional[Path]:
-        """Locate the SSH private key."""
-        if self.key_path:
-            return self.key_path if self.key_path.exists() else None
-        
-        for path_str in self.DEFAULT_KEY_PATHS:
-            path = Path(path_str).expanduser()
-            if path.exists():
-                return path
-        return None
-    
-    def _key_readable(self, key_path: Path) -> bool:
-        """Check if the key file can be read."""
-        try:
-            with open(key_path, 'r') as f:
-                content = f.read()
-                return len(content) > 0 and "PRIVATE KEY" in content
-        except (IOError, OSError, PermissionError):
-            return False
-    
-    def _check_ssh_agent(self) -> bool:
-        """Check if ssh-agent has any keys loaded."""
-        try:
-            result = subprocess.run(
-                ["ssh-add", "-l"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            return result.returncode == 0 and "no identities" not in result.stdout.lower()
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return False
-    
-    def _dry_run_push(self) -> tuple[bool, Optional[str]]:
-        """Attempt a dry-run push to verify connectivity."""
-        try:
-            result = subprocess.run(
-                ["git", "push", "--dry-run", "origin", "main"],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                cwd=str(self.repo_path)
-            )
-            if result.returncode == 0:
-                return True, None
-            return False, result.stderr.strip() or result.stdout.strip()
-        except subprocess.TimeoutExpired:
-            return False, "Push dry-run timed out after 30s"
-        except Exception as e:
-            return False, str(e)
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout + 5,
+        )
+        # GitHub returns exit 1 with "Hi <user>! You've successfully authenticated"
+        combined = (result.stdout or "") + (result.stderr or "")
+        if result.returncode == 0:
+            return True
+        if "successfully authenticated" in combined.lower():
+            return True
+        return False
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
 
 
-def main():
-    """CLI entry point."""
-    import argparse
-    parser = argparse.ArgumentParser(description="Check push readiness")
-    parser.add_argument("--repo", default=".", help="Repository path")
-    parser.add_argument("--key", help="Explicit SSH key path")
-    parser.add_argument("--json", action="store_true", help="Output as JSON")
-    args = parser.parse_args()
-    
-    checker = PushHealth(repo_path=args.repo, key_path=args.key)
-    result = checker.check()
-    
-    if args.json:
-        print(json.dumps(asdict(result), indent=2))
-    else:
-        status_icon = "✓" if result.ready else "✗"
-        print(f"{status_icon} Push status: {result.status}")
-        if result.ssh_key_path:
-            print(f"  SSH key: {result.ssh_key_path}")
-        if result.error:
-            print(f"  Error: {result.error}")
-        if not result.ready:
-            print("\nTo fix:")
-            if result.status == "no_key":
-                print("  ssh-keygen -t ed25519 -C \"your@email\"")
-                print("  # Then add ~/.ssh/id_ed25519.pub to GitHub Settings → SSH Keys")
-            elif result.status == "push_failed":
-                print("  # Check that your SSH key is registered on GitHub")
-                print("  # https://github.com/settings/keys")
+@dataclass(frozen=True)
+class PushDiagnosis:
+    """Result of a push pre-flight check."""
+    key_exists: bool
+    key_permissions_ok: bool
+    ssh_connects: bool
+    key_path: str
+    remote_host: str
+
+    @property
+    def healthy(self) -> bool:
+        return self.key_exists and self.key_permissions_ok and self.ssh_connects
 
 
-if __name__ == "__main__":
-    main()
+def diagnose_push(
+    remote_url: str = "git@github.com:FengPwner/IamAI.git",
+    key_path: str | Path = "/tmp/ssh_deploy_key",
+    timeout: int = 10,
+) -> PushDiagnosis:
+    """Run all pre-flight checks and return a PushDiagnosis.
+
+    This is the entry point the caretaker should call before attempting
+    a push.  If ``diagnosis.healthy`` is False, pushing will fail — fix
+    the reported issue first.
+    """
+    p = Path(key_path)
+    exists = p.is_file()
+    perms_ok = key_mode_ok(p) if exists else False
+
+    # Extract host from git SSH URL
+    host = "github.com"
+    if "@" in remote_url and ":" in remote_url:
+        host = remote_url.split("@")[1].split(":")[0]
+
+    ssh_ok = _ssh_test(host, p, timeout=timeout) if (exists and perms_ok) else False
+
+    return PushDiagnosis(
+        key_exists=exists,
+        key_permissions_ok=perms_ok,
+        ssh_connects=ssh_ok,
+        key_path=str(key_path),
+        remote_host=host,
+    )
+
+
+def format_diagnosis(d: PushDiagnosis) -> str:
+    """One-line human-readable summary for logs."""
+    parts = []
+    if not d.key_exists:
+        parts.append(f"key missing ({d.key_path})")
+    elif not d.key_permissions_ok:
+        parts.append(f"key too open ({d.key_path})")
+    if not d.ssh_connects:
+        parts.append(f"ssh fails → {d.remote_host}")
+    if d.healthy:
+        return "push pre-flight: OK"
+    return f"push pre-flight FAIL: {'; '.join(parts)}"
