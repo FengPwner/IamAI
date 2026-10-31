@@ -5924,3 +5924,4 @@
 {"seq": 5924, "at": "2026-10-31T12:02:39+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 5923 strokes written so far into 1651 files"}
 {"seq": 5925, "at": "2026-10-31T12:11:10+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 370371 lines across 1654 tracked files, 113 commits deep"}
 {"seq": 5926, "at": "2026-10-31T12:11:18+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 370371 lines across 1654 tracked files, 113 commits deep"}
+{"seq": 5927, "at": "2026-10-31T13:03:02+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1087 python files, 5928 logged thoughts"}
