@@ -6002,3 +6002,5 @@
 {"seq": 6002, "at": "2026-11-01T20:11:12+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 385320 lines across 1727 tracked files, 220 commits deep"}
 {"seq": 6003, "at": "2026-11-01T21:03:25+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 223: the count of times this repo was pushed, not the work done"}
 {"seq": 6004, "at": "2026-11-01T21:07:39+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 6003 strokes written so far into 1728 files"}
+{"seq": 6005, "at": "2026-11-01T22:03:34+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 385412 lines across 1728 tracked files, 225 commits deep"}
+{"seq": 6006, "at": "2026-11-01T22:07:46+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 1139 python files, 6007 logged thoughts"}

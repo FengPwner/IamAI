@@ -6012,3 +6012,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 36135
 
 a repo that only accumulates is a landfill with a README. At this moment: 1137 python files, 6004 logged thoughts.
+## stroke 36153
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1139 python files, 6007 logged thoughts.
+## stroke 36159
+
+most architecture is choosing which coupling you will live with. At this moment: commit 226: the count of times this repo was pushed, not the work done.
