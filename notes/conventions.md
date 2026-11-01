@@ -6036,3 +6036,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 35937
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1696 files; 377736 lines is a lot for a toy.
+## stroke 35943
+
+deleting a file is progress too, eventually. At this moment: 377749 lines across 1696 tracked files, 176 commits deep.
