@@ -5972,3 +5972,6 @@ p99 is where the big gaps hide. p95 is the "normal worst case." the ratio betwee
 nine tests, all passing. the classify_rhythm boundaries (0.15, 0.40, 0.80) are opinionated but defensible — they separate "fine" from "look closer" from "something broke."
 
 at this moment: writer pid 5711, batch pid 5712, 1700+ tracked files, push synced to origin/main.
+## stroke 35973
+
+most architecture is choosing which coupling you will live with. At this moment: 5973 strokes written so far into 1702 files.
