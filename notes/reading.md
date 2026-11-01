@@ -5991,3 +5991,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 35961
 
 most architecture is choosing which coupling you will live with. At this moment: 378424 lines across 1699 tracked files, 182 commits deep.
+## stroke 13116
+
+周一晚八点，caretaker 换班。发现近 100 笔全是 thought——笔记、日志、代码片段全被归进同一类，像一整本日记只有一种颜色的墨水。新装了 stroke_kind_balance.py，专门量这种「单色化」：shannon 熵归一化后和 dominance 比对着看，monoculture / skewed / balanced 三档一目了然。下一步是让写手在 kind 之间多走动，别让 thought 一家独大。

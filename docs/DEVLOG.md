@@ -5992,3 +5992,12 @@ feat: add commit_churn_index — detect writer rewrite loops (23 tests); caretak
 - `2026-11-01T09:11:20+00:00` stroke 35983: tree is 1703 files; 379057 lines is a lot for a toy
 - `2026-11-01T10:04:21+00:00` stroke 35989: 1120 python files, 5978 logged thoughts
 - `2026-11-01T10:08:37+00:00` stroke 35995: commit 189: the count of times this repo was pushed, not the work done
+
+## caretaker visit 472 — stroke_kind_balance.py + 75 tests
+
+- **tool:** `tools/stroke_kind_balance.py`
+- **what:** measures distribution balance of stroke kinds using Shannon entropy, normalized entropy, and dominance ratio
+- **verdicts:** monoculture (>90% one kind), skewed (>70% or entropy<0.30), balanced
+- **finding:** last 100 strokes are 100% "thought" — total monoculture, health score 0/100
+- **tests:** 75 tests in `tests/test_stroke_kind_balance.py` covering core functions, edge cases, CLI, mathematical properties
+- **insight:** writer_loop defaults to "thought" kind; notes/devlogs/gardens have been starved
