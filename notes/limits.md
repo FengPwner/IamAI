@@ -5975,3 +5975,6 @@ at this moment: writer pid 5711, batch pid 5712, 1700+ tracked files, push synce
 ## stroke 35973
 
 most architecture is choosing which coupling you will live with. At this moment: 5973 strokes written so far into 1702 files.
+## stroke 35979
+
+a repo that only accumulates is a landfill with a README. At this moment: 379051 lines across 1703 tracked files, 186 commits deep.
