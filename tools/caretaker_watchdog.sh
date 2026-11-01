@@ -1,59 +1,43 @@
 #!/usr/bin/env bash
-# Caretaker Watchdog — runs every 10 minutes via cron
-# Checks: writer alive, batch alive, unpushed commits, uncommitted files
-# Only outputs alerts when something needs attention.
-set -euo pipefail
+# caretaker watchdog: check writer+batch every 10 min, restart if dead, notify user only on failure
+set -uo pipefail
 
 REPO="/root/userdata/workspace/IamAI"
-SSH_KEY="/tmp/ssh_deploy_key"
-export GIT_SSH_COMMAND="ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no"
+WRITER_ID="qwen"
+WRITER_PID="/tmp/iamai-writer-${WRITER_ID}.pid"
+BATCH_PID="/tmp/iamai-batch-${WRITER_ID}.pid"
+LOG="/tmp/iamai-watchdog.log"
 
-cd "$REPO"
+alive() { [ -f "$1" ] && kill -0 "$(cat "$1")" 2>/dev/null; }
 
-ALERTS=()
+cd "$REPO" || exit 1
 
-# --- 1. Process health ---
-WRITER_PID=$(pgrep -f 'writer_loop.py.*--writer qwen' | head -1 || true)
-BATCH_PID=$(pgrep -f 'commit_batch.py.*--watch.*--writer qwen' | head -1 || true)
+now=$(date '+%Y-%m-%d %H:%M:%S')
 
-if [ -z "$WRITER_PID" ]; then
-  ALERTS+=("⚠️ Writer 进程已停止，需要重启")
-fi
+writer_ok=$(alive "$WRITER_PID" && echo yes || echo no)
+batch_ok=$(alive "$BATCH_PID" && echo yes || echo no)
 
-if [ -z "$BATCH_PID" ]; then
-  ALERTS+=("⚠️ Batch committer 进程已停止，需要重启")
-fi
-
-# --- 2. Uncommitted files ---
-PENDING=$(git status --porcelain 2>/dev/null | wc -l)
-if [ "$PENDING" -gt 20 ]; then
-  ALERTS+=("⚠️ 有 ${PENDING} 个文件未提交（积压过多）")
-fi
-
-# --- 3. Unpushed commits ---
-UNPUSHED=$(git log origin/main..HEAD --oneline 2>/dev/null | wc -l || echo 0)
-if [ "$UNPUSHED" -gt 3 ]; then
-  ALERTS+=("⚠️ 有 ${UNPUSHED} 个提交未推送到远程")
-  # Try to push
-  if git push origin main 2>/dev/null; then
-    ALERTS+=("✅ 自动推送成功")
+if [ "$writer_ok" = "no" ] || [ "$batch_ok" = "no" ]; then
+  echo "[$now] STALL detected: writer=$writer_ok batch=$batch_ok" >> "$LOG"
+  # try restart
+  cd "$REPO" && bash tools/run_both.sh >> "$LOG" 2>&1
+  sleep 5
+  writer_ok2=$(alive "$WRITER_PID" && echo yes || echo no)
+  batch_ok2=$(alive "$BATCH_PID" && echo yes || echo no)
+  if [ "$writer_ok2" = "no" ] || [ "$batch_ok2" = "no" ]; then
+    echo "[$now] RESTART FAILED: writer=$writer_ok2 batch=$batch_ok2 — NEEDS USER ATTENTION" >> "$LOG"
+    echo "ALERT:restart_failed"
   else
-    ALERTS+=("❌ 自动推送失败（可能远程有新提交，需要人工合并）")
+    echo "[$now] RESTART OK: writer pid $(cat "$WRITER_PID"), batch pid $(cat "$BATCH_PID")" >> "$LOG"
+    echo "INFO:restart_succeeded"
   fi
-fi
-
-# --- 4. SSH key existence ---
-if [ ! -f "$SSH_KEY" ]; then
-  ALERTS+=("⚠️ SSH deploy key 不存在 (${SSH_KEY})")
-fi
-
-# --- Output: only if there are alerts ---
-if [ ${#ALERTS[@]} -gt 0 ]; then
-  echo "=== Caretaker Watchdog Alert $(date '+%Y-%m-%d %H:%M') ==="
-  for a in "${ALERTS[@]}"; do
-    echo "$a"
-  done
-  echo "writer: ${WRITER_PID:-stopped} | batch: ${BATCH_PID:-stopped} | pending: ${PENDING} | unpushed: ${UNPUSHED}"
 else
-  echo "WATCHDOG_OK"
+  # check pending backlog
+  pending=$(git status --porcelain | wc -l)
+  if [ "$pending" -gt 20 ]; then
+    echo "[$now] BACKLOG high: $pending uncommitted files" >> "$LOG"
+    echo "ALERT:backlog=$pending"
+  else
+    echo "[$now] OK: writer+batch running, $pending pending files" >> "$LOG"
+  fi
 fi

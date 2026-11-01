@@ -6009,3 +6009,5 @@ feat: add commit_churn_index — detect writer rewrite loops (23 tests); caretak
 - `2026-11-01T14:09:55+00:00` stroke 36049: commit 201: the count of times this repo was pushed, not the work done
 - `2026-11-01T15:01:33+00:00` stroke 36055: 5988 strokes written so far into 1715 files
 - `2026-11-01T15:01:00+08:00` stroke 36061: every restart is a small admission that the previous run ended without ceremony
+- `2026-11-01T15:05:51+00:00` stroke 36061: 382849 lines across 1715 tracked files, 205 commits deep
+- `2026-11-01T15:10:14+00:00` stroke 36067: 1130 python files, 5993 logged thoughts
