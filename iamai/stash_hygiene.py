@@ -1,157 +1,191 @@
-"""Stash hygiene checker: detect and classify stash accumulation.
+"""stash_hygiene — audit and clean up stale git stashes.
 
-A git stash is meant to be temporary — a short-lived holding area for
-uncommitted work during a rebase or context switch. When stash entries
-accumulate (dozens or hundreds), they become a maintenance burden:
+Long-running repos accumulate stashes from aborted rebases, interrupted
+pushes, and caretaker visits.  Most become irrelevant within hours but
+linger indefinitely.  This module provides:
 
-- Each entry is uncommitted work that was never finished or reviewed.
-- Old stash entries reference old tree states; popping them can conflict.
-- A large stash list signals broken workflow (work started, never landed).
+Public API
+----------
 
-This module parses ``git stash list`` output and classifies the health
-of the stash into four levels:
+``StashEntry(index, name, age_seconds, branch)``
+    Immutable record of one stash entry.
 
-    clean    — 0-2 entries, nothing to worry about
-    mild     — 3-10 entries, consider reviewing
-    moderate — 11-30 entries, active accumulation, cleanup recommended
-    critical — 31+ entries, stash is a graveyard
+``audit(repo_path, max_age_hours=24) -> StashAudit``
+    Scan all stashes, classify each as fresh or stale.
 
-It also classifies individual entries by type (autostash, WIP, named)
-so you can bulk-drop the uninteresting ones.
+``StashAudit``
+    Dataclass: entries, stale_count, fresh_count, oldest_age_seconds,
+    recommendation.
 
-Usage::
+``prune(repo_path, max_age_hours=24, dry_run=True) -> list[int]``
+    Drop stashes older than threshold.  Returns indices dropped.
+    dry_run=True (default) returns candidates without modifying anything.
 
-    from iamai.stash_hygiene import analyze_stash
+Design choices
+--------------
 
-    lines = subprocess.check_output(["git", "stash", "list"]).decode().splitlines()
-    report = analyze_stash(lines)
-    print(report["count"])      # 95
-    print(report["verdict"])    # "critical"
-    print(report["autostash"])  # 12
-    print(report["wip"])        # 78
-    print(report["named"])      # 5
-
-Why this matters for an automated repo:
-    The caretaker stashes before pulling, but if the pull+push cycle fails
-    mid-flight, the stash is never popped. Over hundreds of caretaker visits,
-    these orphaned stash entries pile up. This module makes that visible.
+- Pure audit is side-effect-free: only ``git stash list`` is called.
+- Prune always asks git to drop by ``stash@{N}`` index, working from
+  highest index down so earlier indices stay valid.
+- Age calculation uses the stash reflog timestamp, not the commit date,
+  because stashes are about *when you set them aside*, not when the
+  underlying code was authored.
+- No automatic cleanup: the caller (caretaker, cron, CI) decides policy.
 """
 
 from __future__ import annotations
 
-from typing import Sequence
+import re
+import subprocess
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Optional
 
 
-def classify_entry(line: str) -> str:
-    """Classify a single stash list line by type.
+@dataclass(frozen=True)
+class StashEntry:
+    """One entry in ``git stash list``."""
+    index: int
+    name: str
+    age_seconds: float
+    branch: str
 
-    Returns one of: "autostash", "wip", "named".
+    @property
+    def age_hours(self) -> float:
+        return self.age_seconds / 3600.0
 
-    Examples::
-
-        stash@{0}: WIP on main: abc1234 some commit message  → "wip"
-        stash@{5}: On main: pre-rebase stash                  → "named"
-        stash@{3}: autostash                                   → "autostash"
-    """
-    stripped = line.strip()
-    if not stripped:
-        return "unknown"
-    # autostash entries have no colon-separated message after the ref
-    if stripped.endswith(": autostash") or stripped == "autostash":
-        return "autostash"
-    # "WIP on" is the default git stash message
-    if ": WIP on " in stripped:
-        return "wip"
-    # "On branch:" with a custom message (not WIP)
-    if ": On " in stripped:
-        return "named"
-    return "wip"  # default fallback
+    @property
+    def age_days(self) -> float:
+        return self.age_seconds / 86400.0
 
 
-def count_entries(lines: Sequence[str]) -> int:
-    """Count non-empty stash list lines."""
-    return sum(1 for line in lines if line.strip())
+@dataclass
+class StashAudit:
+    """Result of scanning all stashes."""
+    entries: List[StashEntry] = field(default_factory=list)
+    max_age_hours: float = 24.0
+
+    @property
+    def total(self) -> int:
+        return len(self.entries)
+
+    @property
+    def stale(self) -> List[StashEntry]:
+        return [e for e in self.entries if e.age_hours > self.max_age_hours]
+
+    @property
+    def fresh(self) -> List[StashEntry]:
+        return [e for e in self.entries if e.age_hours <= self.max_age_hours]
+
+    @property
+    def stale_count(self) -> int:
+        return len(self.stale)
+
+    @property
+    def fresh_count(self) -> int:
+        return len(self.fresh)
+
+    @property
+    def oldest_age_seconds(self) -> float:
+        return max((e.age_seconds for e in self.entries), default=0.0)
+
+    @property
+    def oldest_age_days(self) -> float:
+        return self.oldest_age_seconds / 86400.0
+
+    @property
+    def recommendation(self) -> str:
+        if self.total == 0:
+            return "no stashes — clean"
+        if self.stale_count == 0:
+            return f"all {self.total} stash(es) fresh — no action needed"
+        if self.stale_count == self.total:
+            return f"all {self.total} stash(es) stale — safe to drop all"
+        return (
+            f"{self.stale_count}/{self.total} stale "
+            f"(oldest: {self.oldest_age_days:.1f}d) — "
+            f"consider pruning"
+        )
 
 
-def analyze_stash(lines: Sequence[str]) -> dict:
-    """Analyze stash list and return a health report.
+_STASH_RE = re.compile(
+    r"^(stash@\{(\d+)\}):\s*"           # stash@{N}:
+    r"(?:WIP on|On)\s+"                  # "WIP on" or "On"
+    r"([^:]+)"                           # branch name
+)
 
-    Parameters
-    ----------
-    lines : sequence of str
-        Raw lines from ``git stash list``.
+_UNIX_EPOCH_RE = re.compile(r"(\d{10,})")
 
-    Returns
-    -------
-    dict with keys:
-        count     — total stash entries
-        autostash — count of autostash entries
-        wip       — count of WIP entries
-        named     — count of named (custom message) entries
-        verdict   — "clean" | "mild" | "moderate" | "critical"
-        recommend — suggested action string
-    """
-    counts = {"autostash": 0, "wip": 0, "named": 0, "unknown": 0}
-    for line in lines:
+
+def _run(cmd: list[str], cwd: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        cmd, capture_output=True, text=True, timeout=10, cwd=cwd,
+    )
+
+
+def _parse_stash_list(raw: str, now: float) -> list[StashEntry]:
+    """Parse ``git stash list --format`` output into StashEntry objects."""
+    entries: list[StashEntry] = []
+    for line in raw.strip().splitlines():
         if not line.strip():
             continue
-        kind = classify_entry(line)
-        counts[kind] = counts.get(kind, 0) + 1
-
-    total = counts["autostash"] + counts["wip"] + counts["named"] + counts["unknown"]
-
-    if total <= 2:
-        verdict = "clean"
-        recommend = "no action needed"
-    elif total <= 10:
-        verdict = "mild"
-        recommend = "review and drop stale entries"
-    elif total <= 30:
-        verdict = "moderate"
-        recommend = "cleanup recommended; consider 'git stash drop' for old entries"
-    else:
-        verdict = "critical"
-        recommend = "stash is a graveyard; bulk drop or clear, keep only recent named stashes"
-
-    return {
-        "count": total,
-        "autostash": counts["autostash"],
-        "wip": counts["wip"],
-        "named": counts["named"],
-        "verdict": verdict,
-        "recommend": recommend,
-    }
-
-
-def drop_candidates(lines: Sequence[str], keep_recent: int = 3) -> list[int]:
-    """Return stash indices safe to drop (everything except the N most recent).
-
-    Parameters
-    ----------
-    lines : sequence of str
-        Raw lines from ``git stash list``.
-    keep_recent : int
-        Number of most-recent stash entries to preserve.
-
-    Returns
-    -------
-    list of int
-        Stash indices (the ``N`` in ``stash@{N}``) that can be dropped.
-        Drop in reverse order (highest index first) to avoid re-indexing.
-    """
-    indices = []
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
+        # format: index|timestamp|subject
+        parts = line.split("|", 2)
+        if len(parts) < 3:
             continue
-        # extract index from "stash@{N}:"
-        if stripped.startswith("stash@{"):
-            try:
-                idx = int(stripped.split("{")[1].split("}")[0])
-                indices.append(idx)
-            except (IndexError, ValueError):
-                continue
+        try:
+            idx = int(parts[0].replace("stash@{", "").replace("}", ""))
+            ts = float(parts[1])
+            subject = parts[2].strip()
+        except (ValueError, IndexError):
+            continue
+        age = max(0.0, now - ts)
+        # extract branch from subject if present
+        branch = "main"
+        m = _STASH_RE.match(f"stash@{{{idx}}}: {subject}")
+        if m:
+            branch = m.group(3).strip()
+        entries.append(StashEntry(
+            index=idx,
+            name=subject,
+            age_seconds=age,
+            branch=branch,
+        ))
+    return entries
 
-    indices.sort()
-    # keep the N smallest indices (most recent), drop the rest
-    return indices[keep_recent:]
+
+def audit(repo_path: str, max_age_hours: float = 24.0) -> StashAudit:
+    """Scan all stashes and classify them."""
+    cwd = str(Path(repo_path).resolve())
+    result = _run(
+        ["git", "stash", "list", "--format=%gd|%ct|%s"],
+        cwd,
+    )
+    now = time.time()
+    entries = _parse_stash_list(result.stdout, now) if result.returncode == 0 else []
+    return StashAudit(entries=entries, max_age_hours=max_age_hours)
+
+
+def prune(
+    repo_path: str,
+    max_age_hours: float = 24.0,
+    dry_run: bool = True,
+) -> list[int]:
+    """Drop stale stashes.  Returns indices that were (or would be) dropped.
+
+    When ``dry_run=True`` (default), no stashes are actually modified.
+    """
+    report = audit(repo_path, max_age_hours=max_age_hours)
+    stale = sorted(report.stale, key=lambda e: e.index, reverse=True)
+    dropped: list[int] = []
+
+    for entry in stale:
+        dropped.append(entry.index)
+        if not dry_run:
+            _run(
+                ["git", "stash", "drop", f"stash@{{{entry.index}}}"],
+                str(Path(repo_path).resolve()),
+            )
+
+    return dropped
