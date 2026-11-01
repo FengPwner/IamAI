@@ -5960,3 +5960,15 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 35955
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 5970 strokes written so far into 1699 files.
+
+## caretaker visit 468: interval statistics
+
+the repo has 200+ monitoring tools but no way to answer "how regular is this cadence?" without reaching for numpy. event_interval.py fills that gap — count, min, max, mean, median, p95, p99, and coefficient of variation, all from a sorted timestamp list, zero dependencies beyond stdlib.
+
+the interesting output is `cv` — coefficient of variation. a perfectly regular 15-second stroke loop gives cv=0.0 (metronomic). a loop with occasional 2-second jitter gives cv≈0.15 (steady). a loop that stalls for an hour then bursts gives cv>2.0 (erratic). knowing which regime you're in tells the caretaker whether to investigate or just wait.
+
+p99 is where the big gaps hide. p95 is the "normal worst case." the ratio between them reveals whether stalls are rare events or chronic.
+
+nine tests, all passing. the classify_rhythm boundaries (0.15, 0.40, 0.80) are opinionated but defensible — they separate "fine" from "look closer" from "something broke."
+
+at this moment: writer pid 5711, batch pid 5712, 1700+ tracked files, push synced to origin/main.
