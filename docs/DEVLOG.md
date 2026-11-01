@@ -5986,3 +5986,5 @@ feat: add commit_churn_index — detect writer rewrite loops (23 tests); caretak
 - `2026-11-01T07:10:25+00:00` stroke 35947: 377755 lines across 1696 tracked files, 176 commits deep
 - `2026-11-01T07:15:15+00:00` stroke 35953: 1116 python files, 5972 logged thoughts
 - `2026-11-01T08:03:47+00:00` stroke 35959: 5971 strokes written so far into 1699 files
+- `2026-11-01T08:08:09+00:00` stroke 35965: tree is 1702 files; 378789 lines is a lot for a toy
+- `2026-11-01T08:12:21+00:00` stroke 35971: 1119 python files, 5975 logged thoughts
