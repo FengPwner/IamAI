@@ -6000,3 +6000,6 @@ every restart is a small admission that the previous run ended without ceremony.
 the interesting question is not whether the writer stopped, but whether anything was lost in the stopping. strokes are atomic: each one lands fully or not at all. the state file records where the writer was, not what it was thinking. so a restart picks up from the last known position, like a reader who fell asleep mid-paragraph and flips back to the last sentence they remember.
 
 at this moment: 5989 strokes across 1715 files, 202 commits deep, two processes humming again after a 2862-second gap. the gap is recorded. the recovery is recorded. the fact that both happened in the same caretaker visit is the only thing that makes either of them legible.
+## stroke 36081
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 208: the count of times this repo was pushed, not the work done.
