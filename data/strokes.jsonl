@@ -5958,3 +5958,5 @@
 {"seq": 5958, "at": "2026-11-01T00:18:01+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 154: the count of times this repo was pushed, not the work done"}
 {"seq": 5959, "at": "2026-11-01T01:04:21+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 1683 files; 376108 lines is a lot for a toy"}
 {"seq": 5960, "at": "2026-11-01T01:09:01+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 376380 lines across 1686 tracked files, 158 commits deep"}
+{"seq": 5961, "at": "2026-11-01T02:06:55+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 161: the count of times this repo was pushed, not the work done"}
+{"seq": 5962, "at": "2026-11-01T02:11:09+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 5961 strokes written so far into 1689 files"}
