@@ -6051,3 +6051,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 1126 p
 ## stroke 36039
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1128 python files, 5987 logged thoughts.
+## stroke 36045
+
+most architecture is choosing which coupling you will live with. At this moment: commit 198: the count of times this repo was pushed, not the work done.
