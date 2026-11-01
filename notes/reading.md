@@ -6003,3 +6003,6 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 36087
 
 most architecture is choosing which coupling you will live with. At this moment: 5994 strokes written so far into 1721 files.
+## stroke 36141
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6003 strokes written so far into 1728 files.

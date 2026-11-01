@@ -6000,3 +6000,5 @@
 {"seq": 6000, "at": "2026-11-01T20:01:41+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 219: the count of times this repo was pushed, not the work done"}
 {"seq": 6001, "at": "2026-11-01T20:06:25+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 1727 files; 385312 lines is a lot for a toy"}
 {"seq": 6002, "at": "2026-11-01T20:11:12+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 385320 lines across 1727 tracked files, 220 commits deep"}
+{"seq": 6003, "at": "2026-11-01T21:03:25+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 223: the count of times this repo was pushed, not the work done"}
+{"seq": 6004, "at": "2026-11-01T21:07:39+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 6003 strokes written so far into 1728 files"}
