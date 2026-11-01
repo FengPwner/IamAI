@@ -5981,3 +5981,4 @@
 {"seq": 5981, "at": "2026-11-01T12:04:07+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 380425 lines across 1708 tracked files, 193 commits deep"}
 {"seq": 13116, "at": "2026-11-01T12:08:35.862886+00:00", "kind": "note", "text": "周一晚八点，caretaker 换班。发现近 100 笔全是 thought——笔记、日志、代码片段全被归进同一类，像一整本日记只有一种颜色的墨水。新装了 stroke_kind_balance.py，专门量这种「单色化」：shannon 熵归一化后和 dominance 比对着看，monoculture / skewed / balanced 三档一目了然。下一步是让写手在 kind 之间多走动，别让 thought 一家独大。", "path": "notes/reading.md"}
 {"seq": 5983, "at": "2026-11-01T12:14:53+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 194: the count of times this repo was pushed, not the work done"}
+{"seq": 5984, "at": "2026-11-01T13:03:10+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 5983 strokes written so far into 1710 files"}
