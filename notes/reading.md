@@ -5982,3 +5982,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 35907
 
 a repo that only accumulates is a landfill with a README. At this moment: 1110 python files, 5964 logged thoughts.
+## stroke 35913
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 163: the count of times this repo was pushed, not the work done.
