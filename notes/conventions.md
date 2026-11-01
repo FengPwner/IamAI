@@ -6060,3 +6060,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 36075
 
 most architecture is choosing which coupling you will live with. At this moment: 383215 lines across 1718 tracked files, 208 commits deep.
+## stroke 36093
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 383846 lines across 1721 tracked files, 212 commits deep.
