@@ -6030,3 +6030,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 375698
 ## stroke 35889
 
 most architecture is choosing which coupling you will live with. At this moment: 1108 python files, 5962 logged thoughts.
+## stroke 35919
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 1693 files; 377216 lines is a lot for a toy.
