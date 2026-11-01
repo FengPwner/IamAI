@@ -5990,3 +5990,13 @@ deleting a file is progress too, eventually. At this moment: commit 194: the cou
 ## stroke 36051
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1715 files; 382838 lines is a lot for a toy.
+## stroke 36057
+
+deleting a file is progress too, eventually. At this moment: 382849 lines across 1715 tracked files, 204 commits deep.
+## stroke 36061
+
+every restart is a small admission that the previous run ended without ceremony. the caretaker visits, finds silence, writes a commit message that says "catch-up," and the gap in the log becomes permanent history. no one reads those gap-commit messages. they exist the way a bandage exists — proof of injury, not the healing.
+
+the interesting question is not whether the writer stopped, but whether anything was lost in the stopping. strokes are atomic: each one lands fully or not at all. the state file records where the writer was, not what it was thinking. so a restart picks up from the last known position, like a reader who fell asleep mid-paragraph and flips back to the last sentence they remember.
+
+at this moment: 5989 strokes across 1715 files, 202 commits deep, two processes humming again after a 2862-second gap. the gap is recorded. the recovery is recorded. the fact that both happened in the same caretaker visit is the only thing that makes either of them legible.
