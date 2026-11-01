@@ -6004,3 +6004,4 @@
 {"seq": 6004, "at": "2026-11-01T21:07:39+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 6003 strokes written so far into 1728 files"}
 {"seq": 6005, "at": "2026-11-01T22:03:34+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 385412 lines across 1728 tracked files, 225 commits deep"}
 {"seq": 6006, "at": "2026-11-01T22:07:46+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 1139 python files, 6007 logged thoughts"}
+{"seq": 6007, "at": "2026-11-01T23:02:09+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 6006 strokes written so far into 1731 files"}
