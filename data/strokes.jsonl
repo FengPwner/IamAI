@@ -6010,3 +6010,5 @@
 {"seq": 6010, "at": "2026-11-02T00:04:37+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 6009 strokes written so far into 1734 files"}
 {"seq": 6011, "at": "2026-11-02T00:08:51+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 1734 files; 386511 lines is a lot for a toy"}
 {"seq": 6012, "at": "2026-11-02T00:13:04+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1141 python files, 6013 logged thoughts"}
+{"seq": 6013, "at": "2026-11-02T00:17:27+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 6012 strokes written so far into 1737 files"}
+{"seq": 6014, "at": "2026-11-02T00:21:49+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 1737 files; 387692 lines is a lot for a toy"}
