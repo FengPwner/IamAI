@@ -6036,3 +6036,7 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 36345
 
 a repo that only accumulates is a landfill with a README. At this moment: 1160 python files, 6036 logged thoughts.
+
+
+a push that fails because you forgot to pull is not a network error, it is an attention error — you looked at your branch and forgot the rest of the world existed.
+## stroke 36351
