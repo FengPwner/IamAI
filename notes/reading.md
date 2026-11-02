@@ -6056,3 +6056,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 36423
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 282: the count of times this repo was pushed, not the work done.
+## stroke 36429
+
+most architecture is choosing which coupling you will live with. At this moment: 6052 strokes written so far into 1782 files.
