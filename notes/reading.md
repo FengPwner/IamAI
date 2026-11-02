@@ -6047,3 +6047,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 36373
 
 the best debugging technique is changing the question rather than the answer — six visits of rebase conflicts resolved by switching to reset-soft. Read: "the art of git" is really "the art of accepting where you are"
+## stroke 36375
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 1771 files; 394474 lines is a lot for a toy.
