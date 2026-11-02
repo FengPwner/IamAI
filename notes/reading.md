@@ -6024,3 +6024,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 36267
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1150 python files, 6024 logged thoughts.
+## stroke 36273
+
+most architecture is choosing which coupling you will live with. At this moment: commit 246: the count of times this repo was pushed, not the work done.
