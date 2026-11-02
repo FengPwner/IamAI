@@ -6105,3 +6105,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 36351
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6037 strokes written so far into 1766 files.
+## stroke 36381
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1164 python files, 6047 logged thoughts.
+## stroke 36387
+
+most architecture is choosing which coupling you will live with. At this moment: commit 274: the count of times this repo was pushed, not the work done.
