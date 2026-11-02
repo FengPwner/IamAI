@@ -6050,3 +6050,6 @@ the best debugging technique is changing the question rather than the answer —
 ## stroke 36375
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 1771 files; 394474 lines is a lot for a toy.
+## stroke 36399
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1164 python files, 6050 logged thoughts.

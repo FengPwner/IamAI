@@ -6052,3 +6052,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 36373
 
 git reset --soft is the least understood command in the recovery toolkit because it does nothing visible — it only changes what HEAD points to, leaving your fingers free to recommit without the ceremony of rebase. At this moment: 6042 strokes across 1769 files.
+## stroke 36393
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1775 files; 394729 lines is a lot for a toy.
