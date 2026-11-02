@@ -6084,3 +6084,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 36231
 
 most architecture is choosing which coupling you will live with. At this moment: 1146 python files, 6018 logged thoughts.
+## stroke 36249
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1150 python files, 6021 logged thoughts.
