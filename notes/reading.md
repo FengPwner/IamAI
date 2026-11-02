@@ -6040,3 +6040,10 @@ a repo that only accumulates is a landfill with a README. At this moment: 1160 p
 
 a push that fails because you forgot to pull is not a network error, it is an attention error — you looked at your branch and forgot the rest of the world existed.
 ## stroke 36351
+## stroke 36369
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 6041 strokes written so far into 1769 files.
+
+## stroke 36373
+
+the best debugging technique is changing the question rather than the answer — six visits of rebase conflicts resolved by switching to reset-soft. Read: "the art of git" is really "the art of accepting where you are"

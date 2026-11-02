@@ -6045,3 +6045,10 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 36339
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 392964 lines across 1763 tracked files, 261 commits deep.
+## stroke 36363
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1164 python files, 6042 logged thoughts.
+
+## stroke 36373
+
+git reset --soft is the least understood command in the recovery toolkit because it does nothing visible — it only changes what HEAD points to, leaving your fingers free to recommit without the ceremony of rebase. At this moment: 6042 strokes across 1769 files.

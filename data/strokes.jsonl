@@ -6038,3 +6038,5 @@
 {"seq": 6038, "at": "2026-11-02T10:13:06+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 1766 files; 393581 lines is a lot for a toy"}
 {"seq": 6039, "at": "2026-11-02T10:13:20+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 1766 files; 393581 lines is a lot for a toy"}
 {"seq": 6040, "at": "2026-11-02T11:05:54+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 394292 lines across 1769 tracked files, 266 commits deep"}
+{"seq": 6041, "at": "2026-11-02T11:10:48+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 269: the count of times this repo was pushed, not the work done"}
+{"seq": 6042, "at": "2026-11-02T12:05:53+00:00", "kind": "note", "text": "reset --soft is the git command equivalent of accepting where you are instead of fighting where you were — three visits worth of rebase conflicts resolved by changing the question, not the answer"}
