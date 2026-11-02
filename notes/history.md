@@ -6064,3 +6064,6 @@ grades from STALLED (0–20) to CRUISING (71–100). 75 unit tests cover all met
 - stroke 36431: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 36437: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 36443: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 36449: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+
+- caretaker visit 503: restart after process reclaim — writer and batch both dead, 7 files uncommitted. stash-pull-rebase-push recovered the divergence. added push_credit.py (push reliability tracker with recency decay and streak penalty) plus 21 tests. pipeline green, rhythm resuming.
