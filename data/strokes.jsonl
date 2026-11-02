@@ -6007,3 +6007,6 @@
 {"seq": 6007, "at": "2026-11-01T23:02:09+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 6006 strokes written so far into 1731 files"}
 {"seq": 6008, "at": "2026-11-01T23:06:21+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 386465 lines across 1734 tracked files, 229 commits deep"}
 {"seq": 6009, "at": "2026-11-01T23:10:33+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 1141 python files, 6010 logged thoughts"}
+{"seq": 6010, "at": "2026-11-02T00:04:37+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 6009 strokes written so far into 1734 files"}
+{"seq": 6011, "at": "2026-11-02T00:08:51+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 1734 files; 386511 lines is a lot for a toy"}
+{"seq": 6012, "at": "2026-11-02T00:13:04+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1141 python files, 6013 logged thoughts"}
