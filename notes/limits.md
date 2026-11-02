@@ -6055,3 +6055,6 @@ git reset --soft is the least understood command in the recovery toolkit because
 ## stroke 36393
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 1775 files; 394729 lines is a lot for a toy.
+## stroke 36411
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 1777 files; 395004 lines is a lot for a toy.
