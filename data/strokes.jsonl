@@ -6014,3 +6014,4 @@
 {"seq": 6014, "at": "2026-11-02T00:21:49+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 1737 files; 387692 lines is a lot for a toy"}
 {"seq": 6015, "at": "2026-11-02T01:15:40+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 1740 files; 388114 lines is a lot for a toy"}
 {"seq": 6016, "at": "2026-11-02T01:20:48+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 388133 lines across 1740 tracked files, 235 commits deep"}
+{"seq": 6017, "at": "2026-11-02T02:05:11+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 237: the count of times this repo was pushed, not the work done"}
