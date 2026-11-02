@@ -6068,3 +6068,4 @@ grades from STALLED (0–20) to CRUISING (71–100). 75 unit tests cover all met
 
 - caretaker visit 503: restart after process reclaim — writer and batch both dead, 7 files uncommitted. stash-pull-rebase-push recovered the divergence. added push_credit.py (push reliability tracker with recency decay and streak penalty) plus 21 tests. pipeline green, rhythm resuming.
 - stroke 36455: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 36461: `retry.py` is already in the pool of 9 modules, nothing new to add there
