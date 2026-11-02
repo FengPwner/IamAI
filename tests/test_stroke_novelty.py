@@ -1,379 +1,267 @@
-#!/usr/bin/env python3
-"""Tests for tools/stroke_novelty.py — content repetition detection."""
+"""Tests for tools/stroke_novelty.py — content-stall detection.
+
+Run:  python3 -m pytest tests/test_stroke_novelty.py -v
+"""
 
 from __future__ import annotations
 
 import json
+import os
 import sys
+import textwrap
 from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / "tools"))
+TOOLS_DIR = Path(__file__).resolve().parent.parent / "tools"
+sys.path.insert(0, str(TOOLS_DIR))
 
-from stroke_novelty import (
-    analyze,
-    classify_freshness,
-    detect_cycle_length,
-    format_text,
-    load_strokes,
-    novelty_ratio,
-    repeat_count,
-    strip_measurement,
-    text_hash,
-    unique_count,
-)
+import stroke_novelty as sn  # noqa: E402
 
 
-# ── helpers ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# extract_prefix
+# ---------------------------------------------------------------------------
 
+class TestExtractPrefix:
+    def test_strips_measured_now_suffix(self):
+        text = "growth that never stops is a tumour -- measured now: 100 lines"
+        assert sn.extract_prefix(text) == "growth that never stops is a tumour"
 
-def _make_strokes(texts: list[str]) -> list[dict]:
-    """Create minimal stroke records with explicit text content."""
-    return [
-        {"seq": i, "at": f"2026-10-24T12:{i:02d}:00+00:00", "kind": "thought", "text": t}
-        for i, t in enumerate(texts)
-    ]
-
-
-def _write_jsonl(path: Path, records: list[dict]) -> None:
-    with open(path, "w", encoding="utf-8") as f:
-        for r in records:
-            f.write(json.dumps(r) + "\n")
-
-
-# ── text_hash ────────────────────────────────────────────────────────────
-
-
-class TestTextHash:
-    def test_deterministic(self):
-        assert text_hash("hello") == text_hash("hello")
-
-    def test_different_texts_differ(self):
-        assert text_hash("hello") != text_hash("world")
+    def test_no_separator_returns_full_text(self):
+        text = "caretaker visit 59: ghost_writer_detector — four states"
+        assert sn.extract_prefix(text) == text
 
     def test_empty_string(self):
-        assert text_hash("") == text_hash("")
+        assert sn.extract_prefix("") == ""
 
-    def test_returns_string(self):
-        assert isinstance(text_hash("abc"), str)
-        assert len(text_hash("abc")) == 16
+    def test_whitespace_handling(self):
+        text = "  some prefix  -- measured now: stuff  "
+        assert sn.extract_prefix(text) == "some prefix"
 
-    def test_strips_measurement_suffix(self):
-        """Same base text with different measurements should hash equal."""
-        a = "hello -- measured now: 42 things"
-        b = "hello -- measured now: 99 things"
-        assert text_hash(a) == text_hash(b)
-
-    def test_different_base_same_measurement(self):
-        """Different base texts with same measurement should hash differently."""
-        a = "hello -- measured now: 42 things"
-        b = "world -- measured now: 42 things"
-        assert text_hash(a) != text_hash(b)
+    def test_multiple_separators_uses_first(self):
+        text = "prefix -- measured now: middle -- measured now: end"
+        assert sn.extract_prefix(text) == "prefix"
 
 
-# ── strip_measurement ────────────────────────────────────────────────────
-
-
-class TestStripMeasurement:
-    def test_removes_suffix(self):
-        text = "hello world -- measured now: 42 things"
-        assert strip_measurement(text) == "hello world"
-
-    def test_no_suffix(self):
-        assert strip_measurement("just a thought") == "just a thought"
-
-    def test_empty(self):
-        assert strip_measurement("") == ""
-
-    def test_marker_only(self):
-        assert strip_measurement("-- measured now: data") == ""
-
-    def test_preserves_text_before(self):
-        text = "an append-only log forces honesty -- measured now: 833 python files"
-        assert strip_measurement(text) == "an append-only log forces honesty"
-
-    def test_multiple_markers_keeps_first(self):
-        text = "a -- measured now: b -- measured now: c"
-        assert strip_measurement(text) == "a"
-
-
-# ── unique_count ─────────────────────────────────────────────────────────
-
-
-class TestUniqueCount:
-    def test_all_unique(self):
-        assert unique_count(["a", "b", "c"]) == 3
-
-    def test_all_same(self):
-        assert unique_count(["x", "x", "x"]) == 1
-
-    def test_mixed(self):
-        assert unique_count(["a", "b", "a", "c", "b"]) == 3
-
-    def test_empty(self):
-        assert unique_count([]) == 0
-
-    def test_single(self):
-        assert unique_count(["only"]) == 1
-
-
-# ── novelty_ratio ────────────────────────────────────────────────────────
-
-
-class TestNoveltyRatio:
-    def test_all_unique(self):
-        assert novelty_ratio(["a", "b", "c", "d"]) == 1.0
-
-    def test_all_same(self):
-        assert novelty_ratio(["x", "x", "x", "x"]) == pytest.approx(0.25)
-
-    def test_half_repeat(self):
-        # a, b, c, a → 3 unique out of 4
-        assert novelty_ratio(["a", "b", "c", "a"]) == pytest.approx(0.75)
-
-    def test_empty(self):
-        assert novelty_ratio([]) == 1.0
-
-    def test_single(self):
-        assert novelty_ratio(["x"]) == 1.0
-
-    def test_cycling_seven(self):
-        """Seven unique texts cycling — first 7 are novel, rest are repeats."""
-        base = [f"thought_{i}" for i in range(7)]
-        texts = (base * 5)[:30]  # 30 texts, 7 unique
-        assert novelty_ratio(texts) == pytest.approx(7 / 30, abs=0.01)
-
-
-# ── repeat_count ─────────────────────────────────────────────────────────
-
-
-class TestRepeatCount:
-    def test_none_repeated(self):
-        assert repeat_count(["a", "b", "c"]) == 0
-
-    def test_one_repeated(self):
-        assert repeat_count(["a", "b", "a"]) == 1
-
-    def test_all_repeated(self):
-        assert repeat_count(["a", "b", "a", "b"]) == 2
-
-    def test_empty(self):
-        assert repeat_count([]) == 0
-
-
-# ── detect_cycle_length ─────────────────────────────────────────────────
-
-
-class TestDetectCycleLength:
-    def test_no_cycle(self):
-        texts = [f"unique_{i}" for i in range(20)]
-        assert detect_cycle_length(texts) == 0
-
-    def test_cycle_of_1(self):
-        """Same text repeated."""
-        texts = ["x"] * 10
-        assert detect_cycle_length(texts) == 1
-
-    def test_cycle_of_3(self):
-        texts = ["a", "b", "c"] * 6
-        assert detect_cycle_length(texts) == 3
-
-    def test_cycle_of_7(self):
-        base = [f"t{i}" for i in range(7)]
-        texts = base * 4
-        assert detect_cycle_length(texts) == 7
-
-    def test_too_short(self):
-        assert detect_cycle_length(["a", "b"]) == 0
-
-    def test_empty(self):
-        assert detect_cycle_length([]) == 0
-
-    def test_partial_repeat_not_cycle(self):
-        """A partial repeat at the end should not count as a cycle."""
-        texts = ["a", "b", "c", "d", "e", "a", "b", "c"]
-        # last 6: d,e,a,b,c,a — no clean cycle
-        result = detect_cycle_length(texts)
-        # should be 0 or some cycle, just not crash
-        assert isinstance(result, int)
-        assert result >= 0
-
-
-# ── classify_freshness ───────────────────────────────────────────────────
-
-
-class TestClassifyFreshness:
-    def test_fresh(self):
-        assert classify_freshness(0.9, 0) == "FRESH"
-
-    def test_fresh_boundary(self):
-        assert classify_freshness(0.8, 0) == "FRESH"
-
-    def test_warm(self):
-        assert classify_freshness(0.65, 0) == "WARM"
-
-    def test_warm_lower_boundary(self):
-        assert classify_freshness(0.5, 0) == "WARM"
-
-    def test_stale(self):
-        assert classify_freshness(0.35, 0) == "STALE"
-
-    def test_stale_lower_boundary(self):
-        assert classify_freshness(0.2, 0) == "STALE"
-
-    def test_looping_low_novelty(self):
-        assert classify_freshness(0.1, 0) == "LOOPING"
-
-    def test_looping_cycle_detected(self):
-        assert classify_freshness(0.9, 7) == "LOOPING"
-
-    def test_looping_both(self):
-        assert classify_freshness(0.1, 3) == "LOOPING"
-
-
-# ── load_strokes ─────────────────────────────────────────────────────────
-
+# ---------------------------------------------------------------------------
+# load_strokes
+# ---------------------------------------------------------------------------
 
 class TestLoadStrokes:
-    def test_missing_file(self, tmp_path):
-        assert load_strokes(tmp_path / "nonexistent.jsonl") == []
+    def test_load_from_jsonl(self, tmp_path):
+        f = tmp_path / "strokes.jsonl"
+        f.write_text(
+            '{"seq": 1, "text": "alpha -- measured now: 1"}\n'
+            '{"seq": 2, "text": "beta -- measured now: 2"}\n'
+            '{"seq": 3, "text": "alpha -- measured now: 3"}\n'
+        )
+        strokes = sn.load_strokes(f)
+        assert len(strokes) == 3
+        assert strokes[0]["seq"] == 1
 
-    def test_valid_file(self, tmp_path):
-        p = tmp_path / "strokes.jsonl"
-        records = _make_strokes(["hello", "world"])
-        _write_jsonl(p, records)
-        loaded = load_strokes(p)
-        assert len(loaded) == 2
-        assert loaded[0]["text"] == "hello"
+    def test_tail_limits_to_last_n(self, tmp_path):
+        f = tmp_path / "strokes.jsonl"
+        lines = [f'{{"seq": {i}, "text": "line {i}"}}' for i in range(20)]
+        f.write_text("\n".join(lines) + "\n")
+        strokes = sn.load_strokes(f, tail=5)
+        assert len(strokes) == 5
+        assert strokes[0]["seq"] == 15
 
-    def test_blank_lines(self, tmp_path):
-        p = tmp_path / "strokes.jsonl"
-        p.write_text(json.dumps({"seq": 1, "text": "a"}) + "\n\n\n"
-                      + json.dumps({"seq": 2, "text": "b"}) + "\n")
-        assert len(load_strokes(p)) == 2
+    def test_missing_file_returns_empty(self, tmp_path):
+        f = tmp_path / "nonexistent.jsonl"
+        assert sn.load_strokes(f) == []
 
-    def test_malformed_json(self, tmp_path):
-        p = tmp_path / "strokes.jsonl"
-        p.write_text('{"seq": 1, "text": "ok"}\n{broken\n{"seq": 3, "text": "ok"}\n')
-        assert len(load_strokes(p)) == 2
+    def test_malformed_lines_skipped(self, tmp_path):
+        f = tmp_path / "strokes.jsonl"
+        f.write_text(
+            '{"seq": 1, "text": "good"}\n'
+            'not valid json\n'
+            '{"seq": 3, "text": "also good"}\n'
+        )
+        strokes = sn.load_strokes(f)
+        assert len(strokes) == 2
+
+    def test_blank_lines_skipped(self, tmp_path):
+        f = tmp_path / "strokes.jsonl"
+        f.write_text(
+            '{"seq": 1, "text": "a"}\n'
+            "\n"
+            '{"seq": 2, "text": "b"}\n'
+        )
+        strokes = sn.load_strokes(f)
+        assert len(strokes) == 2
 
 
-# ── format_text ──────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# compute_novelty
+# ---------------------------------------------------------------------------
+
+class TestComputeNovelty:
+    def _make_strokes(self, templates: list[str], repeat: int = 1) -> list[dict]:
+        strokes = []
+        seq = 0
+        for _ in range(repeat):
+            for t in templates:
+                seq += 1
+                strokes.append({
+                    "seq": seq,
+                    "text": f"{t} -- measured now: {seq}",
+                })
+        return strokes
+
+    def test_all_unique_is_healthy(self):
+        strokes = self._make_strokes(["alpha", "beta", "gamma", "delta", "epsilon"])
+        result = sn.compute_novelty(strokes)
+        assert result["ratio"] == 1.0
+        assert result["severity"] == "healthy"
+
+    def test_heavy_repetition_is_stall(self):
+        strokes = self._make_strokes(["only_one_template"], repeat=50)
+        result = sn.compute_novelty(strokes)
+        assert result["ratio"] == pytest.approx(1 / 50, abs=0.01)
+        assert result["severity"] == "stall"
+
+    def test_moderate_repetition_is_warn(self):
+        # 5 templates repeated 20 times = 100 strokes, ratio = 5/100 = 0.05 -> stall
+        # We need ratio between 0.2 and 0.5 for warn
+        # 3 templates, no repeat -> ratio = 1.0 (healthy)
+        # Let's use a custom set
+        strokes = []
+        for i in range(10):
+            strokes.append({"seq": i, "text": f"tmpl{i % 3} -- measured now: {i}"})
+        # 3 unique out of 10 = 0.3 -> warn
+        result = sn.compute_novelty(strokes)
+        assert result["ratio"] == pytest.approx(0.3, abs=0.01)
+        assert result["severity"] == "warn"
+
+    def test_empty_strokes(self):
+        result = sn.compute_novelty([])
+        assert result["total"] == 0
+        assert result["severity"] == "stall"
+
+    def test_window_limits_scope(self):
+        # 50 strokes with 2 templates, but window=10 sees only last 10
+        strokes = self._make_strokes(["a", "b"], repeat=25)
+        result = sn.compute_novelty(strokes, window=10)
+        assert result["total"] == 10
+        assert result["unique"] == 2
+        assert result["ratio"] == pytest.approx(0.2, abs=0.01)
+
+    def test_top_templates_populated(self):
+        strokes = self._make_strokes(["alpha", "beta", "gamma"], repeat=10)
+        result = sn.compute_novelty(strokes)
+        assert len(result["top_templates"]) == 3
+        assert result["top_templates"][0]["count"] == 10
+
+    def test_top_templates_capped_at_five(self):
+        strokes = self._make_strokes([f"t{i}" for i in range(20)], repeat=3)
+        result = sn.compute_novelty(strokes)
+        assert len(result["top_templates"]) == 5
+
+    def test_prefix_truncated_to_80_chars(self):
+        long_template = "x" * 200
+        strokes = [{"seq": 1, "text": f"{long_template} -- measured now: 1"}]
+        result = sn.compute_novelty(strokes)
+        assert len(result["top_templates"][0]["prefix"]) == 80
 
 
-class TestFormatText:
-    def test_contains_key_fields(self):
+# ---------------------------------------------------------------------------
+# severity_exit
+# ---------------------------------------------------------------------------
+
+class TestSeverityExit:
+    def test_healthy_returns_0(self):
+        assert sn.severity_exit("healthy") == 0
+
+    def test_warn_returns_1(self):
+        assert sn.severity_exit("warn") == 1
+
+    def test_stall_returns_2(self):
+        assert sn.severity_exit("stall") == 2
+
+    def test_unknown_returns_2(self):
+        assert sn.severity_exit("unknown") == 2
+
+
+# ---------------------------------------------------------------------------
+# format_report
+# ---------------------------------------------------------------------------
+
+class TestFormatReport:
+    def test_basic_report_contains_key_fields(self):
         result = {
-            "stroke_count": 100,
-            "unique_count": 7,
-            "repeat_count": 7,
-            "novelty_ratio": 0.07,
-            "cycle_length": 7,
-            "freshness_class": "LOOPING",
-            "top_repeat_count": 14,
-            "top_repeat_example": "hello world",
+            "total": 100,
+            "unique": 5,
+            "ratio": 0.05,
+            "top_templates": [
+                {"prefix": "alpha", "count": 50},
+                {"prefix": "beta", "count": 30},
+            ],
+            "severity": "stall",
         }
-        text = format_text(result)
-        assert "Stroke Content Novelty" in text
-        assert "100" in text
-        assert "LOOPING" in text
-        assert "hello world" in text
+        report = sn.format_report(result)
+        assert "100" in report
+        assert "5" in report
+        assert "5.00%" in report
+        assert "stall" in report
+        assert "alpha" in report
+        assert "beta" in report
 
-    def test_no_cycle(self):
+    def test_empty_report_no_templates_section(self):
         result = {
-            "stroke_count": 50,
-            "unique_count": 50,
-            "repeat_count": 0,
-            "novelty_ratio": 1.0,
-            "cycle_length": 0,
-            "freshness_class": "FRESH",
-            "top_repeat_count": 1,
-            "top_repeat_example": "unique text",
+            "total": 0,
+            "unique": 0,
+            "ratio": 0.0,
+            "top_templates": [],
+            "severity": "stall",
         }
-        text = format_text(result)
-        assert "(none)" in text
-        assert "FRESH" in text
+        report = sn.format_report(result)
+        assert "most repeated" not in report
 
 
-# ── analyze (integration) ───────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Integration: realistic scenario
+# ---------------------------------------------------------------------------
 
+class TestIntegration:
+    def test_realistic_stall_scenario(self, tmp_path):
+        """Simulate the real repo: 7 templates cycled 857+ times each."""
+        f = tmp_path / "strokes.jsonl"
+        templates = [
+            "reproducibility is a courtesy to whoever debugs this at 2am",
+            "if a number in a diary is not measured, it is fiction",
+            "an append-only log forces you to be wrong in public",
+            "a deterministic garden beats a random one",
+            "growth that never stops is a tumour",
+            "tests are the part of a repository that argues back",
+            "ten minutes is long enough to be honest",
+        ]
+        lines = []
+        for cycle in range(100):
+            for t in templates:
+                lines.append(json.dumps({
+                    "text": f"{t} -- measured now: cycle {cycle}"
+                }))
+        f.write_text("\n".join(lines) + "\n")
 
-class TestAnalyze:
-    def test_fresh_strokes(self, tmp_path):
-        p = tmp_path / "strokes.jsonl"
-        records = _make_strokes([f"unique thought {i}" for i in range(50)])
-        _write_jsonl(p, records)
-        result = analyze(path=p, window=50)
-        assert result["freshness_class"] == "FRESH"
-        assert result["novelty_ratio"] == 1.0
-        assert result["unique_count"] == 50
-        assert result["cycle_length"] == 0
+        strokes = sn.load_strokes(f)
+        result = sn.compute_novelty(strokes)
+        assert result["total"] == 700
+        assert result["unique"] == 7
+        assert result["severity"] == "stall"
 
-    def test_looping_strokes(self, tmp_path):
-        p = tmp_path / "strokes.jsonl"
-        base = [f"thought {i}" for i in range(7)]
-        texts = (base * 15)[:100]
-        records = _make_strokes(texts)
-        _write_jsonl(p, records)
-        result = analyze(path=p, window=100)
-        assert result["freshness_class"] == "LOOPING"
-        assert result["cycle_length"] == 7
-        assert result["unique_count"] == 7
+    def test_realistic_healthy_scenario(self, tmp_path):
+        """Each stroke has a genuinely different prefix."""
+        f = tmp_path / "strokes.jsonl"
+        lines = []
+        for i in range(50):
+            lines.append(json.dumps({
+                "text": f"unique thought number {i} about topic {i*3} -- measured now: {i}"
+            }))
+        f.write_text("\n".join(lines) + "\n")
 
-    def test_stale_strokes(self, tmp_path):
-        p = tmp_path / "strokes.jsonl"
-        # 20 unique base texts, repeated non-cyclically to avoid cycle detection
-        # novelty = 20/50 = 0.4 → STALE
-        import random
-        random.seed(42)
-        pool = [f"thought_{i}" for i in range(20)]
-        texts = list(pool)  # first 20 are unique
-        # next 30 are random picks from pool (non-cycling)
-        for _ in range(30):
-            texts.append(random.choice(pool))
-        records = _make_strokes(texts)
-        _write_jsonl(p, records)
-        result = analyze(path=p, window=50)
-        assert result["freshness_class"] == "STALE"
-        assert result["unique_count"] == 20
-
-    def test_window_truncation(self, tmp_path):
-        p = tmp_path / "strokes.jsonl"
-        # 200 strokes: first 100 are unique, last 100 cycle 7 texts
-        texts = [f"u{i}" for i in range(100)]
-        base = [f"c{i}" for i in range(7)]
-        texts += (base * 15)[:100]
-        records = _make_strokes(texts)
-        _write_jsonl(p, records)
-        result = analyze(path=p, window=100)
-        # should only look at last 100 (the cycling part)
-        assert result["freshness_class"] == "LOOPING"
-        assert result["stroke_count"] == 100
-
-    def test_missing_file(self, tmp_path):
-        result = analyze(path=tmp_path / "nope.jsonl", window=50)
-        assert result["stroke_count"] == 0
-        assert result["freshness_class"] == "FRESH"
-
-    def test_empty_file(self, tmp_path):
-        p = tmp_path / "strokes.jsonl"
-        p.write_text("")
-        result = analyze(path=p, window=50)
-        assert result["stroke_count"] == 0
-
-    def test_real_repo_strokes(self):
-        """Smoke test against the actual repo data.
-
-        The current writer cycles through 7 base thoughts, each appended with
-        a different '-- measured now:' suffix.  After stripping measurements
-        the tool should detect the repetition.
-        """
-        real = REPO / "data" / "strokes.jsonl"
-        if not real.exists():
-            pytest.skip("repo strokes file not available")
-        result = analyze(path=real, window=100)
-        # base texts cycle → novelty_ratio should be low
-        assert result["freshness_class"] in ("LOOPING", "STALE")
-        assert result["unique_count"] <= 20  # far fewer than 100
+        strokes = sn.load_strokes(f)
+        result = sn.compute_novelty(strokes)
+        assert result["ratio"] == 1.0
+        assert result["severity"] == "healthy"

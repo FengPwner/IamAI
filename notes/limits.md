@@ -6024,3 +6024,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 36237
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 6017 strokes written so far into 1743 files.
+## stroke 36255
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 6020 strokes written so far into 1746 files.

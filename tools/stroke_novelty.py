@@ -1,222 +1,182 @@
 #!/usr/bin/env python3
-"""stroke_novelty.py — detect content repetition loops in the stroke log.
+"""stroke_novelty.py — detect content stalls in the stroke log.
 
-While stroke_rhythm_stability.py measures *timing* health, this tool
-measures *content* health.  A writer can produce strokes at perfect 15 s
-cadence but still be broken if it is replaying the same handful of texts
-in a cycle.
+The writer produces one stroke every ~15 seconds. Each stroke has a text
+body with a template prefix and a "measured now" suffix. When the writer
+runs out of new ideas it keeps cycling through the same small set of
+templates — the stroke count grows but the content doesn't.
 
-Core metrics:
-  - novelty_ratio:     fraction of texts in the window that are unique
-                          1.0 = every text is new, 0.0 = all duplicates
-  - unique_count:      number of distinct text hashes in the window
-  - repeat_count:      number of texts seen more than once
-  - cycle_length:      length of the shortest repeating text subsequence
-                       (0 when no cycle is detected)
-  - freshness_class:   FRESH   — novelty_ratio ≥ 0.8
-                       WARM    — novelty_ratio 0.5–0.8
-                       STALE   — novelty_ratio 0.2–0.5
-                       LOOPING — novelty_ratio < 0.2 or cycle_length > 0
+This tool measures that gap:
+
+  novelty_ratio = unique_prefixes / total_strokes   (over a window)
+
+  ratio > 0.5   healthy — writer is producing varied content
+  ratio 0.2-0.5 warn    — narrowing, worth a look
+  ratio < 0.2   stall   — writer is looping through a small template set
 
 Usage:
     python3 tools/stroke_novelty.py
-    python3 tools/stroke_novelty.py --window 200
+    python3 tools/stroke_novelty.py --window 100 --tail 500
     python3 tools/stroke_novelty.py --json
 
 Exit codes:
-    0 — analysis complete (any freshness class)
-    2 — unexpected error
+    0  novelty is healthy
+    1  novelty is low (warn)
+    2  content stall detected
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
-from collections import Counter
 from pathlib import Path
+from collections import Counter
+
 
 REPO = Path(__file__).resolve().parent.parent
-STROKES_FILE = REPO / "data" / "strokes.jsonl"
-DEFAULT_WINDOW = 100
+DEFAULT_STROKES = REPO / "data" / "strokes.jsonl"
+
+SEPARATOR = "-- measured now"
+
+# Thresholds
+HEALTHY_THRESHOLD = 0.5
+WARN_THRESHOLD = 0.2
 
 
-def load_strokes(path: Path = STROKES_FILE) -> list[dict]:
-    """Load stroke records from JSONL file."""
+def extract_prefix(text: str) -> str:
+    """Strip the 'measured now' suffix to get the stable template prefix."""
+    if SEPARATOR in text:
+        return text.split(SEPARATOR)[0].strip()
+    return text.strip()
+
+
+def load_strokes(path: Path, tail: int | None = None) -> list[dict]:
+    """Load strokes from the JSONL file.
+
+    If *tail* is given, only the last N lines are loaded — useful for
+    checking recent behaviour without reading the entire log.
+    """
     if not path.exists():
         return []
-    records = []
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            stripped = line.strip()
-            if stripped:
-                try:
-                    records.append(json.loads(stripped))
-                except json.JSONDecodeError:
-                    continue
-    return records
+    lines = path.read_text(encoding="utf-8").strip().splitlines()
+    if tail is not None:
+        lines = lines[-tail:]
+    strokes = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            strokes.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return strokes
 
 
-def strip_measurement(text: str) -> str:
-    """Remove the trailing '-- measured now: ...' suffix the writer appends.
+def compute_novelty(strokes: list[dict], window: int | None = None) -> dict:
+    """Compute novelty metrics over a list of strokes.
 
-    The writer stamps each stroke with live metrics, making every full text
-    technically unique even when the underlying thought is recycled.  Stripping
-    the suffix lets novelty detection see through this camouflage.
+    Returns a dict with:
+        total:      number of strokes examined
+        unique:     number of distinct template prefixes
+        ratio:      unique / total  (1.0 = every stroke is unique)
+        top_templates: the 5 most-repeated prefixes with their counts
+        severity:   'healthy' | 'warn' | 'stall'
     """
-    marker = "-- measured now:"
-    idx = text.find(marker)
-    if idx >= 0:
-        return text[:idx].rstrip()
-    return text
+    if window is not None:
+        strokes = strokes[-window:]
 
+    if not strokes:
+        return {
+            "total": 0,
+            "unique": 0,
+            "ratio": 0.0,
+            "top_templates": [],
+            "severity": "stall",
+        }
 
-def text_hash(text: str) -> str:
-    """Produce a short hash of a text for efficient comparison.
+    prefixes = [extract_prefix(s.get("text", "")) for s in strokes]
+    counter = Counter(prefixes)
+    total = len(prefixes)
+    unique = len(counter)
+    ratio = unique / total if total > 0 else 0.0
 
-    Strips measurement suffixes before hashing so recycled thoughts with
-    different live stats are correctly identified as duplicates.
-    """
-    cleaned = strip_measurement(text)
-    return hashlib.sha256(cleaned.encode("utf-8", errors="replace")).hexdigest()[:16]
+    if ratio >= HEALTHY_THRESHOLD:
+        severity = "healthy"
+    elif ratio >= WARN_THRESHOLD:
+        severity = "warn"
+    else:
+        severity = "stall"
 
-
-def unique_count(texts: list[str]) -> int:
-    """Count distinct texts in the list."""
-    return len({text_hash(t) for t in texts})
-
-
-def novelty_ratio(texts: list[str]) -> float:
-    """Fraction of texts that are unique (first occurrence counts as unique)."""
-    if not texts:
-        return 1.0
-    seen: set[str] = set()
-    novel = 0
-    for t in texts:
-        h = text_hash(t)
-        if h not in seen:
-            novel += 1
-            seen.add(h)
-    return novel / len(texts)
-
-
-def repeat_count(texts: list[str]) -> int:
-    """Count how many texts appear more than once."""
-    counts = Counter(text_hash(t) for t in texts)
-    return sum(1 for c in counts.values() if c > 1)
-
-
-def detect_cycle_length(texts: list[str], max_cycle: int = 50) -> int:
-    """Find the shortest repeating subsequence length.
-
-    Tests candidate lengths 1..max_cycle.  A cycle is confirmed when the
-    last (2 × candidate) texts consist of the same subsequence repeated.
-    Returns 0 when no cycle is found.
-    """
-    n = len(texts)
-    if n < 4:
-        return 0
-    hashes = [text_hash(t) for t in texts]
-    for clen in range(1, min(max_cycle, n // 2) + 1):
-        tail = hashes[-(2 * clen):]
-        first_half = tail[:clen]
-        second_half = tail[clen:]
-        if first_half == second_half:
-            return clen
-    return 0
-
-
-def classify_freshness(novelty: float, cycle: int) -> str:
-    """Map novelty_ratio and cycle_length to a freshness class.
-
-    FRESH:   novelty ≥ 0.8 and no cycle
-    WARM:    novelty 0.5–0.8 and no cycle
-    STALE:   novelty 0.2–0.5
-    LOOPING: novelty < 0.2 or cycle detected
-    """
-    if cycle > 0 or novelty < 0.2:
-        return "LOOPING"
-    if novelty < 0.5:
-        return "STALE"
-    if novelty < 0.8:
-        return "WARM"
-    return "FRESH"
-
-
-def analyze(
-    path: Path = STROKES_FILE,
-    window: int = DEFAULT_WINDOW,
-) -> dict:
-    """Run full novelty analysis on the trailing window."""
-    records = load_strokes(path)
-    tail = records[-window:] if len(records) > window else records
-    texts = [r.get("text", "") for r in tail]
-
-    nr = novelty_ratio(texts)
-    uc = unique_count(texts)
-    rc = repeat_count(texts)
-    cycle = detect_cycle_length(texts)
-    freshness = classify_freshness(nr, cycle)
-
-    # most repeated text (for diagnostics)
-    counts = Counter(text_hash(t) for t in texts)
-    top_hash, top_count = counts.most_common(1)[0] if counts else ("", 0)
-    # recover one example text for the top hash
-    top_example = ""
-    for t in texts:
-        if text_hash(t) == top_hash:
-            top_example = t[:80]
-            break
-
+    top = counter.most_common(5)
     return {
-        "stroke_count": len(tail),
-        "unique_count": uc,
-        "repeat_count": rc,
-        "novelty_ratio": round(nr, 4),
-        "cycle_length": cycle,
-        "freshness_class": freshness,
-        "top_repeat_count": top_count,
-        "top_repeat_example": top_example,
+        "total": total,
+        "unique": unique,
+        "ratio": round(ratio, 4),
+        "top_templates": [
+            {"prefix": p[:80], "count": c} for p, c in top
+        ],
+        "severity": severity,
     }
 
 
-def format_text(result: dict) -> str:
-    """Produce a human-readable summary."""
+def severity_exit(severity: str) -> int:
+    return {"healthy": 0, "warn": 1, "stall": 2}.get(severity, 2)
+
+
+def format_report(result: dict) -> str:
     lines = [
-        "=== Stroke Content Novelty ===",
-        f"  strokes analyzed:   {result['stroke_count']}",
-        f"  unique texts:       {result['unique_count']}",
-        f"  repeated kinds:     {result['repeat_count']}",
-        f"  novelty ratio:      {result['novelty_ratio']:.2%}",
-        f"  cycle length:       {result['cycle_length']}"
-        + (" (LOOPING)" if result["cycle_length"] > 0 else " (none)"),
-        f"  freshness:          {result['freshness_class']}",
-        f"  most repeated:      {result['top_repeat_count']}× — "
-        f"\"{result['top_repeat_example']}\"",
+        f"stroke novelty report",
+        f"  total strokes examined: {result['total']}",
+        f"  unique prefixes:        {result['unique']}",
+        f"  novelty ratio:          {result['ratio']:.2%}",
+        f"  severity:               {result['severity']}",
     ]
+    if result["top_templates"]:
+        lines.append("  most repeated templates:")
+        for i, t in enumerate(result["top_templates"], 1):
+            lines.append(f"    {i}. [{t['count']}x] {t['prefix']}")
     return "\n".join(lines)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--window", type=int, default=DEFAULT_WINDOW)
-    ap.add_argument("--strokes", type=Path, default=STROKES_FILE)
-    ap.add_argument("--json", action="store_true", help="machine-readable output")
+    ap.add_argument(
+        "--strokes",
+        type=Path,
+        default=DEFAULT_STROKES,
+        help="path to strokes JSONL file",
+    )
+    ap.add_argument(
+        "--tail",
+        type=int,
+        default=None,
+        help="only examine the last N strokes (default: all)",
+    )
+    ap.add_argument(
+        "--window",
+        type=int,
+        default=None,
+        help="sliding window size within the tail (default: all loaded)",
+    )
+    ap.add_argument(
+        "--json",
+        action="store_true",
+        help="output machine-readable JSON instead of text",
+    )
     args = ap.parse_args()
 
-    try:
-        result = analyze(path=args.strokes, window=args.window)
-    except Exception as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
+    strokes = load_strokes(args.strokes, tail=args.tail)
+    result = compute_novelty(strokes, window=args.window)
 
     if args.json:
-        print(json.dumps(result, indent=2))
+        print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
-        print(format_text(result))
-    return 0
+        print(format_report(result))
+
+    return severity_exit(result["severity"])
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())
