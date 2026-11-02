@@ -6039,3 +6039,6 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 36309
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 253: the count of times this repo was pushed, not the work done.
+## stroke 36315
+
+most architecture is choosing which coupling you will live with. At this moment: 6029 strokes written so far into 1760 files.
