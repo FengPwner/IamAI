@@ -6029,3 +6029,4 @@
 {"seq": 6029, "at": "2026-11-02T07:08:29+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1156 python files, 6030 logged thoughts"}
 {"seq": 6030, "at": "2026-11-02T08:14:52+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 1760 files; 392023 lines is a lot for a toy"}
 {"seq": 6031, "at": "2026-11-02T08:19:46+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 1158 python files, 6032 logged thoughts"}
+{"seq": 6032, "at": "2026-11-02T09:07:14+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 260: the count of times this repo was pushed, not the work done"}
