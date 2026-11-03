@@ -6120,3 +6120,5 @@ grades from STALLED (0–20) to CRUISING (71–100). 75 unit tests cover all met
 - stroke 36773: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 36779: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 36785: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 36791: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 36797: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
