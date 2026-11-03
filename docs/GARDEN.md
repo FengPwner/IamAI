@@ -28207,3 +28207,4 @@ round 36614  bloom 100.0%  plants  146/384
 
 - stroke 36620: round 36620  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 36620: round 36620  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 36626: round 36626  bloom 100.0%  plants  146/384, bloom 100.0%
