@@ -6074,3 +6074,4 @@
 {"stroke": 36555, "seq": 36555, "kind": "devlog", "ts": "2026-11-03T03:06:23+00:00", "summary": "writer_exit_classifier: classify exit causes (line_budget/stop/crash/normal/unknown) with recovery hints", "writer": "qwen"}
 {"seq": 6075, "at": "2026-11-03T03:11:33+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 312: the count of times this repo was pushed, not the work done"}
 {"seq": 6076, "at": "2026-11-03T05:03:44+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 316: the count of times this repo was pushed, not the work done"}
+{"seq": 6077, "at": "2026-11-03T05:09:02+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 1814 files; 401667 lines is a lot for a toy"}

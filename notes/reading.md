@@ -6071,3 +6071,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 36555
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 312: the count of times this repo was pushed, not the work done.
+## stroke 36579
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6076 strokes written so far into 1814 files.

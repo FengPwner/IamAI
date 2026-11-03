@@ -6085,3 +6085,4 @@ grades from STALLED (0–20) to CRUISING (71–100). 75 unit tests cover all met
 - stroke 36555: `writer_exit_classifier.py` — when the writer dies, the caretaker needs to know why before restarting blindly
 - stroke 36557: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 36575: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 36581: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
