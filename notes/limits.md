@@ -6115,3 +6115,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 36777
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 409501 lines across 1851 tracked files, 357 commits deep.
+## stroke 36801
+
+deleting a file is progress too, eventually. At this moment: commit 361: the count of times this repo was pushed, not the work done.
+## stroke 36807
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6114 strokes written so far into 1858 files.
