@@ -6112,3 +6112,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 36753
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 1848 files; 408663 lines is a lot for a toy.
+## stroke 36777
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 409501 lines across 1851 tracked files, 357 commits deep.
