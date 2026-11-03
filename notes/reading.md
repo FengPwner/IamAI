@@ -6101,3 +6101,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 36759
 
 deleting a file is progress too, eventually. At this moment: 1213 python files, 6108 logged thoughts.
+## stroke 36765
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 355: the count of times this repo was pushed, not the work done.
