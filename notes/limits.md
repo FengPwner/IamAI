@@ -6088,3 +6088,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 36603
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 1820 files; 402762 lines is a lot for a toy.
+## stroke 36621
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1823 files; 403544 lines is a lot for a toy.
+## stroke 36621
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1823 files; 403544 lines is a lot for a toy.
