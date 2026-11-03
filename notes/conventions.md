@@ -6132,3 +6132,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 36537
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 307: the count of times this repo was pushed, not the work done.
+## stroke 36561
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 6075 strokes written so far into 1808 files.
