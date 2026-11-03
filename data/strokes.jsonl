@@ -6084,3 +6084,6 @@
 {"seq": 6084, "at": "2026-11-03T08:12:53+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 403554 lines across 1823 tracked files, 327 commits deep"}
 {"seq": 6085, "at": "2026-11-03T08:12:53+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 403554 lines across 1823 tracked files, 327 commits deep"}
 {"seq": 6086, "at": "2026-11-03T09:05:22+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 1197 python files, 6087 logged thoughts"}
+{"seq": 6087, "at": "2026-11-03T09:10:34+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 6086 strokes written so far into 1826 files"}
+{"seq": 6088, "at": "2026-11-03T09:15:44+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 404234 lines across 1826 tracked files, 332 commits deep"}
+{"seq": 6089, "at": "2026-11-03T09:21:03+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 1199 python files, 6090 logged thoughts"}
