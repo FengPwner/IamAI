@@ -6085,3 +6085,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 36597
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 6078 strokes written so far into 1817 files.
+## stroke 36603
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 1820 files; 402762 lines is a lot for a toy.
