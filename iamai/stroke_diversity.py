@@ -1,238 +1,168 @@
-"""Stroke diversity analyzer — is the writer stuck in a loop?
+"""stroke_diversity — detect repetitive content in the stroke log.
 
-The writer produces hundreds of strokes per day.  Most are ``thought``
-kind, but within that stream there should be *variety*: different
-templates, different topics, different measured values.  When the same
-text pattern repeats verbatim, the writer has fallen into a
-deterministic loop — generating content that adds nothing.
+The writer sometimes falls into a loop, emitting near-identical aphorisms
+across many strokes.  This module scores how *diverse* the recent N strokes
+are, using a simple token-overlap (Jaccard) similarity on the text body
+(the part before " -- measured now:" if present).
 
-``analyze_diversity()`` reads the stroke log and returns a structured
-``DiversityReport`` covering:
-
-- **total_strokes**: how many strokes were analyzed
-- **kind_counts**: ``dict[str, int]`` of stroke kinds
-- **kind_entropy**: Shannon entropy (bits) of the kind distribution
-- **unique_ratio**: unique texts / total texts (within the window)
-- **repetition_loop**: ``True`` if any text appears ≥3 times consecutively
-- **loop_text**: the repeating text (or ``None``)
-- **diversity_score**: composite score 0.0–1.0
-- **verdict**: ``healthy``, ``low_diversity``, or ``stuck_loop``
-
-Verdict logic:
-
-==============  =================================================
-verdict         condition
-==============  =================================================
-``healthy``     score ≥ 0.5 and no repetition loop
-``low_diversity``  score < 0.5 and no repetition loop
-``stuck_loop``  repetition loop detected (regardless of score)
-==============  =================================================
-
-The diversity score combines:
-  - kind entropy normalized to log2(kind_count) → 40% weight
-  - unique ratio → 40% weight
-  - absence of consecutive repeats → 20% weight
-
-Usage::
-
-    from iamai.stroke_diversity import analyze_diversity, format_report
-
-    report = analyze_diversity()
-    print(format_report(report))
-    # → "healthy: 5998 strokes, 7 kinds, entropy 1.27 bits, 94% unique"
-
-    if report["verdict"] == "stuck_loop":
-        # writer needs intervention
-        ...
+Public API
+----------
+- ``strip_metric(text) -> str``
+    Remove the trailing " -- measured now: ..." suffix so comparisons
+    focus on the creative part of the stroke.
+- ``pair_similarity(a, b) -> float``
+    Jaccard similarity of two stripped texts on whitespace tokens.
+- ``diversity_score(strokes, window=50) -> DiversityReport``
+    Score from 0.0 (all identical) to 1.0 (all unique).
+- ``find_duplicates(strokes, threshold=0.6) -> list[DuplicatePair]``
+    Return pairs whose similarity >= threshold.
 """
 
 from __future__ import annotations
 
 import json
-import math
 import re
-from collections import Counter
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Sequence
+
+_METRIC_RE = re.compile(r"\s*--\s*measured now[:].*$", re.DOTALL)
 
 
-REPO = Path(__file__).resolve().parent.parent
-DEFAULT_STROKE_LOG = REPO / "data" / "strokes.jsonl"
-DEFAULT_WINDOW = 200  # analyze last N strokes
+def strip_metric(text: str) -> str:
+    """Strip the trailing metric suffix so only the creative body remains."""
+    return _METRIC_RE.sub("", text).strip()
 
 
-@dataclass(frozen=True)
-class DiversityReport:
-    """Structured result of a stroke diversity analysis."""
-
-    total_strokes: int = 0
-    kind_counts: Dict[str, int] = field(default_factory=dict)
-    kind_entropy: float = 0.0
-    unique_ratio: float = 0.0
-    repetition_loop: bool = False
-    loop_text: Optional[str] = None
-    diversity_score: float = 0.0
-    verdict: str = "healthy"
+def _tokenize(text: str) -> frozenset[str]:
+    return frozenset(text.lower().split())
 
 
-def _shannon_entropy(counts: Dict[str, int]) -> float:
-    """Compute Shannon entropy in bits from a frequency map."""
-    total = sum(counts.values())
-    if total == 0:
+def pair_similarity(a: str, b: str) -> float:
+    """Jaccard similarity between two texts (token-level)."""
+    ta, tb = _tokenize(strip_metric(a)), _tokenize(strip_metric(b))
+    if not ta and not tb:
+        return 1.0
+    if not ta or not tb:
         return 0.0
-    entropy = 0.0
-    for c in counts.values():
-        if c > 0:
-            p = c / total
-            entropy -= p * math.log2(p)
-    return entropy
+    inter = len(ta & tb)
+    union = len(ta | tb)
+    return inter / union if union else 0.0
 
 
-def _detect_repetition_loop(texts: List[str], min_repeats: int = 3) -> Optional[str]:
-    """Check if any text appears ≥min_repeats times consecutively.
-
-    Returns the repeating text, or None.
-    """
-    if len(texts) < min_repeats:
-        return None
-
-    run_start = 0
-    for i in range(1, len(texts)):
-        if texts[i] != texts[run_start]:
-            run_start = i
-        elif i - run_start + 1 >= min_repeats:
-            return texts[run_start]
-    return None
+@dataclass
+class DuplicatePair:
+    seq_a: int
+    seq_b: int
+    similarity: float
+    snippet_a: str
+    snippet_b: str
 
 
-def _normalize_text(text: str) -> str:
-    """Strip variable parts (numbers, timestamps) to detect structural repeats."""
-    # Replace numbers with #
-    normalized = re.sub(r'\d+', '#', text)
-    # Collapse whitespace
-    normalized = re.sub(r'\s+', ' ', normalized).strip()
-    return normalized
+@dataclass
+class DiversityReport:
+    total: int
+    unique_bodies: int
+    diversity: float  # 0.0–1.0
+    mean_similarity: float
+    worst_pair: DuplicatePair | None = None
+
+    @property
+    def health(self) -> str:
+        if self.diversity >= 0.7:
+            return "healthy"
+        if self.diversity >= 0.4:
+            return "repetitive"
+        return "looping"
+
+    def summary(self) -> str:
+        return (
+            f"diversity={self.diversity:.2f} ({self.health}) "
+            f"unique={self.unique_bodies}/{self.total} "
+            f"mean_sim={self.mean_similarity:.3f}"
+        )
 
 
-def _compute_diversity_score(
-    kind_entropy: float,
-    num_kinds: int,
-    unique_ratio: float,
-    has_repetition: bool,
-) -> float:
-    """Compute composite diversity score 0.0–1.0."""
-    if num_kinds <= 1:
-        entropy_score = 0.0
-    else:
-        max_entropy = math.log2(num_kinds)
-        entropy_score = min(kind_entropy / max_entropy, 1.0) if max_entropy > 0 else 0.0
-
-    repetition_score = 0.0 if has_repetition else 1.0
-
-    score = (
-        0.4 * entropy_score
-        + 0.4 * unique_ratio
-        + 0.2 * repetition_score
-    )
-    return round(score, 4)
-
-
-def _verdict(score: float, has_repetition: bool) -> str:
-    """Determine verdict from score and repetition status."""
-    if has_repetition:
-        return "stuck_loop"
-    if score >= 0.5:
-        return "healthy"
-    return "low_diversity"
+def find_duplicates(
+    strokes: Sequence[dict],
+    threshold: float = 0.6,
+    limit: int = 500,
+) -> list[DuplicatePair]:
+    """Return pairs with Jaccard similarity >= threshold in the last *limit* strokes."""
+    sample = list(strokes)[-limit:]
+    pairs: list[DuplicatePair] = []
+    for i, sa in enumerate(sample):
+        for sb in sample[i + 1 :]:
+            sim = pair_similarity(sa.get("text", ""), sb.get("text", ""))
+            if sim >= threshold:
+                pairs.append(
+                    DuplicatePair(
+                        seq_a=sa.get("seq", 0),
+                        seq_b=sb.get("seq", 0),
+                        similarity=round(sim, 4),
+                        snippet_a=sa.get("text", "")[:60],
+                        snippet_b=sb.get("text", "")[:60],
+                    )
+                )
+    return pairs
 
 
-def analyze_diversity(
-    stroke_log: Optional[Path] = None,
-    window: int = DEFAULT_WINDOW,
+def diversity_score(
+    strokes: Sequence[dict],
+    window: int = 50,
 ) -> DiversityReport:
-    """Analyze stroke diversity from the last `window` strokes.
+    """Score diversity over the last *window* strokes."""
+    sample = list(strokes)[-window:]
+    if not sample:
+        return DiversityReport(total=0, unique_bodies=0, diversity=1.0, mean_similarity=0.0)
 
-    Parameters
-    ----------
-    stroke_log : Path, optional
-        Path to the JSONL stroke log.  Defaults to ``data/strokes.jsonl``.
-    window : int
-        Number of recent strokes to analyze.
+    bodies = [strip_metric(s.get("text", "")) for s in sample]
+    unique = len(set(b.lower() for b in bodies))
 
-    Returns
-    -------
-    DiversityReport
-    """
-    log_path = stroke_log or DEFAULT_STROKE_LOG
+    sims: list[float] = []
+    worst: DuplicatePair | None = None
+    worst_sim = -1.0
+    for i, a in enumerate(bodies):
+        for j in range(i + 1, len(bodies)):
+            b = bodies[j]
+            s = pair_similarity(a, b)
+            sims.append(s)
+            if s > worst_sim:
+                worst_sim = s
+                worst = DuplicatePair(
+                    seq_a=sample[i].get("seq", 0),
+                    seq_b=sample[j].get("seq", 0),
+                    similarity=round(s, 4),
+                    snippet_a=a[:60],
+                    snippet_b=b[:60],
+                )
 
-    if not log_path.exists():
-        return DiversityReport(verdict="healthy")
-
-    # Read last `window` strokes
-    strokes: List[dict] = []
-    with open(log_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                strokes.append(json.loads(line))
-
-    if not strokes:
-        return DiversityReport(verdict="healthy")
-
-    window_strokes = strokes[-window:]
-    total = len(window_strokes)
-
-    # Kind distribution
-    kind_counts: Dict[str, int] = {}
-    for s in window_strokes:
-        k = s.get("kind", "unknown")
-        kind_counts[k] = kind_counts.get(k, 0) + 1
-
-    kind_entropy = _shannon_entropy(kind_counts)
-
-    # Text uniqueness (normalized)
-    texts = [_normalize_text(s.get("text", "")) for s in window_strokes]
-    unique_texts = set(texts)
-    unique_ratio = len(unique_texts) / total if total > 0 else 0.0
-
-    # Repetition detection
-    loop_text = _detect_repetition_loop(texts, min_repeats=3)
-    has_repetition = loop_text is not None
-
-    # Composite score
-    score = _compute_diversity_score(
-        kind_entropy, len(kind_counts), unique_ratio, has_repetition
-    )
-
-    verdict = _verdict(score, has_repetition)
+    mean_sim = sum(sims) / len(sims) if sims else 0.0
+    # diversity = 1 - mean_sim, clamped
+    diversity = max(0.0, min(1.0, 1.0 - mean_sim))
 
     return DiversityReport(
-        total_strokes=total,
-        kind_counts=kind_counts,
-        kind_entropy=round(kind_entropy, 4),
-        unique_ratio=round(unique_ratio, 4),
-        repetition_loop=has_repetition,
-        loop_text=loop_text,
-        diversity_score=score,
-        verdict=verdict,
+        total=len(sample),
+        unique_bodies=unique,
+        diversity=round(diversity, 4),
+        mean_similarity=round(mean_sim, 4),
+        worst_pair=worst,
     )
 
 
-def format_report(report: DiversityReport) -> str:
-    """Format a DiversityReport as a human-readable string."""
-    kinds_str = ", ".join(
-        f"{k} x{v}" for k, v in sorted(report.kind_counts.items(), key=lambda x: -x[1])
-    )
-    parts = [
-        f"{report.verdict}:",
-        f"{report.total_strokes} strokes",
-        f"{len(report.kind_counts)} kinds ({kinds_str})",
-        f"entropy {report.kind_entropy:.2f} bits",
-        f"{report.unique_ratio:.0%} unique",
-        f"score {report.diversity_score:.2f}",
-    ]
-    if report.repetition_loop and report.loop_text:
-        preview = report.loop_text[:60] + ("…" if len(report.loop_text) > 60 else "")
-        parts.append(f"LOOP: \"{preview}\"")
-    return ", ".join(parts)
+def load_strokes(path: Path | str | None = None, tail: int = 500) -> list[dict]:
+    """Load the last *tail* strokes from data/strokes.jsonl."""
+    if path is None:
+        path = Path(__file__).resolve().parent.parent / "data" / "strokes.jsonl"
+    else:
+        path = Path(path)
+    if not path.exists():
+        return []
+    lines = path.read_text().strip().splitlines()
+    result = []
+    for line in lines[-tail:]:
+        try:
+            result.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return result

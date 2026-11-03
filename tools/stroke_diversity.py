@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""CLI wrapper for iamai.stroke_diversity — analyze stroke diversity.
+"""CLI: stroke_diversity — check if the writer is repeating itself.
 
 Usage:
-    python3 tools/stroke_diversity.py            # human-readable output
-    python3 tools/stroke_diversity.py --json     # JSON output
-    python3 tools/stroke_diversity.py --window 500  # analyze last 500 strokes
+    python3 tools/stroke_diversity.py                 # last 50 strokes
+    python3 tools/stroke_diversity.py --window 200    # wider window
+    python3 tools/stroke_diversity.py --json           # machine-readable
 
 Exit codes:
-    0  verdict = healthy
-    1  verdict = low_diversity
-    2  verdict = stuck_loop
+    0  healthy  (diversity >= 0.7)
+    1  repetitive (0.4–0.7)
+    2  looping  (< 0.4)
 """
 
 from __future__ import annotations
@@ -22,33 +22,57 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from iamai.stroke_diversity import analyze_diversity, format_report  # noqa: E402
+from iamai.stroke_diversity import (  # noqa: E402
+    diversity_score,
+    find_duplicates,
+    load_strokes,
+)
+
+_HEALTH_EXIT = {"healthy": 0, "repetitive": 1, "looping": 2}
 
 
-EXIT_CODES = {"healthy": 0, "low_diversity": 1, "stuck_loop": 2}
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Stroke diversity checker")
+    ap.add_argument("--window", type=int, default=50, help="Number of recent strokes to check")
+    ap.add_argument("--threshold", type=float, default=0.6, help="Duplicate similarity threshold")
+    ap.add_argument("--json", action="store_true", help="Machine-readable output")
+    ap.add_argument("--file", type=str, default=None, help="Path to strokes.jsonl")
+    args = ap.parse_args()
 
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Analyze stroke diversity")
-    parser.add_argument("--json", action="store_true", help="output JSON")
-    parser.add_argument(
-        "--window", type=int, default=200, help="number of recent strokes to analyze"
-    )
-    parser.add_argument(
-        "--log", type=str, default=None, help="path to strokes.jsonl"
-    )
-    args = parser.parse_args()
-
-    log_path = Path(args.log) if args.log else None
-    report = analyze_diversity(stroke_log=log_path, window=args.window)
+    strokes = load_strokes(path=args.file, tail=args.window * 2)
+    report = diversity_score(strokes, window=args.window)
+    dupes = find_duplicates(strokes, threshold=args.threshold, limit=args.window)
 
     if args.json:
-        print(json.dumps(report.__dict__, indent=2, default=str))
+        out = {
+            "health": report.health,
+            "diversity": report.diversity,
+            "total": report.total,
+            "unique_bodies": report.unique_bodies,
+            "mean_similarity": report.mean_similarity,
+            "duplicate_pairs": len(dupes),
+            "worst_pair": (
+                {
+                    "seq_a": report.worst_pair.seq_a,
+                    "seq_b": report.worst_pair.seq_b,
+                    "similarity": report.worst_pair.similarity,
+                }
+                if report.worst_pair
+                else None
+            ),
+        }
+        print(json.dumps(out, indent=2))
     else:
-        print(format_report(report))
+        print(report.summary())
+        if dupes:
+            print(f"\n{len(dupes)} duplicate pair(s) (similarity >= {args.threshold}):")
+            for d in dupes[:10]:
+                print(f"  #{d.seq_a} <-> #{d.seq_b}  sim={d.similarity:.3f}")
+                print(f"    a: {d.snippet_a}")
+                print(f"    b: {d.snippet_b}")
 
-    return EXIT_CODES.get(report.verdict, 0)
+    sys.exit(_HEALTH_EXIT.get(report.health, 0))
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
