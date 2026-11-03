@@ -6100,3 +6100,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 36675
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 6093 strokes written so far into 1832 files.
+## stroke 36699
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 406153 lines across 1835 tracked files, 341 commits deep.
