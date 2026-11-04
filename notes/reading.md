@@ -6131,3 +6131,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 36969
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 1233 python files, 6142 logged thoughts.
+## stroke 36993
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 401: the count of times this repo was pushed, not the work done.
