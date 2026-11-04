@@ -6138,3 +6138,4 @@
 {"seq": 6138, "at": "2026-11-04T08:07:28+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 392: the count of times this repo was pushed, not the work done"}
 {"seq": 6139, "at": "2026-11-04T08:15:31+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 1881 files; 415229 lines is a lot for a toy"}
 {"seq": 6140, "at": "2026-11-04T09:06:58+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 415290 lines across 1881 tracked files, 396 commits deep"}
+{"seq": 6141, "at": "2026-11-04T10:08:36+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 6140 strokes written so far into 1881 files"}
