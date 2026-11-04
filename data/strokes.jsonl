@@ -6139,3 +6139,4 @@
 {"seq": 6139, "at": "2026-11-04T08:15:31+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 1881 files; 415229 lines is a lot for a toy"}
 {"seq": 6140, "at": "2026-11-04T09:06:58+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 415290 lines across 1881 tracked files, 396 commits deep"}
 {"seq": 6141, "at": "2026-11-04T10:08:36+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 6140 strokes written so far into 1881 files"}
+{"seq": 6142, "at": "2026-11-04T10:17:14+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 415741 lines across 1883 tracked files, 400 commits deep"}
