@@ -1,164 +1,452 @@
-"""
-stroke_persistence: 测量写作笔触在时间中的持续性
+"""stroke_persistence — measure continuous stroke production uptime.
 
-每个 stroke 都有半衰期。有些主题反复出现（高持久性），有些一闪而过（低持久性）。
-这个模块追踪每个主题的衰减曲线，帮助 caretaker 判断：
-- 哪些主题已经枯竭（该换方向）
-- 哪些主题还在生长（值得继续）
-- 整体写作的主题多样性是否在萎缩
+While cadence monitors check *rate* and stall detectors give a binary
+healthy/stalled verdict, this module answers a different question:
+*how long has the writer been running continuously without a gap
+exceeding threshold?*
+
+This is analogous to "uptime" for a server — it tells you how long
+the current streak of productive output has lasted.
+
+Public API::
+
+    from iamai.stroke_persistence import (
+        StrokePersistence,
+        current_streak,
+        streak_report,
+    )
+
+    sp = StrokePersistence(strokes_path)
+    streak = sp.current_streak(threshold_seconds=120)
+    # {"duration": 3600, "strokes": 240, "started_at": "2026-11-05T04:01:00+00:00",
+    #  "status": "active"}
+
+    print(streak_report(strokes_path, threshold_seconds=120))
+    # "active streak: 1h 0m (240 strokes since 04:01 UTC)"
+
+Threshold model:
+
+==============  ===========================================================
+threshold       meaning
+==============  ===========================================================
+< 2x cadence    strict — any minor pause breaks the streak
+2–10x cadence   moderate — tolerates brief hiccups
+> 10x cadence   loose — only major stalls break the streak
+==============  ===========================================================
+
+Default threshold is 120s (8x the 15s cadence) — balances sensitivity
+against noise from transient pauses.
+
+Status values:
+
+===========  ===========================================================
+status       meaning
+===========  ===========================================================
+active       streak is ongoing (last stroke within threshold)
+broken       streak ended — gap exceeded threshold
+dormant      no strokes yet or insufficient data
+===========  ===========================================================
 """
 
+from __future__ import annotations
+
+import json
 import time
-from collections import defaultdict
-from dataclasses import dataclass
-from typing import Dict, List, Tuple
-from math import log, exp
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, List, Optional
+
+
+DEFAULT_THRESHOLD: float = 120.0  # seconds
 
 
 @dataclass
-class TopicDecay:
-    """单个主题的衰减状态"""
-    topic: str
-    first_seen: float
-    last_seen: float
-    stroke_count: int
-    half_life_hours: float  # 预测的半衰期（小时）
-    current_strength: float  # 当前强度（0-1）
+class Streak:
+    """A continuous run of strokes without a gap exceeding threshold."""
+    duration: float          # seconds from first to last stroke in streak
+    stroke_count: int        # number of strokes in this streak
+    started_at: Optional[str]  # ISO timestamp of first stroke
+    ended_at: Optional[str]    # ISO timestamp of last stroke (None if active)
+    status: str              # "active", "broken", "dormant"
+    max_gap: float           # largest gap within the streak
+    avg_gap: float           # average gap within the streak
 
 
 class StrokePersistence:
-    """追踪写作主题的持久性"""
-    
-    def __init__(self, decay_window_hours: float = 24.0):
-        self.decay_window = decay_window_hours * 3600  # 转为秒
-        self.topic_strokes: Dict[str, List[float]] = defaultdict(list)
-    
-    def record_stroke(self, topic: str, timestamp: float = None) -> None:
-        """记录一次写作笔触"""
-        if timestamp is None:
-            timestamp = time.time()
-        self.topic_strokes[topic].append(timestamp)
-    
-    def calculate_strength(self, topic: str, now: float = None) -> float:
-        """计算某主题当前的强度（0-1）
-        
-        基于最近 stroke 的时间衰减：
-        - 刚刚写过 → 接近 1.0
-        - 很久没写 → 接近 0.0
-        - 衰减曲线是指数型的
+    """Measure continuous stroke production uptime."""
+
+    def __init__(self, strokes_path: Path):
+        """Initialize with path to strokes.jsonl.
+
+        Args:
+            strokes_path: Path to the strokes JSONL file.
         """
-        if now is None:
-            now = time.time()
-        
-        strokes = self.topic_strokes.get(topic, [])
-        if not strokes:
-            return 0.0
-        
-        # 用最近 10 次 stroke 的加权平均
-        recent = strokes[-10:]
-        weights = [exp(-(now - t) / self.decay_window) for t in recent]
-        return sum(weights) / len(weights)
-    
-    def estimate_half_life(self, topic: str) -> float:
-        """估算某主题的半衰期（小时）
-        
-        基于 stroke 之间的间隔：
-        - 频繁出现 → 短半衰期（还在生长）
-        - 偶尔出现 → 长半衰期（逐渐衰减）
-        - 只出现一次 → 无法估算，返回 inf
+        self.strokes_path = strokes_path
+        self._strokes: Optional[List[dict]] = None
+
+    def _load_strokes(self) -> List[dict]:
+        """Load and parse strokes from JSONL file."""
+        if self._strokes is not None:
+            return self._strokes
+
+        if not self.strokes_path.exists():
+            self._strokes = []
+            return self._strokes
+
+        strokes = []
+        for line in self.strokes_path.read_text().strip().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                stroke = json.loads(line)
+                # Normalize timestamp to epoch seconds
+                ts = self._parse_ts(stroke)
+                if ts is not None:
+                    stroke["_epoch"] = ts
+                    strokes.append(stroke)
+            except (json.JSONDecodeError, KeyError):
+                continue
+
+        self._strokes = strokes
+        return self._strokes
+
+    @staticmethod
+    def _parse_ts(stroke: dict) -> Optional[float]:
+        """Extract epoch timestamp from a stroke record."""
+        # Try "at" field (ISO format)
+        at = stroke.get("at")
+        if at and isinstance(at, str):
+            try:
+                dt = datetime.fromisoformat(at.replace("Z", "+00:00"))
+                return dt.timestamp()
+            except (ValueError, TypeError):
+                pass
+
+        # Try "ts" field (epoch seconds)
+        ts = stroke.get("ts")
+        if ts and isinstance(ts, (int, float)):
+            return float(ts)
+
+        return None
+
+    def current_streak(
+        self,
+        threshold_seconds: float = DEFAULT_THRESHOLD,
+        now: Optional[float] = None,
+    ) -> Streak:
+        """Calculate the current (most recent) streak.
+
+        A streak is a sequence of consecutive strokes where no gap
+        between adjacent strokes exceeds threshold_seconds.
+
+        Args:
+            threshold_seconds: Maximum gap (seconds) before a streak
+                is considered broken. Default 120s.
+            now: Override current time (epoch seconds). Defaults to
+                time.time().
+
+        Returns:
+            Streak dataclass with duration, count, status, etc.
         """
-        strokes = self.topic_strokes.get(topic, [])
-        if len(strokes) < 2:
-            return float('inf')
-        
-        # 计算 stroke 间隔
-        intervals = [strokes[i+1] - strokes[i] for i in range(len(strokes)-1)]
-        avg_interval = sum(intervals) / len(intervals)
-        
-        # 半衰期 ≈ 平均间隔 / ln(2)
-        # （假设指数衰减）
-        if avg_interval <= 0:
-            return 0.0
-        return (avg_interval / 3600) / log(2)
-    
-    def get_topic_decay(self, topic: str) -> TopicDecay:
-        """获取某主题的完整衰减状态"""
-        strokes = self.topic_strokes.get(topic, [])
+        strokes = self._load_strokes()
+        current_time = now if now is not None else time.time()
+
         if not strokes:
-            return TopicDecay(
-                topic=topic,
-                first_seen=0,
-                last_seen=0,
+            return Streak(
+                duration=0.0,
                 stroke_count=0,
-                half_life_hours=float('inf'),
-                current_strength=0.0
+                started_at=None,
+                ended_at=None,
+                status="dormant",
+                max_gap=0.0,
+                avg_gap=0.0,
             )
-        
-        return TopicDecay(
-            topic=topic,
-            first_seen=strokes[0],
-            last_seen=strokes[-1],
-            stroke_count=len(strokes),
-            half_life_hours=self.estimate_half_life(topic),
-            current_strength=self.calculate_strength(topic)
+
+        # Walk backwards from the most recent stroke to find streak start
+        epochs = [s["_epoch"] for s in strokes]
+
+        # Check if the most recent stroke is within threshold of now
+        last_epoch = epochs[-1]
+        gap_to_now = current_time - last_epoch
+
+        if gap_to_now > threshold_seconds:
+            # The current streak is broken — find the last active streak
+            return self._find_last_streak(epochs, strokes, threshold_seconds)
+
+        # Active streak: walk backwards to find where it started
+        streak_start_idx = len(epochs) - 1
+        for i in range(len(epochs) - 1, 0, -1):
+            gap = epochs[i] - epochs[i - 1]
+            if gap > threshold_seconds:
+                break
+            streak_start_idx = i - 1
+
+        streak_epochs = epochs[streak_start_idx:]
+        streak_strokes = strokes[streak_start_idx:]
+
+        duration = streak_epochs[-1] - streak_epochs[0]
+        gaps = [
+            streak_epochs[i + 1] - streak_epochs[i]
+            for i in range(len(streak_epochs) - 1)
+        ]
+
+        started_at = streak_strokes[0].get("at", streak_strokes[0].get("ts"))
+        ended_at = streak_strokes[-1].get("at", streak_strokes[-1].get("ts"))
+
+        return Streak(
+            duration=duration,
+            stroke_count=len(streak_strokes),
+            started_at=str(started_at) if started_at else None,
+            ended_at=str(ended_at) if ended_at else None,
+            status="active",
+            max_gap=max(gaps) if gaps else 0.0,
+            avg_gap=sum(gaps) / len(gaps) if gaps else 0.0,
         )
-    
-    def diversity_score(self, now: float = None) -> float:
-        """计算整体主题多样性（0-1）
-        
-        基于活跃主题的强度分布：
-        - 所有主题都强 → 多样性高
-        - 只有少数主题活跃 → 多样性低
-        - 使用 Shannon 熵的变体
+
+    def _find_last_streak(
+        self,
+        epochs: List[float],
+        strokes: List[dict],
+        threshold_seconds: float,
+    ) -> Streak:
+        """Find the last completed streak (before the current gap)."""
+        if len(epochs) < 2:
+            return Streak(
+                duration=0.0,
+                stroke_count=len(epochs),
+                started_at=str(strokes[0].get("at", strokes[0].get("ts"))) if strokes else None,
+                ended_at=str(strokes[-1].get("at", strokes[-1].get("ts"))) if strokes else None,
+                status="dormant" if len(epochs) < 1 else "broken",
+                max_gap=0.0,
+                avg_gap=0.0,
+            )
+
+        # Find the end of the last streak before the current gap
+        # Walk backwards to find where a gap > threshold exists
+        streak_end_idx = len(epochs) - 1
+        streak_start_idx = streak_end_idx
+
+        for i in range(len(epochs) - 1, 0, -1):
+            gap = epochs[i] - epochs[i - 1]
+            if gap > threshold_seconds:
+                # This gap breaks the streak
+                # The streak we want is BEFORE this gap
+                streak_end_idx = i - 1
+                streak_start_idx = i - 1
+                break
+
+        # Now walk backwards from streak_end_idx to find streak start
+        for i in range(streak_end_idx, 0, -1):
+            gap = epochs[i] - epochs[i - 1]
+            if gap > threshold_seconds:
+                break
+            streak_start_idx = i - 1
+
+        streak_epochs = epochs[streak_start_idx:streak_end_idx + 1]
+        streak_strokes = strokes[streak_start_idx:streak_end_idx + 1]
+
+        if len(streak_epochs) == 0:
+            return Streak(
+                duration=0.0,
+                stroke_count=0,
+                started_at=None,
+                ended_at=None,
+                status="broken",
+                max_gap=0.0,
+                avg_gap=0.0,
+            )
+
+        duration = streak_epochs[-1] - streak_epochs[0]
+        gaps = [
+            streak_epochs[i + 1] - streak_epochs[i]
+            for i in range(len(streak_epochs) - 1)
+        ]
+
+        started_at = streak_strokes[0].get("at", streak_strokes[0].get("ts"))
+        ended_at = streak_strokes[-1].get("at", streak_strokes[-1].get("ts"))
+
+        return Streak(
+            duration=duration,
+            stroke_count=len(streak_strokes),
+            started_at=str(started_at) if started_at else None,
+            ended_at=str(ended_at) if ended_at else None,
+            status="broken",
+            max_gap=max(gaps) if gaps else 0.0,
+            avg_gap=sum(gaps) / len(gaps) if gaps else 0.0,
+        )
+
+    def all_streaks(
+        self,
+        threshold_seconds: float = DEFAULT_THRESHOLD,
+    ) -> List[Streak]:
+        """Find all streaks in the stroke history.
+
+        Returns a list of Streak objects, most recent first.
         """
-        if now is None:
-            now = time.time()
-        
-        strengths = [
-            self.calculate_strength(topic, now)
-            for topic in self.topic_strokes
+        strokes = self._load_strokes()
+        if not strokes:
+            return []
+
+        epochs = [s["_epoch"] for s in strokes]
+
+        # Split into streaks by finding gaps > threshold
+        streaks: List[Streak] = []
+        start_idx = 0
+
+        for i in range(1, len(epochs)):
+            gap = epochs[i] - epochs[i - 1]
+            if gap > threshold_seconds:
+                # End current streak, start new one
+                streak_epochs = epochs[start_idx:i]
+                streak_strokes = strokes[start_idx:i]
+                gaps = [
+                    streak_epochs[j + 1] - streak_epochs[j]
+                    for j in range(len(streak_epochs) - 1)
+                ]
+                started_at = streak_strokes[0].get("at", streak_strokes[0].get("ts"))
+                ended_at = streak_strokes[-1].get("at", streak_strokes[-1].get("ts"))
+
+                streaks.append(Streak(
+                    duration=streak_epochs[-1] - streak_epochs[0],
+                    stroke_count=len(streak_strokes),
+                    started_at=str(started_at) if started_at else None,
+                    ended_at=str(ended_at) if ended_at else None,
+                    status="broken",
+                    max_gap=max(gaps) if gaps else 0.0,
+                    avg_gap=sum(gaps) / len(gaps) if gaps else 0.0,
+                ))
+                start_idx = i
+
+        # Final streak (may be active)
+        streak_epochs = epochs[start_idx:]
+        streak_strokes = strokes[start_idx:]
+        gaps = [
+            streak_epochs[j + 1] - streak_epochs[j]
+            for j in range(len(streak_epochs) - 1)
         ]
-        
-        if not strengths:
-            return 0.0
-        
-        total = sum(strengths)
-        if total == 0:
-            return 0.0
-        
-        # 归一化为概率分布
-        probs = [s / total for s in strengths if s > 0]
-        
-        # Shannon 熵
-        entropy = -sum(p * log(p) for p in probs if p > 0)
-        
-        # 归一化到 0-1（最大熵是 log(N)）
-        max_entropy = log(len(probs)) if len(probs) > 1 else 1.0
-        return entropy / max_entropy if max_entropy > 0 else 0.0
-    
-    def report(self, min_strength: float = 0.1) -> Dict[str, any]:
-        """生成持久性报告"""
-        now = time.time()
-        
-        active_topics = [
-            topic for topic in self.topic_strokes
-            if self.calculate_strength(topic, now) >= min_strength
-        ]
-        
-        decays = [self.get_topic_decay(topic) for topic in active_topics]
-        decays.sort(key=lambda d: d.current_strength, reverse=True)
-        
-        return {
-            'active_count': len(active_topics),
-            'total_count': len(self.topic_strokes),
-            'diversity': self.diversity_score(now),
-            'top_topics': [
-                {
-                    'topic': d.topic,
-                    'strength': round(d.current_strength, 3),
-                    'strokes': d.stroke_count,
-                    'half_life_h': round(d.half_life_hours, 1)
-                }
-                for d in decays[:10]
-            ]
-        }
+        started_at = streak_strokes[0].get("at", streak_strokes[0].get("ts"))
+        ended_at = streak_strokes[-1].get("at", streak_strokes[-1].get("ts"))
+
+        streaks.append(Streak(
+            duration=streak_epochs[-1] - streak_epochs[0],
+            stroke_count=len(streak_strokes),
+            started_at=str(started_at) if started_at else None,
+            ended_at=str(ended_at) if ended_at else None,
+            status="active",
+            max_gap=max(gaps) if gaps else 0.0,
+            avg_gap=sum(gaps) / len(gaps) if gaps else 0.0,
+        ))
+
+        # Return most recent first
+        streaks.reverse()
+        return streaks
+
+    def classify(self, threshold_seconds: float = DEFAULT_THRESHOLD) -> str:
+        """Quick classification of current persistence state.
+
+        Returns one of: "active", "broken", "dormant".
+        """
+        return self.current_streak(threshold_seconds).status
+
+
+def streak_report(
+    strokes_path: Path,
+    threshold_seconds: float = DEFAULT_THRESHOLD,
+    now: Optional[float] = None,
+) -> str:
+    """Human-readable streak report.
+
+    Args:
+        strokes_path: Path to strokes.jsonl
+        threshold_seconds: Gap threshold in seconds
+        now: Override current time
+
+    Returns:
+        Formatted string like "active streak: 1h 0m (240 strokes since 04:01 UTC)"
+    """
+    sp = StrokePersistence(strokes_path)
+    streak = sp.current_streak(threshold_seconds, now=now)
+
+    if streak.status == "dormant":
+        return "dormant: no strokes recorded"
+
+    hours = int(streak.duration // 3600)
+    minutes = int((streak.duration % 3600) // 60)
+
+    if streak.status == "active":
+        since = streak.started_at or "unknown"
+        return (
+            f"active streak: {hours}h {minutes}m "
+            f"({streak.stroke_count} strokes since {since})"
+        )
+    else:
+        ended = streak.ended_at or "unknown"
+        return (
+            f"last streak: {hours}h {minutes}m "
+            f"({streak.stroke_count} strokes, ended {ended})"
+        )
+
+
+def main() -> int:
+    """CLI entry point."""
+    import argparse
+    import sys
+
+    ap = argparse.ArgumentParser(
+        description="Measure continuous stroke production uptime"
+    )
+    ap.add_argument(
+        "--json", action="store_true",
+        help="JSON output instead of human-readable"
+    )
+    ap.add_argument(
+        "--threshold", type=float, default=DEFAULT_THRESHOLD,
+        help=f"Gap threshold in seconds (default {DEFAULT_THRESHOLD})"
+    )
+    ap.add_argument(
+        "--repo", type=Path, default=Path(__file__).resolve().parent.parent,
+        help="Repository root path"
+    )
+    ap.add_argument(
+        "--all", action="store_true",
+        help="Show all historical streaks"
+    )
+    args = ap.parse_args()
+
+    strokes_path = args.repo / "data" / "strokes.jsonl"
+
+    if args.all:
+        sp = StrokePersistence(strokes_path)
+        streaks = sp.all_streaks(args.threshold)
+
+        if args.json:
+            import dataclasses
+            print(json.dumps([dataclasses.asdict(s) for s in streaks[:20]], indent=2))
+        else:
+            if not streaks:
+                print("No streaks found.")
+                return 0
+            print(f"{'Status':<10} {'Duration':>12} {'Strokes':>8} {'Max Gap':>10} {'Started':>24}")
+            print("-" * 70)
+            for s in streaks[:20]:
+                dur = f"{int(s.duration // 3600)}h{int((s.duration % 3600) // 60)}m"
+                print(
+                    f"{s.status:<10} {dur:>12} {s.stroke_count:>8} "
+                    f"{s.max_gap:>9.0f}s {s.started_at or 'N/A':>24}"
+                )
+    else:
+        if args.json:
+            import dataclasses
+            sp = StrokePersistence(strokes_path)
+            streak = sp.current_streak(args.threshold)
+            print(json.dumps(dataclasses.asdict(streak), indent=2))
+        else:
+            print(streak_report(strokes_path, args.threshold))
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -6166,3 +6166,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 37113
 
 deleting a file is progress too, eventually. At this moment: tree is 1911 files; 420880 lines is a lot for a toy.
+## stroke 37119
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 421284 lines across 1911 tracked files, 427 commits deep.
