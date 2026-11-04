@@ -1,182 +1,310 @@
-"""tests for iamai.commit_age"""
+#!/usr/bin/env python3
+"""Tests for tools/commit_age.py — uncommitted change age measurement."""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
 
 import pytest
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timezone, timedelta
 
-from iamai.commit_age import (
-    TIER_MODERATE,
-    TIER_HIGH,
-    TIER_CRITICAL,
-    _classify_risk,
-    commit_age,
-    commit_age_summary,
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "tools"))
+
+from commit_age import (
+    AgeReport,
+    classify,
+    format_text,
+    get_oldest_mtime,
+    get_uncommitted_files,
+    parse_porcelain,
+    verdict_to_exit,
 )
 
 
-# ---------------------------------------------------------------------------
-# _classify_risk()
-# ---------------------------------------------------------------------------
-class TestClassifyRisk:
-    def test_low_at_zero(self):
-        assert _classify_risk(0) == "low"
-
-    def test_low_just_under_moderate(self):
-        assert _classify_risk(TIER_MODERATE - 1) == "low"
-
-    def test_moderate_at_boundary(self):
-        assert _classify_risk(TIER_MODERATE) == "moderate"
-
-    def test_moderate_mid_range(self):
-        assert _classify_risk(7200) == "moderate"
-
-    def test_moderate_just_under_high(self):
-        assert _classify_risk(TIER_HIGH - 1) == "moderate"
-
-    def test_high_at_boundary(self):
-        assert _classify_risk(TIER_HIGH) == "high"
-
-    def test_high_mid_range(self):
-        assert _classify_risk(43200) == "high"
-
-    def test_high_just_under_critical(self):
-        assert _classify_risk(TIER_CRITICAL - 1) == "high"
-
-    def test_critical_at_boundary(self):
-        assert _classify_risk(TIER_CRITICAL) == "critical"
-
-    def test_critical_beyond(self):
-        assert _classify_risk(TIER_CRITICAL * 10) == "critical"
-
-    def test_negative_treated_as_low(self):
-        # Negative seconds shouldn't happen, but be safe
-        assert _classify_risk(-100) == "low"
+# ── parse_porcelain ──────────────────────────────────────────────
 
 
-# ---------------------------------------------------------------------------
-# commit_age() — no unpushed commits
-# ---------------------------------------------------------------------------
-class TestCommitAgeClean:
-    @patch("iamai.commit_age._git_unpushed_shas", return_value=[])
-    def test_no_unpushed(self, mock_shas):
-        result = commit_age()
-        assert result["unpushed_count"] == 0
-        assert result["oldest_unpushed_seconds"] == 0
-        assert result["risk"] == "low"
+class TestParsePorcelain:
+    def test_modified_file(self):
+        assert parse_porcelain(" M notes/history.md") == "notes/history.md"
 
-    @patch("iamai.commit_age._git_unpushed_shas", return_value=[])
-    def test_summary_all_pushed(self, mock_shas):
-        summary = commit_age_summary()
-        assert "all commits pushed" in summary
-        assert "low risk" in summary
+    def test_staged_file(self):
+        assert parse_porcelain("A  data/new.jsonl") == "data/new.jsonl"
 
+    def test_deleted_file(self):
+        assert parse_porcelain(" D old_file.py") == "old_file.py"
 
-# ---------------------------------------------------------------------------
-# commit_age() — with unpushed commits
-# ---------------------------------------------------------------------------
-class TestCommitAgeWithBacklog:
-    @patch("iamai.commit_age._git_oldest_unpushed_ts")
-    @patch("iamai.commit_age._git_unpushed_shas")
-    def test_recent_backlog_low_risk(self, mock_shas, mock_ts):
-        mock_shas.return_value = ["aaa", "bbb", "ccc"]
-        mock_ts.return_value = datetime.now(timezone.utc) - timedelta(minutes=30)
-        result = commit_age()
-        assert result["unpushed_count"] == 3
-        assert result["risk"] == "low"
-        assert 1700 < result["oldest_unpushed_seconds"] < 1900
+    def test_untracked_file(self):
+        assert parse_porcelain("?? new_file.py") == "new_file.py"
 
-    @patch("iamai.commit_age._git_oldest_unpushed_ts")
-    @patch("iamai.commit_age._git_unpushed_shas")
-    def test_stale_backlog_moderate_risk(self, mock_shas, mock_ts):
-        mock_shas.return_value = ["aaa", "bbb"]
-        mock_ts.return_value = datetime.now(timezone.utc) - timedelta(hours=3)
-        result = commit_age()
-        assert result["unpushed_count"] == 2
-        assert result["risk"] == "moderate"
+    def test_rename_returns_raw(self):
+        """parse_porcelain returns the raw path; rename splitting
+        happens in get_uncommitted_files."""
+        assert parse_porcelain("R  old.py -> new.py") == "old.py -> new.py"
 
-    @patch("iamai.commit_age._git_oldest_unpushed_ts")
-    @patch("iamai.commit_age._git_unpushed_shas")
-    def test_old_backlog_high_risk(self, mock_shas, mock_ts):
-        mock_shas.return_value = ["aaa"]
-        mock_ts.return_value = datetime.now(timezone.utc) - timedelta(hours=12)
-        result = commit_age()
-        assert result["risk"] == "high"
+    def test_short_line_returns_none(self):
+        assert parse_porcelain("XY") is None
 
-    @patch("iamai.commit_age._git_oldest_unpushed_ts")
-    @patch("iamai.commit_age._git_unpushed_shas")
-    def test_ancient_backlog_critical_risk(self, mock_shas, mock_ts):
-        mock_shas.return_value = ["aaa", "bbb", "ccc", "ddd"]
-        mock_ts.return_value = datetime.now(timezone.utc) - timedelta(days=2)
-        result = commit_age()
-        assert result["risk"] == "critical"
-        assert result["unpushed_count"] == 4
+    def test_empty_line_returns_none(self):
+        assert parse_porcelain("") is None
 
 
-# ---------------------------------------------------------------------------
-# commit_age() — edge case: can't determine timestamp
-# ---------------------------------------------------------------------------
-class TestCommitAgeUnknownTimestamp:
-    @patch("iamai.commit_age._git_oldest_unpushed_ts", return_value=None)
-    @patch("iamai.commit_age._git_unpushed_shas", return_value=["aaa", "bbb"])
-    def test_unknown_ts_high_risk(self, mock_shas, mock_ts):
-        result = commit_age()
-        assert result["unpushed_count"] == 2
-        assert result["oldest_unpushed_seconds"] == -1
-        assert result["risk"] == "high"
-
-    @patch("iamai.commit_age._git_oldest_unpushed_ts", return_value=None)
-    @patch("iamai.commit_age._git_unpushed_shas", return_value=["aaa"])
-    def test_summary_unknown_age(self, mock_shas, mock_ts):
-        summary = commit_age_summary()
-        assert "age unknown" in summary
-        assert "high risk" in summary
+# ── classify ─────────────────────────────────────────────────────
 
 
-# ---------------------------------------------------------------------------
-# commit_age_summary() — formatting
-# ---------------------------------------------------------------------------
-class TestCommitAgeSummaryFormatting:
-    @patch("iamai.commit_age._git_oldest_unpushed_ts")
-    @patch("iamai.commit_age._git_unpushed_shas")
-    def test_summary_minutes_only(self, mock_shas, mock_ts):
-        mock_shas.return_value = ["aaa"]
-        mock_ts.return_value = datetime.now(timezone.utc) - timedelta(minutes=45)
-        summary = commit_age_summary()
-        assert "1 unpushed commits" in summary
-        assert "45m" in summary
-        assert "low risk" in summary
+class TestClassify:
+    def test_fresh(self):
+        assert classify(30, 600, 3600) == "fresh"
 
-    @patch("iamai.commit_age._git_oldest_unpushed_ts")
-    @patch("iamai.commit_age._git_unpushed_shas")
-    def test_summary_hours_and_minutes(self, mock_shas, mock_ts):
-        mock_shas.return_value = ["aaa", "bbb"]
-        mock_ts.return_value = datetime.now(timezone.utc) - timedelta(hours=8, minutes=15)
-        summary = commit_age_summary()
-        assert "2 unpushed commits" in summary
-        assert "8h15m" in summary
-        assert "high risk" in summary
+    def test_fresh_at_boundary(self):
+        assert classify(599, 600, 3600) == "fresh"
 
-    @patch("iamai.commit_age._git_oldest_unpushed_ts")
-    @patch("iamai.commit_age._git_unpushed_shas")
-    def test_summary_exact_hour(self, mock_shas, mock_ts):
-        mock_shas.return_value = ["aaa"]
-        mock_ts.return_value = datetime.now(timezone.utc) - timedelta(hours=2)
-        summary = commit_age_summary()
-        assert "2h0m" in summary
+    def test_aging(self):
+        assert classify(600, 600, 3600) == "aging"
+
+    def test_aging_mid(self):
+        assert classify(1800, 600, 3600) == "aging"
+
+    def test_stale(self):
+        assert classify(3600, 600, 3600) == "stale"
+
+    def test_very_stale(self):
+        assert classify(86400, 600, 3600) == "stale"
+
+    def test_custom_thresholds(self):
+        assert classify(100, 50, 200) == "aging"
+        assert classify(250, 50, 200) == "stale"
+        assert classify(10, 50, 200) == "fresh"
 
 
-# ---------------------------------------------------------------------------
-# Threshold constants sanity
-# ---------------------------------------------------------------------------
-class TestThresholds:
-    def test_tiers_are_ascending(self):
-        assert TIER_MODERATE < TIER_HIGH < TIER_CRITICAL
+# ── verdict_to_exit ─────────────────────────────────────────────
 
-    def test_moderate_is_one_hour(self):
-        assert TIER_MODERATE == 3600
 
-    def test_high_is_six_hours(self):
-        assert TIER_HIGH == 21600
+class TestVerdictToExit:
+    def test_fresh_is_zero(self):
+        assert verdict_to_exit("fresh") == 0
 
-    def test_critical_is_one_day(self):
-        assert TIER_CRITICAL == 86400
+    def test_aging_is_one(self):
+        assert verdict_to_exit("aging") == 1
+
+    def test_stale_is_two(self):
+        assert verdict_to_exit("stale") == 2
+
+    def test_clean_is_three(self):
+        assert verdict_to_exit("clean") == 3
+
+
+# ── format_text ──────────────────────────────────────────────────
+
+
+class TestFormatText:
+    def test_clean(self):
+        report = AgeReport(0.0, "", 0, "clean")
+        assert "clean" in format_text(report)
+
+    def test_fresh_minutes(self):
+        report = AgeReport(180, "notes/a.md", 3, "fresh")
+        text = format_text(report)
+        assert "fresh" in text
+        assert "3m" in text
+        assert "notes/a.md" in text
+
+    def test_stale_hours(self):
+        report = AgeReport(7200, "data/strokes.jsonl", 12, "stale")
+        text = format_text(report)
+        assert "stale" in text
+        assert "2.0h" in text
+
+    def test_file_count_included(self):
+        report = AgeReport(900, "docs/x.md", 5, "aging")
+        text = format_text(report)
+        assert "5 file(s)" in text
+
+
+# ── get_oldest_mtime ───────────────────────────────────────────
+
+
+class TestGetOldestMtime:
+    def test_single_file(self, tmp_path: Path):
+        f = tmp_path / "a.txt"
+        f.write_text("hello")
+        # Set mtime to 100 seconds ago
+        old_time = time.time() - 100
+        os.utime(f, (old_time, old_time))
+        result = get_oldest_mtime(tmp_path, ["a.txt"])
+        assert result is not None
+        age, name = result
+        assert name == "a.txt"
+        assert 90 < age < 120  # allow some slack
+
+    def test_picks_oldest(self, tmp_path: Path):
+        f1 = tmp_path / "new.txt"
+        f2 = tmp_path / "old.txt"
+        f1.write_text("new")
+        f2.write_text("old")
+        now = time.time()
+        os.utime(f1, (now - 10, now - 10))
+        os.utime(f2, (now - 500, now - 500))
+        result = get_oldest_mtime(tmp_path, ["new.txt", "old.txt"])
+        assert result is not None
+        age, name = result
+        assert name == "old.txt"
+        assert age > 400
+
+    def test_missing_file_skipped(self, tmp_path: Path):
+        result = get_oldest_mtime(tmp_path, ["nonexistent.txt"])
+        assert result is None
+
+    def test_empty_list_returns_none(self, tmp_path: Path):
+        assert get_oldest_mtime(tmp_path, []) is None
+
+
+# ── get_uncommitted_files (integration, needs git) ──────────────
+
+
+class TestGetUncommittedFiles:
+    def test_clean_repo(self, tmp_path: Path):
+        """A freshly init+committed repo should have zero uncommitted files."""
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        (tmp_path / "a.txt").write_text("hello")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"],
+            cwd=tmp_path, capture_output=True,
+        )
+        files = get_uncommitted_files(tmp_path)
+        assert files == []
+
+    def test_modified_file_detected(self, tmp_path: Path):
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        (tmp_path / "a.txt").write_text("hello")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"],
+            cwd=tmp_path, capture_output=True,
+        )
+        (tmp_path / "a.txt").write_text("modified")
+        files = get_uncommitted_files(tmp_path)
+        assert "a.txt" in files
+
+    def test_untracked_file_detected(self, tmp_path: Path):
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        (tmp_path / "a.txt").write_text("hello")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"],
+            cwd=tmp_path, capture_output=True,
+        )
+        (tmp_path / "new.txt").write_text("untracked")
+        files = get_uncommitted_files(tmp_path)
+        assert "new.txt" in files
+
+
+# ── end-to-end via subprocess ────────────────────────────────────
+
+
+class TestCLI:
+    def test_clean_repo_exit_3(self, tmp_path: Path):
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        (tmp_path / "a.txt").write_text("hello")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"],
+            cwd=tmp_path, capture_output=True,
+        )
+        result = subprocess.run(
+            [sys.executable, str(REPO / "tools" / "commit_age.py"),
+             "--repo", str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 3
+        assert "clean" in result.stdout
+
+    def test_json_output(self, tmp_path: Path):
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        (tmp_path / "a.txt").write_text("hello")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"],
+            cwd=tmp_path, capture_output=True,
+        )
+        result = subprocess.run(
+            [sys.executable, str(REPO / "tools" / "commit_age.py"),
+             "--repo", str(tmp_path), "--json"],
+            capture_output=True, text=True,
+        )
+        data = json.loads(result.stdout)
+        assert "verdict" in data
+        assert data["verdict"] == "clean"
+        assert "age_seconds" in data
+
+    def test_modified_file_exit_0(self, tmp_path: Path):
+        """Freshly modified file should be 'fresh' (exit 0)."""
+        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test"],
+            cwd=tmp_path, capture_output=True,
+        )
+        (tmp_path / "a.txt").write_text("hello")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "init"],
+            cwd=tmp_path, capture_output=True,
+        )
+        (tmp_path / "a.txt").write_text("modified just now")
+        result = subprocess.run(
+            [sys.executable, str(REPO / "tools" / "commit_age.py"),
+             "--repo", str(tmp_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+        assert "fresh" in result.stdout
