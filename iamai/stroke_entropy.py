@@ -1,119 +1,308 @@
-"""Stroke entropy — is the writer stuck in a loop?
+"""stroke_entropy — information-theoretic diversity analysis for strokes.
 
-``stroke_rate`` measures *how many*; this module measures *how varied*.
-A writer that cycles through the same three modules (chunk_text →
-parse_kv → retry → repeat) looks healthy on throughput but is actually
-producing no new content.  Shannon entropy over recent stroke kinds
-catches this in one number.
+While stroke_text_richness measures lexical quality (vocabulary, novelty,
+sentence variation), this module looks at strokes through the lens of
+information theory: how much *surprise* does each new stroke carry?
 
-Scale (with ``window`` defaulting to the last 30 strokes):
+Three entropy measures:
 
-==========  ================================================
-verdict     meaning
-==========  ================================================
-``rich``    entropy ≥ 2.0 — good variety
-``narrow``  entropy ≥ 1.0 — limited but not stuck
-``loop``    entropy < 1.0 — cycling a small set of kinds
-==========  ================================================
+====================  ====================================================
+metric                what it captures
+====================  ====================================================
+shannon_entropy       bits of information per token in a window
+perplexity            effective vocabulary size (2^entropy)
+diminishing_return    rate at which new strokes add unique information
+====================  ====================================================
 
-``entropy_report`` returns a one-liner for caretaker logs::
+A writer stuck in a loop has low entropy — each stroke is predictable.
+A writer exploring new territory has high entropy — each stroke carries
+genuine surprise.
 
-    from iamai.stroke_entropy import entropy, entropy_report
-    info = entropy(repo, window=30)
-    print(info["verdict"])   # "loop"
-    print(info["shannon"])   # 0.87
-    print(entropy_report(repo))
-    # "loop — shannon 0.87 over 30 strokes (3 distinct kinds)"
+verdicts:
+
+==========  ============================================================
+label       meaning
+==========  ============================================================
+exploring   high entropy, each stroke brings new information
+routine     moderate entropy, some variation but predictable patterns
+looping     low entropy, strokes are near-duplicates of each other
+==========  ============================================================
+
+Design goals:
+
+1. **Pure Python** — no NLP or ML libraries.
+2. **Windowed** — only looks at the most recent N strokes (default 50).
+3. **Kind-aware** — entropy computed per stroke kind (thought, note, etc.)
+   so that a writer cycling through kinds still shows structure.
+4. **Forgiving** — malformed JSONL lines are silently skipped.
+
+Usage::
+
+    from iamai.stroke_entropy import stroke_entropy, entropy_report
+
+    result = stroke_entropy(strokes, window=50)
+    print(entropy_report(result))
 """
 
 from __future__ import annotations
 
 import json
 import math
+import re
 from collections import Counter
 from pathlib import Path
+from statistics import mean
+from typing import Any
+
+REPO = Path(__file__).resolve().parent.parent
+STROKES_PATH = REPO / "data" / "strokes.jsonl"
+
+# Thresholds for verdict classification (Shannon entropy in bits).
+_EXPLORING_THRESHOLD = 4.5
+_ROUTINE_THRESHOLD = 3.0
 
 
-def _load_recent_kinds(strokes_path: Path, window: int) -> list[str]:
-    """Read the ``kind`` field from the last *window* lines of strokes.jsonl.
+# ---------------------------------------------------------------------------
+# text helpers (shared with stroke_text_richness but self-contained)
+# ---------------------------------------------------------------------------
 
-    Seeks from the end so a 200 k-line file stays cheap.
+_WORD_RE = re.compile(r"[a-zA-Z0-9\u4e00-\u9fff]+")
+
+
+def _tokenize(text: str) -> list[str]:
+    """Lowercase tokenize into word tokens."""
+    return _WORD_RE.findall(text.lower())
+
+
+# ---------------------------------------------------------------------------
+# core metrics
+# ---------------------------------------------------------------------------
+
+
+def shannon_entropy(tokens: list[str]) -> float:
+    """Shannon entropy in bits per token.
+
+    H = -sum(p_i * log2(p_i)) for each unique token i.
+    Returns 0.0 for empty input.
     """
-    if not strokes_path.exists():
+    if not tokens:
+        return 0.0
+    n = len(tokens)
+    counts = Counter(tokens)
+    h = 0.0
+    for count in counts.values():
+        p = count / n
+        if p > 0:
+            h -= p * math.log2(p)
+    return h
+
+
+def perplexity(tokens: list[str]) -> float:
+    """Perplexity: 2^H, the effective vocabulary size.
+
+    Higher means the writer is drawing from a larger pool of words.
+    Returns 1.0 for empty input (no surprise, nothing to predict).
+    """
+    h = shannon_entropy(tokens)
+    return 2.0 ** h
+
+
+def diminishing_return(
+    current_tokens: list[str],
+    previous_tokens: list[str],
+) -> float:
+    """Fraction of current tokens already seen in the previous window.
+
+    Returns 1.0 when both windows are empty (nothing new to return).
+    A high value means the writer is reusing the same words — diminishing
+    returns on each new stroke.
+    """
+    if not current_tokens:
+        return 1.0
+    prev_vocab = set(previous_tokens)
+    seen = sum(1 for t in current_tokens if t in prev_vocab)
+    return seen / len(current_tokens)
+
+
+def entropy_classify(entropy: float) -> str:
+    """Map a Shannon entropy value to a verdict label."""
+    if entropy >= _EXPLORING_THRESHOLD:
+        return "exploring"
+    if entropy >= _ROUTINE_THRESHOLD:
+        return "routine"
+    return "looping"
+
+
+# ---------------------------------------------------------------------------
+# data loading
+# ---------------------------------------------------------------------------
+
+
+def load_strokes(
+    path: Path = STROKES_PATH,
+    window: int = 50,
+) -> list[dict]:
+    """Load the most recent `window` strokes from JSONL.
+
+    Malformed lines are silently skipped.
+    """
+    if not path.exists():
         return []
     lines: list[str] = []
-    with strokes_path.open("rb") as fh:
-        fh.seek(0, 2)
-        size = fh.tell()
-        if size == 0:
-            return []
-        # Read up to ~window * 512 bytes from the tail — generous for JSON lines.
-        chunk = min(size, window * 512)
-        fh.seek(-chunk, 2)
-        raw = fh.read().decode("utf-8", errors="replace")
-        lines = raw.splitlines()
-    kinds: list[str] = []
-    for line in lines:
+    with open(path, "r", encoding="utf-8") as fh:
+        for line in fh:
+            lines.append(line)
+    recent = lines[-window:]
+    strokes: list[dict] = []
+    for line in recent:
         line = line.strip()
         if not line:
             continue
         try:
-            rec = json.loads(line)
-        except (json.JSONDecodeError, ValueError):
+            strokes.append(json.loads(line))
+        except json.JSONDecodeError:
             continue
-        kind = rec.get("kind", "unknown")
-        kinds.append(kind)
-    return kinds[-window:]
+    return strokes
 
 
-def _shannon(values: list[str]) -> float:
-    """Shannon entropy in bits over a list of categorical values."""
-    if not values:
-        return 0.0
-    counts = Counter(values)
-    n = len(values)
-    return -sum((c / n) * math.log2(c / n) for c in counts.values())
+# ---------------------------------------------------------------------------
+# analysis
+# ---------------------------------------------------------------------------
 
 
-def _classify(shannon: float) -> str:
-    if shannon >= 2.0:
-        return "rich"
-    if shannon >= 1.0:
-        return "narrow"
-    return "loop"
-
-
-def entropy(
-    repo: Path | str | None = None,
-    window: int = 30,
+def stroke_entropy(
+    strokes: list[dict],
+    previous_strokes: list[dict] | None = None,
+    window: int = 50,
 ) -> dict:
-    """Compute stroke entropy for the repo.
+    """Compute entropy metrics for a window of strokes.
 
-    Returns a dict with keys: ``shannon``, ``verdict``, ``window``,
-    ``distinct``, ``total``.
+    Returns a dict with: entropy, perplexity, diminishing, verdict,
+    stroke_count, token_count, unique_tokens.
     """
-    if repo is None:
-        repo = Path(__file__).resolve().parent.parent
-    repo = Path(repo)
-    strokes_path = repo / "data" / "strokes.jsonl"
-    kinds = _load_recent_kinds(strokes_path, window)
-    shannon = _shannon(kinds)
+    # Limit to window.
+    current = strokes[-window:] if len(strokes) > window else strokes
+
+    current_tokens: list[str] = []
+    for s in current:
+        text = s.get("text", "")
+        current_tokens.extend(_tokenize(text))
+
+    prev_tokens: list[str] = []
+    if previous_strokes:
+        for s in previous_strokes:
+            prev_tokens.extend(_tokenize(s.get("text", "")))
+
+    h = shannon_entropy(current_tokens)
+    perp = perplexity(current_tokens)
+    dim = diminishing_return(current_tokens, prev_tokens)
+
     return {
-        "shannon": round(shannon, 3),
-        "verdict": _classify(shannon),
-        "window": window,
-        "distinct": len(set(kinds)),
-        "total": len(kinds),
+        "entropy": round(h, 4),
+        "perplexity": round(perp, 2),
+        "diminishing": round(dim, 4),
+        "verdict": entropy_classify(h),
+        "stroke_count": len(current),
+        "token_count": len(current_tokens),
+        "unique_tokens": len(set(current_tokens)),
     }
 
 
-def entropy_report(
-    repo: Path | str | None = None,
-    window: int = 30,
-) -> str:
-    """One-line human-readable summary."""
-    info = entropy(repo, window)
-    return (
-        f"{info['verdict']} — shannon {info['shannon']} "
-        f"over {info['total']} strokes ({info['distinct']} distinct kinds)"
+def entropy_trend(scores: list[float]) -> str:
+    """Classify the trend of a series of entropy scores.
+
+    Compares the mean of the last third to the mean of the first third.
+    """
+    if len(scores) < 3:
+        return "insufficient-data"
+    third = max(1, len(scores) // 3)
+    early = mean(scores[:third])
+    late = mean(scores[-third:])
+    delta = late - early
+    if delta > 0.3:
+        return "diversifying"
+    if delta < -0.3:
+        return "narrowing"
+    return "stable"
+
+
+def entropy_report(result: dict) -> str:
+    """Format an entropy analysis result as a human-readable string."""
+    if "error" in result:
+        return f"ERROR: {result['error']}"
+    parts = [
+        f"stroke entropy: {result['entropy']:.2f} bits",
+        f"perplexity: {result['perplexity']:.1f} (effective vocab)",
+        f"diminishing: {result['diminishing']:.2%} reuse rate",
+        f"verdict: {result['verdict']}",
+        f"window: {result['stroke_count']} strokes, "
+        f"{result['token_count']} tokens, "
+        f"{result['unique_tokens']} unique",
+    ]
+    return " | ".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# full analysis with trend
+# ---------------------------------------------------------------------------
+
+
+def analyze(
+    path: Path = STROKES_PATH,
+    window: int = 50,
+) -> dict:
+    """Full analysis: current window metrics + trend from history.
+
+    Loads 2x window strokes to compute both current metrics and
+    a diminishing baseline from the preceding window.
+    """
+    if not path.exists():
+        return {"error": "strokes file not found", "path": str(path)}
+
+    all_lines: list[str] = []
+    with open(path, "r", encoding="utf-8") as fh:
+        for line in fh:
+            all_lines.append(line)
+
+    total_needed = window * 2
+    recent_lines = (
+        all_lines[-total_needed:] if len(all_lines) > total_needed else all_lines
     )
+
+    strokes: list[dict] = []
+    for line in recent_lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            strokes.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+
+    if len(strokes) < window:
+        current = strokes
+        previous: list[dict] = []
+    else:
+        current = strokes[-window:]
+        previous = (
+            strokes[-(window * 2) : -window] if len(strokes) >= window * 2 else []
+        )
+
+    result = stroke_entropy(current, previous if previous else None)
+
+    # Historical trend: split all loaded strokes into sequential chunks.
+    chunk_size = max(10, window // 5)
+    scores: list[float] = []
+    prev_chunk: list[dict] = []
+    for i in range(0, len(strokes), chunk_size):
+        chunk = strokes[i : i + chunk_size]
+        if len(chunk) < chunk_size // 2:
+            break
+        r = stroke_entropy(chunk, prev_chunk if prev_chunk else None)
+        scores.append(r["entropy"])
+        prev_chunk = chunk
+
+    result["trend"] = entropy_trend(scores)
+    result["history_scores"] = [round(s, 3) for s in scores]
+
+    return result
