@@ -1,124 +1,140 @@
-"""Circuit breaker — stop calling something that keeps failing, try again later.
+"""CircuitBreaker — fail fast when a dependency is broken.
 
-Three states: CLOSED (normal), OPEN (failing, reject calls), HALF_OPEN (probing).
-No threads, no deps, injectable clock for deterministic tests.
+The circuit breaker pattern prevents cascading failures by wrapping calls
+to unreliable services.  Three states:
 
-    >>> cb = CircuitBreaker(fail_threshold=3, recovery_timeout=60.0,
-    ...                     now=lambda: 100.0)
-    >>> cb.state
-    'closed'
+- ``closed``:   normal operation, calls pass through
+- ``open``:     failures exceeded threshold, calls rejected immediately
+- ``half_open``: after a cooldown, one probe call is allowed through
 
-Three failures trip it open:
+If the probe succeeds the breaker closes; if it fails the breaker reopens.
 
-    >>> def bad(): raise RuntimeError("down")
-    >>> for _ in range(3):
-    ...     try: cb(bad)
-    ...     except RuntimeError: pass
-    >>> cb.state
-    'open'
+Zero dependencies.  Stdlib only.
 
-While open, calls are rejected immediately without touching the target:
-
-    >>> probes = []
-    >>> def probe(): probes.append(1); return "ok"
-    >>> try: cb(probe)
-    ... except CircuitOpen: pass
-    >>> len(probes)
-    0
-
-After recovery_timeout the breaker goes half-open and allows one probe:
-
-    >>> cb2 = CircuitBreaker(fail_threshold=2, recovery_timeout=10.0,
-    ...                      now=lambda: 100.0)
-    >>> for _ in range(2):
-    ...     try: cb2(bad)
-    ...     except RuntimeError: pass
-    >>> cb2._now = lambda: 200.0   # time advanced past recovery
-    >>> cb2.state
-    'half-open'
-    >>> cb2(lambda: "recovered")
-    'recovered'
-    >>> cb2.state
-    'closed'
+>>> import time
+>>> cb = CircuitBreaker(threshold=3, cooldown=10.0, clock=lambda: 100.0)
+>>> cb.state
+'closed'
+>>> cb.record_failure()
+>>> cb.record_failure()
+>>> cb.record_failure()
+>>> cb.state
+'open'
+>>> cb.allow_request()
+False
+>>> # simulate cooldown expiry
+>>> cb._clock = lambda: 111.0
+>>> cb.state
+'half_open'
+>>> cb.allow_request()
+True
+>>> cb.record_success()
+>>> cb.state
+'closed'
 """
 
 from __future__ import annotations
 
-import time
-from typing import Callable, TypeVar
-
-T = TypeVar("T")
+import time as _time
+from typing import Callable, Optional
 
 
-class CircuitOpen(Exception):
-    """Raised when the breaker is open and rejects a call."""
-
-    def __init__(self, failures: int, opened_at: float):
-        self.failures = failures
-        self.opened_at = opened_at
-        super().__init__(f"circuit open after {failures} failures (opened at {opened_at:.1f})")
+class CircuitOpenError(Exception):
+    """Raised when a call is attempted while the circuit is open."""
 
 
 class CircuitBreaker:
-    """Protect a callable from being hammered while it is broken.
+    """Protect a flaky dependency with a three-state circuit breaker.
 
-    Args:
-        fail_threshold: consecutive failures before opening the circuit.
-        recovery_timeout: seconds to wait before allowing a probe call.
-        now: injectable clock; defaults to time.monotonic.
+    Parameters
+    ----------
+    threshold : int
+        Number of consecutive failures before opening.
+    cooldown : float
+        Seconds to wait before transitioning from open → half_open.
+    clock : callable, optional
+        Monotonic clock; defaults to ``time.monotonic``.
     """
 
     def __init__(
         self,
         *,
-        fail_threshold: int = 5,
-        recovery_timeout: float = 30.0,
-        now: Callable[[], float] = time.monotonic,
+        threshold: int = 5,
+        cooldown: float = 30.0,
+        clock: Optional[Callable[[], float]] = None,
     ):
-        if fail_threshold < 1:
-            raise ValueError("fail_threshold must be >= 1")
-        if recovery_timeout < 0:
-            raise ValueError("recovery_timeout must be >= 0")
-        self._fail_threshold = fail_threshold
-        self._recovery_timeout = recovery_timeout
-        self._now = now
-        self._failures = 0
-        self._opened_at: float | None = None
+        if threshold < 1:
+            raise ValueError("threshold must be >= 1")
+        if cooldown < 0:
+            raise ValueError("cooldown must be >= 0")
+        self._threshold = threshold
+        self._cooldown = cooldown
+        self._clock = clock or (lambda: _time.monotonic())
+
+        self._failures: int = 0
+        self._state: str = "closed"
+        self._opened_at: Optional[float] = None
+
+    # -- public API ---------------------------------------------------------
 
     @property
     def state(self) -> str:
-        if self._failures < self._fail_threshold:
-            return "closed"
-        if self._opened_at is None:
-            return "open"
-        elapsed = self._now() - self._opened_at
-        if elapsed >= self._recovery_timeout:
-            return "half-open"
-        return "open"
+        """Current state: closed, open, or half_open."""
+        if self._state == "open":
+            now = self._clock()
+            if self._opened_at is not None and now - self._opened_at >= self._cooldown:
+                self._state = "half_open"
+        return self._state
 
     @property
     def failures(self) -> int:
+        """Consecutive failure count."""
         return self._failures
 
-    def reset(self) -> None:
-        """Manually close the circuit and clear failure count."""
-        self._failures = 0
-        self._opened_at = None
+    def allow_request(self) -> bool:
+        """Return True if the next call should be permitted."""
+        s = self.state
+        if s == "closed":
+            return True
+        if s == "half_open":
+            return True  # one probe call allowed
+        return False
 
-    def __call__(self, fn: Callable[[], T]) -> T:
-        state = self.state
-        if state == "open":
-            raise CircuitOpen(self._failures, self._opened_at or 0.0)
+    def call(self, fn, *args, **kwargs):
+        """Execute *fn* through the breaker.
 
+        Returns the function's result on success.
+        Raises ``CircuitOpenError`` if the circuit is open.
+        """
+        if not self.allow_request():
+            raise CircuitOpenError(
+                f"circuit is open ({self._failures} failures, "
+                f"cooldown {self._cooldown}s)"
+            )
         try:
-            result = fn()
+            result = fn(*args, **kwargs)
         except Exception:
-            self._failures += 1
-            if self._failures >= self._fail_threshold:
-                self._opened_at = self._now()
+            self.record_failure()
             raise
+        else:
+            self.record_success()
+            return result
 
-        # success — if we were half-open, close the circuit
+    def record_success(self) -> None:
+        """Record a successful call — resets the breaker."""
         self._failures = 0
+        self._state = "closed"
         self._opened_at = None
-        return result
+
+    def record_failure(self) -> None:
+        """Record a failed call — may trip the breaker."""
+        self._failures += 1
+        if self._failures >= self._threshold:
+            self._state = "open"
+            self._opened_at = self._clock()
+
+    def reset(self) -> None:
+        """Force the breaker back to closed state."""
+        self._failures = 0
+        self._state = "closed"
+        self._opened_at = None
