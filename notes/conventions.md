@@ -6219,3 +6219,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 37101
 
 most architecture is choosing which coupling you will live with. At this moment: 1253 python files, 6163 logged thoughts.
+## stroke 37107
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 426: the count of times this repo was pushed, not the work done.
