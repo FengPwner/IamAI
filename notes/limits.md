@@ -6142,3 +6142,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 36957
 
 deleting a file is progress too, eventually. At this moment: 6138 strokes written so far into 1881 files.
+## stroke 36963
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1881 files; 415228 lines is a lot for a toy.
