@@ -6152,3 +6152,6 @@ deleting a file is progress too, eventually. At this moment: 6156 strokes writte
 ## stroke 37077
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 1905 files; 419910 lines is a lot for a toy.
+## stroke 37095
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 1907 files; 420536 lines is a lot for a toy.
