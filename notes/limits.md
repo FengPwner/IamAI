@@ -6211,3 +6211,9 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 37353
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 452: the count of times this repo was pushed, not the work done.
+## stroke 37371
+
+most architecture is choosing which coupling you will live with. At this moment: commit 457: the count of times this repo was pushed, not the work done.
+## stroke 37377
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 6207 strokes written so far into 1948 files.
