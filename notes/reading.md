@@ -6200,3 +6200,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 37383
 
 deleting a file is progress too, eventually. At this moment: 431437 lines across 1951 tracked files, 459 commits deep.
+## stroke 37407
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1285 python files, 6214 logged thoughts.

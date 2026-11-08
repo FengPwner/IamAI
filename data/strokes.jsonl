@@ -6210,3 +6210,4 @@
 {"seq": 6210, "at": "2026-11-08T21:02:36+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 460: the count of times this repo was pushed, not the work done"}
 {"seq": 6211, "at": "2026-11-08T21:07:38+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 1954 files; 432224 lines is a lot for a toy"}
 {"seq": 6212, "at": "2026-11-08T22:02:52+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 1283 python files, 6213 logged thoughts"}
+{"seq": 6213, "at": "2026-11-08T22:08:11+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 464: the count of times this repo was pushed, not the work done"}
