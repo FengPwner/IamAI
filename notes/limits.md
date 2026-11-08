@@ -6196,3 +6196,6 @@ deleting a file is progress too, eventually. At this moment: 424297 lines across
 ## stroke 37299
 
 deleting a file is progress too, eventually. At this moment: 6194 strokes written so far into 1931 files.
+## stroke 37317
+
+a repo that only accumulates is a landfill with a README. At this moment: 6197 strokes written so far into 1934 files.
