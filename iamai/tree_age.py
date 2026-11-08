@@ -1,222 +1,384 @@
-"""Tree age — when was each directory last touched?
+"""tree_age — measure file-age distribution across the repository.
 
-A self-writing repository grows unevenly. The writer rotates through six
-stroke kinds, but tests, tools, and infrastructure directories evolve at
-their own pace — some getting commits every hour, others going stale for
-days. Staleness is not always a problem (stable code does not need
-churn), but *unintended* staleness is a risk: a directory nobody has
-touched in a week may contain broken imports or outdated assumptions.
+A repo that only adds new files without touching old ones accumulates
+rot. This module answers: *how fresh is the tree?*
 
-This module answers two questions:
+Public API::
 
-1. **How old is each directory?** — measured as seconds since the most
-   recent commit that modified a file in that directory.
-2. **Which directories are stale?** — those exceeding a configurable
-   threshold (default: 24 hours).
+    from iamai.tree_age import TreeAge, age_report
 
-Implementation uses ``git log`` with a pathspec per directory. This is
-cheap for the ~30 top-level directories in IamAI and avoids scanning
-every file individually.
+    ta = TreeAge(repo_path)
+    summary = ta.summary()
+    # {"median_age_days": 14.2, "stale_pct": 23.5, "decay_score": 0.31,
+    #  "total_files": 1917, "stale_files": 451, "oldest": [...]}
 
-Usage::
+    print(age_report(repo_path))
+    # "tree age: median 14d, 23.5% stale (>30d), decay 0.31 — healthy"
 
-    from iamai.tree_age import directory_ages, stale_directories, tree_age_summary
+Decay score model:
 
-    ages = directory_ages()
-    # {"iamai": 45.2, "tests": 120.7, "docs": 600.3, "notes": 30.1, ...}
+    decay = 0.6 * stale_fraction + 0.4 * cold_fraction
 
-    stale = stale_directories(threshold_hours=24)
-    # ["legacy", "archive"]
+    stale  = files untouched longer than stale_threshold (default 30d)
+    cold   = files untouched longer than cold_threshold (default 7d)
 
-    print(tree_age_summary())
-    # "23 directories tracked, 21 fresh (<24h), 2 stale: legacy (3d), archive (5d)"
+    Score range: 0.0 (everything touched today) → 1.0 (everything ancient)
 
-Design choices:
+Health classification:
 
-- Pure reads; does not modify any files.
-- Uses ``git log -1 --format=%ct -- <path>`` per directory, which is O(1)
-  per directory regardless of history depth.
-- Ignores ``.git`` and ``__pycache__`` directories.
-- Returns ``None`` for directories with no git history (untracked).
+============  ==========  ============================================
+range         label       meaning
+============  ==========  ============================================
+0.0 – 0.2    fresh       actively maintained, low rot
+0.2 – 0.4    healthy     normal for an active project
+0.4 – 0.6    aging       significant untouched surface
+0.6 – 0.8    stale       most files are cold
+0.8 – 1.0    rotting     near-total neglect
+============  ==========  ============================================
 """
 
 from __future__ import annotations
 
-import os
+import json
 import subprocess
 import time
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-
-# Directories that are noise in an age report.
-_IGNORE = {".git", "__pycache__", ".pytest_cache", "node_modules", ".mypy_cache"}
+DEFAULT_STALE_DAYS: float = 30.0
+DEFAULT_COLD_DAYS: float = 7.0
 
 
-def _git_last_modified(directory: Path, root: Path) -> Optional[float]:
-    """Return the epoch timestamp of the most recent commit touching *directory*.
-
-    Returns ``None`` when git has no record for the path (empty directory,
-    entirely untracked, or git is unavailable).
-    """
-    try:
-        rel = directory.relative_to(root)
-    except ValueError:
-        return None
-
-    try:
-        result = subprocess.run(
-            ["git", "log", "-1", "--format=%ct", "--", str(rel)],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            cwd=str(root),
-        )
-        if result.returncode != 0:
-            return None
-        text = result.stdout.strip()
-        if not text:
-            return None
-        return float(text)
-    except (subprocess.TimeoutExpired, ValueError, OSError):
-        return None
+@dataclass
+class FileAge:
+    """Age record for a single tracked file."""
+    path: str
+    last_modified: float   # epoch seconds
+    age_days: float
+    lines: int = 0         # current line count (best-effort)
 
 
-def directory_ages(
-    root: Optional[Path | str] = None,
-    depth: int = 1,
-    now: Optional[float] = None,
-) -> dict[str, float]:
-    """Map each directory to seconds since its last commit.
+@dataclass
+class TreeAgeSummary:
+    """Aggregate age statistics for the whole tree."""
+    total_files: int
+    median_age_days: float
+    mean_age_days: float
+    stale_count: int       # files older than stale_threshold
+    cold_count: int        # files older than cold_threshold
+    stale_pct: float
+    cold_pct: float
+    decay_score: float
+    health: str            # fresh / healthy / aging / stale / rotting
+    oldest: List[FileAge]  # top-N oldest files
+    newest: List[FileAge]  # top-N newest files
 
-    Parameters
-    ----------
-    root : Path or str, optional
-        Repository root. Defaults to the IamAI repo.
-    depth : int
-        How many levels deep to scan. Default 1 (top-level only).
-    now : float, optional
-        Current epoch time. Defaults to ``time.time()``. Override in tests
-        for deterministic results.
 
-    Returns
-    -------
-    dict[str, float]
-        Directory name → age in seconds. Directories with no git history
-        are excluded.
-    """
-    if root is None:
-        root = REPO_ROOT
-    root = Path(root)
-    if now is None:
+class TreeAge:
+    """Measure file-age distribution across a git repository."""
+
+    def __init__(
+        self,
+        repo_path: Path,
+        stale_days: float = DEFAULT_STALE_DAYS,
+        cold_days: float = DEFAULT_COLD_DAYS,
+    ):
+        self.repo_path = repo_path.resolve()
+        self.stale_threshold = stale_days * 86400
+        self.cold_threshold = cold_days * 86400
+        self._file_ages: Optional[List[FileAge]] = None
+
+    def _git_log_last_modified(self) -> Dict[str, float]:
+        """Get last-modified epoch for every tracked file via git log.
+
+        Uses a single `git log` pass with --diff-filter and --format
+        to extract the most recent commit timestamp per file.
+        """
+        try:
+            result = subprocess.run(
+                [
+                    "git", "log", "--name-only",
+                    "--format=COMMIT:%ct",
+                    "--diff-filter=ACMR",
+                    "--", ".",
+                ],
+                capture_output=True, text=True,
+                cwd=str(self.repo_path),
+                timeout=120,
+            )
+            if result.returncode != 0:
+                return {}
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return {}
+
+        last_mod: Dict[str, float] = {}
+        current_ts: Optional[float] = None
+
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("COMMIT:"):
+                try:
+                    current_ts = float(line[7:])
+                except ValueError:
+                    current_ts = None
+            elif line and current_ts is not None:
+                # First occurrence per file is the most recent commit
+                if line not in last_mod:
+                    last_mod[line] = current_ts
+
+        return last_mod
+
+    def _count_lines(self, path: str) -> int:
+        """Best-effort line count; returns 0 on failure."""
+        full = self.repo_path / path
+        if not full.is_file():
+            return 0
+        try:
+            return sum(1 for _ in full.open(errors="replace"))
+        except (OSError, UnicodeDecodeError):
+            return 0
+
+    def load(self, top_n: int = 10) -> List[FileAge]:
+        """Load file ages. Cached after first call."""
+        if self._file_ages is not None:
+            return self._file_ages
+
+        last_mod = self._git_log_last_modified()
         now = time.time()
 
-    ages: dict[str, float] = {}
+        ages: List[FileAge] = []
+        for path, ts in last_mod.items():
+            age_sec = max(0.0, now - ts)
+            ages.append(FileAge(
+                path=path,
+                last_modified=ts,
+                age_days=age_sec / 86400,
+            ))
 
-    # os.walk, not Path.walk(): Path.walk() requires Python 3.12, the house
-    # runs 3.11.  os.walk is str/Path-agnostic and prunes via dirnames in place.
-    for dirpath, dirnames, filenames in os.walk(root):
-        # Prune ignored directories.
-        dirnames[:] = [d for d in dirnames if d not in _IGNORE]
+        # Sort oldest first for easy slicing
+        ages.sort(key=lambda f: -f.age_days)
+        self._file_ages = ages
+        return ages
 
-        current = Path(dirpath)
-        # Check depth constraint.
+    def summary(self, top_n: int = 10) -> TreeAgeSummary:
+        """Compute aggregate tree-age statistics.
+
+        Args:
+            top_n: Number of oldest/newest files to include.
+
+        Returns:
+            TreeAgeSummary with median, mean, decay score, etc.
+        """
+        ages = self.load(top_n)
+        n = len(ages)
+
+        if n == 0:
+            return TreeAgeSummary(
+                total_files=0,
+                median_age_days=0.0,
+                mean_age_days=0.0,
+                stale_count=0,
+                cold_count=0,
+                stale_pct=0.0,
+                cold_pct=0.0,
+                decay_score=0.0,
+                health="fresh",
+                oldest=[],
+                newest=[],
+            )
+
+        sorted_by_age = sorted(ages, key=lambda f: f.age_days)
+        age_days = [f.age_days for f in sorted_by_age]
+
+        median = age_days[n // 2] if n % 2 else (age_days[n // 2 - 1] + age_days[n // 2]) / 2
+        mean = sum(age_days) / n
+
+        now = time.time()
+        stale_count = sum(1 for f in ages if (now - f.last_modified) > self.stale_threshold)
+        cold_count = sum(1 for f in ages if (now - f.last_modified) > self.cold_threshold)
+
+        stale_frac = stale_count / n
+        cold_frac = cold_count / n
+        decay = 0.6 * stale_frac + 0.4 * cold_frac
+
+        health = _classify(decay)
+
+        # Line counts for oldest files (expensive — only for top_n)
+        oldest = []
+        for f in ages[:top_n]:
+            f.lines = self._count_lines(f.path)
+            oldest.append(f)
+
+        newest = []
+        for f in sorted_by_age[:top_n]:
+            f.lines = self._count_lines(f.path)
+            newest.append(f)
+
+        return TreeAgeSummary(
+            total_files=n,
+            median_age_days=round(median, 1),
+            mean_age_days=round(mean, 1),
+            stale_count=stale_count,
+            cold_count=cold_count,
+            stale_pct=round(stale_frac * 100, 1),
+            cold_pct=round(cold_frac * 100, 1),
+            decay_score=round(decay, 3),
+            health=health,
+            oldest=oldest,
+            newest=newest,
+        )
+
+    def decay_trend(self, commits: int = 10) -> List[Tuple[str, float]]:
+        """Approximate decay_score at each of the last N commit points.
+
+        Uses git log to walk backwards and re-computes file ages as if
+        'now' were that commit's timestamp.  Cheap approximation — does
+        not rebuild the tree, just shifts the reference clock.
+
+        Returns:
+            List of (commit_hash, decay_score) pairs, newest first.
+        """
         try:
-            rel_depth = len(current.relative_to(root).parts)
-        except ValueError:
-            continue
-        if rel_depth > depth:
-            dirnames.clear()
-            continue
+            result = subprocess.run(
+                ["git", "log", f"-{commits}", "--format=%H %ct"],
+                capture_output=True, text=True,
+                cwd=str(self.repo_path),
+                timeout=30,
+            )
+            if result.returncode != 0:
+                return []
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return []
 
-        # Skip empty directories.
-        if not filenames and not dirnames:
-            continue
+        ages = self.load()
+        if not ages:
+            return []
 
-        # Skip the root itself (we report subdirectories).
-        if current == root:
-            continue
+        trend: List[Tuple[str, float]] = []
+        for line in result.stdout.strip().splitlines():
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            commit_hash, ts_str = parts[0], parts[1]
+            try:
+                ref_now = float(ts_str)
+            except ValueError:
+                continue
 
-        last_modified = _git_last_modified(current, root)
-        if last_modified is not None:
-            rel_name = str(current.relative_to(root))
-            ages[rel_name] = round(now - last_modified, 1)
+            n = len(ages)
+            stale = sum(1 for f in ages if (ref_now - f.last_modified) > self.stale_threshold)
+            cold = sum(1 for f in ages if (ref_now - f.last_modified) > self.cold_threshold)
+            decay = 0.6 * (stale / n) + 0.4 * (cold / n)
+            trend.append((commit_hash[:8], round(decay, 3)))
 
-    return ages
-
-
-def stale_directories(
-    root: Optional[Path | str] = None,
-    threshold_hours: float = 24.0,
-    now: Optional[float] = None,
-) -> list[dict[str, float]]:
-    """List directories older than the threshold.
-
-    Returns a list of dicts with ``name`` and ``age_seconds`` keys,
-    sorted from oldest to newest.
-    """
-    ages = directory_ages(root=root, now=now)
-    threshold_seconds = threshold_hours * 3600
-
-    stale = [
-        {"name": name, "age_seconds": age}
-        for name, age in ages.items()
-        if age > threshold_seconds
-    ]
-    stale.sort(key=lambda d: d["age_seconds"], reverse=True)
-    return stale
+        return trend
 
 
-def tree_age_summary(
-    root: Optional[Path | str] = None,
-    threshold_hours: float = 24.0,
-    now: Optional[float] = None,
+def _classify(decay: float) -> str:
+    """Classify a decay score into a health label."""
+    if decay < 0.2:
+        return "fresh"
+    elif decay < 0.4:
+        return "healthy"
+    elif decay < 0.6:
+        return "aging"
+    elif decay < 0.8:
+        return "stale"
+    else:
+        return "rotting"
+
+
+def age_report(
+    repo_path: Path,
+    stale_days: float = DEFAULT_STALE_DAYS,
+    cold_days: float = DEFAULT_COLD_DAYS,
+    top_n: int = 10,
 ) -> str:
-    """One-liner for caretaker status reports.
+    """One-line human-readable tree-age report."""
+    ta = TreeAge(repo_path, stale_days=stale_days, cold_days=cold_days)
+    s = ta.summary(top_n=top_n)
 
-    Example::
+    return (
+        f"tree age: median {s.median_age_days}d, "
+        f"{s.stale_pct}% stale (>{stale_days:.0f}d), "
+        f"decay {s.decay_score} — {s.health}"
+    )
 
-        "23 directories tracked, 21 fresh (<24h), 2 stale: legacy (3d 4h), archive (5d 12h)"
-    """
-    ages = directory_ages(root=root, now=now)
-    if not ages:
-        return "no directories found"
 
-    total = len(ages)
-    threshold_seconds = threshold_hours * 3600
+def main() -> int:
+    """CLI entry point."""
+    import argparse
+    import sys
 
-    stale = [
-        (name, age)
-        for name, age in ages.items()
-        if age > threshold_seconds
-    ]
-    stale.sort(key=lambda x: x[1], reverse=True)
+    ap = argparse.ArgumentParser(
+        description="Measure file-age distribution across the repository"
+    )
+    ap.add_argument("--json", action="store_true", help="JSON output")
+    ap.add_argument(
+        "--stale-days", type=float, default=DEFAULT_STALE_DAYS,
+        help=f"Stale threshold in days (default {DEFAULT_STALE_DAYS})"
+    )
+    ap.add_argument(
+        "--cold-days", type=float, default=DEFAULT_COLD_DAYS,
+        help=f"Cold threshold in days (default {DEFAULT_COLD_DAYS})"
+    )
+    ap.add_argument(
+        "--top", type=int, default=10,
+        help="Show top-N oldest/newest files (default 10)"
+    )
+    ap.add_argument(
+        "--trend", type=int, default=0, metavar="N",
+        help="Show decay trend over last N commits"
+    )
+    ap.add_argument(
+        "--repo", type=Path, default=Path(__file__).resolve().parent.parent,
+        help="Repository root path"
+    )
+    args = ap.parse_args()
 
-    fresh_count = total - len(stale)
+    ta = TreeAge(args.repo, stale_days=args.stale_days, cold_days=args.cold_days)
+    s = ta.summary(top_n=args.top)
 
-    def _human_age(seconds: float) -> str:
-        days = int(seconds // 86400)
-        hours = int((seconds % 86400) // 3600)
-        if days > 0:
-            return f"{days}d {hours}h"
-        minutes = int((seconds % 3600) // 60)
-        if hours > 0:
-            return f"{hours}h {minutes}m"
-        return f"{minutes}m"
+    if args.trend > 0:
+        trend = ta.decay_trend(commits=args.trend)
+        if args.json:
+            import dataclasses
+            print(json.dumps({
+                "summary": _summary_to_dict(s),
+                "trend": trend,
+            }, indent=2))
+        else:
+            print(age_report(args.repo, args.stale_days, args.cold_days, args.top))
+            print(f"\ndecay trend (last {len(trend)} commits):")
+            for h, d in trend:
+                bar = "█" * int(d * 20)
+                print(f"  {h}  {d:.3f}  {bar}")
+    elif args.json:
+        print(json.dumps(_summary_to_dict(s), indent=2))
+    else:
+        print(age_report(args.repo, args.stale_days, args.cold_days, args.top))
+        print(f"\n{s.total_files} tracked files  |  "
+              f"stale: {s.stale_count}  cold: {s.cold_count}")
+        print(f"\noldest {min(args.top, len(s.oldest))}:")
+        for f in s.oldest:
+            print(f"  {f.age_days:>7.1f}d  {f.lines:>6} lines  {f.path}")
+        print(f"\nnewest {min(args.top, len(s.newest))}:")
+        for f in s.newest:
+            print(f"  {f.age_days:>7.1f}d  {f.lines:>6} lines  {f.path}")
 
-    threshold_label = f"{threshold_hours:g}h"
-    if stale:
-        stale_detail = ", ".join(
-            f"{name} ({_human_age(age)})" for name, age in stale[:5]
-        )
-        if len(stale) > 5:
-            stale_detail += f", +{len(stale) - 5} more"
-        return (
-            f"{total} directories tracked, "
-            f"{fresh_count} fresh (<{threshold_label}), "
-            f"{len(stale)} stale: {stale_detail}"
-        )
+    return 0
 
-    return f"{total} directories tracked, all fresh (<{threshold_label})"
+
+def _summary_to_dict(s: TreeAgeSummary) -> dict:
+    """Convert summary to a JSON-serializable dict."""
+    import dataclasses
+    d = dataclasses.asdict(s)
+    # FileAge objects are already dicts via asdict
+    return d
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
