@@ -6172,3 +6172,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 37143
 
 deleting a file is progress too, eventually. At this moment: commit 430: the count of times this repo was pushed, not the work done.
+## stroke 37161
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 431: the count of times this repo was pushed, not the work done.
+## stroke 37167
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 6172 strokes written so far into 1919 files.

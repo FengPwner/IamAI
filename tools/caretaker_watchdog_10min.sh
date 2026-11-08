@@ -1,45 +1,47 @@
 #!/usr/bin/env bash
-# caretaker_watchdog_10min.sh — background loop: check every 10 minutes.
-# only prints output (alert) when something is wrong.
-# silent = healthy.
-
-REPO="$(cd "$(dirname "$0")/.." && pwd)"
-SSH_KEY="/tmp/ssh_deploy_key"
-export GIT_SSH_COMMAND="ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
-
-cd "$REPO" || exit 1
+# caretaker_watchdog_10min — check writer/batch health every 10 minutes
+# Only outputs (alerts) when something is wrong:
+#   - writer or batch process is dead
+#   - uncommitted files piling up (>20 files or >15min since last commit)
+# Silent = healthy.
+set -euo pipefail
+cd "$(dirname "$0")/.."
 
 while true; do
-    sleep 600
+  sleep 600  # 10 minutes
 
-    # 1. check writer process
-    writer_pid=$(pgrep -f "writer_loop.py --writer qwen" | head -1)
-    if [ -z "$writer_pid" ]; then
-        echo "[ALERT $(date -Iseconds)] writer process DEAD — restarting"
-        bash "$REPO/tools/run_both.sh" 2>&1
-        echo "[RESTART $(date -Iseconds)] writer restarted via run_both.sh"
-    fi
+  ALERT=""
 
-    # 2. check batch committer
-    batch_pid=$(pgrep -f "commit_batch.py --watch --writer qwen" | head -1)
-    if [ -z "$batch_pid" ]; then
-        echo "[ALERT $(date -Iseconds)] batch committer DEAD — restarting"
-        bash "$REPO/tools/run_both.sh" 2>&1
-        echo "[RESTART $(date -Iseconds)] batch restarted via run_both.sh"
-    fi
+  # Check writer
+  WRITER_PID=$(pgrep -f "writer_loop.py.*--writer qwen" 2>/dev/null || true)
+  if [ -z "$WRITER_PID" ]; then
+    ALERT="${ALERT}⚠ writer process DEAD\n"
+  fi
 
-    # 3. check uncommitted backlog
-    uncommitted=$(git status --porcelain | wc -l)
-    if [ "$uncommitted" -gt 0 ]; then
-        echo "[ALERT $(date -Iseconds)] $uncommitted uncommitted files — committing"
-        git add -A
-        git commit -m "watchdog: auto-commit backlog at $(date -Iseconds)" 2>&1
-    fi
+  # Check batch committer
+  BATCH_PID=$(pgrep -f "commit_batch.py.*--writer qwen" 2>/dev/null || true)
+  if [ -z "$BATCH_PID" ]; then
+    ALERT="${ALERT}⚠ batch committer DEAD\n"
+  fi
 
-    # 4. check unpushed commits and push
-    unpushed=$(git log origin/main..HEAD --oneline 2>/dev/null | wc -l)
-    if [ "$unpushed" -gt 0 ]; then
-        echo "[ALERT $(date -Iseconds)] $unpushed unpushed commits — pushing"
-        git push origin main 2>&1
-    fi
+  # Check uncommitted file count
+  PENDING=$(git status --porcelain 2>/dev/null | wc -l)
+  if [ "$PENDING" -gt 20 ]; then
+    ALERT="${ALERT}⚠ $PENDING uncommitted files (threshold: 20)\n"
+  fi
+
+  # Check last commit age
+  LAST_COMMIT_AGE=$(( $(date +%s) - $(git log -1 --format=%ct 2>/dev/null || echo 0) ))
+  if [ "$LAST_COMMIT_AGE" -gt 900 ]; then  # >15 min since last commit
+    ALERT="${ALERT}⚠ last commit was ${LAST_COMMIT_AGE}s ago (>15min)\n"
+  fi
+
+  # Only output if there's a problem
+  if [ -n "$ALERT" ]; then
+    echo "=== WATCHDOG ALERT $(date -Iseconds) ==="
+    echo -e "$ALERT"
+    echo "Attempting restart..."
+    bash tools/run_both.sh 2>&1 | tail -5
+    echo "=== restart attempted ==="
+  fi
 done
