@@ -6261,3 +6261,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 37311
 
 deleting a file is progress too, eventually. At this moment: 1268 python files, 6198 logged thoughts.
+## stroke 37341
+
+deleting a file is progress too, eventually. At this moment: tree is 1940 files; 428204 lines is a lot for a toy.
