@@ -400,27 +400,81 @@ class States:
         return list(self.data.get("history", []))
 
     def mark_commit(self, iso: str) -> None:
-        """Owns only the commit file -- never touches the writer's counters."""
+        """Owns only the commit file -- never touches the writer's counters.
+
+        Uses FUSE-safe retry (see save() for rationale).
+        """
+        import tempfile
+        import time as _time
 
         self.commit_data["last_commit"] = iso
         self.commit_data["commit_seq"] = int(self.commit_data.get("commit_seq", 0)) + 1
         self.commit_path.parent.mkdir(parents=True, exist_ok=True)
-        self.commit_path.write_text(
-            json.dumps(self.commit_data, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        content = json.dumps(self.commit_data, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+        last_err: Exception | None = None
+        for attempt in range(3):
+            try:
+                fd, tmp = tempfile.mkstemp(
+                    dir=str(self.commit_path.parent), suffix=".tmp"
+                )
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    os.replace(tmp, str(self.commit_path))
+                    return
+                except BaseException:
+                    try:
+                        os.unlink(tmp)
+                    except OSError:
+                        pass
+                    raise
+            except OSError as exc:
+                last_err = exc
+                _time.sleep(0.1 * (attempt + 1))
+        self.commit_path.write_text(content, encoding="utf-8")
 
     @property
     def last_commit(self) -> str | None:
         return self.commit_data.get("last_commit")
 
     def save(self) -> None:
+        """Write state to disk with FUSE-safe retry.
+
+        FUSE/ossfs mounts intermittently return EINVAL (errno 22) on
+        direct writes.  Write to a temp file first, then rename — the
+        atomic swap avoids partial writes and the retry absorbs the
+        transient FUSE error.  Added visit-560 after repeated writer
+        crashes on the same code path.
+        """
+        import tempfile
+        import time as _time
+
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {k: v for k, v in self.data.items() if k != "last_commit"}
-        self.path.write_text(
-            json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        content = json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+        last_err: Exception | None = None
+        for attempt in range(3):
+            try:
+                fd, tmp = tempfile.mkstemp(
+                    dir=str(self.path.parent), suffix=".tmp"
+                )
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    os.replace(tmp, str(self.path))
+                    return
+                except BaseException:
+                    # clean up temp on failure
+                    try:
+                        os.unlink(tmp)
+                    except OSError:
+                        pass
+                    raise
+            except OSError as exc:
+                last_err = exc
+                _time.sleep(0.1 * (attempt + 1))
+        # last resort: direct write
+        self.path.write_text(content, encoding="utf-8")
 
 
 def signal_pause(pid: int, timeout: float = 5.0) -> bool:
