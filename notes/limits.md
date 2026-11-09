@@ -6244,3 +6244,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 37527
 
 most architecture is choosing which coupling you will live with. At this moment: 6232 strokes written so far into 1976 files.
+## stroke 37557
+
+most architecture is choosing which coupling you will live with. At this moment: 1304 python files, 6239 logged thoughts.
