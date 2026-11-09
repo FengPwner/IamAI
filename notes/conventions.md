@@ -6318,3 +6318,6 @@ deleting a file is progress too, eventually. At this moment: 1316 python files, 
 ## stroke 37677
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 6259 strokes written so far into 2002 files.
+## stroke 37701
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 2008 files; 446521 lines is a lot for a toy.
