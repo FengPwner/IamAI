@@ -6273,3 +6273,6 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 37395
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 6210 strokes written so far into 1951 files.
+## stroke 37413
+
+most architecture is choosing which coupling you will live with. At this moment: 6213 strokes written so far into 1957 files.
