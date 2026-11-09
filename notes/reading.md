@@ -6221,3 +6221,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 37533
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 438634 lines across 1979 tracked files, 481 commits deep.
+## stroke 37539
+
+deleting a file is progress too, eventually. At this moment: 1302 python files, 6236 logged thoughts.
