@@ -6260,3 +6260,4 @@
 {"seq": 6260, "at": "2026-11-09T18:09:37+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 6259 strokes written so far into 2002 files"}
 {"seq": 6261, "at": "2026-11-09T19:04:39+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 445014 lines across 2002 tracked files, 506 commits deep"}
 {"seq": 6262, "at": "2026-11-09T19:09:09+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 507: the count of times this repo was pushed, not the work done"}
+{"seq": 6263, "at": "2026-11-09T20:03:05+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 6262 strokes written so far into 2005 files"}
