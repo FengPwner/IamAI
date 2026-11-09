@@ -1,168 +1,164 @@
-"""stroke_diversity — detect repetitive content in the stroke log.
+#!/usr/bin/env python3
+"""stroke_diversity — measure the variety of stroke types over time.
 
-The writer sometimes falls into a loop, emitting near-identical aphorisms
-across many strokes.  This module scores how *diverse* the recent N strokes
-are, using a simple token-overlap (Jaccard) similarity on the text body
-(the part before " -- measured now:" if present).
+A healthy writer produces a balanced mix across categories (metrics,
+note, snippet, thought, devlog, garden, reading).  When diversity
+collapses the writer is usually stuck in a single mode — endlessly
+appending metrics, or repeating the same note format.  This module
+quantifies diversity so the caretaker can detect and correct monotony.
+
+Metrics
+-------
+
+shannon_entropy
+    Shannon entropy of the category distribution, normalised to [0, 1].
+    1.0 = perfectly uniform; 0.0 = every stroke is the same type.
+
+richness
+    Fraction of known categories that have been seen at least once
+    in the window.  ``seen / total_categories``.
+
+dominance
+    The share of the most frequent category.  Closer to ``1/n`` is
+    healthier; 1.0 means total monopoly.
+
+evenness
+    Pielou's evenness index — ``H / ln(S)`` where *S* is the number
+    of observed categories.  1.0 = perfectly even.
+
+diversity_score
+    Weighted composite: ``0.4 * evenness + 0.3 * richness + 0.3 * (1 - dominance)``.
+    Designed to be intuitive at a glance.
 
 Public API
 ----------
-- ``strip_metric(text) -> str``
-    Remove the trailing " -- measured now: ..." suffix so comparisons
-    focus on the creative part of the stroke.
-- ``pair_similarity(a, b) -> float``
-    Jaccard similarity of two stripped texts on whitespace tokens.
-- ``diversity_score(strokes, window=50) -> DiversityReport``
-    Score from 0.0 (all identical) to 1.0 (all unique).
-- ``find_duplicates(strokes, threshold=0.6) -> list[DuplicatePair]``
-    Return pairs whose similarity >= threshold.
+
+>>> from iamai.stroke_diversity import analyse_strokes
+>>> report = analyse_strokes(strokes, window=200)
+>>> report["diversity_score"]
+0.87
 """
 
 from __future__ import annotations
 
-import json
-import re
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Sequence
+import math
+from collections import Counter
+from typing import Any, Dict, List, Optional
 
-_METRIC_RE = re.compile(r"\s*--\s*measured now[:].*$", re.DOTALL)
-
-
-def strip_metric(text: str) -> str:
-    """Strip the trailing metric suffix so only the creative body remains."""
-    return _METRIC_RE.sub("", text).strip()
+KNOWN_CATEGORIES = frozenset(
+    {"metrics", "note", "snippet", "thought", "devlog", "garden", "reading"}
+)
 
 
-def _tokenize(text: str) -> frozenset[str]:
-    return frozenset(text.lower().split())
+def _category_of(stroke: Any) -> str:
+    """Extract category string from a stroke dict or legacy tuple."""
+    if isinstance(stroke, dict):
+        return str(stroke.get("kind", stroke.get("category", "unknown")))
+    if isinstance(stroke, (list, tuple)) and len(stroke) >= 2:
+        return str(stroke[1])
+    return "unknown"
 
 
-def pair_similarity(a: str, b: str) -> float:
-    """Jaccard similarity between two texts (token-level)."""
-    ta, tb = _tokenize(strip_metric(a)), _tokenize(strip_metric(b))
-    if not ta and not tb:
-        return 1.0
-    if not ta or not tb:
-        return 0.0
-    inter = len(ta & tb)
-    union = len(ta | tb)
-    return inter / union if union else 0.0
+def analyse_strokes(
+    strokes: List[Any],
+    window: Optional[int] = None,
+    known_categories: Optional[frozenset] = None,
+) -> Dict[str, Any]:
+    """Analyse stroke-type diversity over the given window.
 
+    Parameters
+    ----------
+    strokes : list
+        Stroke records — each a dict with ``"kind"`` / ``"category"``,
+        or a tuple ``(timestamp, kind, ...)``.
+    window : int, optional
+        Number of most-recent strokes to consider.  ``None`` uses all.
+    known_categories : frozenset, optional
+        Override the default set of recognised categories.
 
-@dataclass
-class DuplicatePair:
-    seq_a: int
-    seq_b: int
-    similarity: float
-    snippet_a: str
-    snippet_b: str
+    Returns
+    -------
+    dict
+        ``{shannon_entropy, richness, dominance, evenness, diversity_score,
+        distribution, sample_size, verdict}``
+    """
+    cats = known_categories or KNOWN_CATEGORIES
+    if window is not None:
+        strokes = strokes[-window:]
+    if not strokes:
+        return _empty_report(cats)
 
+    counter: Counter = Counter(_category_of(s) for s in strokes)
+    total = sum(counter.values())
+    if total == 0:
+        return _empty_report(cats)
 
-@dataclass
-class DiversityReport:
-    total: int
-    unique_bodies: int
-    diversity: float  # 0.0–1.0
-    mean_similarity: float
-    worst_pair: DuplicatePair | None = None
+    # Shannon entropy (natural log)
+    probs = [c / total for c in counter.values() if c > 0]
+    h = -sum(p * math.log(p) for p in probs)
+    max_h = math.log(len(probs)) if len(probs) > 1 else 1.0
+    norm_entropy = h / max_h if max_h > 0 else 0.0
 
-    @property
-    def health(self) -> str:
-        if self.diversity >= 0.7:
-            return "healthy"
-        if self.diversity >= 0.4:
-            return "repetitive"
-        return "looping"
+    # Richness — fraction of known categories seen
+    seen = set(counter.keys()) & cats
+    richness = len(seen) / len(cats) if cats else 0.0
 
-    def summary(self) -> str:
-        return (
-            f"diversity={self.diversity:.2f} ({self.health}) "
-            f"unique={self.unique_bodies}/{self.total} "
-            f"mean_sim={self.mean_similarity:.3f}"
-        )
+    # Dominance — share of most frequent category
+    dominance = max(counter.values()) / total
 
+    # Evenness (Pielou)
+    s = len(probs)
+    evenness = h / math.log(s) if s > 1 else 0.0
 
-def find_duplicates(
-    strokes: Sequence[dict],
-    threshold: float = 0.6,
-    limit: int = 500,
-) -> list[DuplicatePair]:
-    """Return pairs with Jaccard similarity >= threshold in the last *limit* strokes."""
-    sample = list(strokes)[-limit:]
-    pairs: list[DuplicatePair] = []
-    for i, sa in enumerate(sample):
-        for sb in sample[i + 1 :]:
-            sim = pair_similarity(sa.get("text", ""), sb.get("text", ""))
-            if sim >= threshold:
-                pairs.append(
-                    DuplicatePair(
-                        seq_a=sa.get("seq", 0),
-                        seq_b=sb.get("seq", 0),
-                        similarity=round(sim, 4),
-                        snippet_a=sa.get("text", "")[:60],
-                        snippet_b=sb.get("text", "")[:60],
-                    )
-                )
-    return pairs
-
-
-def diversity_score(
-    strokes: Sequence[dict],
-    window: int = 50,
-) -> DiversityReport:
-    """Score diversity over the last *window* strokes."""
-    sample = list(strokes)[-window:]
-    if not sample:
-        return DiversityReport(total=0, unique_bodies=0, diversity=1.0, mean_similarity=0.0)
-
-    bodies = [strip_metric(s.get("text", "")) for s in sample]
-    unique = len(set(b.lower() for b in bodies))
-
-    sims: list[float] = []
-    worst: DuplicatePair | None = None
-    worst_sim = -1.0
-    for i, a in enumerate(bodies):
-        for j in range(i + 1, len(bodies)):
-            b = bodies[j]
-            s = pair_similarity(a, b)
-            sims.append(s)
-            if s > worst_sim:
-                worst_sim = s
-                worst = DuplicatePair(
-                    seq_a=sample[i].get("seq", 0),
-                    seq_b=sample[j].get("seq", 0),
-                    similarity=round(s, 4),
-                    snippet_a=a[:60],
-                    snippet_b=b[:60],
-                )
-
-    mean_sim = sum(sims) / len(sims) if sims else 0.0
-    # diversity = 1 - mean_sim, clamped
-    diversity = max(0.0, min(1.0, 1.0 - mean_sim))
-
-    return DiversityReport(
-        total=len(sample),
-        unique_bodies=unique,
-        diversity=round(diversity, 4),
-        mean_similarity=round(mean_sim, 4),
-        worst_pair=worst,
+    # Composite score
+    diversity_score = round(
+        0.4 * evenness + 0.3 * richness + 0.3 * (1.0 - dominance), 4
     )
 
-
-def load_strokes(path: Path | str | None = None, tail: int = 500) -> list[dict]:
-    """Load the last *tail* strokes from data/strokes.jsonl."""
-    if path is None:
-        path = Path(__file__).resolve().parent.parent / "data" / "strokes.jsonl"
+    # Verdict
+    if diversity_score >= 0.75:
+        verdict = "HEALTHY"
+    elif diversity_score >= 0.50:
+        verdict = "FAIR"
+    elif diversity_score >= 0.25:
+        verdict = "NARROW"
     else:
-        path = Path(path)
-    if not path.exists():
-        return []
-    lines = path.read_text().strip().splitlines()
-    result = []
-    for line in lines[-tail:]:
-        try:
-            result.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return result
+        verdict = "MONOTONE"
+
+    return {
+        "shannon_entropy": round(norm_entropy, 4),
+        "richness": round(richness, 4),
+        "dominance": round(dominance, 4),
+        "evenness": round(evenness, 4),
+        "diversity_score": diversity_score,
+        "distribution": dict(counter.most_common()),
+        "sample_size": total,
+        "verdict": verdict,
+    }
+
+
+def _empty_report(cats: frozenset) -> Dict[str, Any]:
+    """Return a zeroed-out report when there are no strokes to analyse."""
+    return {
+        "shannon_entropy": 0.0,
+        "richness": 0.0,
+        "dominance": 0.0,
+        "evenness": 0.0,
+        "diversity_score": 0.0,
+        "distribution": {},
+        "sample_size": 0,
+        "verdict": "EMPTY",
+    }
+
+
+# ---------------------------------------------------------------------------
+# CLI shortcut
+# ---------------------------------------------------------------------------
+
+def brief(report: Dict[str, Any]) -> str:
+    """One-line human summary of a diversity report."""
+    d = report["diversity_score"]
+    v = report["verdict"]
+    n = report["sample_size"]
+    top = next(iter(report["distribution"]), "-")
+    return f"diversity={d:.2f} ({v}) · {n} strokes · top={top}"
