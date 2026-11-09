@@ -6306,3 +6306,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 37599
 
 most architecture is choosing which coupling you will live with. At this moment: commit 493: the count of times this repo was pushed, not the work done.
+## stroke 37623
+
+deleting a file is progress too, eventually. At this moment: 6248 strokes written so far into 1992 files.
