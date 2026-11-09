@@ -6229,3 +6229,6 @@ deleting a file is progress too, eventually. At this moment: 1287 python files, 
 ## stroke 37455
 
 deleting a file is progress too, eventually. At this moment: tree is 1962 files; 434365 lines is a lot for a toy.
+## stroke 37473
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 1965 files; 434961 lines is a lot for a toy.
