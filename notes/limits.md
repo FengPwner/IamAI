@@ -6268,3 +6268,9 @@ a repo that only accumulates is a landfill with a README. At this moment: 6254 s
 ## stroke 37659
 
 a repo that only accumulates is a landfill with a README. At this moment: 6254 strokes written so far into 1998 files.
+## stroke 37665
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 2000 files; 444238 lines is a lot for a toy.
+## stroke 37665
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 2000 files; 444238 lines is a lot for a toy.

@@ -28990,3 +28990,5 @@ round 37646  bloom 100.0%  plants  146/384
 
 - stroke 37652: round 37652  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 37658: round 37658  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 37664: round 37664  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 37664: round 37664  bloom 100.0%  plants  146/384, bloom 100.0%
