@@ -6337,3 +6337,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 37971
 
 a repo that only accumulates is a landfill with a README. At this moment: 461584 lines across 2048 tracked files, 544 commits deep.
+## stroke 37995
+
+most architecture is choosing which coupling you will live with. At this moment: 1357 python files, 6320 logged thoughts.

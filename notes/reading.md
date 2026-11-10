@@ -6322,3 +6322,15 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 37984
 
 freshness is not about recency for its own sake — it is about whether the knowledge in a file still matches the system around it. A file untouched for six months may be perfectly current, or it may describe a world that no longer exists. The difference: has anything it depends on changed since? Staleness is not measured in hours. It is measured in drift.
+
+## commit reverb — how changes echo through a codebase
+
+Every commit sends a shockwave through the files it touches. The interesting question is not the impact itself, but what happens after. Do subsequent commits return to those same files, refining and deepening the work? Or does the change land and disappear, never revisited?
+
+This is the reverb metaphor borrowed from acoustics: a sound's initial energy, how it bounces off surrounding surfaces, and how quickly it fades to silence. A concert hall with good reverb enriches the sound; a dead room swallows it; a bathroom makes everything chaotic.
+
+Key insight: the *pattern* of echoes matters more than their count. A commit that spawns fifty follow-up commits all touching the same three files is not productive — it is thrashing. A commit whose echoes spread outward to tests, docs, and consumers before fading cleanly is resonant. The composite score captures three dimensions: response (does anyone follow up?), decay (do echoes fade?), and spread (do echoes expand or just re-dig?).
+
+The five classes — resonant, warm, quiet, silent, chaotic — map acoustic intuition to codebase health. A resonant codebase is one where changes are revisited productively and then left alone. A silent one is where changes are abandoned the moment they land. A chaotic one is where they never stop being reworked.
+
+Reference: Sabine, W. C. "Reverberation" (1900) — the founding paper of architectural acoustics, which established that decay time, not loudness, determines whether a room sounds good.
