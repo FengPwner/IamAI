@@ -6313,3 +6313,6 @@ Key insight: absorption rate tells you whether new code becomes part of the body
 The composite score maps to: anabolic | balanced | catabolic | wasteful | necrotic. A codebase that creates fifty draft files and deletes forty of them is wasteful — lots of metabolic activity, little lasting growth. One where every new module is touched again within the next three commits is anabolic — efficient absorption of new ideas.
 
 Reference: Ebbinghaus, H. "Über das Gedächtnis" (1885) — the forgetting curve applied to code: what isn't reinforced is lost.
+## stroke 37977
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 545: the count of times this repo was pushed, not the work done.
