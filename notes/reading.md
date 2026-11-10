@@ -6272,3 +6272,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 37827
 
 most architecture is choosing which coupling you will live with. At this moment: commit 524: the count of times this repo was pushed, not the work done.
+## stroke 37845
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 527: the count of times this repo was pushed, not the work done.
+## stroke 37851
+
+deleting a file is progress too, eventually. At this moment: 6294 strokes written so far into 2032 files.
