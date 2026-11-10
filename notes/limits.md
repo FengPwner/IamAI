@@ -6343,3 +6343,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 38019
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6324 strokes written so far into 2056 files.
+## stroke 38025
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 2059 files; 465928 lines is a lot for a toy.
