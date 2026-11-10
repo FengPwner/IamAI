@@ -6266,3 +6266,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 37797
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 2021 files; 450564 lines is a lot for a toy.
+## stroke 37821
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1338 python files, 6291 logged thoughts.
