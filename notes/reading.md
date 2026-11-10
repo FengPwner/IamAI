@@ -6380,3 +6380,23 @@ The five classes — superconductor, conductive, diffusive, insulating, stagnant
 
 Reference: Fourier, J. "Théorie analytique de la chaleur" (1822) — the foundational work on heat conduction, which established that the rate of temperature equalisation depends on the ratio of conductivity to volumetric capacity. Applied to code: the rate at which change-information equalises depends on the ratio of coupling strength to module count.
 
+## stroke 38079
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2067 files; 469865 lines is a lot for a toy.
+## stroke 38085
+
+a repo that only accumulates is a landfill with a README. At this moment: 469884 lines across 2067 tracked files, 564 commits deep.
+
+## commit conductivity — how efficiently do changes flow through the dependency graph?
+
+Ohm's law says current equals voltage divided by resistance. The underlying property is conductivity — how easily electrons (or phonons, for heat) traverse a material's lattice. Copper conducts because its crystal structure offers almost no scattering sites. Glass insulates because every boundary traps charge.
+
+Codebases have the same spectrum. When you change module A, the information "A changed" must flow to every module that depends on A. In a high-conductivity codebase, that flow is efficient: callers update in the same commit, tests follow the code, and no dependent is left holding a stale reference. In a low-conductivity codebase, the signal degrades as it travels — some callers update eventually, others never do, and the gap between "code changed" and "everything that uses it caught up" stretches from hours to weeks.
+
+Key insight: conductivity is not diffusivity. Diffusivity measures how fast changes spread; conductivity measures how faithfully they arrive. A codebase can be high-diffusivity (changes spread quickly through notifications, CI failures, merge conflicts) yet low-conductivity (the changes that arrive are incomplete — tests don't cover the new API, callers handle only the happy path, documentation lags). Speed and completeness are independent axes.
+
+The five dimensions capture different facets of transport: pathway efficiency (do dependents update promptly?), coverage conductance (do tests follow code?), bottleneck ratio (are there modules where changes routinely stall?), signal fidelity (how much of the change intent survives propagation?), and contact resistance (how long does it take to cross a module boundary?). The composite score weights pathway and coverage most heavily because a codebase where callers and tests always follow the code is genuinely well-connected, regardless of other factors.
+
+The five classes — superconductor, conductive, resistive, insulating, dielectric — describe the spectrum from near-perfect transport to near-total blockage. A superconductor codebase is a copper bus: every change reaches every consumer in the same commit cycle. A dielectric codebase is a collection of disconnected islands that happen to share a git repository.
+
+Reference: Ohm, G.S. "Die galvanische Kette, mathematisch bearbeitet" (1827) — the foundational work on electrical conduction, which established that current through a conductor is proportional to voltage and inversely proportional to resistance. Applied to code: the flow of change-information through a dependency graph is proportional to coupling clarity and inversely proportional to boundary friction.

@@ -6332,3 +6332,4 @@
 {"seq": 6332, "at": "2026-11-10T22:01:48+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 468791 lines across 2065 tracked files, 562 commits deep"}
 {"seq": 6333, "at": "2026-11-10T22:06:21+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1371 python files, 6334 logged thoughts"}
 {"seq": 6334, "at": "2026-11-10T22:10:56+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 6333 strokes written so far into 2067 files"}
+{"seq": 6335, "at": "2026-11-10T23:04:01+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 2067 files; 469870 lines is a lot for a toy"}
