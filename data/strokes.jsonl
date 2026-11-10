@@ -6329,3 +6329,6 @@
 {"seq": 6329, "at": "2026-11-10T20:07:12+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 466805 lines across 2061 tracked files, 558 commits deep"}
 {"seq": 6330, "at": "2026-11-10T20:11:51+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1365 python files, 6331 logged thoughts"}
 {"seq": 6331, "at": "2026-11-10T21:06:36+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 6330 strokes written so far into 2065 files"}
+{"seq": 6332, "at": "2026-11-10T22:01:48+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 468791 lines across 2065 tracked files, 562 commits deep"}
+{"seq": 6333, "at": "2026-11-10T22:06:21+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1371 python files, 6334 logged thoughts"}
+{"seq": 6334, "at": "2026-11-10T22:10:56+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 6333 strokes written so far into 2067 files"}
