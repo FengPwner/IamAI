@@ -6368,3 +6368,15 @@ Reference: Hooke, R. "De Potentia Restitutiva, or of Spring" (1678) — the foun
 ## stroke 38055
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 560: the count of times this repo was pushed, not the work done.
+## commit diffusivity — how fast do changes spread through a codebase?
+
+Fourier's heat equation describes how temperature equalises over time in a conducting material. The key parameter is thermal diffusivity α = k / (ρ · cₚ) — the ratio of conductivity to heat capacity. Copper has high diffusivity: touch one end with a flame and the other end gets hot almost immediately. Wood has low diffusivity: one end can be burning while the other stays cool to the touch.
+
+Codebases have the same property. When you change one module, how quickly does that change propagate to everything that depends on it? In a high-diffusivity codebase, a change to a shared interface triggers immediate, coordinated updates across all callers — the information flows fast and reaches everywhere it needs to go. In a low-diffusivity codebase, the change sits in isolation; callers break silently, inconsistencies accumulate, and the codebase develops hot spots and cold spots that should have equalised long ago.
+
+Key insight: diffusivity is not about how many files a commit touches — that's just change rate. Diffusivity is about how the *information* that something changed reaches the places that need to know. A codebase where every API change is immediately reflected in updated callers, tests, and docs is a superconductor. A codebase where changes stay local and dependent areas go stale for weeks is stagnant. The concentration index (Gini of per-file change frequencies) captures whether changes are evenly distributed or clustered in a few hot files — a high Gini means most of the codebase is cold while a few files burn.
+
+The five classes — superconductor, conductive, diffusive, insulating, stagnant — describe the spectrum from instant propagation to complete isolation. A superconductor codebase catches inconsistencies in the same commit cycle. A stagnant codebase has islands that never communicate.
+
+Reference: Fourier, J. "Théorie analytique de la chaleur" (1822) — the foundational work on heat conduction, which established that the rate of temperature equalisation depends on the ratio of conductivity to volumetric capacity. Applied to code: the rate at which change-information equalises depends on the ratio of coupling strength to module count.
+
