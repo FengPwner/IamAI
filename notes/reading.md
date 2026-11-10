@@ -6352,3 +6352,16 @@ Reference: Newton, I. "Philosophiæ Naturalis Principia Mathematica" (1687) — 
 ## stroke 38031
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 1363 python files, 6328 logged thoughts.
+## commit elasticity — how well does a codebase bounce back from shocks?
+
+In materials science, elasticity is the property of a body to resist a distorting influence and return to its original shape when the deforming force is removed. Stretch a rubber band and it snaps back. Press a dent into clay and it stays. The spectrum between these two extremes defines a material's elastic behaviour.
+
+Codebases undergo the same kinds of deformation. A sweeping rename, a mass migration, a giant refactor — these are forces that knock the commit pattern out of equilibrium. What happens next is the real test. Does the codebase recover within a few commits — cleanup lands, tests get updated, docs catch up, and the rhythm returns? Or does the disruption linger for weeks, with orphaned stubs, broken references, and a commit pattern that never quite settles back to normal?
+
+Key insight: elasticity is not the same as viscosity or inertia. Viscosity asks how much friction normal flow encounters. Inertia asks how hard it is to start moving. Elasticity asks how completely and quickly the system recovers after a shock. A codebase can be low-viscosity (changes flow easily day to day) yet inelastic (any big disruption leaves permanent scars). These are independent axes of health.
+
+The four dimensions of elasticity capture different facets of recovery: rebound (does it bounce back at all?), latency (how fast?), deformation (does it return to its original shape or stay warped?), and damping (do the oscillations settle quickly or ring for a long time?). The composite score weights rebound and deformation most heavily because a codebase that always recovers and never stays deformed is genuinely resilient, regardless of how fast the process takes.
+
+The five classes — rubbery, resilient, springy, stiff, brittle — borrow from the material science stress-strain curve. A rubbery codebase snaps back almost instantly. A brittle one fractures under pressure and never fully recovers, accumulating permanent structural debt.
+
+Reference: Hooke, R. "De Potentia Restitutiva, or of Spring" (1678) — the foundational work on elasticity, which established that the restoring force of a spring is proportional to its displacement. Applied to code: the speed and completeness of a codebase's recovery is proportional to the quality of its isolation, testing, and documentation practices.
