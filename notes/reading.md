@@ -6303,3 +6303,13 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 37953
 
 most architecture is choosing which coupling you will live with. At this moment: 460614 lines across 2046 tracked files, 541 commits deep.
+
+## commit metabolism — how efficiently does a codebase metabolize changes?
+
+A living organism takes in nutrients, absorbs the useful ones, and excretes waste. A codebase does the same: it takes in new files and lines, absorbs the ones that become structural, and churns out the ones that don't survive contact with reality.
+
+Key insight: absorption rate tells you whether new code becomes part of the body or passes through undigested; retention score reveals how much added code actually survives; rework fraction measures the energy spent undoing prior work; churn index warns about directionless deletion.
+
+The composite score maps to: anabolic | balanced | catabolic | wasteful | necrotic. A codebase that creates fifty draft files and deletes forty of them is wasteful — lots of metabolic activity, little lasting growth. One where every new module is touched again within the next three commits is anabolic — efficient absorption of new ideas.
+
+Reference: Ebbinghaus, H. "Über das Gedächtnis" (1885) — the forgetting curve applied to code: what isn't reinforced is lost.
