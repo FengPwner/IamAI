@@ -6349,3 +6349,6 @@ The five classes — massive, strong, moderate, weak, negligible — describe ho
 The most interesting signal is the trend. A codebase where gravity is *increasing* over time is one where individual changes are having more and more systemic impact — possibly a sign that the architecture is tightening and everything depends on everything else. A codebase where gravity is *declining* is one where changes are becoming more localised — either because the architecture is loosening, or because the interesting work has moved to the edges.
 
 Reference: Newton, I. "Philosophiæ Naturalis Principia Mathematica" (1687) — specifically Book III, Proposition 8: the gravitational force of a body depends on its mass and the distance to the object it attracts. Applied to code: the influence of a commit depends on the structural weight of what it changed, and how close the rest of the codebase sits to those changes.
+## stroke 38031
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1363 python files, 6328 logged thoughts.
