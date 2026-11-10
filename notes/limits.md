@@ -6340,3 +6340,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 461584
 ## stroke 37995
 
 most architecture is choosing which coupling you will live with. At this moment: 1357 python files, 6320 logged thoughts.
+## stroke 38019
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6324 strokes written so far into 2056 files.
