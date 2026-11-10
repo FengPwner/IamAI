@@ -6280,3 +6280,5 @@
 {"seq": 6280, "at": "2026-11-10T01:03:48+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 449733 lines across 2018 tracked files, 518 commits deep"}
 {"seq": 6281, "at": "2026-11-10T01:08:38+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 518: the count of times this repo was pushed, not the work done"}
 {"seq": 6282, "at": "2026-11-10T01:13:40+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 6281 strokes written so far into 2021 files"}
+{"seq": 6283, "at": "2026-11-10T02:03:12+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 450570 lines across 2021 tracked files, 520 commits deep"}
+{"seq": 6284, "at": "2026-11-10T02:03:12+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 450570 lines across 2021 tracked files, 520 commits deep"}
