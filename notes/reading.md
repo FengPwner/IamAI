@@ -6316,3 +6316,9 @@ Reference: Ebbinghaus, H. "Über das Gedächtnis" (1885) — the forgetting curv
 ## stroke 37977
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 545: the count of times this repo was pushed, not the work done.
+## stroke 37983
+
+most architecture is choosing which coupling you will live with. At this moment: 6316 strokes written so far into 2051 files.
+## stroke 37984
+
+freshness is not about recency for its own sake — it is about whether the knowledge in a file still matches the system around it. A file untouched for six months may be perfectly current, or it may describe a world that no longer exists. The difference: has anything it depends on changed since? Staleness is not measured in hours. It is measured in drift.

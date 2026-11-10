@@ -1,271 +1,398 @@
 #!/usr/bin/env python3
-"""Tests for tools/commit_freshness.py — commit freshness monitor."""
-
-from __future__ import annotations
+"""Tests for commit_freshness.py — codebase freshness measurement."""
 
 import sys
-import time
+from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / "tools"))
+sys.path.insert(0, str(REPO / "iamai"))
 
-from commit_freshness import (
-    FreshnessReport,
-    _classify,
-    _count_uncommitted,
-    _human_duration,
-    _run,
-    as_markdown,
-    measure,
-)
+import commit_freshness as cf
+
+# ---------------------------------------------------------------------------
+# Reference time for all tests
+# ---------------------------------------------------------------------------
+REF = datetime(2026, 11, 10, 12, 0, 0)  # Mon 2026-11-10 12:00 UTC
 
 
-# ── _classify ────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# helpers
+# ---------------------------------------------------------------------------
+
+def _f(path, hours_ago):
+    """Create a FileAge touched *hours_ago* hours before REF."""
+    from datetime import timedelta
+    return cf.FileAge(path=path, last_touched=REF - timedelta(hours=hours_ago))
 
 
-class TestClassify:
-    """Tests for the _classify helper."""
+# ---------------------------------------------------------------------------
+# FileAge.age_hours
+# ---------------------------------------------------------------------------
 
-    def test_fresh_when_zero(self):
-        assert _classify(0, 600) == "fresh"
+class TestFileAgeAgeHours:
+    def test_zero_hours(self):
+        fa = _f("a.py", 0)
+        assert fa.age_hours(REF) == 0.0
 
-    def test_fresh_when_equal(self):
-        assert _classify(600, 600) == "fresh"
+    def test_positive_hours(self):
+        fa = _f("a.py", 48)
+        assert fa.age_hours(REF) == 48.0
 
-    def test_fresh_just_under(self):
-        assert _classify(599, 600) == "fresh"
-
-    def test_stale_just_over(self):
-        assert _classify(601, 600) == "stale"
-
-    def test_stale_at_double(self):
-        assert _classify(1200, 600) == "stale"
-
-    def test_stale_at_triple_boundary(self):
-        assert _classify(1800, 600) == "stale"
-
-    def test_dead_past_triple(self):
-        assert _classify(1801, 600) == "dead"
-
-    def test_dead_very_old(self):
-        assert _classify(86400, 600) == "dead"
-
-    def test_fresh_small_interval(self):
-        assert _classify(30, 60) == "fresh"
-
-    def test_dead_small_interval(self):
-        assert _classify(200, 60) == "dead"
-
-    def test_infinity_is_dead(self):
-        assert _classify(float("inf"), 600) == "dead"
+    def test_negative_clamped(self):
+        """Future timestamps clamp to 0."""
+        from datetime import timedelta
+        fa = cf.FileAge(path="a.py", last_touched=REF + timedelta(hours=5))
+        assert fa.age_hours(REF) == 0.0
 
 
-# ── _human_duration ─────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# FileAge.area
+# ---------------------------------------------------------------------------
+
+class TestFileAgeArea:
+    def test_nested(self):
+        assert _f("iamai/foo.py", 1).area() == "iamai"
+
+    def test_root_file(self):
+        assert _f("README.md", 1).area() == "."
+
+    def test_deep_nested(self):
+        assert _f("src/core/utils.py", 1).area() == "src"
+
+    def test_backslash_normalised(self):
+        fa = cf.FileAge(path="iamai\\bar.py", last_touched=REF)
+        assert fa.area() == "iamai"
 
 
-class TestHumanDuration:
-    """Tests for the _human_duration helper."""
+# ---------------------------------------------------------------------------
+# classify_freshness
+# ---------------------------------------------------------------------------
 
-    def test_seconds(self):
-        assert _human_duration(0) == "0s"
-        assert _human_duration(45) == "45s"
+class TestClassifyFreshness:
+    def test_fresh_at_boundary(self):
+        assert cf.classify_freshness(0.80) == "fresh"
 
-    def test_minutes(self):
-        assert _human_duration(60) == "1.0m"
-        assert _human_duration(150) == "2.5m"
-        assert _human_duration(599) == "10.0m"
+    def test_fresh_high(self):
+        assert cf.classify_freshness(1.0) == "fresh"
 
-    def test_hours(self):
-        assert _human_duration(3600) == "1.0h"
-        assert _human_duration(7200) == "2.0h"
-        assert _human_duration(86399) == "24.0h"
+    def test_warm_at_boundary(self):
+        assert cf.classify_freshness(0.60) == "warm"
 
-    def test_days(self):
-        assert _human_duration(86400) == "1.0d"
-        assert _human_duration(172800) == "2.0d"
+    def test_warm_mid(self):
+        assert cf.classify_freshness(0.70) == "warm"
 
-    def test_fractional_seconds_rounds(self):
-        assert _human_duration(0.5) == "0s"  # rounds to 0
+    def test_tepid_at_boundary(self):
+        assert cf.classify_freshness(0.40) == "tepid"
 
+    def test_tepid_mid(self):
+        assert cf.classify_freshness(0.50) == "tepid"
 
-# ── _run ─────────────────────────────────────────────────────────────
+    def test_stale_at_boundary(self):
+        assert cf.classify_freshness(0.20) == "stale"
 
+    def test_stale_low(self):
+        assert cf.classify_freshness(0.25) == "stale"
 
-class TestRun:
-    """Tests for the subprocess helper."""
+    def test_frozen_at_zero(self):
+        assert cf.classify_freshness(0.0) == "frozen"
 
-    def test_successful_command(self, tmp_path):
-        result = _run(["echo", "hello"], tmp_path)
-        assert result == "hello"
-
-    def test_missing_command_returns_empty(self, tmp_path):
-        result = _run(["nonexistent_command_xyz_12345"], tmp_path)
-        assert result == ""
-
-    def test_output_is_stripped(self, tmp_path):
-        result = _run(["echo", "  padded  "], tmp_path)
-        assert result == "padded"
+    def test_frozen_low(self):
+        assert cf.classify_freshness(0.19) == "frozen"
 
 
-# ── _count_uncommitted ───────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# compute_freshness — empty input
+# ---------------------------------------------------------------------------
+
+class TestComputeFreshnessEmpty:
+    def test_empty_returns_frozen(self):
+        r = cf.compute_freshness([], reference_time=REF)
+        assert r.freshness_class == "frozen"
+        assert r.total_files == 0
+        assert r.freshness_score == 0.0
 
 
-class TestCountUncommitted:
-    """Tests for counting uncommitted files via git status."""
+# ---------------------------------------------------------------------------
+# compute_freshness — all hot
+# ---------------------------------------------------------------------------
 
-    def test_clean_repo_via_measure(self, tmp_path):
-        """A bare repo with no changes should report 0 uncommitted."""
-        import subprocess
-        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test"], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True)
-        # create and commit a file
-        (tmp_path / "a.txt").write_text("hello")
-        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True)
-        count = _count_uncommitted(tmp_path)
-        assert count == 0
+class TestComputeFreshnessAllHot:
+    def test_all_very_recent(self):
+        files = [_f("iamai/a.py", 1), _f("iamai/b.py", 2), _f("tests/t.py", 3)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.freshness_class == "fresh"
+        assert r.freshness_score == 1.0
+        assert r.hot_files == 3
+        assert r.stale_files == 0
 
-    def test_dirty_repo(self, tmp_path):
-        """Modified files should be counted."""
-        import subprocess
-        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test"], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True)
-        (tmp_path / "a.txt").write_text("hello")
-        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "init"], cwd=tmp_path, capture_output=True)
-        # create dirty files
-        (tmp_path / "a.txt").write_text("changed")
-        (tmp_path / "b.txt").write_text("new")
-        count = _count_uncommitted(tmp_path)
-        assert count == 2
+    def test_all_within_horizon(self):
+        files = [_f("a.py", 10), _f("b.py", 20), _f("c.py", 50)]
+        r = cf.compute_freshness(files, reference_time=REF, fresh_horizon_hours=72.0)
+        assert r.freshness_score == 1.0
+        assert r.freshness_class == "fresh"
 
 
-# ── measure (integration) ────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# compute_freshness — all stale
+# ---------------------------------------------------------------------------
+
+class TestComputeFreshnessAllStale:
+    def test_all_ancient(self):
+        files = [_f("old/a.py", 500), _f("old/b.py", 600), _f("old/c.py", 700)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.freshness_score == 0.0
+        assert r.freshness_class == "frozen"
+        assert r.stale_files == 3
+        assert r.hot_files == 0
+        assert r.stale_fraction == 1.0
 
 
-class TestMeasure:
-    """Integration tests for the measure() function."""
+# ---------------------------------------------------------------------------
+# compute_freshness — mixed
+# ---------------------------------------------------------------------------
 
-    def _make_repo(self, tmp_path, commit_age=0):
-        """Create a minimal git repo with one commit."""
-        import subprocess
-        subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@test"], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, capture_output=True)
-        (tmp_path / "file.txt").write_text("content")
-        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "initial commit"], cwd=tmp_path, capture_output=True)
-        return tmp_path
+class TestComputeFreshnessMixed:
+    def test_mixed_ages(self):
+        files = [
+            _f("iamai/a.py", 1),     # hot
+            _f("iamai/b.py", 48),    # within horizon
+            _f("tests/t.py", 200),   # stale
+            _f("docs/d.md", 500),    # very stale
+        ]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert 0.0 < r.freshness_score < 1.0
+        assert r.total_files == 4
+        assert r.hot_files == 1  # only the 1-hour-old file
+        assert r.stale_files == 2  # 200h and 500h
 
-    def test_fresh_commit(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        report = measure(interval=600, repo=repo)
-        assert report.status == "fresh"
-        assert report.commit_age_seconds < 5  # just committed
-        assert report.latest_commit_message == "initial commit"
-        assert report.uncommitted_files == 0
+    def test_score_decay_is_linear(self):
+        """A file at the midpoint between horizon and stale threshold
+        should contribute ~0.5."""
+        # horizon=72, stale=168 → midpoint = 120h
+        files = [_f("a.py", 120)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert 0.45 < r.freshness_score < 0.55
 
-    def test_custom_interval(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        report = measure(interval=30, repo=repo)
-        assert report.interval == 30
-        assert report.stale_threshold == 30.0
-        assert report.dead_threshold == 90.0
+    def test_mean_age(self):
+        files = [_f("a.py", 10), _f("b.py", 20), _f("c.py", 30)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.mean_age_hours == 20.0
 
-    def test_report_fields(self, tmp_path):
-        repo = self._make_repo(tmp_path)
-        report = measure(interval=600, repo=repo)
-        assert isinstance(report, FreshnessReport)
-        assert report.latest_commit_hash != "?"
-        assert report.commit_age_human.endswith("s")  # just committed
-        assert report.status in ("fresh", "stale", "dead")
+    def test_median_age_odd(self):
+        files = [_f("a.py", 5), _f("b.py", 50), _f("c.py", 10)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.median_age_hours == 10.0
 
-    def test_no_repo_returns_dead_or_empty(self, tmp_path):
-        """A directory with no git repo should still return a report."""
-        report = measure(interval=600, repo=tmp_path)
-        # No commits → age=inf → dead
-        assert report.status == "dead"
-        assert report.latest_commit_hash == "?"
+    def test_median_age_even(self):
+        files = [_f("a.py", 10), _f("b.py", 20)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.median_age_hours == 15.0
 
 
-# ── as_markdown ──────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# compute_freshness — coldest area
+# ---------------------------------------------------------------------------
+
+class TestColdestArea:
+    def test_coldest_by_median(self):
+        files = [
+            _f("iamai/a.py", 1),
+            _f("iamai/b.py", 2),
+            _f("old/x.py", 400),
+            _f("old/y.py", 500),
+        ]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.coldest_area == "old"
+        assert r.coldest_area_age_hours > r.area_ages["iamai"]
+
+    def test_single_area(self):
+        files = [_f("src/a.py", 5), _f("src/b.py", 10)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.coldest_area == "src"
+
+    def test_root_area(self):
+        files = [_f("README.md", 2), _f("iamai/a.py", 100)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.coldest_area == "iamai"
 
 
-class TestAsMarkdown:
-    """Tests for the markdown rendering."""
+# ---------------------------------------------------------------------------
+# compute_freshness — custom thresholds
+# ---------------------------------------------------------------------------
 
-    def _report(self, status="fresh", age=10.0, uncommitted=0):
-        return FreshnessReport(
-            commit_age_seconds=age,
-            commit_age_human=_human_duration(age),
-            latest_commit_hash="abc1234",
-            latest_commit_message="test commit",
-            interval=600,
-            status=status,
-            uncommitted_files=uncommitted,
-            stale_threshold=600.0,
-            dead_threshold=1800.0,
+class TestCustomThresholds:
+    def test_custom_stale_threshold(self):
+        """With stale_hours=48, a 50h-old file is stale."""
+        files = [_f("a.py", 50)]
+        r = cf.compute_freshness(files, reference_time=REF, stale_hours=48.0)
+        assert r.stale_files == 1
+
+    def test_custom_hot_threshold(self):
+        """With hot_hours=48, a 47h-old file is hot."""
+        files = [_f("a.py", 47)]
+        r = cf.compute_freshness(files, reference_time=REF, hot_hours=48.0)
+        assert r.hot_files == 1
+
+
+# ---------------------------------------------------------------------------
+# freshness_report
+# ---------------------------------------------------------------------------
+
+class TestFreshnessReport:
+    def test_report_contains_class(self):
+        files = [_f("a.py", 1)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        report = cf.freshness_report(r)
+        assert "fresh" in report
+
+    def test_report_contains_score(self):
+        files = [_f("a.py", 120)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        report = cf.freshness_report(r)
+        assert f"{r.freshness_score:.2f}" in report
+
+    def test_report_contains_coldest(self):
+        files = [_f("iamai/a.py", 1), _f("old/b.py", 300)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        report = cf.freshness_report(r)
+        assert "old" in report
+
+    def test_report_is_single_line(self):
+        files = [_f("a.py", 1)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        report = cf.freshness_report(r)
+        assert "\n" not in report
+
+
+# ---------------------------------------------------------------------------
+# freshness_trend
+# ---------------------------------------------------------------------------
+
+class TestFreshnessTrend:
+    def test_improving(self):
+        r1 = cf.FreshnessResult(
+            mean_age_hours=100, median_age_hours=80,
+            freshness_score=0.20, stale_fraction=0.80,
+            hotspot_ratio=0.10, coldest_area="old",
+            coldest_area_age_hours=200, freshness_class="stale",
+            total_files=10, stale_files=8, hot_files=1,
         )
+        r2 = cf.FreshnessResult(
+            mean_age_hours=20, median_age_hours=10,
+            freshness_score=0.85, stale_fraction=0.10,
+            hotspot_ratio=0.70, coldest_area="old",
+            coldest_area_age_hours=50, freshness_class="fresh",
+            total_files=10, stale_files=1, hot_files=7,
+        )
+        t = cf.freshness_trend([r1, r2])
+        assert t.direction == "improving"
+        assert t.score_delta > 0
 
-    def test_fresh_has_green_icon(self):
-        md = as_markdown(self._report("fresh"))
-        assert "🟢" in md
+    def test_decaying(self):
+        r1 = cf.FreshnessResult(
+            mean_age_hours=10, median_age_hours=5,
+            freshness_score=0.90, stale_fraction=0.05,
+            hotspot_ratio=0.80, coldest_area="a",
+            coldest_area_age_hours=20, freshness_class="fresh",
+            total_files=10, stale_files=0, hot_files=8,
+        )
+        r2 = cf.FreshnessResult(
+            mean_age_hours=200, median_age_hours=180,
+            freshness_score=0.10, stale_fraction=0.90,
+            hotspot_ratio=0.05, coldest_area="a",
+            coldest_area_age_hours=300, freshness_class="frozen",
+            total_files=10, stale_files=9, hot_files=0,
+        )
+        t = cf.freshness_trend([r1, r2])
+        assert t.direction == "decaying"
+        assert t.score_delta < 0
 
-    def test_stale_has_yellow_icon(self):
-        md = as_markdown(self._report("stale", age=700))
-        assert "🟡" in md
+    def test_stable(self):
+        r1 = cf.FreshnessResult(
+            mean_age_hours=30, median_age_hours=25,
+            freshness_score=0.65, stale_fraction=0.20,
+            hotspot_ratio=0.40, coldest_area="x",
+            coldest_area_age_hours=80, freshness_class="warm",
+            total_files=10, stale_files=2, hot_files=4,
+        )
+        r2 = cf.FreshnessResult(
+            mean_age_hours=28, median_age_hours=24,
+            freshness_score=0.66, stale_fraction=0.20,
+            hotspot_ratio=0.40, coldest_area="x",
+            coldest_area_age_hours=75, freshness_class="warm",
+            total_files=10, stale_files=2, hot_files=4,
+        )
+        t = cf.freshness_trend([r1, r2])
+        assert t.direction == "stable"
+        assert abs(t.score_delta) < 0.05
 
-    def test_dead_has_red_icon(self):
-        md = as_markdown(self._report("dead", age=2000))
-        assert "🔴" in md
+    def test_single_result(self):
+        r = cf.FreshnessResult(
+            mean_age_hours=30, median_age_hours=25,
+            freshness_score=0.65, stale_fraction=0.20,
+            hotspot_ratio=0.40, coldest_area="x",
+            coldest_area_age_hours=80, freshness_class="warm",
+            total_files=10, stale_files=2, hot_files=4,
+        )
+        t = cf.freshness_trend([r])
+        assert t.direction == "stable"
+        assert t.score_delta == 0.0
+        assert t.latest_class == "warm"
+        assert t.earliest_class == "warm"
 
-    def test_contains_hash(self):
-        md = as_markdown(self._report())
-        assert "abc1234" in md
-
-    def test_contains_message(self):
-        md = as_markdown(self._report())
-        assert "test commit" in md
-
-    def test_contains_uncommitted_count(self):
-        md = as_markdown(self._report(uncommitted=3))
-        assert "3 file(s)" in md
-
-    def test_contains_thresholds(self):
-        md = as_markdown(self._report())
-        assert "600s" in md
-        assert "1800s" in md
+    def test_empty_results(self):
+        t = cf.freshness_trend([])
+        assert t.direction == "stable"
+        assert t.latest_class == "frozen"
 
 
-# ── Edge cases ───────────────────────────────────────────────────────
-
+# ---------------------------------------------------------------------------
+# boundary / edge cases
+# ---------------------------------------------------------------------------
 
 class TestEdgeCases:
-    """Edge cases and boundary conditions."""
+    def test_single_file(self):
+        files = [_f("lone.py", 5)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.total_files == 1
+        assert r.mean_age_hours == 5.0
+        assert r.median_age_hours == 5.0
 
-    def test_zero_interval(self):
-        """Zero interval means everything is stale."""
-        assert _classify(1, 0) == "dead"
+    def test_score_clamped_zero(self):
+        """Score should not go below 0.0."""
+        files = [_f("a.py", 10000)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.freshness_score == 0.0
 
-    def test_exact_stale_boundary(self):
-        assert _classify(600, 600) == "fresh"
-        assert _classify(600.01, 600) == "stale"
+    def test_all_at_stale_boundary(self):
+        """Files exactly at stale_hours threshold contribute 0.0."""
+        files = [_f("a.py", 168)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.freshness_score == 0.0
+        # exactly at boundary (not strictly >) → not counted as stale
+        assert r.stale_files == 0
 
-    def test_exact_dead_boundary(self):
-        assert _classify(1800, 600) == "stale"
-        assert _classify(1800.01, 600) == "dead"
+    def test_just_past_stale_boundary(self):
+        """Files just past stale_hours threshold are stale."""
+        files = [_f("a.py", 169)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.freshness_score == 0.0
+        assert r.stale_files == 1
 
-    def test_large_interval(self):
-        assert _classify(3599, 3600) == "fresh"
-        assert _classify(3601, 3600) == "stale"
+    def test_all_at_horizon_boundary(self):
+        """Files exactly at fresh_horizon contribute 1.0."""
+        files = [_f("a.py", 72)]
+        r = cf.compute_freshness(files, reference_time=REF)
+        assert r.freshness_score == 1.0
 
-    def test_human_duration_boundary_values(self):
-        assert "m" in _human_duration(60)
-        assert "h" in _human_duration(3600)
-        assert "d" in _human_duration(86400)
+    def test_horizon_equals_stale(self):
+        """Edge: horizon == stale → no linear zone, just step function."""
+        files = [_f("a.py", 50)]
+        r = cf.compute_freshness(
+            files, reference_time=REF,
+            stale_hours=100.0, fresh_horizon_hours=100.0,
+        )
+        assert r.freshness_score == 1.0  # 50 < 100 → full score
