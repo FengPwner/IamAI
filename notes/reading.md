@@ -6287,3 +6287,13 @@ a repo that only accumulates is a landfill with a README. At this moment: 1344 p
 ## stroke 37929
 
 a repo that only accumulates is a landfill with a README. At this moment: tree is 2041 files; 458653 lines is a lot for a toy.
+
+## commit ecology — ecosystem health of the commit graph
+
+A codebase is an ecosystem. Files are species, commits are weather events. A thriving ecosystem has rich variety, even distribution, and strong cross-pollination. A barren one is a monoculture where the same three files get edited on repeat.
+
+Key insight: Shannon evenness tells you whether attention is balanced or concentrated; keystone fraction reveals structural dependencies; invasion rate shows whether new ideas are entering; extinction rate warns about one-shot files with no iteration.
+
+The composite score maps to: thriving | healthy | fragile | barren | monoculture. A pipeline that only touches `data/strokes.jsonl` and `docs/DEVLOG.md` on repeat is barren — lots of energy, narrow habitat.
+
+Reference: M. E. J. Newman, "The structure and function of complex networks" (2003) — bipartite graph connectance.
