@@ -6337,3 +6337,15 @@ Reference: Sabine, W. C. "Reverberation" (1900) — the founding paper of archit
 ## stroke 38001
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 6319 strokes written so far into 2054 files.
+
+## commit gravity — how much does a commit bend the codebase around it?
+
+Newton's law of universal gravitation says every mass attracts every other mass, and the force depends on both their sizes and the distance between them. A commit does the same thing to a codebase: it creates a gravitational field. The heavier the commit — the more structural change it carries — the more surrounding code gets pulled into its orbit. Callers need updating. Tests need adjusting. Docs need rewriting. The question isn't whether the pull exists; it's how far it reaches and how cleanly it decays.
+
+Key insight: gravity is not about the number of files a commit touches — that's just mass. Gravity is about how those files relate to everything else. A one-file commit that changes a public API signature exerts enormous gravity: twenty callers need updating, three test suites need rewriting, and the changelog needs a paragraph. A hundred-file commit that renames an internal variable exerts almost none: nothing outside that variable's scope even notices.
+
+The five classes — massive, strong, moderate, weak, negligible — describe how much a commit reshaped the codebase around it. A massive commit is a structural event: it pulled in changes across multiple areas and the codebase absorbed them cleanly. A negligible commit is a whisper: it landed without disturbing anything. Neither is inherently good or bad. A codebase where every commit is massive is one in constant upheaval. A codebase where every commit is negligible is one that nobody is really building in.
+
+The most interesting signal is the trend. A codebase where gravity is *increasing* over time is one where individual changes are having more and more systemic impact — possibly a sign that the architecture is tightening and everything depends on everything else. A codebase where gravity is *declining* is one where changes are becoming more localised — either because the architecture is loosening, or because the interesting work has moved to the edges.
+
+Reference: Newton, I. "Philosophiæ Naturalis Principia Mathematica" (1687) — specifically Book III, Proposition 8: the gravitational force of a body depends on its mass and the distance to the object it attracts. Applied to code: the influence of a commit depends on the structural weight of what it changed, and how close the rest of the codebase sits to those changes.
