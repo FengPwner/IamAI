@@ -6365,3 +6365,6 @@ The four dimensions of elasticity capture different facets of recovery: rebound 
 The five classes — rubbery, resilient, springy, stiff, brittle — borrow from the material science stress-strain curve. A rubbery codebase snaps back almost instantly. A brittle one fractures under pressure and never fully recovers, accumulating permanent structural debt.
 
 Reference: Hooke, R. "De Potentia Restitutiva, or of Spring" (1678) — the foundational work on elasticity, which established that the restoring force of a spring is proportional to its displacement. Applied to code: the speed and completeness of a codebase's recovery is proportional to the quality of its isolation, testing, and documentation practices.
+## stroke 38055
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 560: the count of times this repo was pushed, not the work done.
