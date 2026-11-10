@@ -6331,3 +6331,6 @@ deleting a file is progress too, eventually. At this moment: commit 536: the cou
 ## stroke 37941
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 539: the count of times this repo was pushed, not the work done.
+## stroke 37965
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2048 files; 461576 lines is a lot for a toy.
