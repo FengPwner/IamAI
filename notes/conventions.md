@@ -6336,3 +6336,15 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 37779
 
 deleting a file is progress too, eventually. At this moment: tree is 2018 files; 449728 lines is a lot for a toy.
+## stroke 37803
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1336 python files, 6286 logged thoughts.
+## stroke 37803
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1336 python files, 6286 logged thoughts.
+## stroke 37809
+
+deleting a file is progress too, eventually. At this moment: commit 521: the count of times this repo was pushed, not the work done.
+## stroke 37809
+
+deleting a file is progress too, eventually. At this moment: commit 521: the count of times this repo was pushed, not the work done.
