@@ -6330,3 +6330,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 37749
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 515: the count of times this repo was pushed, not the work done.
+## stroke 37755
+
+most architecture is choosing which coupling you will live with. At this moment: 6275 strokes written so far into 2016 files.
+## stroke 37779
+
+deleting a file is progress too, eventually. At this moment: tree is 2018 files; 449728 lines is a lot for a toy.

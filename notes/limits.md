@@ -6295,3 +6295,9 @@ deleting a file is progress too, eventually. At this moment: 6272 strokes writte
 ## stroke 37737
 
 deleting a file is progress too, eventually. At this moment: 6272 strokes written so far into 2013 files.
+## stroke 37761
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 448933 lines across 2016 tracked files, 516 commits deep.
+## stroke 37767
+
+deleting a file is progress too, eventually. At this moment: 1330 python files, 6279 logged thoughts.
