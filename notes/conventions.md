@@ -6360,3 +6360,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 37887
 
 a repo that only accumulates is a landfill with a README. At this moment: 6300 strokes written so far into 2033 files.
+## stroke 37905
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6303 strokes written so far into 2036 files.
