@@ -6335,3 +6335,17 @@ grades from STALLED (0–20) to CRUISING (71–100). 75 unit tests cover all met
 - stroke 38015: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 38021: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 38027: `retry.py` is already in the pool of 9 modules, nothing new to add there
+
+## stroke 38031 — commit_viscosity: measuring how code flows
+
+viscosity isn't just a fluid dynamics concept — every codebase has it.
+when you rename a function and three callers break, that's viscosity.
+when you add a column and the migration touches six files, that's yield
+point. when commit sizes swing wildly between one-liners and thousand-line
+refactors, that's turbulence. the new `commit_viscosity` module measures
+all of this: shear stress (how often commits cross area boundaries),
+layer coupling (how many areas co-change), yield point (median files per
+meaningful change), and turbulence (unpredictability of commit size).
+together they form a composite score: how much internal friction does
+your codebase exert against the flow of change? honey or water — now
+you can measure which one your repo is.

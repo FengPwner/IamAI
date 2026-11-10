@@ -6341,3 +6341,5 @@ feat: add commit_churn_index — detect writer rewrite loops (23 tests); caretak
 - `2026-11-10T17:10:40+00:00` stroke 38017: 1361 python files, 6326 logged thoughts
 - `2026-11-10T17:10:40+00:00` stroke 38017: 1361 python files, 6326 logged thoughts
 - `2026-11-10T18:05:46+00:00` stroke 38023: commit 555: the count of times this repo was pushed, not the work done
+- `2026-11-10T19:01:51+00:00` stroke 38029: tree is 2059 files; 465934 lines is a lot for a toy
+- `2026-11-10T19:03:08+00:00` stroke 38031: add commit_viscosity module + 50 tests + reading note — measure internal resistance to change flow via shear stress, layer coupling, yield point, and turbulence; classify as solid/viscous/thick/thin/flowing; trend analysis tracks increasing/stable/decreasing viscosity
