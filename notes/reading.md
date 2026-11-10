@@ -6297,3 +6297,9 @@ Key insight: Shannon evenness tells you whether attention is balanced or concent
 The composite score maps to: thriving | healthy | fragile | barren | monoculture. A pipeline that only touches `data/strokes.jsonl` and `docs/DEVLOG.md` on repeat is barren — lots of energy, narrow habitat.
 
 Reference: M. E. J. Newman, "The structure and function of complex networks" (2003) — bipartite graph connectance.
+## stroke 37947
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2046 files; 460595 lines is a lot for a toy.
+## stroke 37953
+
+most architecture is choosing which coupling you will live with. At this moment: 460614 lines across 2046 tracked files, 541 commits deep.
