@@ -6638,3 +6638,23 @@ Reference: Kintsch, W. & van Dijk, T.A. "Toward a Model of Text Comprehension an
 ## stroke 38337
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 597: the count of times this repo was pushed, not the work done.
+## stroke 38343
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 6384 strokes written so far into 2099 files.
+## stroke 38343
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 6384 strokes written so far into 2099 files.
+
+## writer grounding density — measuring whether abstract claims are anchored with concrete evidence
+
+Grounding density captures a dimension of writing quality that the other metrics miss: the ratio of concrete evidence to abstract assertion. A well-grounded session backs up its claims with numbers, named entities, file paths, code references, and URLs. An ungrounded session floats in evaluative language — everything is "important" and "significant" but nothing is pinned down enough to verify.
+
+This module measures three signals. **Concrete-abstract ratio** counts what fraction of strokes contain at least one concrete marker (a number, a URL, a commit hash, a file path, a code reference) versus none. **Evidence pairing** asks whether claim-bearing strokes (those containing evaluative or directive language) travel with their evidence — either in the same stroke or within the next few strokes. **Specificity gradient** measures the density of concrete markers per hundred words and tracks whether this density is trending up or down.
+
+The four grounding classes describe a spectrum. **Anchored** (index >= 0.55) means claims are densely supported — the writing reads as empirical and verifiable. **Substantiated** (0.40–0.55) means most claims have evidence but some float free. **Illustrated** (0.25–0.40) means occasional examples punctuate an otherwise abstract discussion. **Unmoored** (< 0.25) means almost no concrete anchoring.
+
+The critical insight: grounding is orthogonal to coherence, signal clarity, and synthesis depth. A session can be perfectly coherent (ideas flow) while being entirely abstract (every idea is a generalization). A session can have high signal clarity (no repetition) while being ungrounded (every stroke says something new but unsupported). Synthesis can combine abstractions without touching specifics.
+
+The IamAI diary strokes provide a natural test case: "if a number in a diary is not measured, it is fiction — measured now: 484179 lines across 2095 tracked files, 593 commits deep." This stroke contains four concrete markers (three numbers and a qualifier) — it is densely grounded by design, because the diary's purpose is to record measurements.
+
+Reference: Korzyński & Kłopotek (2012) on grounding natural language in embodied experience. Applied to autonomous writing: a writer that cannot ground its claims in specifics produces symbols disconnected from referents — fluent but unverifiable.
