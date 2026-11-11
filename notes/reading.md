@@ -6417,3 +6417,9 @@ The five dimensions capture different facets: intent preservation (do the files 
 The five classes — transparent, clear, refractive, opaque, mirrored — describe the spectrum from near-perfect fidelity to near-total reflection. A transparent codebase is clear glass: changes cross boundaries with intent intact. A mirrored codebase bounces everything back.
 
 Reference: Snell, W. van Roijen (1621) — the law of refraction, establishing that the ratio of sines of incidence and refraction angles is constant for a given pair of media. Applied to code: the ratio of change intent on one side of a module boundary to change intent on the other side is a constant property of the architecture.
+## stroke 38133
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6343 strokes written so far into 2074 files.
+## stroke 38139
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 2074 files; 474022 lines is a lot for a toy.
