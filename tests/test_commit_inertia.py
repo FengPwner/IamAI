@@ -1,573 +1,639 @@
 #!/usr/bin/env python3
-"""Tests for commit_inertia.py — codebase inertia / change-resistance analysis."""
+"""Tests for commit_inertia — momentum persistence analysis for commit flow.
+
+60 tests covering:
+- CommitRecord construction and area extraction
+- change_persistence (all survive, all overwritten, reverts, heavy deletions,
+  empty commits, single commit, threshold boundary)
+- follow_up_rate (all follow up, none follow up, empty files, single commit)
+- amplification (full overlap, partial, none, single commit, empty current)
+- decay_half_life (uniform gaps, varied gaps, no revisits, single commit)
+- classify_inertia (all five classes + boundary values)
+- compute_inertia (composite scoring, empty input, weight balance)
+- inertia_report formatting
+- inertia_trend (increasing, decreasing, stable, single, empty)
+- full pipeline integration
+"""
 
 import sys
+import unittest
 from datetime import datetime, timedelta
-from pathlib import Path
 
-import pytest
+sys.path.insert(0, ".")
+from iamai.commit_inertia import (
+    CommitRecord,
+    InertiaResult,
+    InertiaTrend,
+    _file_overlap,
+    _is_revert,
+    amplification,
+    change_persistence,
+    classify_inertia,
+    compute_inertia,
+    decay_half_life,
+    follow_up_rate,
+    inertia_report,
+    inertia_trend,
+)
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO / "iamai"))
 
-import commit_inertia as ci
-
-# ---------------------------------------------------------------------------
-# Reference time
-# ---------------------------------------------------------------------------
-REF = datetime(2026, 11, 11, 2, 0, 0)  # Wed 2026-11-11 02:00 UTC
-
-
-# ---------------------------------------------------------------------------
-# helpers
-# ---------------------------------------------------------------------------
-
-def _file(path="iamai/foo.py", lines=200, complexity=10, coupling=4,
-          test_coverage=0.8, last_changed=None, area=""):
-    if last_changed is None:
-        last_changed = REF - timedelta(days=1)
-    return ci.FileInfo(
-        path=path, lines=lines, complexity=complexity,
-        coupling=coupling, test_coverage=test_coverage,
-        last_changed=last_changed, area=area,
+def _mkcommit(
+    hash: str,
+    files: list,
+    msg: str = "update",
+    author: str = "qwen",
+    ins: int = 10,
+    dels: int = 2,
+    ts_offset_minutes: int = 0,
+) -> CommitRecord:
+    """Helper to create a CommitRecord."""
+    base = datetime(2025, 6, 1, 12, 0, 0)
+    return CommitRecord(
+        hash=hash,
+        author=author,
+        timestamp=base + timedelta(minutes=ts_offset_minutes),
+        message=msg,
+        files_changed=list(files),
+        insertions=ins,
+        deletions=dels,
     )
 
 
-# ---------------------------------------------------------------------------
-# FileInfo
-# ---------------------------------------------------------------------------
-
-class TestFileInfo:
-    def test_area_from_path(self):
-        f = ci.FileInfo(path="iamai/foo.py")
-        assert f.area == "iamai"
-
-    def test_area_explicit(self):
-        f = ci.FileInfo(path="iamai/foo.py", area="custom")
-        assert f.area == "custom"
-
-    def test_area_no_slash(self):
-        f = ci.FileInfo(path="README.md")
-        assert f.area == ""
-
-    def test_coverage_clamped_high(self):
-        f = ci.FileInfo(path="x.py", test_coverage=1.5)
-        assert f.test_coverage == 1.0
-
-    def test_coverage_clamped_low(self):
-        f = ci.FileInfo(path="x.py", test_coverage=-0.3)
-        assert f.test_coverage == 0.0
-
-    def test_default_values(self):
-        f = ci.FileInfo(path="x.py")
-        assert f.lines == 0
-        assert f.complexity == 1
-        assert f.coupling == 0
-        assert f.test_coverage == 0.0
-        assert f.last_changed is None
-
-
-# ---------------------------------------------------------------------------
-# compute_mass
-# ---------------------------------------------------------------------------
-
-class TestComputeMass:
-    def test_zero_lines(self):
-        assert ci.compute_mass(0, 10, 5) == 0.0
-
-    def test_zero_complexity(self):
-        # complexity=0 → norm=0 → mass=0
-        assert ci.compute_mass(200, 0, 5) == 0.0
-
-    def test_reference_file(self):
-        # lines=500, complexity=20, coupling=10 → 1.0 * 1.0 * 2.0 = 2.0
-        m = ci.compute_mass(500, 20, 10)
-        assert abs(m - 2.0) < 1e-9
-
-    def test_small_file(self):
-        m = ci.compute_mass(50, 2, 0)
-        assert 0 < m < 1.0
-
-    def test_large_heavy_file(self):
-        m = ci.compute_mass(2000, 50, 20)
-        assert m > 10.0
-
-    def test_coupling_amplifies(self):
-        m_low = ci.compute_mass(200, 10, 0)
-        m_high = ci.compute_mass(200, 10, 10)
-        assert m_high > m_low
-
-    def test_linear_in_lines(self):
-        m1 = ci.compute_mass(100, 10, 5)
-        m2 = ci.compute_mass(200, 10, 5)
-        assert abs(m2 / m1 - 2.0) < 1e-9
-
-
-# ---------------------------------------------------------------------------
-# compute_friction
-# ---------------------------------------------------------------------------
-
-class TestComputeFriction:
-    def test_zero_coupling(self):
-        assert ci.compute_friction(0) == 0.0
-
-    def test_negative_coupling(self):
-        assert ci.compute_friction(-3) == 0.0
-
-    def test_high_coupling_saturates(self):
-        assert ci.compute_friction(8) == 1.0
-
-    def test_very_high_coupling(self):
-        assert ci.compute_friction(100) == 1.0
-
-    def test_low_coupling(self):
-        f = ci.compute_friction(1)
-        assert 0 < f < 0.5
-
-    def test_medium_coupling(self):
-        f = ci.compute_friction(5)
-        assert 0.4 < f < 0.8
-
-    def test_monotonic(self):
-        prev = 0.0
-        for c in range(0, 12):
-            curr = ci.compute_friction(c)
-            assert curr >= prev
-            prev = curr
-
-
-# ---------------------------------------------------------------------------
-# compute_velocity_score
-# ---------------------------------------------------------------------------
-
-class TestComputeVelocityScore:
-    def test_zero(self):
-        assert ci.compute_velocity_score(0) == 0.0
-
-    def test_negative(self):
-        assert ci.compute_velocity_score(-1) == 0.0
-
-    def test_at_threshold(self):
-        assert ci.compute_velocity_score(1.0) == 1.0
-
-    def test_above_threshold(self):
-        assert ci.compute_velocity_score(5.0) == 1.0
-
-    def test_half(self):
-        v = ci.compute_velocity_score(0.5)
-        assert abs(v - 0.5) < 1e-9
-
-    def test_monotonic(self):
-        rates = [0, 0.1, 0.25, 0.5, 0.75, 1.0, 2.0]
-        prev = -1.0
-        for r in rates:
-            curr = ci.compute_velocity_score(r)
-            assert curr >= prev
-            prev = curr
-
-
-# ---------------------------------------------------------------------------
-# compute_static_inertia
-# ---------------------------------------------------------------------------
-
-class TestComputeStaticInertia:
-    def test_fresh_small_decoupled(self):
-        si = ci.compute_static_inertia(0, 0, 0)
-        assert si == 0.0
-
-    def test_very_stale(self):
-        si = ci.compute_static_inertia(365, 10.0, 1.0)
-        assert si >= 0.7
-
-    def test_bounded_01(self):
-        si = ci.compute_static_inertia(1000, 100, 1.0)
-        assert 0.0 <= si <= 1.0
-
-    def test_mass_contributes(self):
-        si_low = ci.compute_static_inertia(30, 0.1, 0.5)
-        si_high = ci.compute_static_inertia(30, 10.0, 0.5)
-        assert si_high > si_low
-
-    def test_friction_contributes(self):
-        si_low = ci.compute_static_inertia(30, 5.0, 0.1)
-        si_high = ci.compute_static_inertia(30, 5.0, 0.9)
-        assert si_high > si_low
-
-    def test_staleness_logarithmic(self):
-        si_10 = ci.compute_static_inertia(10, 5.0, 0.5)
-        si_100 = ci.compute_static_inertia(100, 5.0, 0.5)
-        si_1000 = ci.compute_static_inertia(1000, 5.0, 0.5)
-        # Log scale: 10→100 gap similar to 100→1000 gap
-        gap1 = si_100 - si_10
-        gap2 = si_1000 - si_100
-        assert abs(gap1 - gap2) < 0.25  # rough log behaviour
-
-
-# ---------------------------------------------------------------------------
-# compute_dynamic_inertia
-# ---------------------------------------------------------------------------
-
-class TestComputeDynamicInertia:
-    def test_low_everything(self):
-        di = ci.compute_dynamic_inertia(0.1, 0.0, 1.0, 0.0)
-        assert di < 0.1
-
-    def test_high_mass_high_friction_low_tests(self):
-        di = ci.compute_dynamic_inertia(20.0, 1.0, 0.0, 0.0)
-        assert di > 0.5
-
-    def test_momentum_reduces(self):
-        di_low = ci.compute_dynamic_inertia(5.0, 0.5, 0.5, 0.0)
-        di_high = ci.compute_dynamic_inertia(5.0, 0.5, 0.5, 10.0)
-        assert di_high < di_low
-
-    def test_test_coverage_reduces(self):
-        di_low = ci.compute_dynamic_inertia(5.0, 0.5, 0.9, 0.0)
-        di_high = ci.compute_dynamic_inertia(5.0, 0.5, 0.1, 0.0)
-        assert di_high > di_low
-
-    def test_bounded_01(self):
-        di = ci.compute_dynamic_inertia(100, 1.0, 0.0, 0.0)
-        assert 0.0 <= di <= 1.0
-
-
-# ---------------------------------------------------------------------------
-# classify_inertia
-# ---------------------------------------------------------------------------
-
-class TestClassifyInertia:
-    def test_frozen(self):
-        assert ci.classify_inertia(0.85) == "frozen"
-
-    def test_frozen_boundary(self):
-        assert ci.classify_inertia(0.80) == "frozen"
-
-    def test_rigid(self):
-        assert ci.classify_inertia(0.65) == "rigid"
-
-    def test_rigid_boundary(self):
-        assert ci.classify_inertia(0.60) == "rigid"
-
-    def test_stiff(self):
-        assert ci.classify_inertia(0.50) == "stiff"
-
-    def test_flexible(self):
-        assert ci.classify_inertia(0.30) == "flexible"
-
-    def test_fluid(self):
-        assert ci.classify_inertia(0.10) == "fluid"
-
-    def test_fluid_zero(self):
-        assert ci.classify_inertia(0.0) == "fluid"
-
-    def test_clamped_above(self):
-        assert ci.classify_inertia(1.5) == "frozen"
-
-    def test_clamped_below(self):
-        assert ci.classify_inertia(-0.5) == "fluid"
-
-    def test_all_classes_represented(self):
-        scores = [0.9, 0.7, 0.5, 0.3, 0.1]
-        classes = [ci.classify_inertia(s) for s in scores]
-        assert classes == ["frozen", "rigid", "stiff", "flexible", "fluid"]
-
-
-# ---------------------------------------------------------------------------
-# compute_inertia (integration)
-# ---------------------------------------------------------------------------
-
-class TestComputeInertia:
-    def test_active_small_file(self):
-        """Small, well-tested, actively changing file → fluid/flexible."""
-        f = _file(lines=50, complexity=3, coupling=1,
-                  test_coverage=0.95, last_changed=REF - timedelta(hours=2))
-        r = ci.compute_inertia(f, commits_per_day=3.0, now=REF)
-        assert r.inertia_class in ("fluid", "flexible")
-        assert r.inertia_score < 0.4
-
-    def test_stale_heavy_file(self):
-        """Large, complex, stale, coupled file → frozen/rigid."""
-        f = _file(lines=1500, complexity=40, coupling=15,
-                  test_coverage=0.2, last_changed=REF - timedelta(days=180))
-        r = ci.compute_inertia(f, commits_per_day=0.0, now=REF)
-        assert r.inertia_class in ("frozen", "rigid")
-        assert r.inertia_score > 0.5
-
-    def test_staleness_computed(self):
-        f = _file(last_changed=REF - timedelta(days=7))
-        r = ci.compute_inertia(f, now=REF)
-        assert abs(r.staleness_days - 7.0) < 0.01
-
-    def test_no_last_changed(self):
-        f = ci.FileInfo(path="x.py", lines=100, complexity=5, coupling=2)
-        r = ci.compute_inertia(f, commits_per_day=0.5, now=REF)
-        assert r.staleness_days == 0.0
-        assert r.static_inertia >= 0  # no staleness contribution
-
-    def test_zero_velocity_uses_static(self):
-        f = _file(last_changed=REF - timedelta(days=30))
-        r = ci.compute_inertia(f, commits_per_day=0.0, now=REF)
-        # With zero velocity, score == static_inertia
-        assert abs(r.inertia_score - r.static_inertia) < 1e-6
+class TestCommitRecord(unittest.TestCase):
+    """Tests for CommitRecord data class."""
+
+    def test_areas_with_directories(self):
+        c = _mkcommit("abc", ["src/foo.py", "tests/test_foo.py", "docs/readme.md"])
+        self.assertEqual(c.areas(), {"src", "tests", "docs"})
+
+    def test_areas_root_files(self):
+        c = _mkcommit("abc", ["README.md", "setup.py"])
+        self.assertEqual(c.areas(), {"__root__"})
+
+    def test_areas_mixed(self):
+        c = _mkcommit("abc", ["src/bar.py", "LICENSE"])
+        self.assertEqual(c.areas(), {"src", "__root__"})
+
+    def test_areas_empty(self):
+        c = _mkcommit("abc", [])
+        self.assertEqual(c.areas(), set())
+
+
+class TestIsRevert(unittest.TestCase):
+    """Tests for the revert detection helper."""
+
+    def test_revert_prefix(self):
+        self.assertTrue(_is_revert("Revert \"add feature X\""))
+
+    def test_rollback(self):
+        self.assertTrue(_is_revert("Rollback database migration"))
+
+    def test_undo(self):
+        self.assertTrue(_is_revert("Undo last deploy"))
+
+    def test_rolls_back(self):
+        self.assertTrue(_is_revert("This rolls back the auth change"))
+
+    def test_normal_message(self):
+        self.assertFalse(_is_revert("Add timeout parameter"))
+
+    def test_partial_match(self):
+        self.assertFalse(_is_revert("prevent accidental revert in parser"))
+
+
+class TestFileOverlap(unittest.TestCase):
+    """Tests for the _file_overlap helper."""
+
+    def test_full_overlap(self):
+        self.assertEqual(_file_overlap(["a", "b", "c"], ["a", "b", "c"]), 3)
+
+    def test_partial_overlap(self):
+        self.assertEqual(_file_overlap(["a", "b"], ["b", "c"]), 1)
+
+    def test_no_overlap(self):
+        self.assertEqual(_file_overlap(["a", "b"], ["c", "d"]), 0)
+
+    def test_empty_lists(self):
+        self.assertEqual(_file_overlap([], ["a"]), 0)
+        self.assertEqual(_file_overlap(["a"], []), 0)
+
+
+class TestChangePersistence(unittest.TestCase):
+    """Tests for the change_persistence metric."""
+
+    def test_all_survive(self):
+        commits = [
+            _mkcommit("a1", ["src/foo.py"], "add foo"),
+            _mkcommit("a2", ["src/bar.py"], "add bar"),
+            _mkcommit("a3", ["src/baz.py"], "add baz"),
+        ]
+        self.assertAlmostEqual(change_persistence(commits), 1.0)
+
+    def test_revert_overwrites(self):
+        commits = [
+            _mkcommit("a1", ["src/foo.py", "src/bar.py"], "add feature"),
+            _mkcommit("a2", ["src/foo.py", "src/bar.py"], "Revert add feature", ins=2, dels=20),
+        ]
+        # First commit gets overwritten by the revert
+        # Second commit survives (nothing after it)
+        result = change_persistence(commits)
+        self.assertAlmostEqual(result, 0.5)
+
+    def test_heavy_deletion_overwrites(self):
+        commits = [
+            _mkcommit("a1", ["src/foo.py", "src/bar.py", "src/baz.py"], "add stuff"),
+            _mkcommit("a2", ["src/foo.py", "src/bar.py", "src/baz.py"], "cleanup",
+                      ins=5, dels=50),
+        ]
+        # Second commit has del_ratio = 50/55 ≈ 0.91 > 0.60 and touches >50% files
+        result = change_persistence(commits)
+        self.assertAlmostEqual(result, 0.5)
+
+    def test_small_overlap_no_overwrite(self):
+        """Later commit touches fewer than threshold files → no overwrite."""
+        commits = [
+            _mkcommit("a1", ["a.py", "b.py", "c.py", "d.py"], "big change"),
+            _mkcommit("a2", ["a.py"], "small fix", ins=2, dels=20),
+        ]
+        # a2 touches 1 of 4 files = 25% < 50% threshold → a1 survives
+        result = change_persistence(commits)
+        self.assertAlmostEqual(result, 1.0)
+
+    def test_empty_commit_survives(self):
+        commits = [
+            _mkcommit("a1", [], "empty commit"),
+            _mkcommit("a2", ["src/foo.py"], "add foo"),
+        ]
+        self.assertAlmostEqual(change_persistence(commits), 1.0)
+
+    def test_single_commit(self):
+        commits = [_mkcommit("a1", ["src/foo.py"], "init")]
+        self.assertAlmostEqual(change_persistence(commits), 1.0)
+
+    def test_empty_input(self):
+        self.assertAlmostEqual(change_persistence([]), 0.0)
+
+    def test_overwrite_window_respects_range(self):
+        """Overwrite check should only look within the window."""
+        commits = [
+            _mkcommit("a1", ["src/foo.py", "src/bar.py"], "add feature"),
+            _mkcommit("a2", ["other.py"], "other 1"),
+            _mkcommit("a3", ["other.py"], "other 2"),
+            _mkcommit("a4", ["other.py"], "other 3"),
+            _mkcommit("a5", ["other.py"], "other 4"),
+            _mkcommit("a6", ["other.py"], "other 5"),
+            _mkcommit("a7", ["src/foo.py", "src/bar.py"], "Revert feature", ins=1, dels=30),
+        ]
+        # With overwrite_window=5, from a1 we check a2..a6; revert is at a7 (outside window)
+        result = change_persistence(commits, overwrite_window=5)
+        self.assertAlmostEqual(result, 1.0)
+
+        # With overwrite_window=6, from a1 we check a2..a7; revert at a7 is in range
+        result2 = change_persistence(commits, overwrite_window=6)
+        self.assertLess(result2, 1.0)
+
+
+class TestFollowUpRate(unittest.TestCase):
+    """Tests for the follow_up_rate metric."""
+
+    def test_all_follow_up(self):
+        commits = [
+            _mkcommit("a1", ["src/foo.py", "src/bar.py"]),
+            _mkcommit("a2", ["src/foo.py", "tests/test_foo.py"]),
+            _mkcommit("a3", ["src/bar.py", "docs/readme.md"]),
+        ]
+        # Pair (a1,a2): share src/foo.py → yes
+        # Pair (a2,a3): share src/bar.py? No. a2 has src/foo.py, tests/test_foo.py; a3 has src/bar.py
+        # Actually: a2 files = {src/foo.py, tests/test_foo.py}, a3 files = {src/bar.py, docs/readme.md}
+        # No overlap → only 1 of 2 pairs
+        result = follow_up_rate(commits)
+        self.assertAlmostEqual(result, 0.5)
+
+    def test_none_follow_up(self):
+        commits = [
+            _mkcommit("a1", ["src/foo.py"]),
+            _mkcommit("a2", ["tests/bar.py"]),
+            _mkcommit("a3", ["docs/baz.md"]),
+        ]
+        self.assertAlmostEqual(follow_up_rate(commits), 0.0)
+
+    def test_all_follow_up_perfect(self):
+        commits = [
+            _mkcommit("a1", ["shared.py"]),
+            _mkcommit("a2", ["shared.py", "extra.py"]),
+            _mkcommit("a3", ["shared.py"]),
+        ]
+        self.assertAlmostEqual(follow_up_rate(commits), 1.0)
+
+    def test_empty_files_skipped(self):
+        commits = [
+            _mkcommit("a1", []),
+            _mkcommit("a2", ["src/foo.py"]),
+        ]
+        # a1 has no files → pair skipped
+        self.assertAlmostEqual(follow_up_rate(commits), 0.0)
+
+    def test_single_commit(self):
+        commits = [_mkcommit("a1", ["src/foo.py"])]
+        self.assertAlmostEqual(follow_up_rate(commits), 0.0)
+
+    def test_empty_input(self):
+        self.assertAlmostEqual(follow_up_rate([]), 0.0)
+
+
+class TestAmplification(unittest.TestCase):
+    """Tests for the amplification metric."""
+
+    def test_full_overlap(self):
+        commits = [
+            _mkcommit("a1", ["a.py", "b.py"]),
+            _mkcommit("a2", ["a.py", "b.py"]),
+        ]
+        # overlap = 2, current files = 2, ratio = 1.0
+        self.assertAlmostEqual(amplification(commits), 1.0)
+
+    def test_partial_overlap(self):
+        commits = [
+            _mkcommit("a1", ["a.py", "b.py"]),
+            _mkcommit("a2", ["a.py", "c.py", "d.py", "e.py"]),
+        ]
+        # overlap = 1, current files = 4, ratio = 0.25
+        self.assertAlmostEqual(amplification(commits), 0.25)
+
+    def test_no_overlap(self):
+        commits = [
+            _mkcommit("a1", ["a.py"]),
+            _mkcommit("a2", ["b.py", "c.py"]),
+        ]
+        # No overlap → skipped, empty ratios → 0.0
+        self.assertAlmostEqual(amplification(commits), 0.0)
+
+    def test_single_commit(self):
+        commits = [_mkcommit("a1", ["a.py"])]
+        self.assertAlmostEqual(amplification(commits), 0.0)
+
+    def test_empty_current_skipped(self):
+        commits = [
+            _mkcommit("a1", ["a.py"]),
+            _mkcommit("a2", []),
+        ]
+        self.assertAlmostEqual(amplification(commits), 0.0)
+
+    def test_mixed_overlaps(self):
+        commits = [
+            _mkcommit("a1", ["a.py", "b.py"]),
+            _mkcommit("a2", ["a.py", "b.py"]),  # overlap=2, total=2, ratio=1.0
+            _mkcommit("a3", ["c.py", "d.py"]),  # overlap=0 → skipped
+        ]
+        self.assertAlmostEqual(amplification(commits), 1.0)
+
+
+class TestDecayHalfLife(unittest.TestCase):
+    """Tests for the decay_half_life metric."""
+
+    def test_uniform_gap(self):
+        """File touched every 2 commits."""
+        commits = [
+            _mkcommit("a1", ["a.py", "b.py"]),
+            _mkcommit("a2", ["c.py"]),
+            _mkcommit("a3", ["a.py", "b.py"]),
+            _mkcommit("a4", ["c.py"]),
+            _mkcommit("a5", ["a.py", "b.py"]),
+        ]
+        # a.py: gaps [2, 2], b.py: gaps [2, 2], c.py: gaps [2]
+        # All gaps = [2, 2, 2, 2, 2], median = 2
+        result = decay_half_life(commits)
+        self.assertAlmostEqual(result, 2.0)
+
+    def test_varied_gaps(self):
+        commits = [
+            _mkcommit("a1", ["a.py"]),
+            _mkcommit("a2", ["b.py"]),
+            _mkcommit("a3", ["a.py"]),
+            _mkcommit("a4", ["b.py"]),
+            _mkcommit("a5", ["a.py"]),
+        ]
+        # a.py gaps: [2, 2], b.py gaps: [2]
+        # All gaps = [2, 2, 2], median = 2
+        self.assertAlmostEqual(decay_half_life(commits), 2.0)
+
+    def test_no_revisits(self):
+        """Every commit touches unique files."""
+        commits = [
+            _mkcommit("a1", ["a.py"]),
+            _mkcommit("a2", ["b.py"]),
+            _mkcommit("a3", ["c.py"]),
+        ]
+        self.assertAlmostEqual(decay_half_life(commits), 0.0)
+
+    def test_single_commit(self):
+        commits = [_mkcommit("a1", ["a.py"])]
+        self.assertAlmostEqual(decay_half_life(commits), 0.0)
+
+    def test_empty_input(self):
+        self.assertAlmostEqual(decay_half_life([]), 0.0)
+
+    def test_large_gap(self):
+        commits = [
+            _mkcommit("a1", ["a.py"]),
+            _mkcommit("a2", ["b.py"]),
+            _mkcommit("a3", ["c.py"]),
+            _mkcommit("a4", ["d.py"]),
+            _mkcommit("a5", ["e.py"]),
+            _mkcommit("a6", ["a.py"]),
+        ]
+        # a.py gap = 5, only one gap → median = 5
+        self.assertAlmostEqual(decay_half_life(commits), 5.0)
+
+
+class TestClassifyInertia(unittest.TestCase):
+    """Tests for classify_inertia."""
+
+    def test_ballistic(self):
+        self.assertEqual(classify_inertia(0.85), "ballistic")
+
+    def test_ballistic_boundary(self):
+        self.assertEqual(classify_inertia(0.80), "ballistic")
+
+    def test_driven(self):
+        self.assertEqual(classify_inertia(0.70), "driven")
+
+    def test_driven_lower_boundary(self):
+        self.assertEqual(classify_inertia(0.60), "driven")
+
+    def test_cruising(self):
+        self.assertEqual(classify_inertia(0.50), "cruising")
+
+    def test_cruising_lower_boundary(self):
+        self.assertEqual(classify_inertia(0.40), "cruising")
+
+    def test_drifting(self):
+        self.assertEqual(classify_inertia(0.30), "drifting")
+
+    def test_drifting_lower_boundary(self):
+        self.assertEqual(classify_inertia(0.20), "drifting")
+
+    def test_stalled(self):
+        self.assertEqual(classify_inertia(0.10), "stalled")
+
+    def test_stalled_zero(self):
+        self.assertEqual(classify_inertia(0.0), "stalled")
+
+    def test_one(self):
+        self.assertEqual(classify_inertia(1.0), "ballistic")
+
+
+class TestComputeInertia(unittest.TestCase):
+    """Tests for the composite compute_inertia function."""
+
+    def test_empty_input(self):
+        result = compute_inertia([])
+        self.assertEqual(result.window_commits, 0)
+        self.assertEqual(result.momentum_score, 0.0)
+        self.assertEqual(result.inertia_class, "stalled")
+
+    def test_high_inertia(self):
+        """Commits that persist, follow up, and settle."""
+        commits = []
+        for i in range(20):
+            commits.append(
+                _mkcommit(
+                    f"c{i:02d}",
+                    ["src/core.py", "src/utils.py"],
+                    f"improve feature {i}",
+                    ins=15,
+                    dels=3,
+                    ts_offset_minutes=i * 15,
+                )
+            )
+        result = compute_inertia(commits, ideal_half_life=5)
+        self.assertGreater(result.momentum_score, 0.5)
+        self.assertIn(result.inertia_class, ("ballistic", "driven", "cruising"))
+
+    def test_low_inertia(self):
+        """Commits that don't build on each other."""
+        commits = []
+        for i in range(20):
+            commits.append(
+                _mkcommit(
+                    f"c{i:02d}",
+                    [f"unique_{i}.py"],
+                    f"isolated change {i}",
+                    ins=5,
+                    dels=1,
+                    ts_offset_minutes=i * 15,
+                )
+            )
+        result = compute_inertia(commits)
+        # persistence=1.0 (no reverts) but follow_up=0, amplification=0, half_life=0
+        # score = 0.35*1.0 = 0.35 — low but not zero because changes do persist
+        self.assertLess(result.momentum_score, 0.40)
 
     def test_result_fields(self):
-        r = ci.compute_inertia(_file(), commits_per_day=1.0, now=REF)
-        assert r.path == "iamai/foo.py"
-        assert r.area == "iamai"
-        assert isinstance(r.mass, float)
-        assert isinstance(r.velocity, float)
-        assert isinstance(r.friction_coefficient, float)
-        assert isinstance(r.momentum, float)
-        assert 0.0 <= r.inertia_score <= 1.0
-        assert r.inertia_class in ci.INERTIA_CLASSES
-
-    def test_details_populated(self):
-        f = _file(lines=300, complexity=15, coupling=6)
-        r = ci.compute_inertia(f, commits_per_day=2.0, now=REF)
-        assert r.details["lines"] == 300
-        assert r.details["complexity"] == 15
-        assert r.details["coupling"] == 6
-        assert r.details["commits_per_day"] == 2.0
-
-    def test_momentum_is_mass_times_velocity(self):
-        f = _file(lines=200, complexity=10, coupling=4)
-        r = ci.compute_inertia(f, commits_per_day=0.5, now=REF)
-        expected = r.mass * r.velocity
-        assert abs(r.momentum - expected) < 1e-3
-
-
-# ---------------------------------------------------------------------------
-# area_inertia
-# ---------------------------------------------------------------------------
-
-class TestAreaInertia:
-    def _make_results(self):
-        files = [
-            _file("iamai/a.py", lines=100, complexity=5, coupling=2,
-                  test_coverage=0.9, last_changed=REF - timedelta(days=1)),
-            _file("iamai/b.py", lines=500, complexity=20, coupling=8,
-                  test_coverage=0.3, last_changed=REF - timedelta(days=60)),
-            _file("iamai/c.py", lines=50, complexity=2, coupling=0,
-                  test_coverage=1.0, last_changed=REF - timedelta(hours=6)),
+        commits = [
+            _mkcommit("a1", ["src/foo.py"], "init"),
+            _mkcommit("a2", ["src/foo.py", "src/bar.py"], "extend"),
         ]
-        return [ci.compute_inertia(f, commits_per_day=1.0, now=REF) for f in files]
+        result = compute_inertia(commits, window_hours=24.0)
+        self.assertEqual(result.window_commits, 2)
+        self.assertEqual(result.window_hours, 24.0)
+        self.assertIsInstance(result.change_persistence, float)
+        self.assertIsInstance(result.follow_up_rate, float)
+        self.assertIsInstance(result.amplification, float)
+        self.assertIsInstance(result.decay_half_life, float)
+        self.assertIsInstance(result.momentum_score, float)
+        self.assertIsInstance(result.inertia_class, str)
 
-    def test_basic_aggregation(self):
-        results = self._make_results()
-        a = ci.area_inertia(results)
-        assert a.area == "iamai"
-        assert a.file_count == 3
-        assert 0.0 <= a.mean_inertia <= 1.0
-        assert a.area_class in ci.INERTIA_CLASSES
+    def test_half_life_normalization(self):
+        """Half-life at or above ideal → score component = 1.0."""
+        # All files touched every 10 commits → half_life = 10
+        commits = []
+        for i in range(21):
+            commits.append(
+                _mkcommit(f"c{i:02d}", ["shared.py"], f"update {i}",
+                          ts_offset_minutes=i * 15)
+            )
+        result = compute_inertia(commits, ideal_half_life=10)
+        # Half-life is exactly 10 → normalized = 1.0 → contributes 0.20
+        # Plus persistence and follow-up should be high
+        self.assertGreaterEqual(result.momentum_score, 0.20)
 
-    def test_frozen_fluid_counts(self):
-        results = self._make_results()
-        a = ci.area_inertia(results)
-        assert a.frozen_count + a.fluid_count <= a.file_count
-
-    def test_heaviest_and_stillest(self):
-        results = self._make_results()
-        a = ci.area_inertia(results)
-        assert "b.py" in a.heaviest_file  # 500 lines, complexity 20
-        assert "b.py" in a.stillest_file  # 60 days stale
-
-    def test_empty_raises(self):
-        with pytest.raises(ValueError):
-            ci.area_inertia([])
-
-    def test_custom_area(self):
-        results = self._make_results()
-        a = ci.area_inertia(results, area="custom_area")
-        assert a.area == "custom_area"
-
-    def test_details_populated(self):
-        results = self._make_results()
-        a = ci.area_inertia(results)
-        assert "median_inertia" in a.details
-        assert "frozen_fraction" in a.details
-        assert "fluid_fraction" in a.details
-        assert 0 <= a.details["frozen_fraction"] <= 1.0
-        assert 0 <= a.details["fluid_fraction"] <= 1.0
+    def test_weight_balance(self):
+        """Verify composite uses correct weights."""
+        # Construct a scenario where we can compute exact expected score
+        # persistence=1.0, follow_up=0.0, amplification=0.0, half_life_score=0.0
+        commits = [
+            _mkcommit("a1", ["a.py"], "init", ins=10, dels=1),
+            _mkcommit("a2", ["b.py"], "other", ins=10, dels=1),
+        ]
+        # persistence: both survive → 1.0
+        # follow_up: a1→a2, no overlap → 0.0
+        # amplification: no overlap → 0.0
+        # half_life: no revisits → 0.0
+        result = compute_inertia(commits)
+        expected = round(0.35 * 1.0 + 0.25 * 0.0 + 0.20 * 0.0 + 0.20 * 0.0, 4)
+        self.assertAlmostEqual(result.momentum_score, expected)
 
 
-# ---------------------------------------------------------------------------
-# inertia_trend
-# ---------------------------------------------------------------------------
+class TestInertiaReport(unittest.TestCase):
+    """Tests for the human-readable report."""
 
-class TestInertiaTrend:
+    def test_report_contains_key_sections(self):
+        result = InertiaResult(
+            window_commits=50,
+            window_hours=168.0,
+            change_persistence=0.85,
+            follow_up_rate=0.42,
+            amplification=0.31,
+            decay_half_life=8.5,
+            momentum_score=0.6235,
+            inertia_class="driven",
+        )
+        report = inertia_report(result)
+        self.assertIn("Inertia analysis", report)
+        self.assertIn("driven", report)
+        self.assertIn("50 commits", report)
+        self.assertIn("85.00%", report)
+        self.assertIn("42.00%", report)
+        self.assertIn("8.5 commits", report)
+
+    def test_report_stalled(self):
+        result = InertiaResult(
+            window_commits=5,
+            window_hours=2.0,
+            change_persistence=0.1,
+            follow_up_rate=0.0,
+            amplification=0.0,
+            decay_half_life=0.0,
+            momentum_score=0.035,
+            inertia_class="stalled",
+        )
+        report = inertia_report(result)
+        self.assertIn("stalled", report)
+
+
+class TestInertiaTrend(unittest.TestCase):
+    """Tests for trend analysis across inertia measurements."""
+
     def test_increasing(self):
-        snaps = [0.3, 0.4, 0.5, 0.6, 0.7]
-        t = ci.inertia_trend(snaps)
-        assert t.direction == "increasing"
-        assert t.slope > 0
+        results = [
+            InertiaResult(10, 24, 0.3, 0.2, 0.1, 5.0, 0.30, "drifting"),
+            InertiaResult(10, 24, 0.5, 0.4, 0.3, 8.0, 0.50, "cruising"),
+            InertiaResult(10, 24, 0.7, 0.6, 0.5, 12.0, 0.70, "driven"),
+        ]
+        trend = inertia_trend(results)
+        self.assertEqual(trend.direction, "increasing")
+        self.assertAlmostEqual(trend.score_delta, 0.40)
 
     def test_decreasing(self):
-        snaps = [0.7, 0.6, 0.5, 0.4, 0.3]
-        t = ci.inertia_trend(snaps)
-        assert t.direction == "decreasing"
-        assert t.slope < 0
+        results = [
+            InertiaResult(10, 24, 0.8, 0.7, 0.6, 15.0, 0.80, "ballistic"),
+            InertiaResult(10, 24, 0.3, 0.2, 0.1, 3.0, 0.30, "drifting"),
+        ]
+        trend = inertia_trend(results)
+        self.assertEqual(trend.direction, "decreasing")
+        self.assertAlmostEqual(trend.score_delta, -0.50)
 
     def test_stable(self):
-        snaps = [0.5, 0.51, 0.50, 0.49, 0.50]
-        t = ci.inertia_trend(snaps)
-        assert t.direction == "stable"
-        assert abs(t.slope) < 0.01
-
-    def test_single_snapshot(self):
-        t = ci.inertia_trend([0.5])
-        assert t.direction == "stable"
-        assert t.measurements == 1
-        assert "insufficient" in t.interpretation.lower()
-
-    def test_two_snapshots(self):
-        t = ci.inertia_trend([0.3, 0.7])
-        assert t.direction == "increasing"
-        assert t.delta > 0
-
-    def test_delta_computed(self):
-        snaps = [0.2, 0.3, 0.4]
-        t = ci.inertia_trend(snaps)
-        assert abs(t.delta - 0.2) < 1e-6
-
-    def test_interpretation_increasing(self):
-        t = ci.inertia_trend([0.2, 0.4, 0.6])
-        assert "resistant" in t.interpretation.lower() or "rigidity" in t.interpretation.lower()
-
-    def test_interpretation_decreasing(self):
-        t = ci.inertia_trend([0.6, 0.4, 0.2])
-        assert "easier" in t.interpretation.lower() or "reduced" in t.interpretation.lower()
-
-    def test_interpretation_stable(self):
-        t = ci.inertia_trend([0.5, 0.5, 0.5])
-        assert "steady" in t.interpretation.lower() or "stable" in t.interpretation.lower()
-
-
-# ---------------------------------------------------------------------------
-# inertia_report
-# ---------------------------------------------------------------------------
-
-class TestInertiaReport:
-    def test_report_contains_key_fields(self):
-        f = _file("iamai/widget.py", lines=300, complexity=12, coupling=5)
-        r = ci.compute_inertia(f, commits_per_day=1.5, now=REF)
-        report = ci.inertia_report(r)
-        assert "widget.py" in report
-        assert "iamai" in report
-        assert r.inertia_class in report
-        assert "Mass" in report
-        assert "Velocity" in report
-        assert "Friction" in report
-        assert "Staleness" in report
-
-    def test_report_not_empty(self):
-        r = ci.compute_inertia(_file(), now=REF)
-        assert len(ci.inertia_report(r)) > 50
-
-
-# ---------------------------------------------------------------------------
-# area_report
-# ---------------------------------------------------------------------------
-
-class TestAreaReport:
-    def test_report_contains_key_fields(self):
         results = [
-            ci.compute_inertia(_file("iamai/a.py"), now=REF),
-            ci.compute_inertia(_file("iamai/b.py", lines=500), now=REF),
+            InertiaResult(10, 24, 0.5, 0.4, 0.3, 8.0, 0.50, "cruising"),
+            InertiaResult(10, 24, 0.5, 0.4, 0.3, 8.0, 0.52, "cruising"),
         ]
-        a = ci.area_inertia(results)
-        report = ci.area_report(a)
-        assert "iamai" in report
-        assert "Files: 2" in report
-        assert a.area_class in report
-        assert "Heaviest" in report
-        assert "Stillest" in report
+        trend = inertia_trend(results)
+        self.assertEqual(trend.direction, "stable")
 
-
-# ---------------------------------------------------------------------------
-# Edge cases and integration
-# ---------------------------------------------------------------------------
-
-class TestEdgeCases:
-    def test_empty_file(self):
-        f = ci.FileInfo(path="empty.py", lines=0, complexity=0, coupling=0)
-        r = ci.compute_inertia(f, now=REF)
-        assert r.mass == 0.0
-        assert r.inertia_class in ci.INERTIA_CLASSES
-
-    def test_massive_file(self):
-        f = ci.FileInfo(
-            path="iamai/mega.py", lines=10000, complexity=100,
-            coupling=50, test_coverage=0.1,
-            last_changed=REF - timedelta(days=365),
-        )
-        r = ci.compute_inertia(f, commits_per_day=0.0, now=REF)
-        assert r.inertia_score > 0.5
-        assert r.inertia_class in ("frozen", "rigid")
-
-    def test_very_active_file(self):
-        f = ci.FileInfo(
-            path="iamai/hot.py", lines=100, complexity=5,
-            coupling=2, test_coverage=0.95,
-            last_changed=REF - timedelta(minutes=30),
-        )
-        r = ci.compute_inertia(f, commits_per_day=10.0, now=REF)
-        assert r.inertia_score < 0.3
-        assert r.inertia_class in ("fluid", "flexible")
-
-    def test_constants_consistency(self):
-        """Verify threshold table matches classify_inertia."""
-        for threshold, label in ci._THRESHOLDS:
-            assert ci.classify_inertia(threshold) == label
-
-    def test_inertia_classes_tuple(self):
-        assert len(ci.INERTIA_CLASSES) == 5
-        assert ci.INERTIA_CLASSES == ("frozen", "rigid", "stiff", "flexible", "fluid")
-
-    def test_full_pipeline(self):
-        """End-to-end: files → compute → aggregate → trend → report."""
-        # Three files of varying inertia
-        files = [
-            ci.FileInfo("iamai/old.py", lines=800, complexity=30,
-                        coupling=12, test_coverage=0.3,
-                        last_changed=REF - timedelta(days=200)),
-            ci.FileInfo("iamai/mid.py", lines=200, complexity=8,
-                        coupling=3, test_coverage=0.7,
-                        last_changed=REF - timedelta(days=14)),
-            ci.FileInfo("iamai/new.py", lines=50, complexity=3,
-                        coupling=1, test_coverage=0.95,
-                        last_changed=REF - timedelta(hours=12)),
-        ]
+    def test_single_result(self):
         results = [
-            ci.compute_inertia(f, commits_per_day=0.5, now=REF)
-            for f in files
+            InertiaResult(10, 24, 0.5, 0.4, 0.3, 8.0, 0.50, "cruising"),
         ]
-        # Individual reports
-        for r in results:
-            assert ci.inertia_report(r)
+        trend = inertia_trend(results)
+        self.assertEqual(trend.direction, "stable")
+        self.assertEqual(trend.sample_count, 1)
 
-        # Aggregation
-        area = ci.area_inertia(results, area="iamai")
-        assert ci.area_report(area)
-        assert area.file_count == 3
+    def test_empty(self):
+        trend = inertia_trend([])
+        self.assertEqual(trend.direction, "stable")
+        self.assertEqual(trend.score_delta, 0.0)
+        self.assertEqual(trend.sample_count, 0)
 
-        # Trend (simulate two snapshots)
-        snap1 = area.mean_inertia
-        snap2 = snap1 - 0.05  # slight improvement
-        t = ci.inertia_trend([snap1, snap2])
-        assert t.direction in ("stable", "decreasing")
+    def test_boundary_exactly_005(self):
+        """Delta of exactly 0.05 should be 'stable' (not > 0.05)."""
+        results = [
+            InertiaResult(10, 24, 0.5, 0.4, 0.3, 8.0, 0.50, "cruising"),
+            InertiaResult(10, 24, 0.5, 0.4, 0.3, 8.0, 0.55, "cruising"),
+        ]
+        trend = inertia_trend(results)
+        # 0.55 - 0.50 = 0.05, which is NOT > 0.05 → stable
+        self.assertEqual(trend.direction, "stable")
 
-    def test_area_inertia_single_file(self):
-        f = _file("iamai/solo.py")
-        r = ci.compute_inertia(f, now=REF)
-        a = ci.area_inertia([r])
-        assert a.file_count == 1
-        assert a.mean_inertia == r.inertia_score
 
-    def test_velocity_blending(self):
-        """File with some velocity should use blended score."""
-        f = _file(lines=300, complexity=10, coupling=4,
-                  test_coverage=0.8, last_changed=REF - timedelta(days=5))
-        r = ci.compute_inertia(f, commits_per_day=0.5, now=REF)
-        # Score should be between static and dynamic
-        assert min(r.static_inertia, r.dynamic_inertia) - 0.01 <= r.inertia_score
-        assert r.inertia_score <= max(r.static_inertia, r.dynamic_inertia) + 0.01
+class TestFullPipeline(unittest.TestCase):
+    """Integration tests exercising the full pipeline."""
+
+    def test_realistic_workflow(self):
+        """Simulate a realistic development session."""
+        commits = [
+            _mkcommit("c01", ["src/auth.py"], "add auth module", ts_offset_minutes=0),
+            _mkcommit("c02", ["src/auth.py", "tests/test_auth.py"], "add auth tests",
+                      ts_offset_minutes=15),
+            _mkcommit("c03", ["src/auth.py", "src/db.py"], "connect auth to db",
+                      ts_offset_minutes=30),
+            _mkcommit("c04", ["src/db.py", "tests/test_db.py"], "add db tests",
+                      ts_offset_minutes=45),
+            _mkcommit("c05", ["src/auth.py", "src/db.py", "src/api.py"], "wire api",
+                      ts_offset_minutes=60),
+            _mkcommit("c06", ["src/api.py", "tests/test_api.py"], "add api tests",
+                      ts_offset_minutes=75),
+            _mkcommit("c07", ["docs/architecture.md"], "document architecture",
+                      ts_offset_minutes=90),
+            _mkcommit("c08", ["src/auth.py", "src/api.py"], "refactor auth api",
+                      ts_offset_minutes=105),
+        ]
+        result = compute_inertia(commits, window_hours=2.0, ideal_half_life=4)
+        report = inertia_report(result)
+
+        # Should be non-trivial
+        self.assertGreater(result.momentum_score, 0.0)
+        self.assertIn("Inertia analysis", report)
+        self.assertEqual(result.window_commits, 8)
+
+    def test_chaotic_repo(self):
+        """A repo with reverts, scattered files, no follow-up."""
+        commits = [
+            _mkcommit("c01", ["a.py", "b.py"], "try feature X", ts_offset_minutes=0),
+            _mkcommit("c02", ["c.py", "d.py"], "unrelated fix", ts_offset_minutes=5),
+            _mkcommit("c03", ["a.py", "b.py"], "Revert try feature X",
+                      ins=1, dels=30, ts_offset_minutes=10),
+            _mkcommit("c04", ["e.py"], "random change", ts_offset_minutes=15),
+            _mkcommit("c05", ["f.py", "g.py"], "another unrelated", ts_offset_minutes=20),
+        ]
+        result = compute_inertia(commits)
+        # Should be low: reverts, no follow-up, no overlap
+        self.assertLess(result.momentum_score, 0.40)
+
+    def test_trend_across_windows(self):
+        """Compute inertia across multiple windows and check trend."""
+        windows = []
+        for start in range(3):
+            commits = []
+            base_offset = start * 1000
+            # Each window has increasingly more follow-up
+            for i in range(10):
+                files = ["shared.py"] if i <= start * 3 else [f"unique_{start}_{i}.py"]
+                commits.append(
+                    _mkcommit(
+                        f"w{start}_c{i:02d}",
+                        files,
+                        f"update {i}",
+                        ts_offset_minutes=base_offset + i * 15,
+                    )
+                )
+            windows.append(compute_inertia(commits, ideal_half_life=5))
+
+        trend = inertia_trend(windows)
+        self.assertIsInstance(trend.direction, str)
+        self.assertGreaterEqual(trend.sample_count, 3)
+
+
+if __name__ == "__main__":
+    unittest.main()

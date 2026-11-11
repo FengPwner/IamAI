@@ -6423,3 +6423,7 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 38139
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 2074 files; 474022 lines is a lot for a toy.
+
+## how to read a repository that measures its own momentum
+
+a codebase is not a static artifact — it is a moving object. Newton's first law applies: a change that lands is either building on the last change (momentum) or sitting isolated while the next unrelated thing arrives (inertia). measuring persistence, follow-up rate, amplification, and decay half-life tells you whether the repo is going somewhere or just churning in place. the interesting insight is that *persistence alone is not enough*. a commit can survive forever and still be a dead end if nothing ever builds on it. momentum requires both survival AND sequential building. inertia without follow-up is just sedimentation.

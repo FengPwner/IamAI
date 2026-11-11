@@ -1,49 +1,64 @@
 #!/usr/bin/env python3
-"""commit_inertia — measure how resistant a codebase area is to change.
+"""commit_inertia — measure how much lasting momentum changes carry in a codebase.
 
-Newton's first law: a body at rest stays at rest.  A file that hasn't
-been touched in months has *inertia* — not because it's perfect, but
-because the cost of disturbing it (understanding context, running tests,
-risking regressions) outweighs the perceived benefit of touching it.
+Newton's first law of motion states that an object at rest stays at rest,
+and an object in motion stays in motion with the same speed and direction,
+unless acted upon by a net external force.  The resistance to change in
+velocity is **inertia**, and it scales with mass.
 
-Inertia is not the same as freshness.  Freshness asks "how recently was
-this touched?"  Inertia asks "how much force would it take to change this
-*now*?"  A freshly-touched file can have high inertia (a complex module
-you just fixed but dread revisiting).  A stale file can have low inertia
-(a trivial config that anyone could edit in seconds).
+Codebases exhibit inertia too.  Some repos are *massive* — every change
+requires ten follow-up fixes, reviewers push back, CI fails, and the
+original commit is eventually reverted or rewritten beyond recognition.
+Other repos are *light* — a single commit triggers a cascade of related
+improvements, tests pass first try, and the change compounds into
+something larger than its origin.
 
-This module measures **commit inertia**: the resistance a codebase area
-exerts against new changes, and what that resistance reveals about
-architectural rigidity, knowledge concentration, and technical debt.
+This module measures **commit inertia**: the tendency of changes to
+either sustain their momentum (building on prior work, expanding scope,
+attracting follow-up) or to stall (overwritten, abandoned, or isolated).
+
+Inertia vs related metrics
+--------------------------
+
+- **Turbulence** measures *erraticism* — is the commit flow smooth or
+  chaotic?
+- **Refraction** measures *intent fidelity* — does purpose survive
+  boundary crossings?
+- **Inertia** measures *momentum persistence* — do changes build on
+  each other or evaporate?
+
+A codebase can be low-turbulence (steady rhythm) yet low-inertia (each
+commit is an isolated event that nothing builds upon).  Conversely, a
+high-turbulence burst can carry enormous inertia if every commit in the
+burst amplifies the last.
 
 Inertia dimensions
------------------
+------------------
 
 ========================  ================================================
 metric                    meaning
 ========================  ================================================
-mass                      proxy for how "heavy" a file/area is: lines of
-                          code × cyclomatic complexity × coupling degree
-                          (more mass = harder to move)
-velocity                  rate of recent changes: commits per day over
-                          the analysis window (zero velocity = at rest
-                          = maximum static friction)
-friction_coefficient      how many other files must change when this one
-                          does (high coupling = high friction)
-momentum                  mass × velocity: a heavy file being actively
-                          changed has momentum (easier to keep going
-                          than to stop); a heavy file at rest has zero
-                          momentum (hardest to start moving)
-static_inertia            resistance to the *first* change after a quiet
-                          period: combines staleness, mass, and coupling
-                          into a 0.0–1.0 score
-dynamic_inertia           resistance to *continued* change in an active
-                          area: combines momentum decay, test coverage
-                          gaps, and documentation staleness
-inertia_score             composite 0.0–1.0: high = very resistant to
-                          change (rigid, heavy, coupled); low = fluid
-                          and easy to modify
-inertia_class             frozen | rigid | stiff | flexible | fluid
+change_persistence        fraction of commits whose changes survive
+                          (are not substantially reverted or overwritten)
+                          within the next ``overwrite_window`` commits
+                          (higher = changes stick)
+follow_up_rate            fraction of commits that touch at least one file
+                          previously touched by the immediately preceding
+                          commit
+                          (higher = sequential commits build on each other)
+amplification             mean ratio of "files also touched by prior
+                          commit" to "total files in this commit" for
+                          commits that share ≥1 file with their
+                          predecessor
+                          (higher = changes expand from a shared core)
+decay_half_life           median number of commits before a file modified
+                          in commit N is modified again.  Longer = changes
+                          settle; shorter = constant churn
+                          (normalized to 0–1 for scoring)
+momentum_score            composite 0.0–1.0: high = changes persist and
+                          build; low = changes evaporate or churn
+inertia_class             ballistic | driven | cruising | drifting |
+                          stalled
 ========================  ================================================
 
 Inertia classes
@@ -52,308 +67,233 @@ Inertia classes
 ==============  ============================================================
 class           meaning
 ==============  ============================================================
-frozen          score ≥ 0.80 — area hasn't moved in ages and is too heavy
-                or too coupled to change safely; approaching it requires
-                significant effort and risk tolerance
-rigid           0.60 ≤ score < 0.80 — area is resistant but not
-                immovable; changes happen but are slow and cautious
-stiff           0.40 ≤ score < 0.60 — moderate resistance; the area
-                changes when needed but doesn't welcome change
-flexible        0.20 ≤ score < 0.40 — low resistance; the area is
-                actively maintained and easy to modify
-fluid           score < 0.20 — very low resistance; the area is in
-                active development and changes flow easily
+ballistic       score ≥ 0.80 — changes compound rapidly, each commit
+                builds on the last, very little rework
+driven          0.60 ≤ score < 0.80 — strong forward momentum with
+                occasional rework
+cruising        0.40 ≤ score < 0.60 — moderate momentum; changes persist
+                but follow-ups are inconsistent
+drifting        0.20 ≤ score < 0.40 — changes often don't stick or don't
+                build; the codebase moves sideways
+stalled         score < 0.20 — changes are frequently overwritten, little
+                sequential building
 ==============  ============================================================
 
 Public API
 ----------
-- ``FileInfo`` — data class for one file's metadata
-- ``compute_inertia(file_info, history, ...) -> InertiaResult``
-- ``classify_inertia(score) -> str``
-- ``inertia_report(result) -> str``
-- ``area_inertia(files, history) -> AreaInertiaResult``
-- ``inertia_trend(results) -> InertiaTrend``
-
-Usage::
-
-    from iamai.commit_inertia import FileInfo, compute_inertia
-    from datetime import datetime
-
-    info = FileInfo(
-        path="iamai/commit_gravity.py",
-        lines=320,
-        complexity=12,
-        coupling=5,
-        test_coverage=0.85,
-        last_changed=datetime(2026, 11, 10, 10, 0),
-    )
-    result = compute_inertia(info, commits_per_day=2.5)
-    print(result.inertia_class)  # "flexible"
+- ``CommitRecord`` — data class for one commit's metadata
+- ``compute_inertia(commits, ...) -> InertiaResult``
+- ``inertia_report(result) -> str`` — human-readable summary
+- ``inertia_trend(results) -> InertiaTrend`` — direction of change
+  across a series of measurements
 """
 
 from __future__ import annotations
 
 import math
+import re
+import statistics
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Sequence
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-INERTIA_CLASSES = ("frozen", "rigid", "stiff", "flexible", "fluid")
-
-# Thresholds: score >= threshold → that class
-_THRESHOLDS = [
-    (0.80, "frozen"),
-    (0.60, "rigid"),
-    (0.40, "stiff"),
-    (0.20, "flexible"),
-    (0.00, "fluid"),
-]
-
-# Default analysis window
-DEFAULT_WINDOW_DAYS = 30
-
-# Mass normalisation constants (empirical, tuned for this repo's scale)
-_MASS_LINES_REF = 500.0       # "reference" file size
-_MASS_COMPLEXITY_REF = 20.0   # "reference" cyclomatic complexity
-_MASS_COUPLING_REF = 10.0     # "reference" coupling count
-
-# Friction threshold
-_FRICTION_HIGH = 8
-_FRICTION_LOW = 3
-
-# Velocity thresholds (commits per day)
-_VELOCITY_ACTIVE = 1.0
-_VELOCITY_QUIET = 0.1
+from datetime import datetime
+from typing import List, Optional, Sequence
 
 
 # ---------------------------------------------------------------------------
-# Data classes
+# Data structures
 # ---------------------------------------------------------------------------
 
 @dataclass
-class FileInfo:
-    """Metadata for a single file in the codebase."""
+class CommitRecord:
+    """Metadata for a single commit."""
 
-    path: str
-    lines: int = 0
-    complexity: int = 1          # cyclomatic complexity (1 = trivial)
-    coupling: int = 0            # number of files this file imports / depends on
-    test_coverage: float = 0.0   # 0.0–1.0
-    last_changed: Optional[datetime] = None
-    area: str = ""               # top-level directory (e.g. "iamai")
+    hash: str
+    author: str
+    timestamp: datetime
+    message: str
+    files_changed: List[str] = field(default_factory=list)
+    insertions: int = 0
+    deletions: int = 0
 
-    def __post_init__(self):
-        if not self.area and "/" in self.path:
-            self.area = self.path.split("/")[0]
-        self.test_coverage = max(0.0, min(1.0, self.test_coverage))
+    def areas(self) -> set:
+        """Extract top-level directory areas from changed files."""
+        result = set()
+        for f in self.files_changed:
+            parts = f.split("/")
+            area = parts[0] if len(parts) > 1 else "__root__"
+            result.add(area)
+        return result
 
 
 @dataclass
 class InertiaResult:
-    """Result of inertia computation for a single file."""
+    """Results of an inertia analysis."""
 
-    path: str
-    area: str
-    mass: float
-    velocity: float
-    friction_coefficient: float
-    momentum: float
-    static_inertia: float
-    dynamic_inertia: float
-    inertia_score: float
+    window_commits: int
+    window_hours: float
+    change_persistence: float
+    follow_up_rate: float
+    amplification: float
+    decay_half_life: float
+    momentum_score: float
     inertia_class: str
-    staleness_days: float = 0.0
-    details: Dict[str, float] = field(default_factory=dict)
-
-
-@dataclass
-class AreaInertiaResult:
-    """Aggregated inertia for a codebase area (directory)."""
-
-    area: str
-    file_count: int
-    mean_inertia: float
-    max_inertia: float
-    min_inertia: float
-    frozen_count: int
-    fluid_count: int
-    area_class: str
-    heaviest_file: str
-    stillest_file: str
-    details: Dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
 class InertiaTrend:
-    """Trend analysis over a series of inertia measurements."""
+    """How inertia scores change across a time series."""
 
-    direction: str               # "increasing" | "stable" | "decreasing"
-    slope: float                 # change in mean inertia per measurement
-    first_mean: float
-    last_mean: float
-    delta: float
-    measurements: int
-    interpretation: str
+    direction: str  # increasing | stable | decreasing
+    score_delta: float
+    earliest_score: float
+    latest_score: float
+    sample_count: int
 
 
 # ---------------------------------------------------------------------------
-# Core computation
+# Helpers
 # ---------------------------------------------------------------------------
 
-def compute_mass(lines: int, complexity: int, coupling: int) -> float:
-    """Compute the 'mass' of a file — how heavy it is to change.
-
-    mass = normalised(lines) × normalised(complexity) × (1 + normalised(coupling))
-
-    Returns a value typically in [0, ~100], unbounded above.
-    """
-    norm_lines = lines / _MASS_LINES_REF
-    norm_complexity = complexity / _MASS_COMPLEXITY_REF
-    norm_coupling = coupling / _MASS_COUPLING_REF
-    return norm_lines * norm_complexity * (1.0 + norm_coupling)
+_REVERT_RE = re.compile(
+    r"(^revert\b|^rollback\b|^undo\b|rolls?\s?back|undoes\b|undid\b)",
+    re.IGNORECASE,
+)
 
 
-def compute_friction(coupling: int) -> float:
-    """Compute friction coefficient from coupling count.
-
-    Returns 0.0–1.0: higher = more files must change when this one does.
-    """
-    if coupling <= 0:
-        return 0.0
-    if coupling >= _FRICTION_HIGH:
-        return 1.0
-    if coupling <= _FRICTION_LOW:
-        return coupling / (2.0 * _FRICTION_LOW)
-    # Linear interpolation between low and high
-    return 0.5 + 0.5 * (coupling - _FRICTION_LOW) / (_FRICTION_HIGH - _FRICTION_LOW)
+def _is_revert(message: str) -> bool:
+    """Return True if the commit message looks like a revert."""
+    return bool(_REVERT_RE.search(message))
 
 
-def compute_velocity_score(commits_per_day: float) -> float:
-    """Convert commit rate to a velocity score 0.0–1.0.
-
-    Higher = more active.  Saturates at _VELOCITY_ACTIVE.
-    """
-    if commits_per_day <= 0:
-        return 0.0
-    if commits_per_day >= _VELOCITY_ACTIVE:
-        return 1.0
-    return commits_per_day / _VELOCITY_ACTIVE
+def _file_overlap(a: Sequence[str], b: Sequence[str]) -> int:
+    """Count files appearing in both lists."""
+    set_b = set(b)
+    return sum(1 for f in a if f in set_b)
 
 
-def compute_static_inertia(
-    staleness_days: float,
-    mass: float,
-    friction: float,
+# ---------------------------------------------------------------------------
+# Metric computations
+# ---------------------------------------------------------------------------
+
+def change_persistence(
+    commits: Sequence[CommitRecord],
+    overwrite_window: int = 5,
 ) -> float:
-    """Compute static inertia — resistance to the first change after rest.
+    """Fraction of commits whose changes survive the next *overwrite_window*
+    commits without being substantially overwritten.
 
-    Combines staleness (log-scaled), mass, and friction into 0.0–1.0.
+    A commit is "overwritten" if a later commit (within the window) touches
+    more than half of the same files AND is a revert or has >60% deletions
+    relative to insertions.
     """
-    # Log-scaled staleness: 1 day → ~0.0, 30 days → ~0.5, 365 days → ~0.85
-    if staleness_days <= 0:
-        stale_score = 0.0
-    else:
-        stale_score = min(1.0, math.log1p(staleness_days) / math.log1p(365))
+    if not commits:
+        return 0.0
 
-    # Normalise mass to 0–1 (sigmoid-like)
-    mass_score = 1.0 - math.exp(-mass / 5.0)
+    n = len(commits)
+    survived = 0
 
-    # Weighted combination
-    raw = 0.40 * stale_score + 0.35 * mass_score + 0.25 * friction
-    return max(0.0, min(1.0, raw))
+    for i, commit in enumerate(commits):
+        if not commit.files_changed:
+            survived += 1
+            continue
+
+        overwritten = False
+        my_files = set(commit.files_changed)
+        threshold = len(my_files) * 0.5
+
+        for j in range(i + 1, min(i + 1 + overwrite_window, n)):
+            later = commits[j]
+            overlap = len(my_files & set(later.files_changed))
+
+            if overlap < threshold:
+                continue
+
+            # Check if it's a revert or a heavy-deletion overwrite
+            if _is_revert(later.message):
+                overwritten = True
+                break
+            if later.insertions > 0 and later.deletions > 0:
+                del_ratio = later.deletions / (later.insertions + later.deletions)
+                if del_ratio > 0.60:
+                    overwritten = True
+                    break
+
+        if not overwritten:
+            survived += 1
+
+    return survived / n if n else 0.0
 
 
-def compute_dynamic_inertia(
-    mass: float,
-    friction: float,
-    test_coverage: float,
-    momentum: float,
-) -> float:
-    """Compute dynamic inertia — resistance to continued change.
+def follow_up_rate(commits: Sequence[CommitRecord]) -> float:
+    """Fraction of consecutive commit pairs where the later commit touches
+    at least one file from the earlier commit."""
+    if len(commits) < 2:
+        return 0.0
 
-    High momentum + good tests = low dynamic inertia (keep going).
-    High mass + low tests + high friction = high dynamic inertia (hard to sustain).
+    follow_ups = 0
+    pairs = 0
+
+    for i in range(len(commits) - 1):
+        a_files = set(commits[i].files_changed)
+        b_files = set(commits[i + 1].files_changed)
+        if not a_files or not b_files:
+            continue
+        pairs += 1
+        if a_files & b_files:
+            follow_ups += 1
+
+    return follow_ups / pairs if pairs else 0.0
+
+
+def amplification(commits: Sequence[CommitRecord]) -> float:
+    """For commits sharing files with their predecessor, the mean ratio of
+    shared files to total files in the current commit.
+
+    A high ratio means the commit *expands* from a shared core rather than
+    touching mostly new territory.
     """
-    mass_score = 1.0 - math.exp(-mass / 5.0)
-    momentum_bonus = min(1.0, momentum / 10.0)  # momentum helps
-    test_gap = 1.0 - test_coverage               # untested = risky
+    if len(commits) < 2:
+        return 0.0
 
-    raw = 0.30 * mass_score + 0.25 * friction + 0.25 * test_gap - 0.20 * momentum_bonus
-    return max(0.0, min(1.0, raw))
+    ratios: list[float] = []
+    for i in range(1, len(commits)):
+        prev_files = set(commits[i - 1].files_changed)
+        curr_files = commits[i].files_changed
+        if not curr_files:
+            continue
+        overlap = _file_overlap(curr_files, list(prev_files))
+        if overlap == 0:
+            continue
+        ratios.append(overlap / len(curr_files))
+
+    return statistics.mean(ratios) if ratios else 0.0
 
 
-def compute_inertia(
-    file_info: FileInfo,
-    commits_per_day: float = 0.0,
-    now: Optional[datetime] = None,
-) -> InertiaResult:
-    """Compute the inertia of a single file.
+def decay_half_life(commits: Sequence[CommitRecord]) -> float:
+    """Median number of commits before a modified file is touched again.
 
-    Parameters
-    ----------
-    file_info : FileInfo
-        File metadata (lines, complexity, coupling, coverage, last changed).
-    commits_per_day : float
-        Recent commit rate for this file (0 = no recent activity).
-    now : datetime, optional
-        Reference time for staleness computation (default: utcnow).
+    Longer half-life means changes *settle* — files are modified and left
+    alone.  Shorter half-life means constant churn.
 
-    Returns
-    -------
-    InertiaResult
+    Returns the raw median (in commit-count units).  Normalization to 0–1
+    for scoring happens in ``compute_inertia``.
     """
-    if now is None:
-        now = datetime.utcnow()
+    if len(commits) < 2:
+        return 0.0
 
-    # Staleness
-    staleness_days = 0.0
-    if file_info.last_changed is not None:
-        delta = now - file_info.last_changed
-        staleness_days = max(0.0, delta.total_seconds() / 86400.0)
+    # Track last-seen commit index for each file
+    last_seen: dict[str, int] = {}
+    gaps: list[int] = []
 
-    # Core metrics
-    mass = compute_mass(file_info.lines, file_info.complexity, file_info.coupling)
-    friction = compute_friction(file_info.coupling)
-    velocity = compute_velocity_score(commits_per_day)
-    momentum = mass * velocity
+    for idx, commit in enumerate(commits):
+        for f in commit.files_changed:
+            if f in last_seen:
+                gaps.append(idx - last_seen[f])
+            last_seen[f] = idx
 
-    # Inertia components
-    static = compute_static_inertia(staleness_days, mass, friction)
-    dynamic = compute_dynamic_inertia(mass, friction, file_info.test_coverage, momentum)
+    if not gaps:
+        return 0.0
 
-    # Composite: if velocity is zero, static dominates; otherwise blend
-    if velocity < 0.01:
-        score = static
-    else:
-        # Moving objects: blend static (barrier to entry) and dynamic (cost to continue)
-        score = 0.40 * static + 0.60 * dynamic
-
-    cls = classify_inertia(score)
-
-    return InertiaResult(
-        path=file_info.path,
-        area=file_info.area,
-        mass=round(mass, 4),
-        velocity=round(velocity, 4),
-        friction_coefficient=round(friction, 4),
-        momentum=round(momentum, 4),
-        static_inertia=round(static, 4),
-        dynamic_inertia=round(dynamic, 4),
-        inertia_score=round(score, 4),
-        inertia_class=cls,
-        staleness_days=round(staleness_days, 2),
-        details={
-            "lines": file_info.lines,
-            "complexity": file_info.complexity,
-            "coupling": file_info.coupling,
-            "test_coverage": file_info.test_coverage,
-            "commits_per_day": commits_per_day,
-        },
-    )
+    return float(statistics.median(gaps))
 
 
 # ---------------------------------------------------------------------------
@@ -361,133 +301,89 @@ def compute_inertia(
 # ---------------------------------------------------------------------------
 
 def classify_inertia(score: float) -> str:
-    """Classify an inertia score into a human-readable class.
-
-    Returns one of: frozen, rigid, stiff, flexible, fluid.
-    """
-    score = max(0.0, min(1.0, score))
-    for threshold, label in _THRESHOLDS:
-        if score >= threshold:
-            return label
-    return "fluid"
+    """Map a momentum_score to an inertia class."""
+    if score >= 0.80:
+        return "ballistic"
+    elif score >= 0.60:
+        return "driven"
+    elif score >= 0.40:
+        return "cruising"
+    elif score >= 0.20:
+        return "drifting"
+    else:
+        return "stalled"
 
 
 # ---------------------------------------------------------------------------
-# Aggregation
+# Composite computation
 # ---------------------------------------------------------------------------
 
-def area_inertia(
-    results: Sequence[InertiaResult],
-    area: Optional[str] = None,
-) -> AreaInertiaResult:
-    """Aggregate inertia results for a codebase area.
+def compute_inertia(
+    commits: Sequence[CommitRecord],
+    window_hours: float = 168.0,
+    overwrite_window: int = 5,
+    ideal_half_life: float = 20.0,
+) -> InertiaResult:
+    """Compute inertia metrics for a sequence of commits.
 
     Parameters
     ----------
-    results : sequence of InertiaResult
-        Individual file results (should all belong to the same area).
-    area : str, optional
-        Override area label; if None, uses the first result's area.
+    commits : sequence of CommitRecord
+        Commits ordered oldest-first.
+    window_hours : float
+        Time span the window covers (for reporting only).
+    overwrite_window : int
+        How many subsequent commits to check for overwrites.
+    ideal_half_life : float
+        The "ideal" decay half-life in commit counts.  Actual values at
+        or above this map to 1.0; shorter values scale linearly.
 
     Returns
     -------
-    AreaInertiaResult
+    InertiaResult
     """
-    if not results:
-        raise ValueError("cannot compute area inertia from empty results")
-
-    if area is None:
-        area = results[0].area
-
-    scores = [r.inertia_score for r in results]
-    mean_score = sum(scores) / len(scores)
-    frozen = sum(1 for s in scores if s >= 0.80)
-    fluid = sum(1 for s in scores if s < 0.20)
-
-    # Heaviest file (highest mass)
-    heaviest = max(results, key=lambda r: r.mass)
-    # Stillest file (most stale)
-    stillest = max(results, key=lambda r: r.staleness_days)
-
-    return AreaInertiaResult(
-        area=area,
-        file_count=len(results),
-        mean_inertia=round(mean_score, 4),
-        max_inertia=round(max(scores), 4),
-        min_inertia=round(min(scores), 4),
-        frozen_count=frozen,
-        fluid_count=fluid,
-        area_class=classify_inertia(mean_score),
-        heaviest_file=heaviest.path,
-        stillest_file=stillest.path,
-        details={
-            "median_inertia": round(sorted(scores)[len(scores) // 2], 4),
-            "frozen_fraction": round(frozen / len(scores), 4),
-            "fluid_fraction": round(fluid / len(scores), 4),
-        },
-    )
-
-
-# ---------------------------------------------------------------------------
-# Trend analysis
-# ---------------------------------------------------------------------------
-
-def inertia_trend(
-    snapshots: Sequence[float],
-) -> InertiaTrend:
-    """Analyse the trend of inertia scores over time.
-
-    Parameters
-    ----------
-    snapshots : sequence of float
-        Mean inertia scores from successive measurement windows.
-
-    Returns
-    -------
-    InertiaTrend
-    """
-    n = len(snapshots)
-    if n < 2:
-        return InertiaTrend(
-            direction="stable",
-            slope=0.0,
-            first_mean=snapshots[0] if snapshots else 0.0,
-            last_mean=snapshots[-1] if snapshots else 0.0,
-            delta=0.0,
-            measurements=n,
-            interpretation="insufficient data for trend analysis",
+    n = len(commits)
+    if n == 0:
+        return InertiaResult(
+            window_commits=0,
+            window_hours=window_hours,
+            change_persistence=0.0,
+            follow_up_rate=0.0,
+            amplification=0.0,
+            decay_half_life=0.0,
+            momentum_score=0.0,
+            inertia_class="stalled",
         )
 
-    # Simple linear regression: y = a + b*x
-    x_mean = (n - 1) / 2.0
-    y_mean = sum(snapshots) / n
-    num = sum((i - x_mean) * (snapshots[i] - y_mean) for i in range(n))
-    den = sum((i - x_mean) ** 2 for i in range(n))
-    slope = num / den if den > 0 else 0.0
+    cp = change_persistence(commits, overwrite_window=overwrite_window)
+    fur = follow_up_rate(commits)
+    amp = amplification(commits)
+    dhl_raw = decay_half_life(commits)
 
-    first = snapshots[0]
-    last = snapshots[-1]
-    delta = last - first
+    # Normalize half-life: longer is better (changes settle)
+    # Cap at ideal_half_life → 1.0; 0 → 0.0
+    dhl_score = min(dhl_raw / ideal_half_life, 1.0) if ideal_half_life > 0 else 0.0
 
-    # Classify direction
-    if slope > 0.01:
-        direction = "increasing"
-        interp = "codebase is becoming more resistant to change over time — rigidity is growing"
-    elif slope < -0.01:
-        direction = "decreasing"
-        interp = "codebase is becoming easier to change — inertia is being reduced (refactoring, simplification)"
-    else:
-        direction = "stable"
-        interp = "inertia is holding steady — no significant change in resistance to modification"
+    # Composite: persistence 35%, follow-up 25%, amplification 20%, half-life 20%
+    momentum_score = round(
+        0.35 * cp
+        + 0.25 * fur
+        + 0.20 * amp
+        + 0.20 * dhl_score,
+        4,
+    )
 
-    return InertiaTrend(
-        direction=direction,
-        slope=round(slope, 6),
-        first_mean=round(first, 4),
-        last_mean=round(last, 4),
-        delta=round(delta, 4),
-        measurements=n,
-        interpretation=interp,
+    inertia_class = classify_inertia(momentum_score)
+
+    return InertiaResult(
+        window_commits=n,
+        window_hours=window_hours,
+        change_persistence=round(cp, 4),
+        follow_up_rate=round(fur, 4),
+        amplification=round(amp, 4),
+        decay_half_life=round(dhl_raw, 4),
+        momentum_score=momentum_score,
+        inertia_class=inertia_class,
     )
 
 
@@ -496,31 +392,52 @@ def inertia_trend(
 # ---------------------------------------------------------------------------
 
 def inertia_report(result: InertiaResult) -> str:
-    """Generate a human-readable inertia report for a single file."""
+    """Human-readable summary of an inertia analysis."""
     lines = [
-        f"File: {result.path}",
-        f"Area: {result.area}",
-        f"Inertia: {result.inertia_score:.2f} ({result.inertia_class})",
-        f"  Mass:       {result.mass:.3f}",
-        f"  Velocity:   {result.velocity:.3f}",
-        f"  Friction:   {result.friction_coefficient:.3f}",
-        f"  Momentum:   {result.momentum:.3f}",
-        f"  Static:     {result.static_inertia:.3f}",
-        f"  Dynamic:    {result.dynamic_inertia:.3f}",
-        f"  Staleness:  {result.staleness_days:.1f} days",
+        f"Inertia analysis ({result.window_commits} commits over {result.window_hours:.1f}h)",
+        f"  class:                {result.inertia_class}",
+        f"  momentum score:       {result.momentum_score:.2f}",
+        f"  change persistence:   {result.change_persistence:.2%}",
+        f"  follow-up rate:       {result.follow_up_rate:.2%}",
+        f"  amplification:        {result.amplification:.2f}",
+        f"  decay half-life:      {result.decay_half_life:.1f} commits",
     ]
     return "\n".join(lines)
 
 
-def area_report(result: AreaInertiaResult) -> str:
-    """Generate a human-readable report for an area."""
-    lines = [
-        f"Area: {result.area}",
-        f"Files: {result.file_count}",
-        f"Mean inertia: {result.mean_inertia:.2f} ({result.area_class})",
-        f"  Max: {result.max_inertia:.2f}  Min: {result.min_inertia:.2f}",
-        f"  Frozen: {result.frozen_count}  Fluid: {result.fluid_count}",
-        f"  Heaviest: {result.heaviest_file}",
-        f"  Stillest: {result.stillest_file}",
-    ]
-    return "\n".join(lines)
+# ---------------------------------------------------------------------------
+# Trend analysis
+# ---------------------------------------------------------------------------
+
+def inertia_trend(results: Sequence[InertiaResult]) -> InertiaTrend:
+    """Classify how inertia scores evolve across a series of measurements."""
+    if not results:
+        return InertiaTrend(
+            direction="stable",
+            score_delta=0.0,
+            earliest_score=0.0,
+            latest_score=0.0,
+            sample_count=0,
+        )
+
+    scores = [r.momentum_score for r in results]
+    earliest = scores[0]
+    latest = scores[-1]
+    delta = round(latest - earliest, 4)
+
+    if len(scores) < 2:
+        direction = "stable"
+    elif delta > 0.05:
+        direction = "increasing"
+    elif delta < -0.05:
+        direction = "decreasing"
+    else:
+        direction = "stable"
+
+    return InertiaTrend(
+        direction=direction,
+        score_delta=round(delta, 4),
+        earliest_score=earliest,
+        latest_score=latest,
+        sample_count=len(results),
+    )
