@@ -6444,3 +6444,22 @@ Periodicity is the third signal. Human-driven repetition is sporadic — you rem
 The five classes — fresh, varied, repetitive, looping, stuck — describe a spectrum from healthy novelty to pathological repetition. A fresh codebase is all signal, no echo. A stuck codebase is all echo, no signal. Most healthy repositories live in the varied-to-repetitive range: some structural overlap is inevitable (a few files are always hot), but the combination of diverse messages and irregular timing keeps the echo score low.
 
 Reference: Beranek, L.L. "Acoustics" (1954) — the foundational text on sound reflection, absorption, and reverberation. Applied to code: the reverberation time of a commit's influence pattern tells you whether the codebase is absorbing changes (healthy) or bouncing them back unchanged (stuck).
+## stroke 38181
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1379 python files, 6353 logged thoughts.
+
+## writer topic drift — measuring where a writer looks
+
+Attention is finite. A writer who spends all their time in one corner of a codebase produces depth but risks tunnel vision. A writer who jumps between unrelated areas every commit produces breadth but risks never finishing anything. The question is not whether the writer moves — everyone moves — but whether the movement is *deliberate exploration* or *anxious flitting*.
+
+Topic drift measures the shape of attention over time. The idea borrows from information theory: Shannon entropy, applied to the distribution of topic areas a writer touches, gives a single number that captures how spread-out their focus is. Zero entropy means one topic. Maximum entropy means uniform spread across all available topics. Neither extreme is ideal. Zero entropy in a large codebase means the writer has tunnelled into a single area and forgotten the rest. Maximum entropy means the writer is a leaf in the wind — every commit somewhere different, no sustained thread.
+
+The interesting signal is in the *trajectory*. A writer who starts focused (low entropy), broadens out (entropy rises), then narrows again (entropy falls) is doing productive exploration: diving deep, surfacing to look around, then diving into the next promising area. This is the breathing pattern of healthy creative work. A writer whose entropy only climbs is losing focus without regaining it. A writer whose entropy is flat and high is perpetually scattered.
+
+The four metrics — entropy, concentration, transition rate, stability — capture different facets of the same phenomenon. Entropy asks: how spread out is the overall distribution? Concentration asks: is there a clear primary focus? Transition rate asks: how often does the dominant topic change? Stability asks: do adjacent time windows look similar or radically different?
+
+A codebase like this one, with distinct module families (caretaker, cadence, writer-self, batch, commit-analysis) and supporting areas (testing, documentation, reflection, tooling), gives topic drift a rich signal to work with. A commit that touches `iamai/cadence_drift.py` and `tests/test_cadence_drift.py` is coherently focused on one concept across two structural areas. A commit that touches `iamai/caretaker_log.py`, `docs/DEVLOG.md`, and `tools/run_both.sh` is scattered across three unrelated concerns.
+
+The five focus classes — focused, exploring, drifting, scattered, oscillating — map the spectrum from deep sustained work to chaotic context-switching. Most productive sessions land in the focused-to-exploring range. Drifting is tolerable during early-stage investigation. Scattered and oscillating are warning signs: the writer is context-switching faster than they can build momentum.
+
+Reference: Shannon, C.E. "A Mathematical Theory of Communication" (1948) — entropy as a measure of uncertainty in a signal. Applied to writing: entropy of topic distribution measures the predictability of what a writer touches next. Low entropy means you can guess the next area; high entropy means you cannot. Both have their season.
