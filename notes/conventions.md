@@ -6429,3 +6429,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 38233
 
 most architecture is choosing which coupling you will live with. At this moment: 2085 files, 584 commits deep.
+## stroke 38247
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6363 strokes written so far into 2089 files.
+## stroke 38265
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 6366 strokes written so far into 2089 files.
+## stroke 38271
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 2089 files; 480861 lines is a lot for a toy.
