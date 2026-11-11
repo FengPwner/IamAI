@@ -6413,3 +6413,5 @@ feat: add commit_churn_index — detect writer rewrite loops (23 tests); caretak
 - `2026-11-11T17:11:22+00:00` stroke 38377: 1405 python files, 6394 logged thoughts
 - `2026-11-11T17:16:24+00:00` stroke 38383: commit 602: the count of times this repo was pushed, not the work done
 - `2026-11-11T17:21:28+00:00` stroke 38389: tree is 2107 files; 490103 lines is a lot for a toy
+- `2026-11-11T18:04:20+00:00` stroke 38395: 490111 lines across 2107 tracked files, 604 commits deep
+- `2026-11-11T18:09:17+00:00` stroke 38401: commit 605: the count of times this repo was pushed, not the work done

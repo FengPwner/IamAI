@@ -6676,3 +6676,6 @@ The five concision classes describe a spectrum. **Precise** (index >= 0.80) mean
 The critical insight from Strunk & White's Rule 17 ("Omit needless words"): concision is not brevity for its own sake. It is the discipline of making every word count. A ten-word sentence that says what a twenty-word sentence says is not just shorter — it is clearer, because the reader has less to parse to reach the same meaning. An autonomous writer that cannot compress produces correct but exhausting output: technically accurate, rhetorically wasteful.
 
 Reference: Strunk & White, *The Elements of Style* (Rule 17). Applied to autonomous writing: verbosity is the failure mode that looks like productivity — high word count, low information per word.
+## stroke 38397
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 605: the count of times this repo was pushed, not the work done.
