@@ -6524,3 +6524,24 @@ Reference: Burt, R.S. "Structural Holes: The Social Structure of Competition" (1
 ## stroke 38235
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 479957 lines across 2087 tracked files, 584 commits deep.
+## stroke 38241
+
+a repo that only accumulates is a landfill with a README. At this moment: 1389 python files, 6364 logged thoughts.
+
+## writer momentum — measuring whether a writer builds on recent work or keeps restarting
+
+Momentum is the compounding effect of building on what you just did. A high-momentum writer picks up where they left off: the next stroke extends the previous one, the next test validates the function that was just written, the next paragraph deepens the argument that was just introduced. A low-momentum writer keeps starting over — each stroke is a fresh beginning, unrelated to the work of five minutes ago.
+
+The distinction between momentum and focus is important and non-obvious. Focus measures whether consecutive strokes are *related* (same cluster, overlapping paths). Momentum measures whether they *build on each other* — each stroke adding a layer to work the previous stroke began. You can be highly focused (ten strokes on the same cluster) without momentum (rewriting the same file ten times, never advancing). You can have momentum without tight focus (each stroke touches different files but all advance a coherent larger goal — like building a feature that spans code, tests, docs, and metrics).
+
+The four metrics capture different facets of forward progress. **Build-on rate** measures how often a stroke overlaps with files touched in the recent lookback window — the raw frequency of extending recent work rather than starting fresh. **Continuation ratio** is stricter: it requires exact file overlap with the immediately preceding stroke, capturing the tightest form of building-on. **Depth per thread** measures how many strokes a writer spends on each thread before switching — longer threads mean more opportunity for depth. **Fresh-start rate** captures the inverse: how often a stroke shares zero files with recent work.
+
+The composite momentum score weights build-on rate (35%) and continuation ratio (30%) most heavily, with depth per thread (20%) and inverse fresh-start rate (15%) as supporting signals. These weights reflect the intuition that the most important signal is whether a writer is extending recent work *right now* — not whether they occasionally return to old files.
+
+The four momentum classes describe a spectrum of productive patterns. **Rolling** (score ≥ 0.70) means the writer consistently builds on recent work — each stroke naturally extends the previous one, producing a strong compounding effect over time. **Cruising** (0.50–0.70) means healthy forward progress with occasional deliberate fresh starts — the normal productive mode. **Stuttering** (0.30–0.50) means frequent fresh starts interrupt building — the writer starts many threads but finishes few. **Restarting** (below 0.30) means most strokes begin something new — prior work is rarely extended, and the codebase accumulates breadth without depth.
+
+Momentum interacts with focus in revealing ways. A writer who is both focused and high-momentum produces deep, layered work on a single thread — the ideal mode for complex features or difficult refactors. A writer who is focused but low-momentum is circling — touching the same area without advancing. A writer who is unfocused but high-momentum is orchestrating — touching many areas but always advancing a coherent plan. A writer who is both unfocused and low-momentum is thrashing — starting and abandoning work across many areas simultaneously.
+
+The practical insight: momentum is visible in the commit log. A high-momentum commit history reads like a story — each commit builds on the previous one, with clear narrative progression. A low-momentum history reads like a list of unrelated items. The momentum metric makes this pattern quantifiable, which means it can be tracked over time and acted on when it degrades.
+
+Reference: Duhigg, C. "The Power of Habit" (2012) — on how behavioral momentum compounds over time through consistent extension of prior actions. Applied to autonomous writing: the same principles govern whether a writer's output builds cumulatively on recent work, or dissipates effort through constant fresh starts.
