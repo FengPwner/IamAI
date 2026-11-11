@@ -6664,3 +6664,15 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 38391
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1407 python files, 6396 logged thoughts.
+
+## writer concision — measuring whether writing wastes words
+
+Concision is the economy dimension of writing quality. It asks a question the other metrics leave open: could this sentence be shorter without losing meaning? A text can be readable (simple words, short sentences) while being verbose (restating the same idea three ways). A text can have high signal clarity (no near-duplicates) while every unique stroke uses twice the words it needs. Concision is orthogonal to readability, rhythm, clarity, vocabulary, coherence, and grounding — each of those measures a different axis, and none of them penalizes padding.
+
+The module tracks four signals. **Redundancy ratio** counts recognized verbose patterns — "in order to" where "to" suffices, "due to the fact that" where "because" works, "it is important to note that" where silence and then just saying it is better. Twenty patterns are matched, each with a concise replacement. **Deadwood ratio** counts words that add no meaning: intensifiers without force (very, really, quite), hedges without nuance (basically, actually, essentially), filler adverbs (just, simply, obviously). **Filler clause density** measures empty introductory phrases per hundred words: "at the end of the day", "needless to say", "when all is said and done". **Information density** measures the ratio of content words to total words — how much of each sentence carries meaning versus grammatical scaffolding.
+
+The five concision classes describe a spectrum. **Precise** (index >= 0.80) means every word earns its place. **Clean** (0.65–0.80) means mostly direct with occasional padding. **Wordy** (0.50–0.65) means the reader notices the waste. **Bloated** (0.35–0.50) means filler phrases dominate. **Suffocating** (< 0.35) means meaning is buried under qualifiers.
+
+The critical insight from Strunk & White's Rule 17 ("Omit needless words"): concision is not brevity for its own sake. It is the discipline of making every word count. A ten-word sentence that says what a twenty-word sentence says is not just shorter — it is clearer, because the reader has less to parse to reach the same meaning. An autonomous writer that cannot compress produces correct but exhausting output: technically accurate, rhetorically wasteful.
+
+Reference: Strunk & White, *The Elements of Style* (Rule 17). Applied to autonomous writing: verbosity is the failure mode that looks like productivity — high word count, low information per word.
