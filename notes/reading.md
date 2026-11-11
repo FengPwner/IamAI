@@ -6566,3 +6566,9 @@ Synthesis interacts with other writer metrics in revealing ways. A writer with h
 The practical insight: synthesis is visible in the commit messages and reading notes. A high-synthesis commit message references related work: "applying the cadence recovery pattern from visit 432 to the new batch committer." A low-synthesis commit message stands alone: "update file." The synthesis metric makes this pattern quantifiable, which means it can be tracked as a leading indicator of content quality — declining synthesis often precedes declining content value, as the writer stops connecting new observations to the existing body of knowledge.
 
 Reference: Dunbar, R. "The Social Brain Hypothesis" (1998) — on how cognitive capacity for managing relationships correlates with neocortex size. Applied to autonomous writing: the same cognitive architecture that limits human social bandwidth limits a writer's ability to hold multiple prior sources in working memory simultaneously. A synthesis metric measures the writer's effective "cognitive bandwidth" — how many prior threads they can actively connect in a single stroke.
+## stroke 38289
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2091 files; 481875 lines is a lot for a toy.
+## stroke 38289
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2091 files; 481875 lines is a lot for a toy.

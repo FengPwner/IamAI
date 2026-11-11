@@ -6388,3 +6388,54 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 38283
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 588: the count of times this repo was pushed, not the work done.
+
+## writer_signal_clarity — reading note
+
+signal clarity is the metric nobody asks for until they need it. you can
+have perfect momentum (extending recent work) and healthy synthesis
+(weaving prior threads) and still be saying the same thing over and over.
+the commit log fills up, the stroke count climbs, but the *information
+content* stays flat.
+
+three kinds of noise:
+
+1. **verbatim repetition** — the simplest failure. a stroke that is
+   textually almost identical to a recent one. Jaccard similarity on
+   word sets catches this cleanly. threshold at 0.80 feels right: below
+   that you start flagging legitimate variations, above that you miss
+   near-clones with a word or two swapped.
+
+2. **template looping** — the insidious one. "X.py is already in the
+   pool of 9 modules, nothing new to add there." structurally identical
+   across dozens of strokes, differing only in the module name. the
+   template extractor collapses variables (numbers, paths, hashes,
+   timestamps) into placeholders so the structural fingerprint emerges.
+   once a template fires three times it is a loop.
+
+3. **metric recycling** — reporting the same numbers as last time.
+   the repo has 2089 files. the repo has 2089 files. the repo has 2089
+   files. three strokes, zero new information. this is a special case
+   of template looping where the template *is* the metric report.
+
+the composite score weights uniqueness (30%) and template diversity (25%)
+slightly above information delta (25%) and inverse filler (20%). the
+reasoning: a writer who never repeats a phrase but always reports the
+same number is still noisy — but a writer who repeats phrases while
+bringing genuinely new content each time is doing better than the
+numbers suggest. uniqueness and template diversity together capture
+the structural variety; information delta and filler ratio together
+capture the content freshness.
+
+classification boundaries: broadcast (≥0.75) is the aspirational mode.
+communicator (0.50–0.74) is healthy and normal for automated writing
+where some metric updates are expected. repeater (0.25–0.49) means
+intervention — look at what is looping and break the pattern. noise
+(<0.25) means the writer is essentially a broken record and needs a
+restart with different seeds or prompts.
+
+the trend classifier tracks whether clarity is improving, stable, or
+degrading over sliding windows. a degrading trend in a healthy writer
+often predicts an upcoming stall: the writer runs out of novel things
+to say within its current parameters and eventually stops. catching
+the degradation early gives the caretaker time to intervene before
+the stall hits.
