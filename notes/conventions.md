@@ -6450,3 +6450,9 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 38301
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 590: the count of times this repo was pushed, not the work done.
+## stroke 38319
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 595: the count of times this repo was pushed, not the work done.
+## stroke 38325
+
+a repo that only accumulates is a landfill with a README. At this moment: 6380 strokes written so far into 2097 files.
