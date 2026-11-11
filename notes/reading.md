@@ -6694,3 +6694,13 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 38421
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2111 files; 492832 lines is a lot for a toy.
+
+## writer coherence — measuring whether writing connects
+
+Coherence is the dimension of writing quality that the other metrics leave open: do ideas *flow*, or are they just stacked? A text can be readable (simple words, short sentences) while being incoherent — each sentence is clear in isolation, but the paragraph jumps randomly between topics like a shuffled playlist. A text can have high specificity (every number, every name, every date) while being incoherent — a catalog of precise but disconnected facts. A text can be concise while being incoherent — three-word sentences that share nothing but a period.
+
+Coherence asks whether the reader can follow the thread from sentence A to sentence B without guessing. Five signals capture this. **Transition density** counts explicit connective tissue: "however", "therefore", "moreover", "meanwhile" — the words that tell the reader how the next idea relates to the previous one. **Pronoun reference clarity** checks whether "it", "they", "this" point back to something named in the preceding sentence, or dangle without an antecedent. **Logical connector coverage** measures what fraction of consecutive sentence pairs contain at least one explicit link. **Lexical cohesion** measures Jaccard similarity of content words between adjacent sentences — do they share vocabulary, or does each sentence introduce an entirely new topic? **Discourse marker diversity** checks whether the writer uses a range of connectors or repeats the same one — seven "however"s is not coherence, it is a tic.
+
+The critical insight from Halliday & Hasan's *Cohesion in English* (1976): coherence is not a property of individual sentences but of the relationships *between* them. A paragraph is coherent when each sentence presupposes the one before it — through reference, substitution, ellipsis, conjunction, or lexical repetition. An autonomous writer that cannot maintain coherence produces technically correct but logically disconnected output: each sentence is a paragraph unto itself, and the reader must do the work of finding (or imposing) the thread.
+
+Reference: Halliday, M.A.K. & Hasan, R. (1976), *Cohesion in English*. Applied to autonomous writing: coherence is the failure mode that looks like productivity — high sentence count, zero argumentative thread.

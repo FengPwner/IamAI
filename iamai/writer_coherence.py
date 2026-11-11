@@ -1,544 +1,669 @@
 #!/usr/bin/env python3
-"""writer_coherence — measure whether consecutive ideas logically connect
-and build on each other within a writing session.
+"""writer_coherence — measure how well ideas connect and flow within writing.
 
-Coherence is about *thread continuity*.  A coherent session reads like a
-single sustained argument: each stroke picks up concepts from its
-predecessors, extends them, and passes them forward.  An incoherent
-session reads like a shuffled deck of unrelated notes: each stroke may
-be well-formed in isolation, but the sequence lacks connective tissue.
+Coherence is about *logical connectedness*.  Coherent prose links ideas
+explicitly, maintains clear referents, and builds from one thought to
+the next.  Incoherent prose jumps between topics, drops referents, and
+leaves the reader to guess how sentence B relates to sentence A.
 
 This module is orthogonal to the other writer metrics:
 
-- **novelty_decay** tracks whether the *rate of new content* trends up
-  or down across the session arc.  A session can have zero decay
-  (steady novelty) while being incoherent (each novel stroke is about
-  a different topic).
+- **readability** tracks whether prose is *easy to parse*.  A text can be
+  readable (short sentences, simple words) while being incoherent (each
+  sentence is clear in isolation but the paragraph jumps randomly between
+  topics).  Readability is about effort per sentence; coherence is about
+  whether sentences *connect*.
 
-- **exploration_exploitation** tracks whether the writer *ventures into
-  new territory* or *deepens known territory*.  A session can be 100%
-  exploitation (no exploration) while being incoherent (exploiting ten
-  unrelated threads in alternation).
+- **concision** tracks whether prose uses *more words than needed*.  A
+  text can be concise while being incoherent ("Deploy failed. Market
+  opened. Tests pass." — three words each, zero connection).  Concision
+  is about economy; coherence is about linkage.
 
-- **signal_clarity** tracks whether strokes are *substantively different*
-  from their neighbours.  A session can have perfect clarity (no
-  repetition) while being incoherent (every stroke is unique but
-  unrelated to the previous).
+- **signal_clarity** tracks whether strokes are *substantively unique*.
+  A writer can produce unique, coherent strokes that don't connect to
+  each other.  Clarity is about within-stroke uniqueness; coherence is
+  about between-sentence connectedness.
 
-Coherence asks specifically: **does stroke N connect to stroke N-1?**
+- **specificity** tracks whether prose names *concrete things*.  A text
+  can be specific ("Python 3.12", "port 8080", "2026-11-03") while
+  being incoherent (jumping between unrelated specifics with no
+  transitions).  Specificity is about precision of reference; coherence
+  is about logical flow between references.
 
-Three signals are tracked per adjacent pair:
+- **vocabulary_richness** tracks *diversity* of word choice.  A text
+  can use rich vocabulary while being incoherent (ornate topic-jumping)
+  or simple vocabulary while being coherent (plain but connected).
 
-1. **Lexical chaining** — Jaccard similarity of word sets between
-   adjacent strokes.  Two strokes that share significant vocabulary
-   are lexically chained; two strokes with zero word overlap are
-   lexically disconnected.
+- **prose_rhythm** tracks *variation* in sentence length.  Rhythm is
+  structural; coherence is semantic and logical.
 
-2. **Concept threading** — do any bigrams from stroke N appear in
-   strokes N-1 through N-W (a lookback window)?  A concept that
-   recurs across multiple strokes forms a *thread*.  A session with
-   many active threads is coherent; one where each stroke introduces
-   only disposable bigrams is fragmented.
+- **grounding_density** tracks whether claims are *anchored in evidence*.
+  Grounded but incoherent text cites sources without connecting the
+  claims they support.
 
-3. **Topic stability** — the rolling-window similarity of vocabulary
-   distributions.  If the word-frequency profile of the last W strokes
-   is similar to the profile of the previous W strokes, the topic is
-   stable.  Sharp shifts indicate topic jumps.
+Coherence asks: **can the reader follow the argument, or do they have to
+guess how each sentence relates to the last?**
 
-From these per-pair signals a session-level **coherence_index** is
-computed and classified:
+Five signals are tracked:
 
-==============  ============================================================
-class           meaning
-==============  ============================================================
-narrative       coherence_index >= 0.60 — ideas flow from one stroke to the
-                next with strong connective tissue; the session reads like
-                a single sustained exploration of related concepts
-meandering      0.40 <= coherence_index < 0.60 — moderate connectivity;
-                the writer follows tangents but eventually circles back
-                to related themes; normal for exploratory sessions
-fragmented      0.20 <= coherence_index < 0.40 — weak connectivity; the
-                writer jumps between topics with minimal bridging; output
-                is a collection of loosely related fragments
-disjointed      coherence_index < 0.20 — almost no connectivity; strokes
-                appear to be about independent topics; the session lacks
-                a through-line
-==============  ============================================================
+1. **Transition density** — frequency of explicit transition words and
+   phrases per hundred words.  Includes: additive ("moreover",
+   "furthermore", "additionally", "also", "besides"), contrastive
+   ("however", "although", "nevertheless", "in contrast", "on the other
+   hand", "conversely", "yet"), causal ("therefore", "consequently",
+   "because", "since", "as a result", "thus", "hence", "accordingly"),
+   and temporal ("meanwhile", "subsequently", "afterward", "then",
+   "next", "finally", "previously", "initially").
 
-The module also computes a **thread_count**: the number of distinct
-bigram-based concept threads that persist across at least three
-strokes.  A thread is "alive" when its bigrams appear in the current
-lookback window and "dead" when they haven't appeared for W strokes.
+2. **Pronoun reference clarity** — whether pronouns have plausible
+   antecedents in the preceding sentence.  Measured as the ratio of
+   pronouns with a matching content-word antecedent in the prior sentence
+   to total pronouns.  "The server crashed. It had been running for 48
+   hours." — 'it' refers to 'server', clear.  "The server crashed. They
+   said it would." — 'they' has no antecedent, unclear.
 
-Session arc analysis
---------------------
-The session is divided into quartiles and the coherence index is
-computed for each.  A healthy sustained session shows a characteristic
-"settle-in" curve: moderate coherence in Q1 (the writer is still
-finding the thread), rising coherence in Q2-Q3 (the thread is
-developing), and slightly declining coherence in Q4 (the writer has
-exhausted the easy connections and must reach further for new ones).
-Deviations from this pattern are flagged:
+3. **Logical connector coverage** — fraction of consecutive sentence
+   pairs that contain at least one logical connector (transition word,
+   conjunction, or discourse marker).  A text where every sentence pair
+   has a connector scores 1.0; a text where sentences are simply
+   juxtaposed scores 0.0.
 
-- **Steady**: coherence roughly constant across quartiles → the writer
-  maintains a consistent level of connectivity throughout.
-- **Rising**: coherence increases over the session → the writer started
-  scattered and gradually found the thread.
-- **Falling**: coherence decreases over the session → the writer started
-  strong but lost the thread, possibly due to fatigue.
-- **Oscillating**: coherence alternates between high and low → the
-  writer works in bursts of focused exploration separated by pivots.
+4. **Lexical cohesion** — overlap of content words between consecutive
+   sentences.  Measured as the Jaccard similarity of content-word sets
+   (nouns, verbs, adjectives, adverbs) between adjacent sentences,
+   averaged across all pairs.  Higher overlap means the text stays on
+   topic; zero overlap means each sentence introduces entirely new
+   vocabulary.
+
+5. **Discourse marker diversity** — variety of discourse markers used
+   relative to total discourse marker instances.  A text that uses
+   "however" seven times scores lower than one that uses "however",
+   "moreover", "consequently", "in contrast", "meanwhile", "thus",
+   "additionally" once each.  Measured as unique markers / total markers.
+
+The **coherence_index** is computed as a weighted composite:
+
+    index = transition_density_norm    * 0.25
+          + pronoun_reference_clarity  * 0.20
+          + logical_connector_coverage * 0.25
+          + lexical_cohesion           * 0.15
+          + discourse_marker_diversity * 0.15
+
+Classified as:
+
+- **tight** (>= 0.80): ideas flow naturally, every sentence connects
+  to the last, referents are always clear.
+- **connected** (>= 0.60): mostly coherent with occasional jumps.
+- **adequate** (>= 0.40): mixed — some paragraphs flow, others feel
+  like bullet points pretending to be prose.
+- **loose** (>= 0.20): frequent topic jumps, unclear referents,
+  reader must work to find connections.
+- **fragmented** (< 0.20): sentences are islands; the text reads like
+  a shuffled deck of independent thoughts.
 """
 
 from __future__ import annotations
 
+import json
+import math
 import re
+from pathlib import Path
 from typing import Any
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+TRANSITION_ADDITIVE: list[str] = [
+    "moreover", "furthermore", "additionally", "also", "besides",
+    "in addition", "what is more", "not only", "along with",
+    "as well as", "equally important", "similarly", "likewise",
+    "by the same token", "in the same way", "correspondingly",
+]
+
+TRANSITION_CONTRASTIVE: list[str] = [
+    "however", "although", "nevertheless", "nonetheless",
+    "in contrast", "on the other hand", "conversely", "yet",
+    "still", "but", "whereas", "while", "despite",
+    "in spite of", "on the contrary", "rather", "instead",
+    "then again",
+]
+
+TRANSITION_CAUSAL: list[str] = [
+    "therefore", "consequently", "because", "since", "as a result",
+    "thus", "hence", "accordingly", "so", "for this reason",
+    "due to", "owing to", "as a consequence", "in consequence",
+    "for that reason", "which means", "that is why",
+    "it follows that", "this suggests",
+]
+
+TRANSITION_TEMPORAL: list[str] = [
+    "meanwhile", "subsequently", "afterward", "afterwards", "then",
+    "next", "finally", "previously", "initially", "first",
+    "second", "third", "later", "earlier", "before",
+    "after", "during", "simultaneously", "at the same time",
+    "in the meantime", "soon", "eventually", "ultimately",
+]
+
+ALL_TRANSITIONS: list[str] = (
+    TRANSITION_ADDITIVE
+    + TRANSITION_CONTRASTIVE
+    + TRANSITION_CAUSAL
+    + TRANSITION_TEMPORAL
+)
+
+TRANSITION_CATEGORIES: dict[str, list[str]] = {
+    "additive": TRANSITION_ADDITIVE,
+    "contrastive": TRANSITION_CONTRASTIVE,
+    "causal": TRANSITION_CAUSAL,
+    "temporal": TRANSITION_TEMPORAL,
+}
+
+PRONOUNS: list[str] = [
+    "it", "its", "they", "them", "their", "theirs",
+    "he", "him", "his", "she", "her", "hers",
+    "this", "that", "these", "those",
+    "which", "who", "whom",
+]
+
+# Common stop words to exclude from content-word analysis.
+STOP_WORDS: set[str] = {
+    "a", "an", "the", "is", "are", "was", "were", "be", "been",
+    "being", "have", "has", "had", "do", "does", "did", "will",
+    "would", "could", "should", "may", "might", "shall", "can",
+    "need", "dare", "ought", "used", "to", "of", "in", "for",
+    "on", "with", "at", "by", "from", "as", "into", "through",
+    "during", "before", "after", "above", "below", "between",
+    "out", "off", "over", "under", "again", "further", "then",
+    "once", "here", "there", "when", "where", "why", "how", "all",
+    "both", "each", "few", "more", "most", "other", "some", "such",
+    "no", "nor", "not", "only", "own", "same", "so", "than", "too",
+    "very", "just", "because", "but", "and", "or", "if", "while",
+    "about", "up", "that", "this", "these", "those", "it", "its",
+    "they", "them", "their", "he", "him", "his", "she", "her",
+    "we", "us", "our", "you", "your", "i", "me", "my", "what",
+    "which", "who", "whom", "whose",
+}
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _tokenize(text: str) -> list[str]:
-    """Lowercase word-level tokenization preserving order."""
-    return re.findall(r"\w+", text.lower())
 
-
-def _bigrams(tokens: list[str]) -> list[tuple[str, str]]:
-    """Extract consecutive word pairs from a token list."""
-    return list(zip(tokens, tokens[1:])) if len(tokens) >= 2 else []
+def _split_words(text: str) -> list[str]:
+    """Split text into lowercase word tokens."""
+    return [w.lower() for w in re.findall(r"[a-zA-Z']+", text)]
 
 
 def _get_stroke_text(stroke: dict[str, Any]) -> str:
-    """Extract text from a stroke dict, handling None and missing."""
-    text = stroke.get("text") or stroke.get("content") or ""
-    return str(text) if text is not None else ""
+    """Extract text content from a stroke record."""
+    for key in ("text", "content", "body"):
+        val = stroke.get(key)
+        if isinstance(val, str) and val.strip():
+            return val
+    return ""
 
 
-def _word_set(tokens: list[str]) -> set[str]:
-    """Convert a token list to a set for Jaccard computation."""
-    return set(tokens)
+def _split_sentences(text: str) -> list[str]:
+    """Split text into sentences, stripping empty fragments."""
+    raw = re.split(r"(?<=[.!?])\s+", text.strip())
+    return [s.strip() for s in raw if s.strip() and len(s.split()) >= 2]
 
 
-def _jaccard(a: set[str], b: set[str]) -> float:
-    """Compute Jaccard similarity between two sets."""
-    if not a and not b:
-        return 0.0
-    intersection = len(a & b)
-    union = len(a | b)
-    return intersection / union if union > 0 else 0.0
+def _content_words(words: list[str]) -> list[str]:
+    """Filter to content words (not stop words, length >= 3)."""
+    return [w for w in words if w not in STOP_WORDS and len(w) >= 3]
 
 
 # ---------------------------------------------------------------------------
-# Per-pair analysis
+# Signal 1: Transition density
 # ---------------------------------------------------------------------------
 
-def analyze_lexical_chaining(
-    current_tokens: list[str],
-    previous_tokens: list[str],
-) -> float:
-    """Compute lexical chain strength between two adjacent strokes.
 
-    Returns Jaccard similarity of their word sets (0.0–1.0).
+def compute_transition_density(text: str) -> float:
+    """Transition markers per hundred words.  Higher is more coherent.
+
+    Returns a value >= 0.  Typical range: 0-10.
     """
-    return _jaccard(_word_set(current_tokens), _word_set(previous_tokens))
-
-
-def analyze_concept_threading(
-    current_bigrams: list[tuple[str, str]],
-    lookback_bigrams: list[list[tuple[str, str]]],
-) -> float:
-    """Measure how many of the current stroke's bigrams recur in lookback.
-
-    Parameters
-    ----------
-    current_bigrams : list of bigram tuples from the current stroke
-    lookback_bigrams : list of lists of bigrams from the prior W strokes
-
-    Returns
-    -------
-    Fraction of current bigrams that appear in at least one lookback
-    stroke (0.0–1.0).  Returns 0.0 if there are no current bigrams.
-    """
-    if not current_bigrams:
+    words = _split_words(text)
+    if not words:
         return 0.0
 
-    lookback_set: set[tuple[str, str]] = set()
-    for stroke_bigrams in lookback_bigrams:
-        lookback_set.update(stroke_bigrams)
+    text_lower = text.lower()
+    hits = 0
+    for marker in ALL_TRANSITIONS:
+        pattern = r"\b" + re.escape(marker) + r"\b"
+        hits += len(re.findall(pattern, text_lower))
 
-    if not lookback_set:
-        return 0.0
-
-    threaded = sum(1 for b in current_bigrams if b in lookback_set)
-    return threaded / len(current_bigrams)
+    return (hits / len(words)) * 100
 
 
-def analyze_topic_stability(
-    window_tokens: list[list[str]],
-    prev_window_tokens: list[list[str]],
+def _score_transition_density(density: float) -> float:
+    """Convert density to 0-1 score (1 = well-connected).
+
+    Uses saturation curve: score = 1 - exp(-density / 3).
+    At density 0 -> 0, density 3 -> ~0.63, density 6 -> ~0.86.
+    """
+    return 1.0 - math.exp(-density / 3.0)
+
+
+# ---------------------------------------------------------------------------
+# Signal 2: Pronoun reference clarity
+# ---------------------------------------------------------------------------
+
+
+def compute_pronoun_reference_clarity(text: str) -> float:
+    """Fraction of pronouns with a plausible antecedent in the prior sentence.
+
+    Returns 0-1.  Higher means pronouns consistently refer back to
+    something named in the preceding sentence.
+    """
+    sentences = _split_sentences(text)
+    if len(sentences) < 2:
+        return 0.5  # neutral when only one sentence
+
+    total_pronouns = 0
+    clear_pronouns = 0
+
+    for i in range(1, len(sentences)):
+        prev_words = set(_content_words(_split_words(sentences[i - 1])))
+        curr_words = _split_words(sentences[i])
+
+        for word in curr_words:
+            if word in PRONOUNS:
+                total_pronouns += 1
+                if _has_antecedent(word, prev_words):
+                    clear_pronouns += 1
+
+    if total_pronouns == 0:
+        return 0.7  # slightly above neutral when no pronouns used
+    return clear_pronouns / total_pronouns
+
+
+def _has_antecedent(pronoun: str, prev_content_words: set[str]) -> bool:
+    """Check whether a pronoun has a plausible antecedent.
+
+    Uses simple heuristic: any content word in the prior sentence that
+    is not itself a pronoun counts as a potential antecedent for 'it',
+    'they', 'this', 'that'.  For 'he'/'she', looks for person-nouns.
+    """
+    if not prev_content_words:
+        return False
+
+    person_indicators = {
+        "man", "woman", "person", "user", "developer", "engineer",
+        "author", "writer", "reader", "admin", "manager", "leader",
+        "team", "group", "member", "client", "customer", "player",
+        "he", "she", "him", "her", "who", "someone", "anyone",
+    }
+
+    if pronoun in ("he", "him", "his", "she", "her", "hers"):
+        return bool(prev_content_words & person_indicators)
+
+    # For 'it', 'they', 'this', 'that', 'these', 'those', 'which':
+    # Any content word is a potential antecedent.
+    return len(prev_content_words) > 0
+
+
+# ---------------------------------------------------------------------------
+# Signal 3: Logical connector coverage
+# ---------------------------------------------------------------------------
+
+
+def compute_logical_connector_coverage(text: str) -> float:
+    """Fraction of consecutive sentence pairs linked by a connector.
+
+    Returns 0-1.  Higher means more sentence pairs are explicitly linked.
+    """
+    sentences = _split_sentences(text)
+    if len(sentences) < 2:
+        return 0.5  # neutral when only one sentence
+
+    pairs = len(sentences) - 1
+    linked = 0
+
+    for i in range(1, len(sentences)):
+        combined = (sentences[i - 1] + " " + sentences[i]).lower()
+        for connector in ALL_TRANSITIONS:
+            if re.search(r"\b" + re.escape(connector) + r"\b", combined):
+                linked += 1
+                break
+
+    return linked / pairs
+
+
+# ---------------------------------------------------------------------------
+# Signal 4: Lexical cohesion
+# ---------------------------------------------------------------------------
+
+
+def compute_lexical_cohesion(text: str) -> float:
+    """Average Jaccard similarity of content words between adjacent sentences.
+
+    Returns 0-1.  Higher means consecutive sentences share more vocabulary,
+    indicating the text stays on topic.
+    """
+    sentences = _split_sentences(text)
+    if len(sentences) < 2:
+        return 0.5  # neutral when only one sentence
+
+    similarities = []
+    for i in range(1, len(sentences)):
+        words_prev = set(_content_words(_split_words(sentences[i - 1])))
+        words_curr = set(_content_words(_split_words(sentences[i])))
+
+        if not words_prev and not words_curr:
+            similarities.append(0.0)
+            continue
+
+        union = words_prev | words_curr
+        if not union:
+            similarities.append(0.0)
+            continue
+
+        intersection = words_prev & words_curr
+        similarities.append(len(intersection) / len(union))
+
+    if not similarities:
+        return 0.5
+    return sum(similarities) / len(similarities)
+
+
+# ---------------------------------------------------------------------------
+# Signal 5: Discourse marker diversity
+# ---------------------------------------------------------------------------
+
+
+def compute_discourse_marker_diversity(text: str) -> float:
+    """Ratio of unique discourse markers to total marker instances.
+
+    Returns 0-1.  Higher means the writer uses a variety of connectors
+    rather than repeating the same one.
+    """
+    text_lower = text.lower()
+    total = 0
+    unique: set[str] = set()
+
+    for marker in ALL_TRANSITIONS:
+        pattern = r"\b" + re.escape(marker) + r"\b"
+        count = len(re.findall(pattern, text_lower))
+        if count > 0:
+            total += count
+            unique.add(marker)
+
+    if total == 0:
+        return 0.5  # neutral when no markers used
+    return len(unique) / total
+
+
+# ---------------------------------------------------------------------------
+# Composite
+# ---------------------------------------------------------------------------
+
+
+def compute_coherence_index(
+    transition_density: float,
+    pronoun_reference_clarity: float,
+    logical_connector_coverage: float,
+    lexical_cohesion: float,
+    discourse_marker_diversity: float,
 ) -> float:
-    """Measure stability of vocabulary distribution across adjacent windows.
+    """Weighted composite coherence index, 0-1.
 
-    Computes Jaccard similarity of the union of word sets in each window.
-    Returns 0.0–1.0.
+    Weights:
+    - transition density:          25%
+    - pronoun reference clarity:   20%
+    - logical connector coverage:  25%
+    - lexical cohesion:            15%
+    - discourse marker diversity:  15%
     """
-    current_union: set[str] = set()
-    for tokens in window_tokens:
-        current_union.update(tokens)
+    td_score = _score_transition_density(transition_density)
 
-    prev_union: set[str] = set()
-    for tokens in prev_window_tokens:
-        prev_union.update(tokens)
-
-    return _jaccard(current_union, prev_union)
-
-
-# ---------------------------------------------------------------------------
-# Thread tracking
-# ---------------------------------------------------------------------------
-
-def count_active_threads(
-    strokes: list[dict[str, Any]],
-    lookback: int = 5,
-    min_persistence: int = 3,
-) -> int:
-    """Count distinct concept threads that persist across multiple strokes.
-
-    A thread is a bigram that appears in at least ``min_persistence``
-    strokes within any window of ``lookback`` consecutive strokes.
-
-    Parameters
-    ----------
-    strokes : ordered list of stroke records
-    lookback : window size for thread detection
-    min_persistence : minimum number of strokes a bigram must appear in
-        within a window to count as a thread
-
-    Returns
-    -------
-    Number of distinct threads found across the entire session.
-    """
-    if len(strokes) < min_persistence:
-        return 0
-
-    # Collect all bigrams per stroke
-    per_stroke_bigrams: list[set[tuple[str, str]]] = []
-    for stroke in strokes:
-        text = _get_stroke_text(stroke)
-        tokens = _tokenize(text)
-        per_stroke_bigrams.append(set(_bigrams(tokens)))
-
-    # Track which bigrams appear in at least min_persistence strokes
-    # within any sliding window of size lookback
-    thread_bigrams: set[tuple[str, str]] = set()
-
-    n = len(per_stroke_bigrams)
-    for window_start in range(max(1, n - lookback + 1)):
-        window_end = min(window_start + lookback, n)
-        bigram_counts: dict[tuple[str, str], int] = {}
-        for i in range(window_start, window_end):
-            for b in per_stroke_bigrams[i]:
-                bigram_counts[b] = bigram_counts.get(b, 0) + 1
-        for bigram, count in bigram_counts.items():
-            if count >= min_persistence:
-                thread_bigrams.add(bigram)
-
-    return len(thread_bigrams)
+    index = (
+        td_score * 0.25
+        + pronoun_reference_clarity * 0.20
+        + logical_connector_coverage * 0.25
+        + lexical_cohesion * 0.15
+        + discourse_marker_diversity * 0.15
+    )
+    return round(index, 4)
 
 
-# ---------------------------------------------------------------------------
-# Session-level analysis
-# ---------------------------------------------------------------------------
+def classify_coherence(index: float) -> str:
+    """Classify coherence index into a human-readable label."""
+    if index >= 0.80:
+        return "tight"
+    if index >= 0.60:
+        return "connected"
+    if index >= 0.40:
+        return "adequate"
+    if index >= 0.20:
+        return "loose"
+    return "fragmented"
+
 
 def compute_coherence_metrics(
-    strokes: list[dict[str, Any]],
-    lookback: int = 3,
+    strokes: list[dict[str, Any]], window_size: int = 50
 ) -> dict[str, Any]:
-    """Compute session-level coherence metrics.
+    """Compute coherence metrics over a window of recent strokes.
 
     Parameters
     ----------
-    strokes : list[dict]
-        Ordered list of stroke records, each with ``text`` or ``content``.
-    lookback : int
-        Number of prior strokes to use for concept threading and topic
-        stability calculations.
+    strokes : list of stroke dicts
+        Stroke records from strokes.jsonl.
+    window_size : int
+        Number of recent strokes to analyze.
 
     Returns
     -------
     dict with keys:
-        ``strokes_analyzed`` — number of strokes processed
-        ``lexical_chaining`` — mean Jaccard similarity between adjacent strokes
-        ``concept_threading`` — mean bigram recurrence across lookback
-        ``topic_stability`` — mean vocabulary stability across windows
-        ``coherence_index`` — composite (mean of the three signals)
-        ``coherence_class`` — narrative | meandering | fragmented | disjointed
-        ``thread_count`` — number of persistent concept threads
-        ``phase_scores`` — list of 4 floats (quartile coherence scores)
-        ``phase_arc`` — steady | rising | falling | oscillating
+        transition_density, pronoun_reference_clarity,
+        logical_connector_coverage, lexical_cohesion,
+        discourse_marker_diversity, coherence_index,
+        classification, strokes_analyzed.
     """
-    if not strokes:
-        return {
-            "strokes_analyzed": 0,
-            "lexical_chaining": 0.0,
-            "concept_threading": 0.0,
-            "topic_stability": 0.0,
-            "coherence_index": 0.0,
-            "coherence_class": "disjointed",
-            "thread_count": 0,
-            "phase_scores": [0.0, 0.0, 0.0, 0.0],
-            "phase_arc": "steady",
-        }
+    recent = strokes[-window_size:] if strokes else []
+    texts = [_get_stroke_text(s) for s in recent if _get_stroke_text(s)]
 
-    if len(strokes) == 1:
-        return {
-            "strokes_analyzed": 1,
-            "lexical_chaining": 0.0,
-            "concept_threading": 0.0,
-            "topic_stability": 0.0,
-            "coherence_index": 0.0,
-            "coherence_class": "disjointed",
-            "thread_count": 0,
-            "phase_scores": [0.0, 0.0, 0.0, 0.0],
-            "phase_arc": "steady",
-        }
+    if not texts:
+        return _empty_metrics()
 
-    # Pre-compute tokens and bigrams for all strokes
-    all_tokens: list[list[str]] = []
-    all_bigrams: list[list[tuple[str, str]]] = []
-    for stroke in strokes:
-        text = _get_stroke_text(stroke)
-        tokens = _tokenize(text)
-        all_tokens.append(tokens)
-        all_bigrams.append(_bigrams(tokens))
+    combined = " ".join(texts)
 
-    # Per-pair metrics
-    lexical_scores: list[float] = []
-    concept_scores: list[float] = []
-    stability_scores: list[float] = []
-
-    for i in range(1, len(strokes)):
-        # Lexical chaining (adjacent pair)
-        lex = analyze_lexical_chaining(all_tokens[i], all_tokens[i - 1])
-        lexical_scores.append(lex)
-
-        # Concept threading (lookback)
-        lb_start = max(0, i - lookback)
-        lb_bigrams = all_bigrams[lb_start:i]
-        con = analyze_concept_threading(all_bigrams[i], lb_bigrams)
-        concept_scores.append(con)
-
-        # Topic stability (window comparison)
-        win_end = i + 1
-        win_start = max(0, win_end - lookback)
-        prev_end = win_start
-        prev_start = max(0, prev_end - lookback)
-        if prev_start < prev_end and win_start < win_end:
-            stab = analyze_topic_stability(
-                all_tokens[win_start:win_end],
-                all_tokens[prev_start:prev_end],
-            )
-        else:
-            stab = 0.0
-        stability_scores.append(stab)
-
-    n_pairs = len(lexical_scores)
-    mean_lex = sum(lexical_scores) / n_pairs if n_pairs > 0 else 0.0
-    mean_con = sum(concept_scores) / n_pairs if n_pairs > 0 else 0.0
-    mean_stab = sum(stability_scores) / n_pairs if n_pairs > 0 else 0.0
-    coherence_index = (mean_lex + mean_con + mean_stab) / 3.0
-
-    # Classification
-    coherence_class = _classify_coherence(coherence_index)
-
-    # Thread count
-    thread_count = count_active_threads(strokes, lookback=lookback)
-
-    # Phase analysis
-    phase_scores = _compute_phase_scores(
-        lexical_scores, concept_scores, stability_scores,
-    )
-    phase_arc = _classify_phase_arc(phase_scores)
+    td = compute_transition_density(combined)
+    pr = compute_pronoun_reference_clarity(combined)
+    lc = compute_logical_connector_coverage(combined)
+    lx = compute_lexical_cohesion(combined)
+    dm = compute_discourse_marker_diversity(combined)
+    idx = compute_coherence_index(td, pr, lc, lx, dm)
 
     return {
-        "strokes_analyzed": len(strokes),
-        "lexical_chaining": round(mean_lex, 4),
-        "concept_threading": round(mean_con, 4),
-        "topic_stability": round(mean_stab, 4),
-        "coherence_index": round(coherence_index, 4),
-        "coherence_class": coherence_class,
-        "thread_count": thread_count,
-        "phase_scores": [round(s, 4) for s in phase_scores],
-        "phase_arc": phase_arc,
+        "transition_density": round(td, 4),
+        "pronoun_reference_clarity": round(pr, 4),
+        "logical_connector_coverage": round(lc, 4),
+        "lexical_cohesion": round(lx, 4),
+        "discourse_marker_diversity": round(dm, 4),
+        "coherence_index": idx,
+        "classification": classify_coherence(idx),
+        "strokes_analyzed": len(texts),
     }
 
 
-def _classify_coherence(coherence_index: float) -> str:
-    """Map coherence_index to a class label."""
-    if coherence_index >= 0.60:
-        return "narrative"
-    elif coherence_index >= 0.40:
-        return "meandering"
-    elif coherence_index >= 0.20:
-        return "fragmented"
-    else:
-        return "disjointed"
-
-
-def _compute_phase_scores(
-    lexical: list[float],
-    concept: list[float],
-    stability: list[float],
-) -> list[float]:
-    """Divide per-pair scores into quartiles and compute mean per quartile."""
-    n = len(lexical)
-    if n == 0:
-        return [0.0, 0.0, 0.0, 0.0]
-
-    # Compute per-pair composite scores
-    composites = [
-        (lexical[i] + concept[i] + stability[i]) / 3.0
-        for i in range(n)
-    ]
-
-    if n < 4:
-        scores = [0.0, 0.0, 0.0, 0.0]
-        for i, s in enumerate(composites):
-            q = min(i, 3)
-            scores[q] = s
-        return scores
-
-    q_size = n / 4.0
-    quartiles: list[list[float]] = [[], [], [], []]
-    for i, s in enumerate(composites):
-        q = min(int(i / q_size), 3)
-        quartiles[q].append(s)
-
-    return [
-        sum(q) / len(q) if q else 0.0
-        for q in quartiles
-    ]
-
-
-def _classify_phase_arc(phase_scores: list[float]) -> str:
-    """Classify the session's coherence trajectory across quartiles."""
-    q1, q2, q3, q4 = phase_scores
-
-    # Oscillating: adjacent quartiles alternate direction by > 0.05
-    diffs = [q2 - q1, q3 - q2, q4 - q3]
-    sign_changes = sum(
-        1 for i in range(len(diffs) - 1)
-        if diffs[i] * diffs[i + 1] < -0.001
-    )
-    if sign_changes >= 2:
-        return "oscillating"
-
-    # Rising: Q4 > Q1 by at least 0.05
-    if q4 > q1 + 0.05:
-        return "rising"
-
-    # Falling: Q1 > Q4 by at least 0.05
-    if q1 > q4 + 0.05:
-        return "falling"
-
-    return "steady"
+def _empty_metrics() -> dict[str, Any]:
+    return {
+        "transition_density": 0.0,
+        "pronoun_reference_clarity": 0.5,
+        "logical_connector_coverage": 0.5,
+        "lexical_cohesion": 0.5,
+        "discourse_marker_diversity": 0.5,
+        "coherence_index": 0.5,
+        "classification": "adequate",
+        "strokes_analyzed": 0,
+    }
 
 
 # ---------------------------------------------------------------------------
-# Reporting
+# Trend
 # ---------------------------------------------------------------------------
+
+
+def compute_coherence_trend(
+    strokes: list[dict[str, Any]], window_size: int = 50
+) -> list[dict[str, Any]]:
+    """Compute coherence index over sliding windows.
+
+    Returns a list of dicts with 'window_start', 'window_end',
+    'coherence_index', 'classification'.
+    """
+    if len(strokes) < window_size:
+        metrics = compute_coherence_metrics(strokes, window_size)
+        return [
+            {
+                "window_start": 0,
+                "window_end": len(strokes),
+                "coherence_index": metrics["coherence_index"],
+                "classification": metrics["classification"],
+            }
+        ]
+
+    trends = []
+    step = max(window_size // 2, 1)
+    for start in range(0, len(strokes) - window_size + 1, step):
+        window = strokes[start : start + window_size]
+        metrics = compute_coherence_metrics(window, window_size)
+        trends.append(
+            {
+                "window_start": start,
+                "window_end": start + window_size,
+                "coherence_index": metrics["coherence_index"],
+                "classification": metrics["classification"],
+            }
+        )
+    return trends
+
+
+def classify_trend(trend: list[dict[str, Any]]) -> str:
+    """Classify the overall trend direction.
+
+    Returns 'improving', 'stable', or 'declining'.
+    """
+    if len(trend) < 2:
+        return "stable"
+
+    first_half = trend[: len(trend) // 2]
+    second_half = trend[len(trend) // 2 :]
+
+    avg_first = sum(t["coherence_index"] for t in first_half) / len(first_half)
+    avg_second = sum(t["coherence_index"] for t in second_half) / len(second_half)
+
+    delta = avg_second - avg_first
+    if delta > 0.05:
+        return "improving"
+    if delta < -0.05:
+        return "declining"
+    return "stable"
+
+
+# ---------------------------------------------------------------------------
+# Per-stroke analysis
+# ---------------------------------------------------------------------------
+
+
+def analyze_stroke_coherence(stroke: dict[str, Any]) -> dict[str, Any]:
+    """Analyze coherence for a single stroke."""
+    text = _get_stroke_text(stroke)
+    if not text:
+        return _empty_metrics()
+
+    td = compute_transition_density(text)
+    pr = compute_pronoun_reference_clarity(text)
+    lc = compute_logical_connector_coverage(text)
+    lx = compute_lexical_cohesion(text)
+    dm = compute_discourse_marker_diversity(text)
+    idx = compute_coherence_index(td, pr, lc, lx, dm)
+
+    return {
+        "transition_density": round(td, 4),
+        "pronoun_reference_clarity": round(pr, 4),
+        "logical_connector_coverage": round(lc, 4),
+        "lexical_cohesion": round(lx, 4),
+        "discourse_marker_diversity": round(dm, 4),
+        "coherence_index": idx,
+        "classification": classify_coherence(idx),
+        "strokes_analyzed": 1,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Report
+# ---------------------------------------------------------------------------
+
 
 def format_coherence_report(metrics: dict[str, Any]) -> str:
-    """Format coherence metrics as a readable report."""
+    """Format coherence metrics as a human-readable report."""
+    if metrics["strokes_analyzed"] == 0:
+        return "No strokes analyzed."
+
     lines = [
-        "## writer coherence",
-        "",
-        f"strokes analyzed: {metrics['strokes_analyzed']}",
-        f"coherence index: {metrics['coherence_index']}",
-        f"coherence class: {metrics['coherence_class']}",
-        f"active threads: {metrics['thread_count']}",
-        "",
-        "### signals",
-        f"  lexical chaining: {metrics['lexical_chaining']}",
-        f"  concept threading: {metrics['concept_threading']}",
-        f"  topic stability: {metrics['topic_stability']}",
-        "",
-        "### phase analysis",
+        f"Coherence Report ({metrics['strokes_analyzed']} strokes)",
+        "=" * 50,
+        f"  Coherence Index:             {metrics['coherence_index']:.4f}"
+        f"  [{metrics['classification']}]",
+        f"  Transition Density:          {metrics['transition_density']:.4f}"
+        " (per 100 words, higher is better)",
+        f"  Pronoun Reference Clarity:   {metrics['pronoun_reference_clarity']:.4f}"
+        " (0-1, higher is better)",
+        f"  Logical Connector Coverage:  {metrics['logical_connector_coverage']:.4f}"
+        " (0-1, higher is better)",
+        f"  Lexical Cohesion:            {metrics['lexical_cohesion']:.4f}"
+        " (0-1, higher is better)",
+        f"  Discourse Marker Diversity:  {metrics['discourse_marker_diversity']:.4f}"
+        " (0-1, higher is better)",
     ]
-    labels = ["Q1 (early)", "Q2", "Q3", "Q4 (late)"]
-    for label, score in zip(labels, metrics["phase_scores"]):
-        lines.append(f"  {label}: {score}")
-    lines.append(f"  arc: {metrics['phase_arc']}")
-    lines.append("")
-
-    interp = _interpret(metrics)
-    lines.append("### interpretation")
-    lines.append(interp)
-    lines.append("")
-
     return "\n".join(lines)
 
 
-def _interpret(metrics: dict[str, Any]) -> str:
-    """Generate a plain-language interpretation of the metrics."""
-    cc = metrics["coherence_class"]
-    tc = metrics["thread_count"]
-    pa = metrics["phase_arc"]
+# ---------------------------------------------------------------------------
+# CLI entry point
+# ---------------------------------------------------------------------------
 
-    parts = []
 
-    if cc == "narrative":
-        parts.append(
-            "ideas flow smoothly from stroke to stroke with strong "
-            "connective tissue — the session reads as a sustained argument"
-        )
-    elif cc == "meandering":
-        parts.append(
-            "moderate connectivity with occasional tangents — the writer "
-            "follows side threads but circles back to related themes"
-        )
-    elif cc == "fragmented":
-        parts.append(
-            "weak connectivity between strokes — the writer jumps between "
-            "topics with minimal bridging; output resembles a collection "
-            "of loosely related notes"
-        )
-    else:
-        parts.append(
-            "almost no connective tissue between strokes — the session "
-            "lacks a through-line and reads as independent fragments"
-        )
+def analyze_coherence(
+    strokes_path: str | Path = "data/strokes.jsonl",
+    window_size: int = 50,
+) -> dict[str, Any]:
+    """Analyze coherence from a strokes JSONL file.
 
-    if tc >= 10:
-        parts.append(
-            f"{tc} active concept threads — the writer is juggling many "
-            "interrelated ideas simultaneously"
-        )
-    elif tc >= 3:
-        parts.append(
-            f"{tc} active concept threads — a manageable number of "
-            "recurring themes being developed in parallel"
-        )
-    elif tc >= 1:
-        parts.append(
-            f"only {tc} concept thread — the session is narrowly focused "
-            "on a single recurring idea"
-        )
-    else:
-        parts.append(
-            "no persistent concept threads detected — ideas are introduced "
-            "and abandoned without development"
-        )
+    Parameters
+    ----------
+    strokes_path : str
+        Path to strokes JSONL file.
+    window_size : int
+        Number of recent strokes to analyze.
 
-    if pa == "rising":
-        parts.append("arc: the writer started scattered and gradually found the thread")
-    elif pa == "falling":
-        parts.append("arc: the writer started strong but lost coherence over time")
-    elif pa == "oscillating":
-        parts.append("arc: alternating between focused and scattered phases")
-    else:
-        parts.append("arc: consistent coherence level throughout the session")
+    Returns
+    -------
+    dict
+        Coherence metrics.
+    """
+    path = Path(strokes_path)
+    if not path.exists():
+        return _empty_metrics()
 
-    return "; ".join(parts)
+    strokes: list[dict[str, Any]] = []
+    with open(path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    strokes.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+
+    return compute_coherence_metrics(strokes, window_size)
+
+
+if __name__ == "__main__":
+    metrics = analyze_coherence()
+    print(format_coherence_report(metrics))

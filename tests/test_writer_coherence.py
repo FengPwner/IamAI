@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for writer_coherence — 65 test cases."""
+"""Tests for writer_coherence — coherence as logical connectedness signal."""
 
 from __future__ import annotations
 
@@ -11,91 +11,146 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
 from iamai.writer_coherence import (  # noqa: E402
-    _bigrams,
-    _classify_coherence,
-    _classify_phase_arc,
-    _compute_phase_scores,
+    ALL_TRANSITIONS,
+    PRONOUNS,
+    STOP_WORDS,
+    TRANSITION_ADDITIVE,
+    TRANSITION_CAUSAL,
+    TRANSITION_CONTRASTIVE,
+    TRANSITION_TEMPORAL,
+    _content_words,
+    _empty_metrics,
     _get_stroke_text,
-    _jaccard,
-    _tokenize,
-    _word_set,
-    analyze_concept_threading,
-    analyze_lexical_chaining,
-    analyze_topic_stability,
+    _has_antecedent,
+    _score_transition_density,
+    _split_sentences,
+    _split_words,
+    analyze_coherence,
+    analyze_stroke_coherence,
+    classify_coherence,
+    classify_trend,
+    compute_coherence_index,
     compute_coherence_metrics,
-    count_active_threads,
+    compute_coherence_trend,
+    compute_discourse_marker_diversity,
+    compute_lexical_cohesion,
+    compute_logical_connector_coverage,
+    compute_pronoun_reference_clarity,
+    compute_transition_density,
     format_coherence_report,
 )
 
 
 # ---------------------------------------------------------------------------
-# Helper: _tokenize
+# Helper: _split_words
 # ---------------------------------------------------------------------------
 
-class TestTokenize(unittest.TestCase):
-    """Test _tokenize helper."""
 
-    def test_basic_sentence(self):
-        self.assertEqual(_tokenize("Hello World"), ["hello", "world"])
-
-    def test_empty_string(self):
-        self.assertEqual(_tokenize(""), [])
-
-    def test_punctuation_stripped(self):
-        tokens = _tokenize("foo, bar! baz.")
-        self.assertEqual(tokens, ["foo", "bar", "baz"])
-
-    def test_numbers_included(self):
-        tokens = _tokenize("stroke 42 done")
-        self.assertIn("42", tokens)
-
-    def test_mixed_case(self):
-        tokens = _tokenize("UPPER lower MiXeD")
-        self.assertEqual(tokens, ["upper", "lower", "mixed"])
-
-    def test_repeats_preserved(self):
-        tokens = _tokenize("go go go")
-        self.assertEqual(tokens, ["go", "go", "go"])
-
-    def test_underscores(self):
-        tokens = _tokenize("hello_world test")
-        self.assertEqual(tokens, ["hello_world", "test"])
-
-
-# ---------------------------------------------------------------------------
-# Helper: _bigrams
-# ---------------------------------------------------------------------------
-
-class TestBigrams(unittest.TestCase):
-    """Test _bigrams helper."""
+class TestSplitWords(unittest.TestCase):
+    """Test _split_words helper."""
 
     def test_basic(self):
-        result = _bigrams(["a", "b", "c"])
-        self.assertEqual(result, [("a", "b"), ("b", "c")])
+        words = _split_words("Hello world")
+        self.assertEqual(words, ["hello", "world"])
 
-    def test_single_token(self):
-        self.assertEqual(_bigrams(["a"]), [])
+    def test_punctuation(self):
+        words = _split_words("It's a test, really.")
+        self.assertIn("it's", words)
+        self.assertIn("really", words)
 
     def test_empty(self):
-        self.assertEqual(_bigrams([]), [])
+        self.assertEqual(_split_words(""), [])
 
-    def test_two_tokens(self):
-        self.assertEqual(_bigrams(["x", "y"]), [("x", "y")])
+    def test_numbers_ignored(self):
+        words = _split_words("test 42 data")
+        self.assertEqual(words, ["test", "data"])
 
-    def test_duplicates_preserved(self):
-        result = _bigrams(["a", "b", "a", "b"])
-        self.assertEqual(len(result), 3)
 
-    def test_four_tokens(self):
-        result = _bigrams(["a", "b", "c", "d"])
-        self.assertEqual(len(result), 3)
-        self.assertEqual(result[0], ("a", "b"))
-        self.assertEqual(result[2], ("c", "d"))
+# ---------------------------------------------------------------------------
+# Helper: _split_sentences
+# ---------------------------------------------------------------------------
+
+
+class TestSplitSentences(unittest.TestCase):
+    """Test _split_sentences helper."""
+
+    def test_basic(self):
+        sentences = _split_sentences("First sentence. Second sentence.")
+        self.assertEqual(len(sentences), 2)
+
+    def test_single_word_filtered(self):
+        sentences = _split_sentences("Hello. This is a test.")
+        # "Hello." is only one word, should be filtered.
+        self.assertEqual(len(sentences), 1)
+        self.assertIn("test", sentences[0])
+
+    def test_empty(self):
+        self.assertEqual(_split_sentences(""), [])
+
+    def test_exclamation_and_question(self):
+        sentences = _split_sentences("What happened? It crashed! The server died.")
+        self.assertEqual(len(sentences), 3)
+
+
+# ---------------------------------------------------------------------------
+# Helper: _content_words
+# ---------------------------------------------------------------------------
+
+
+class TestContentWords(unittest.TestCase):
+    """Test _content_words helper."""
+
+    def test_filters_stop_words(self):
+        words = ["the", "server", "is", "running", "fast"]
+        result = _content_words(words)
+        self.assertNotIn("the", result)
+        self.assertNotIn("is", result)
+        self.assertIn("server", result)
+        self.assertIn("running", result)
+
+    def test_filters_short_words(self):
+        words = ["an", "or", "big", "data"]
+        result = _content_words(words)
+        self.assertNotIn("an", result)
+        self.assertNotIn("or", result)
+        self.assertIn("big", result)
+        self.assertIn("data", result)
+
+    def test_empty(self):
+        self.assertEqual(_content_words([]), [])
+
+
+# ---------------------------------------------------------------------------
+# Helper: _has_antecedent
+# ---------------------------------------------------------------------------
+
+
+class TestHasAntecedent(unittest.TestCase):
+    """Test _has_antecedent helper."""
+
+    def test_it_with_content_words(self):
+        self.assertTrue(_has_antecedent("it", {"server", "crashed"}))
+
+    def test_it_empty(self):
+        self.assertFalse(_has_antecedent("it", set()))
+
+    def test_she_with_person_noun(self):
+        self.assertTrue(_has_antecedent("she", {"developer", "wrote"}))
+
+    def test_she_without_person_noun(self):
+        self.assertFalse(_has_antecedent("she", {"server", "running"}))
+
+    def test_he_with_person_noun(self):
+        self.assertTrue(_has_antecedent("he", {"engineer", "fixed"}))
+
+    def test_they_with_content(self):
+        self.assertTrue(_has_antecedent("they", {"tests", "failed"}))
 
 
 # ---------------------------------------------------------------------------
 # Helper: _get_stroke_text
 # ---------------------------------------------------------------------------
+
 
 class TestGetStrokeText(unittest.TestCase):
     """Test _get_stroke_text helper."""
@@ -104,598 +159,509 @@ class TestGetStrokeText(unittest.TestCase):
         self.assertEqual(_get_stroke_text({"text": "hello"}), "hello")
 
     def test_content_key(self):
-        self.assertEqual(_get_stroke_text({"content": "world"}), "world")
+        self.assertEqual(_get_stroke_text({"content": "hello"}), "hello")
 
-    def test_text_takes_precedence(self):
-        self.assertEqual(
-            _get_stroke_text({"text": "first", "content": "second"}),
-            "first",
-        )
+    def test_body_key(self):
+        self.assertEqual(_get_stroke_text({"body": "hello"}), "hello")
 
-    def test_empty_dict(self):
+    def test_empty_stroke(self):
         self.assertEqual(_get_stroke_text({}), "")
 
-    def test_none_text(self):
-        self.assertEqual(_get_stroke_text({"text": None}), "")
-
-    def test_integer_text(self):
-        self.assertEqual(_get_stroke_text({"text": 42}), "42")
+    def test_whitespace_only(self):
+        self.assertEqual(_get_stroke_text({"text": "   "}), "")
 
 
 # ---------------------------------------------------------------------------
-# Helper: _word_set
+# Signal 1: Transition density
 # ---------------------------------------------------------------------------
 
-class TestWordSet(unittest.TestCase):
-    """Test _word_set helper."""
 
-    def test_basic(self):
-        self.assertEqual(_word_set(["a", "b", "c"]), {"a", "b", "c"})
+class TestTransitionDensity(unittest.TestCase):
+    """Test compute_transition_density."""
 
-    def test_deduplication(self):
-        self.assertEqual(_word_set(["a", "a", "b"]), {"a", "b"})
+    def test_no_transitions(self):
+        text = "The server crashed. The database failed. Tests passed."
+        density = compute_transition_density(text)
+        self.assertEqual(density, 0.0)
+
+    def test_with_transitions(self):
+        text = (
+            "The server crashed. However, the database survived. "
+            "Therefore, we continued testing. Moreover, the results "
+            "were positive."
+        )
+        density = compute_transition_density(text)
+        self.assertGreater(density, 0.0)
 
     def test_empty(self):
-        self.assertEqual(_word_set([]), set())
+        self.assertEqual(compute_transition_density(""), 0.0)
 
-
-# ---------------------------------------------------------------------------
-# Helper: _jaccard
-# ---------------------------------------------------------------------------
-
-class TestJaccard(unittest.TestCase):
-    """Test _jaccard similarity."""
-
-    def test_identical_sets(self):
-        s = {"a", "b", "c"}
-        self.assertAlmostEqual(_jaccard(s, s), 1.0)
-
-    def test_disjoint_sets(self):
-        self.assertAlmostEqual(_jaccard({"a", "b"}, {"c", "d"}), 0.0)
-
-    def test_partial_overlap(self):
-        # intersection = {b}, union = {a, b, c} → 1/3
-        self.assertAlmostEqual(_jaccard({"a", "b"}, {"b", "c"}), 1 / 3)
-
-    def test_both_empty(self):
-        self.assertAlmostEqual(_jaccard(set(), set()), 0.0)
-
-    def test_one_empty(self):
-        self.assertAlmostEqual(_jaccard({"a"}, set()), 0.0)
-
-    def test_subset(self):
-        # intersection = {a}, union = {a, b, c} → 1/3
-        self.assertAlmostEqual(_jaccard({"a"}, {"a", "b", "c"}), 1 / 3)
-
-
-# ---------------------------------------------------------------------------
-# analyze_lexical_chaining
-# ---------------------------------------------------------------------------
-
-class TestLexicalChaining(unittest.TestCase):
-    """Test analyze_lexical_chaining."""
-
-    def test_identical_strokes(self):
-        tokens = _tokenize("the cadence of the writing session")
-        score = analyze_lexical_chaining(tokens, tokens)
-        self.assertAlmostEqual(score, 1.0)
-
-    def test_completely_different(self):
-        a = _tokenize("cadence rhythm tempo")
-        b = _tokenize("quantum physics entropy")
-        score = analyze_lexical_chaining(a, b)
-        self.assertAlmostEqual(score, 0.0)
-
-    def test_partial_overlap(self):
-        a = _tokenize("the cadence drift was detected")
-        b = _tokenize("cadence drift compensation module added")
-        score = analyze_lexical_chaining(a, b)
-        self.assertGreater(score, 0.0)
-        self.assertLess(score, 1.0)
-
-    def test_empty_current(self):
-        prev = _tokenize("hello world")
-        self.assertAlmostEqual(analyze_lexical_chaining([], prev), 0.0)
-
-    def test_empty_previous(self):
-        curr = _tokenize("hello world")
-        self.assertAlmostEqual(analyze_lexical_chaining(curr, []), 0.0)
-
-    def test_both_empty(self):
-        self.assertAlmostEqual(analyze_lexical_chaining([], []), 0.0)
-
-
-# ---------------------------------------------------------------------------
-# analyze_concept_threading
-# ---------------------------------------------------------------------------
-
-class TestConceptThreading(unittest.TestCase):
-    """Test analyze_concept_threading."""
-
-    def test_all_threaded(self):
-        # All bigrams in current appear in lookback
-        current = [("a", "b"), ("b", "c")]
-        lookback = [[("a", "b"), ("b", "c"), ("c", "d")]]
-        score = analyze_concept_threading(current, lookback)
-        self.assertAlmostEqual(score, 1.0)
-
-    def test_none_threaded(self):
-        current = [("x", "y"), ("y", "z")]
-        lookback = [[("a", "b"), ("b", "c")]]
-        score = analyze_concept_threading(current, lookback)
-        self.assertAlmostEqual(score, 0.0)
-
-    def test_partial_threading(self):
-        current = [("a", "b"), ("x", "y")]
-        lookback = [[("a", "b"), ("c", "d")]]
-        score = analyze_concept_threading(current, lookback)
-        self.assertAlmostEqual(score, 0.5)
-
-    def test_empty_current(self):
-        score = analyze_concept_threading([], [[("a", "b")]])
-        self.assertAlmostEqual(score, 0.0)
-
-    def test_empty_lookback(self):
-        current = [("a", "b")]
-        score = analyze_concept_threading(current, [])
-        self.assertAlmostEqual(score, 0.0)
-
-    def test_multiple_lookback_strokes(self):
-        current = [("a", "b"), ("c", "d")]
-        lookback = [
-            [("a", "b")],
-            [("e", "f")],
-            [("c", "d")],
-        ]
-        score = analyze_concept_threading(current, lookback)
-        self.assertAlmostEqual(score, 1.0)
-
-    def test_scattered_lookback(self):
-        current = [("a", "b"), ("c", "d"), ("e", "f")]
-        lookback = [[("a", "b")], [("e", "f")]]
-        score = analyze_concept_threading(current, lookback)
-        self.assertAlmostEqual(score, 2 / 3)
-
-
-# ---------------------------------------------------------------------------
-# analyze_topic_stability
-# ---------------------------------------------------------------------------
-
-class TestTopicStability(unittest.TestCase):
-    """Test analyze_topic_stability."""
-
-    def test_identical_windows(self):
-        window = [_tokenize("cadence drift rhythm tempo")]
-        score = analyze_topic_stability(window, window)
-        self.assertAlmostEqual(score, 1.0)
-
-    def test_completely_different(self):
-        w1 = [_tokenize("quantum physics entropy")]
-        w2 = [_tokenize("cadence rhythm writing")]
-        score = analyze_topic_stability(w1, w2)
-        self.assertAlmostEqual(score, 0.0)
-
-    def test_partial_stability(self):
-        w1 = [_tokenize("cadence drift and rhythm")]
-        w2 = [_tokenize("cadence drift was detected")]
-        score = analyze_topic_stability(w1, w2)
-        self.assertGreater(score, 0.0)
-        self.assertLess(score, 1.0)
-
-    def test_multi_stroke_windows(self):
-        w1 = [_tokenize("cadence rhythm"), _tokenize("tempo pace")]
-        w2 = [_tokenize("cadence drift"), _tokenize("tempo speed")]
-        score = analyze_topic_stability(w1, w2)
-        self.assertGreater(score, 0.0)
-
-    def test_empty_windows(self):
-        self.assertAlmostEqual(analyze_topic_stability([], []), 0.0)
-
-    def test_one_empty(self):
-        w1 = [_tokenize("hello world")]
-        self.assertAlmostEqual(analyze_topic_stability(w1, []), 0.0)
-
-
-# ---------------------------------------------------------------------------
-# count_active_threads
-# ---------------------------------------------------------------------------
-
-class TestCountActiveThreads(unittest.TestCase):
-    """Test count_active_threads."""
-
-    def test_no_strokes(self):
-        self.assertEqual(count_active_threads([]), 0)
-
-    def test_fewer_than_min_persistence(self):
-        strokes = [
-            {"text": "hello world"},
-            {"text": "hello world"},
-        ]
-        self.assertEqual(count_active_threads(strokes, min_persistence=3), 0)
-
-    def test_single_thread(self):
-        # "hello world" appears in 3 strokes → 1 thread
-        strokes = [
-            {"text": "hello world foo"},
-            {"text": "hello world bar"},
-            {"text": "hello world baz"},
-        ]
-        count = count_active_threads(strokes, lookback=5, min_persistence=3)
-        self.assertGreaterEqual(count, 1)
-
-    def test_multiple_threads(self):
-        strokes = [
-            {"text": "cadence drift rhythm and tempo pace"},
-            {"text": "cadence drift module added for tracking"},
-            {"text": "rhythm and tempo detection improvements"},
-            {"text": "cadence drift and rhythm monitoring system"},
-        ]
-        count = count_active_threads(strokes, lookback=5, min_persistence=3)
-        self.assertGreaterEqual(count, 1)
-
-    def test_lookback_window(self):
-        # Bigram appears twice but outside lookback window
-        strokes = [
-            {"text": "alpha beta gamma"},
-            {"text": "delta epsilon zeta"},
-            {"text": "eta theta iota"},
-            {"text": "kappa lambda mu"},
-            {"text": "alpha beta nu"},
-        ]
-        # With small lookback, early occurrence may not be in window
-        count_small = count_active_threads(
-            strokes, lookback=2, min_persistence=2,
+    def test_high_density(self):
+        text = (
+            "However the server crashed. Therefore we restarted. "
+            "Moreover the tests passed. Furthermore the deploy succeeded. "
+            "Additionally the metrics improved. Consequently we shipped."
         )
-        count_large = count_active_threads(
-            strokes, lookback=6, min_persistence=2,
+        density = compute_transition_density(text)
+        self.assertGreater(density, 5.0)
+
+    def test_score_conversion(self):
+        self.assertAlmostEqual(_score_transition_density(0.0), 0.0, places=2)
+        self.assertGreater(_score_transition_density(3.0), 0.5)
+        self.assertGreater(_score_transition_density(6.0), 0.8)
+
+
+# ---------------------------------------------------------------------------
+# Signal 2: Pronoun reference clarity
+# ---------------------------------------------------------------------------
+
+
+class TestPronounReferenceClarity(unittest.TestCase):
+    """Test compute_pronoun_reference_clarity."""
+
+    def test_clear_pronouns(self):
+        text = (
+            "The server crashed at midnight. It had been running for "
+            "48 hours. The database also failed. It needed a restart."
         )
-        # Large lookback should find the thread, small might not
-        self.assertGreaterEqual(count_large, count_small)
+        clarity = compute_pronoun_reference_clarity(text)
+        self.assertGreater(clarity, 0.5)
 
-    def test_text_extraction(self):
-        strokes = [
-            {"content": "hello world test"},
-            {"text": "hello world again"},
-            {"text": "hello world more"},
-        ]
-        count = count_active_threads(strokes, lookback=5, min_persistence=3)
-        self.assertGreaterEqual(count, 1)
+    def test_no_pronouns(self):
+        text = "The server crashed. The database failed. Tests passed."
+        clarity = compute_pronoun_reference_clarity(text)
+        self.assertAlmostEqual(clarity, 0.7)
 
-
-# ---------------------------------------------------------------------------
-# _classify_coherence
-# ---------------------------------------------------------------------------
-
-class TestClassifyCoherence(unittest.TestCase):
-    """Test _classify_coherence."""
-
-    def test_narrative(self):
-        self.assertEqual(_classify_coherence(0.60), "narrative")
-        self.assertEqual(_classify_coherence(0.85), "narrative")
-        self.assertEqual(_classify_coherence(1.0), "narrative")
-
-    def test_meandering(self):
-        self.assertEqual(_classify_coherence(0.40), "meandering")
-        self.assertEqual(_classify_coherence(0.50), "meandering")
-        self.assertEqual(_classify_coherence(0.59), "meandering")
-
-    def test_fragmented(self):
-        self.assertEqual(_classify_coherence(0.20), "fragmented")
-        self.assertEqual(_classify_coherence(0.30), "fragmented")
-        self.assertEqual(_classify_coherence(0.39), "fragmented")
-
-    def test_disjointed(self):
-        self.assertEqual(_classify_coherence(0.0), "disjointed")
-        self.assertEqual(_classify_coherence(0.10), "disjointed")
-        self.assertEqual(_classify_coherence(0.19), "disjointed")
-
-    def test_boundaries(self):
-        # Exact boundary values
-        self.assertEqual(_classify_coherence(0.60), "narrative")
-        self.assertEqual(_classify_coherence(0.40), "meandering")
-        self.assertEqual(_classify_coherence(0.20), "fragmented")
-
-
-# ---------------------------------------------------------------------------
-# _classify_phase_arc
-# ---------------------------------------------------------------------------
-
-class TestClassifyPhaseArc(unittest.TestCase):
-    """Test _classify_phase_arc."""
-
-    def test_steady(self):
-        scores = [0.4, 0.4, 0.4, 0.4]
-        self.assertEqual(_classify_phase_arc(scores), "steady")
-
-    def test_rising(self):
-        scores = [0.2, 0.3, 0.4, 0.5]
-        self.assertEqual(_classify_phase_arc(scores), "rising")
-
-    def test_falling(self):
-        scores = [0.5, 0.4, 0.3, 0.2]
-        self.assertEqual(_classify_phase_arc(scores), "falling")
-
-    def test_oscillating(self):
-        scores = [0.5, 0.2, 0.6, 0.1]
-        self.assertEqual(_classify_phase_arc(scores), "oscillating")
-
-    def test_slight_rise_is_steady(self):
-        # Difference of 0.04 is below the 0.05 threshold
-        scores = [0.40, 0.41, 0.42, 0.44]
-        self.assertEqual(_classify_phase_arc(scores), "steady")
-
-    def test_near_boundary(self):
-        # Exactly 0.05 rise → rising
-        scores = [0.30, 0.31, 0.33, 0.36]
-        self.assertEqual(_classify_phase_arc(scores), "rising")
-
-
-# ---------------------------------------------------------------------------
-# _compute_phase_scores
-# ---------------------------------------------------------------------------
-
-class TestComputePhaseScores(unittest.TestCase):
-    """Test _compute_phase_scores."""
+    def test_single_sentence(self):
+        text = "It crashed."
+        clarity = compute_pronoun_reference_clarity(text)
+        self.assertAlmostEqual(clarity, 0.5)
 
     def test_empty(self):
-        self.assertEqual(_compute_phase_scores([], [], []), [0.0, 0.0, 0.0, 0.0])
-
-    def test_single_pair(self):
-        scores = _compute_phase_scores([0.6], [0.4], [0.5])
-        self.assertAlmostEqual(scores[0], 0.5)
-        self.assertEqual(scores[1], 0.0)
-
-    def test_four_pairs(self):
-        lex = [0.1, 0.2, 0.3, 0.4]
-        con = [0.1, 0.2, 0.3, 0.4]
-        stab = [0.1, 0.2, 0.3, 0.4]
-        scores = _compute_phase_scores(lex, con, stab)
-        # Each quartile should have exactly one value
-        self.assertEqual(len(scores), 4)
-
-    def test_eight_pairs(self):
-        lex = [0.1] * 8
-        con = [0.2] * 8
-        stab = [0.3] * 8
-        scores = _compute_phase_scores(lex, con, stab)
-        expected = (0.1 + 0.2 + 0.3) / 3.0
-        for s in scores:
-            self.assertAlmostEqual(s, expected)
+        self.assertAlmostEqual(compute_pronoun_reference_clarity(""), 0.5)
 
 
 # ---------------------------------------------------------------------------
-# compute_coherence_metrics
+# Signal 3: Logical connector coverage
 # ---------------------------------------------------------------------------
 
-class TestComputeCoherenceMetrics(unittest.TestCase):
-    """Test compute_coherence_metrics session-level analysis."""
+
+class TestLogicalConnectorCoverage(unittest.TestCase):
+    """Test compute_logical_connector_coverage."""
+
+    def test_all_linked(self):
+        text = (
+            "The server crashed. However the database survived. "
+            "Therefore we continued. Moreover results were good."
+        )
+        coverage = compute_logical_connector_coverage(text)
+        self.assertGreater(coverage, 0.5)
+
+    def test_none_linked(self):
+        text = (
+            "The server crashed. The database failed. "
+            "Tests passed. Deploy succeeded."
+        )
+        coverage = compute_logical_connector_coverage(text)
+        self.assertEqual(coverage, 0.0)
+
+    def test_single_sentence(self):
+        coverage = compute_logical_connector_coverage("The server crashed.")
+        self.assertAlmostEqual(coverage, 0.5)
+
+    def test_empty(self):
+        self.assertAlmostEqual(compute_logical_connector_coverage(""), 0.5)
+
+
+# ---------------------------------------------------------------------------
+# Signal 4: Lexical cohesion
+# ---------------------------------------------------------------------------
+
+
+class TestLexicalCohesion(unittest.TestCase):
+    """Test compute_lexical_cohesion."""
+
+    def test_high_cohesion(self):
+        text = (
+            "The server processes requests quickly. The server handles "
+            "errors gracefully. The server logs all activity."
+        )
+        cohesion = compute_lexical_cohesion(text)
+        self.assertGreater(cohesion, 0.1)
+
+    def test_low_cohesion(self):
+        text = (
+            "Python ships new releases quarterly. Mountain climbing "
+            "requires endurance. Quantum computing uses qubits."
+        )
+        cohesion = compute_lexical_cohesion(text)
+        self.assertLess(cohesion, 0.3)
+
+    def test_single_sentence(self):
+        cohesion = compute_lexical_cohesion("The server crashed.")
+        self.assertAlmostEqual(cohesion, 0.5)
+
+    def test_empty(self):
+        self.assertAlmostEqual(compute_lexical_cohesion(""), 0.5)
+
+
+# ---------------------------------------------------------------------------
+# Signal 5: Discourse marker diversity
+# ---------------------------------------------------------------------------
+
+
+class TestDiscourseMarkerDiversity(unittest.TestCase):
+    """Test compute_discourse_marker_diversity."""
+
+    def test_no_markers(self):
+        text = "The server crashed. The database failed."
+        diversity = compute_discourse_marker_diversity(text)
+        self.assertAlmostEqual(diversity, 0.5)
+
+    def test_diverse_markers(self):
+        text = (
+            "However the server crashed. Moreover the database failed. "
+            "Therefore we restarted. Additionally tests passed."
+        )
+        diversity = compute_discourse_marker_diversity(text)
+        self.assertGreater(diversity, 0.8)
+
+    def test_repeated_marker(self):
+        text = (
+            "However the server crashed. However the database failed. "
+            "However tests passed. However deploy succeeded."
+        )
+        diversity = compute_discourse_marker_diversity(text)
+        self.assertAlmostEqual(diversity, 0.25)  # 1 unique / 4 total
+
+    def test_empty(self):
+        self.assertAlmostEqual(compute_discourse_marker_diversity(""), 0.5)
+
+
+# ---------------------------------------------------------------------------
+# Composite
+# ---------------------------------------------------------------------------
+
+
+class TestCoherenceIndex(unittest.TestCase):
+    """Test compute_coherence_index and classify_coherence."""
+
+    def test_perfect_scores(self):
+        idx = compute_coherence_index(
+            transition_density=10.0,
+            pronoun_reference_clarity=1.0,
+            logical_connector_coverage=1.0,
+            lexical_cohesion=1.0,
+            discourse_marker_diversity=1.0,
+        )
+        self.assertGreater(idx, 0.8)
+        self.assertEqual(classify_coherence(idx), "tight")
+
+    def test_zero_scores(self):
+        idx = compute_coherence_index(
+            transition_density=0.0,
+            pronoun_reference_clarity=0.0,
+            logical_connector_coverage=0.0,
+            lexical_cohesion=0.0,
+            discourse_marker_diversity=0.0,
+        )
+        self.assertLess(idx, 0.2)
+        self.assertEqual(classify_coherence(idx), "fragmented")
+
+    def test_moderate_scores(self):
+        idx = compute_coherence_index(
+            transition_density=3.0,
+            pronoun_reference_clarity=0.6,
+            logical_connector_coverage=0.5,
+            lexical_cohesion=0.3,
+            discourse_marker_diversity=0.5,
+        )
+        self.assertGreater(idx, 0.3)
+        self.assertLess(idx, 0.8)
+
+    def test_classify_boundaries(self):
+        self.assertEqual(classify_coherence(0.85), "tight")
+        self.assertEqual(classify_coherence(0.70), "connected")
+        self.assertEqual(classify_coherence(0.50), "adequate")
+        self.assertEqual(classify_coherence(0.25), "loose")
+        self.assertEqual(classify_coherence(0.10), "fragmented")
+        self.assertEqual(classify_coherence(0.80), "tight")
+        self.assertEqual(classify_coherence(0.60), "connected")
+        self.assertEqual(classify_coherence(0.40), "adequate")
+        self.assertEqual(classify_coherence(0.20), "loose")
+
+
+# ---------------------------------------------------------------------------
+# Metrics over strokes
+# ---------------------------------------------------------------------------
+
+
+class TestCoherenceMetrics(unittest.TestCase):
+    """Test compute_coherence_metrics."""
 
     def test_empty_strokes(self):
-        m = compute_coherence_metrics([])
-        self.assertEqual(m["strokes_analyzed"], 0)
-        self.assertEqual(m["coherence_index"], 0.0)
-        self.assertEqual(m["coherence_class"], "disjointed")
-        self.assertEqual(m["thread_count"], 0)
+        metrics = compute_coherence_metrics([])
+        self.assertEqual(metrics["strokes_analyzed"], 0)
+        self.assertEqual(metrics["classification"], "adequate")
 
-    def test_single_stroke(self):
-        m = compute_coherence_metrics([{"text": "hello world"}])
-        self.assertEqual(m["strokes_analyzed"], 1)
-        self.assertEqual(m["coherence_index"], 0.0)
-        self.assertEqual(m["coherence_class"], "disjointed")
-
-    def test_two_identical_strokes(self):
+    def test_with_strokes(self):
         strokes = [
-            {"text": "the cadence drift module detects rhythm changes"},
-            {"text": "the cadence drift module detects rhythm changes"},
+            {"text": "The server crashed. However the database survived."},
+            {"text": "Therefore we continued testing. Moreover results were positive."},
+            {"text": "Additionally the deploy succeeded. Thus we shipped."},
         ]
-        m = compute_coherence_metrics(strokes)
-        self.assertEqual(m["strokes_analyzed"], 2)
-        # Identical strokes should have high lexical chaining
-        self.assertGreater(m["lexical_chaining"], 0.5)
+        metrics = compute_coherence_metrics(strokes)
+        self.assertEqual(metrics["strokes_analyzed"], 3)
+        self.assertGreater(metrics["coherence_index"], 0.0)
 
-    def test_coherent_session(self):
-        strokes = [
-            {"text": "cadence drift detection measures rhythm deviation"},
-            {"text": "cadence drift compensation adjusts the writing pace"},
-            {"text": "the drift detection module monitors cadence changes"},
-            {"text": "cadence compensation improves rhythm stability"},
-            {"text": "rhythm stability is measured by drift detection"},
-            {"text": "the cadence drift module provides stability metrics"},
-            {"text": "detection of cadence drift enables better pacing"},
-            {"text": "pacing improvements come from drift compensation data"},
-        ]
-        m = compute_coherence_metrics(strokes)
-        self.assertEqual(m["strokes_analyzed"], 8)
-        self.assertGreater(m["coherence_index"], 0.0)
-        self.assertIn(m["coherence_class"], [
-            "narrative", "meandering", "fragmented", "disjointed",
-        ])
-        self.assertEqual(len(m["phase_scores"]), 4)
-        self.assertIn(m["phase_arc"], ["steady", "rising", "falling", "oscillating"])
+    def test_window_size(self):
+        strokes = [{"text": f"Sentence number {i} here."} for i in range(100)]
+        metrics = compute_coherence_metrics(strokes, window_size=10)
+        self.assertEqual(metrics["strokes_analyzed"], 10)
 
-    def test_incoherent_session(self):
-        strokes = [
-            {"text": "quantum entanglement creates spooky action at distance"},
-            {"text": "banana bread recipe requires ripe bananas and flour"},
-            {"text": "mars rovers use solar panels for energy generation"},
-            {"text": "ballet dancers practice pliés at the barre daily"},
-            {"text": "coral reefs face bleaching from ocean temperature rise"},
-            {"text": "medieval castles used moats for defensive purposes"},
-            {"text": "jazz improvisation builds on chord progressions freely"},
-            {"text": "volcanic eruptions release ash into the atmosphere"},
-        ]
-        m = compute_coherence_metrics(strokes)
-        self.assertEqual(m["strokes_analyzed"], 8)
-        # Unrelated topics should have low coherence
-        self.assertLess(m["coherence_index"], 0.3)
+    def test_empty_metrics(self):
+        metrics = _empty_metrics()
+        self.assertEqual(metrics["strokes_analyzed"], 0)
+        self.assertEqual(metrics["classification"], "adequate")
+        self.assertAlmostEqual(metrics["coherence_index"], 0.5)
 
-    def test_metrics_keys(self):
-        strokes = [
-            {"text": "hello world test"},
-            {"text": "hello world again"},
+
+# ---------------------------------------------------------------------------
+# Trend
+# ---------------------------------------------------------------------------
+
+
+class TestCoherenceTrend(unittest.TestCase):
+    """Test compute_coherence_trend and classify_trend."""
+
+    def test_short_strokes(self):
+        strokes = [{"text": "Hello world."}]
+        trend = compute_coherence_trend(strokes)
+        self.assertEqual(len(trend), 1)
+
+    def test_classify_improving(self):
+        trend = [
+            {"coherence_index": 0.3, "classification": "loose"},
+            {"coherence_index": 0.4, "classification": "adequate"},
+            {"coherence_index": 0.6, "classification": "connected"},
+            {"coherence_index": 0.7, "classification": "connected"},
         ]
-        m = compute_coherence_metrics(strokes)
-        expected_keys = {
-            "strokes_analyzed", "lexical_chaining", "concept_threading",
-            "topic_stability", "coherence_index", "coherence_class",
-            "thread_count", "phase_scores", "phase_arc",
+        self.assertEqual(classify_trend(trend), "improving")
+
+    def test_classify_declining(self):
+        trend = [
+            {"coherence_index": 0.8, "classification": "tight"},
+            {"coherence_index": 0.7, "classification": "connected"},
+            {"coherence_index": 0.3, "classification": "loose"},
+            {"coherence_index": 0.2, "classification": "loose"},
+        ]
+        self.assertEqual(classify_trend(trend), "declining")
+
+    def test_classify_stable(self):
+        trend = [
+            {"coherence_index": 0.5, "classification": "adequate"},
+            {"coherence_index": 0.5, "classification": "adequate"},
+            {"coherence_index": 0.5, "classification": "adequate"},
+            {"coherence_index": 0.5, "classification": "adequate"},
+        ]
+        self.assertEqual(classify_trend(trend), "stable")
+
+    def test_classify_single(self):
+        trend = [{"coherence_index": 0.5, "classification": "adequate"}]
+        self.assertEqual(classify_trend(trend), "stable")
+
+
+# ---------------------------------------------------------------------------
+# Per-stroke analysis
+# ---------------------------------------------------------------------------
+
+
+class TestAnalyzeStrokeCoherence(unittest.TestCase):
+    """Test analyze_stroke_coherence."""
+
+    def test_connected_stroke(self):
+        stroke = {
+            "text": (
+                "The server crashed at midnight. However the database "
+                "survived the outage. Therefore we focused on recovery. "
+                "Moreover the backup was intact."
+            )
         }
-        self.assertEqual(set(m.keys()), expected_keys)
+        result = analyze_stroke_coherence(stroke)
+        self.assertEqual(result["strokes_analyzed"], 1)
+        self.assertGreater(result["coherence_index"], 0.0)
 
-    def test_lookback_parameter(self):
-        strokes = [
-            {"text": "cadence drift rhythm"},
-            {"text": "cadence drift tempo"},
-            {"text": "cadence drift pace"},
-            {"text": "cadence drift speed"},
-        ]
-        m1 = compute_coherence_metrics(strokes, lookback=2)
-        m2 = compute_coherence_metrics(strokes, lookback=4)
-        # Different lookback should produce different concept threading
-        # (though may coincidentally be equal for some inputs)
-        self.assertIsInstance(m1["concept_threading"], float)
-        self.assertIsInstance(m2["concept_threading"], float)
+    def test_disconnected_stroke(self):
+        stroke = {
+            "text": (
+                "Python ships quarterly. Mountain climbing requires "
+                "endurance. Quantum computing uses qubits."
+            )
+        }
+        result = analyze_stroke_coherence(stroke)
+        self.assertEqual(result["strokes_analyzed"], 1)
+        # No transitions, low cohesion.
+        self.assertLess(result["transition_density"], 1.0)
+
+    def test_empty_stroke(self):
+        result = analyze_stroke_coherence({})
+        self.assertEqual(result["strokes_analyzed"], 0)
+
+    def test_short_stroke(self):
+        result = analyze_stroke_coherence({"text": ""})
+        self.assertEqual(result["strokes_analyzed"], 0)
 
 
 # ---------------------------------------------------------------------------
-# format_coherence_report
+# Report
 # ---------------------------------------------------------------------------
+
 
 class TestFormatCoherenceReport(unittest.TestCase):
     """Test format_coherence_report."""
 
-    def test_empty_metrics(self):
-        m = compute_coherence_metrics([])
-        report = format_coherence_report(m)
-        self.assertIn("writer coherence", report)
-        self.assertIn("strokes analyzed: 0", report)
-        self.assertIn("disjointed", report)
+    def test_no_strokes(self):
+        report = format_coherence_report(_empty_metrics())
+        self.assertEqual(report, "No strokes analyzed.")
 
     def test_with_data(self):
-        strokes = [
-            {"text": "cadence drift detection module added"},
-            {"text": "cadence drift compensation adjusts pace"},
-            {"text": "the drift module monitors changes"},
-        ]
-        m = compute_coherence_metrics(strokes)
-        report = format_coherence_report(m)
-        self.assertIn("writer coherence", report)
-        self.assertIn("strokes analyzed: 3", report)
-        self.assertIn("### signals", report)
-        self.assertIn("### interpretation", report)
-        self.assertIn("### phase analysis", report)
-
-    def test_report_contains_all_sections(self):
-        m = compute_coherence_metrics([
-            {"text": "hello world test module"},
-            {"text": "hello world again test"},
-        ])
-        report = format_coherence_report(m)
-        for section in ["signals", "phase analysis", "interpretation"]:
-            self.assertIn(section, report)
-
-    def test_interpretation_narrative(self):
-        m = {
-            "coherence_class": "narrative",
-            "thread_count": 5,
-            "phase_arc": "steady",
-            "strokes_analyzed": 20,
-            "coherence_index": 0.7,
-            "lexical_chaining": 0.6,
-            "concept_threading": 0.7,
-            "topic_stability": 0.8,
-            "phase_scores": [0.6, 0.7, 0.7, 0.8],
-        }
-        report = format_coherence_report(m)
-        self.assertIn("connective tissue", report)
-        self.assertIn("steady", report)
-
-    def test_interpretation_fragmented(self):
-        m = {
-            "coherence_class": "fragmented",
-            "thread_count": 0,
-            "phase_arc": "falling",
+        metrics = {
+            "coherence_index": 0.6543,
+            "classification": "connected",
+            "transition_density": 4.5,
+            "pronoun_reference_clarity": 0.8,
+            "logical_connector_coverage": 0.75,
+            "lexical_cohesion": 0.35,
+            "discourse_marker_diversity": 0.6,
             "strokes_analyzed": 10,
-            "coherence_index": 0.25,
-            "lexical_chaining": 0.2,
-            "concept_threading": 0.2,
-            "topic_stability": 0.3,
-            "phase_scores": [0.4, 0.3, 0.2, 0.1],
         }
-        report = format_coherence_report(m)
-        self.assertIn("jumps between topics", report)
-        self.assertIn("no persistent concept threads", report)
-        self.assertIn("lost coherence", report)
+        report = format_coherence_report(metrics)
+        self.assertIn("Coherence Report", report)
+        self.assertIn("10 strokes", report)
+        self.assertIn("connected", report)
+        self.assertIn("0.6543", report)
 
 
 # ---------------------------------------------------------------------------
-# Integration: coherent vs incoherent comparison
+# CLI entry point
 # ---------------------------------------------------------------------------
 
-class TestCoherenceIntegration(unittest.TestCase):
-    """Integration tests comparing coherent and incoherent sessions."""
 
-    def test_coherent_scores_higher_than_incoherent(self):
-        coherent = [
-            {"text": "cadence drift detection measures rhythm"},
-            {"text": "cadence drift compensation adjusts pace"},
-            {"text": "the drift detection module monitors cadence"},
-            {"text": "cadence compensation improves rhythm stability"},
-            {"text": "rhythm stability is measured by the drift module"},
-            {"text": "the cadence drift provides stability metrics"},
-        ]
-        incoherent = [
-            {"text": "quantum entanglement spooky action distance"},
-            {"text": "banana bread recipe ripe bananas flour"},
-            {"text": "mars rovers solar panels energy generation"},
-            {"text": "ballet dancers practice pliés barre daily"},
-            {"text": "coral reefs bleaching ocean temperature rise"},
-            {"text": "medieval castles moats defensive purposes"},
-        ]
+class TestAnalyzeCoherence(unittest.TestCase):
+    """Test analyze_coherence CLI function."""
 
-        m_coh = compute_coherence_metrics(coherent)
-        m_inc = compute_coherence_metrics(incoherent)
+    def test_missing_file(self):
+        result = analyze_coherence("/nonexistent/path.jsonl")
+        self.assertEqual(result["strokes_analyzed"], 0)
+        self.assertEqual(result["classification"], "adequate")
 
+
+# ---------------------------------------------------------------------------
+# Constants sanity checks
+# ---------------------------------------------------------------------------
+
+
+class TestConstants(unittest.TestCase):
+    """Test that constants are well-formed."""
+
+    def test_all_transitions_not_empty(self):
+        self.assertGreater(len(ALL_TRANSITIONS), 50)
+
+    def test_categories_cover_all(self):
+        combined = (
+            TRANSITION_ADDITIVE
+            + TRANSITION_CONTRASTIVE
+            + TRANSITION_CAUSAL
+            + TRANSITION_TEMPORAL
+        )
+        self.assertEqual(set(combined), set(ALL_TRANSITIONS))
+
+    def test_pronouns_not_empty(self):
+        self.assertGreater(len(PRONOUNS), 10)
+
+    def test_stop_words_not_empty(self):
+        self.assertGreater(len(STOP_WORDS), 50)
+
+    def test_no_duplicate_transitions(self):
+        self.assertEqual(len(ALL_TRANSITIONS), len(set(ALL_TRANSITIONS)))
+
+
+# ---------------------------------------------------------------------------
+# Integration: coherent vs incoherent text
+# ---------------------------------------------------------------------------
+
+
+class TestIntegration(unittest.TestCase):
+    """Integration tests comparing coherent and incoherent text."""
+
+    COHERENT = (
+        "The deployment pipeline failed at stage three. However, the "
+        "error was caught by the monitoring system. Therefore, the team "
+        "was notified within seconds. Moreover, the rollback mechanism "
+        "activated automatically. Consequently, no user data was lost. "
+        "Additionally, the incident report was generated. Furthermore, "
+        "the team scheduled a postmortem meeting."
+    )
+
+    INCOHERENT = (
+        "The deployment pipeline failed. Mountain ranges stretch across "
+        "continents. Python ships quarterly releases. Coffee consumption "
+        "has increased globally. Quantum entanglement defies intuition. "
+        "The ocean depth reaches eleven kilometers. Solar panels convert "
+        "photons to electricity."
+    )
+
+    def test_coherent_higher_index(self):
+        coh_metrics = compute_coherence_metrics(
+            [{"text": self.COHERENT}]
+        )
+        inc_metrics = compute_coherence_metrics(
+            [{"text": self.INCOHERENT}]
+        )
         self.assertGreater(
-            m_coh["coherence_index"],
-            m_inc["coherence_index"],
-            "Coherent session should score higher than incoherent",
+            coh_metrics["coherence_index"],
+            inc_metrics["coherence_index"],
         )
 
-    def test_thread_count_higher_for_coherent(self):
-        coherent = [
-            {"text": "cadence drift detection module rhythm"},
-            {"text": "cadence drift compensation module pace"},
-            {"text": "cadence drift detection compensation rhythm"},
-            {"text": "the drift module detection compensation"},
-        ]
-        incoherent = [
-            {"text": "quantum physics entanglement"},
-            {"text": "banana bread recipe"},
-            {"text": "mars rovers solar"},
-            {"text": "ballet dancers practice"},
-        ]
+    def test_coherent_more_transitions(self):
+        coh_td = compute_transition_density(self.COHERENT)
+        inc_td = compute_transition_density(self.INCOHERENT)
+        self.assertGreater(coh_td, inc_td)
 
-        m_coh = compute_coherence_metrics(coherent)
-        m_inc = compute_coherence_metrics(incoherent)
+    def test_coherent_more_coverage(self):
+        coh_lc = compute_logical_connector_coverage(self.COHERENT)
+        inc_lc = compute_logical_connector_coverage(self.INCOHERENT)
+        self.assertGreater(coh_lc, inc_lc)
 
-        self.assertGreaterEqual(
-            m_coh["thread_count"],
-            m_inc["thread_count"],
-            "Coherent session should have at least as many threads",
+    def test_incoherent_lower_cohesion(self):
+        coh_lx = compute_lexical_cohesion(self.COHERENT)
+        inc_lx = compute_lexical_cohesion(self.INCOHERENT)
+        self.assertGreaterEqual(coh_lx, inc_lx)
+
+    def test_coherent_classified_higher(self):
+        coh_class = classify_coherence(
+            compute_coherence_index(
+                compute_transition_density(self.COHERENT),
+                compute_pronoun_reference_clarity(self.COHERENT),
+                compute_logical_connector_coverage(self.COHERENT),
+                compute_lexical_cohesion(self.COHERENT),
+                compute_discourse_marker_diversity(self.COHERENT),
+            )
         )
-
-    def test_report_roundtrip(self):
-        """Metrics produce a valid report string."""
-        strokes = [
-            {"text": "hello world test one"},
-            {"text": "hello world test two"},
-            {"text": "hello world test three"},
-        ]
-        m = compute_coherence_metrics(strokes)
-        report = format_coherence_report(m)
-        self.assertIsInstance(report, str)
-        self.assertGreater(len(report), 50)
+        inc_class = classify_coherence(
+            compute_coherence_index(
+                compute_transition_density(self.INCOHERENT),
+                compute_pronoun_reference_clarity(self.INCOHERENT),
+                compute_logical_connector_coverage(self.INCOHERENT),
+                compute_lexical_cohesion(self.INCOHERENT),
+                compute_discourse_marker_diversity(self.INCOHERENT),
+            )
+        )
+        order = ["fragmented", "loose", "adequate", "connected", "tight"]
+        self.assertGreater(
+            order.index(coh_class),
+            order.index(inc_class),
+        )
 
 
 if __name__ == "__main__":
