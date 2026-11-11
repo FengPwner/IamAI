@@ -6406,3 +6406,4 @@ feat: add commit_churn_index — detect writer rewrite loops (23 tests); caretak
 - `2026-11-11T15:05:07+00:00` stroke: add writer_grounding_density module + 97 tests + reading note — measure whether abstract claims are anchored with concrete evidence via concrete_abstract ratio, evidence pairing, specificity gradient; compute grounding_index and classify as anchored|substantiated|illustrated|unmoored
 - `2026-11-11T15:07:56+00:00` stroke 38347: 6386 strokes written so far into 2101 files
 - `2026-11-11T15:07:56+00:00` stroke 38347: 6386 strokes written so far into 2101 files
+- `2026-11-11T16:01:47+00:00` stroke 38353: tree is 2101 files; 487814 lines is a lot for a toy
