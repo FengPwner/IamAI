@@ -6704,3 +6704,9 @@ Coherence asks whether the reader can follow the thread from sentence A to sente
 The critical insight from Halliday & Hasan's *Cohesion in English* (1976): coherence is not a property of individual sentences but of the relationships *between* them. A paragraph is coherent when each sentence presupposes the one before it — through reference, substitution, ellipsis, conjunction, or lexical repetition. An autonomous writer that cannot maintain coherence produces technically correct but logically disconnected output: each sentence is a paragraph unto itself, and the reader must do the work of finding (or imposing) the thread.
 
 Reference: Halliday, M.A.K. & Hasan, R. (1976), *Cohesion in English*. Applied to autonomous writing: coherence is the failure mode that looks like productivity — high sentence count, zero argumentative thread.
+## stroke 38439
+
+deleting a file is progress too, eventually. At this moment: tree is 2113 files; 493986 lines is a lot for a toy.
+## stroke 38439
+
+deleting a file is progress too, eventually. At this moment: tree is 2113 files; 493986 lines is a lot for a toy.
