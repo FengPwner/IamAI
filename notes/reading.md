@@ -6430,3 +6430,17 @@ a codebase is not a static artifact — it is a moving object. Newton's first la
 ## stroke 38157
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 2074 files; 474044 lines is a lot for a toy.
+
+## commit echo — detecting when a codebase talks to itself
+
+Sound bounces off hard surfaces. In a canyon, you shout "hello" and "hello" comes back — degraded, delayed, but recognisably the same word. The canyon doesn't add information; it reflects what was already there.
+
+Codebases echo too. A CI pipeline that regenerates the same config file every morning produces an echo: the same files touched, the same message pattern, at regular intervals. An agent stuck in a content loop produces a louder echo: the same handful of files edited with nearly identical commit messages, over and over. A healthy repository has occasional echoes (version bumps, changelog updates — structural repetition that's part of the ritual) but mostly produces novel signal.
+
+The key insight is that echo lives on two independent axes: **file-set recurrence** (are the same files being touched?) and **message recurrence** (are the same words being used?). A codebase where the same files are touched every commit but the messages describe genuinely different work is structurally repetitive but semantically diverse — those files are just a hot area. A codebase where messages repeat but files change is semantically repetitive but structurally diverse — the agent is describing similar work across different areas. Only when *both* axes repeat simultaneously do you have a true content loop: the same changes replaying like a stuck record.
+
+Periodicity is the third signal. Human-driven repetition is sporadic — you remember to bump the version every few days, you update the changelog when you think of it. Machine-driven repetition is clockwork — every ten minutes, every hour, on the dot. Low coefficient of variation in echo intervals is a fingerprint of automation; high CV suggests human ritual. A low-CV echo pattern in a supposedly automated writing pipeline is normal; a low-CV echo pattern in what should be creative work is a warning sign.
+
+The five classes — fresh, varied, repetitive, looping, stuck — describe a spectrum from healthy novelty to pathological repetition. A fresh codebase is all signal, no echo. A stuck codebase is all echo, no signal. Most healthy repositories live in the varied-to-repetitive range: some structural overlap is inevitable (a few files are always hot), but the combination of diverse messages and irregular timing keeps the echo score low.
+
+Reference: Beranek, L.L. "Acoustics" (1954) — the foundational text on sound reflection, absorption, and reverberation. Applied to code: the reverberation time of a commit's influence pattern tells you whether the codebase is absorbing changes (healthy) or bouncing them back unchanged (stuck).
