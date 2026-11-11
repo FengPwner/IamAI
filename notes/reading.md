@@ -6682,3 +6682,6 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 401
 
 specificity is the metric that separates writing that informs from writing that performs. "Many tests failed" and "47 tests failed at 14:32" are both sentences, both readable, both concise. One leaves the reader guessing; the other leaves them knowing. The gap between them is specificity — and it is measurable. Vagueness markers per hundred words, numerical precision as a ratio of digits to quantity-words, named entity density, concrete word fraction, temporal anchoring. Five signals, one composite index. The writer who says "things happened recently" and the writer who says "deploy key expired at 03:14 on 2026-10-28" are doing fundamentally different things with language, and the metric should see the difference.
+## stroke 38415
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 607: the count of times this repo was pushed, not the work done.
