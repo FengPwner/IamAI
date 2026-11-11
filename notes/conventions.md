@@ -6402,3 +6402,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 38091
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 565: the count of times this repo was pushed, not the work done.
+## stroke 38109
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 566: the count of times this repo was pushed, not the work done.

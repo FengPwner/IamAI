@@ -6400,3 +6400,20 @@ The five dimensions capture different facets of transport: pathway efficiency (d
 The five classes — superconductor, conductive, resistive, insulating, dielectric — describe the spectrum from near-perfect transport to near-total blockage. A superconductor codebase is a copper bus: every change reaches every consumer in the same commit cycle. A dielectric codebase is a collection of disconnected islands that happen to share a git repository.
 
 Reference: Ohm, G.S. "Die galvanische Kette, mathematisch bearbeitet" (1827) — the foundational work on electrical conduction, which established that current through a conductor is proportional to voltage and inversely proportional to resistance. Applied to code: the flow of change-information through a dependency graph is proportional to coupling clarity and inversely proportional to boundary friction.
+## stroke 38103
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 471341 lines across 2069 tracked files, 566 commits deep.
+
+## commit refraction — how much does change intent bend at boundaries?
+
+Snell's law says n₁·sin(θ₁) = n₂·sin(θ₂): when light crosses from one medium to another, its path bends. The amount of bending depends on the refractive index mismatch. Some light reflects at the boundary instead of passing through. The rest refracts — arrives on the other side, but travelling in a different direction.
+
+Codebases refract changes the same way. When a developer modifies module A with intent "add a timeout parameter", that intent must cross into modules B, C, D. In a low-refraction codebase, the intent passes cleanly: callers update, tests follow, docs adjust, and the original purpose survives on the far side. In a high-refraction codebase, the intent bends: callers update but miss edge cases, tests change but test the wrong thing, documentation describes the old behaviour. Some changes reflect entirely — they bounce off the boundary and get reverted.
+
+Key insight: refraction is not conductivity. Conductivity asks "did the change arrive at all?" Refraction asks "did the change arrive *intact*?" A codebase can be high-conductivity (changes always propagate to dependent modules) yet high-refraction (they arrive distorted — tests test the wrong thing, callers handle only the happy path, documentation lags). Propagation and fidelity are independent axes.
+
+The five dimensions capture different facets: intent preservation (do the files match the message?), scope distortion (does the change scope stay consistent across areas?), boundary reflection (are changes reverted at boundaries?), coupling index (how surgically do changes cross boundaries?), and boundary coherence (does every area touched have at least one engaged file?). The composite score weights intent and reflection most heavily because a codebase where changes always mean what they say and rarely bounce back is genuinely well-architected.
+
+The five classes — transparent, clear, refractive, opaque, mirrored — describe the spectrum from near-perfect fidelity to near-total reflection. A transparent codebase is clear glass: changes cross boundaries with intent intact. A mirrored codebase bounces everything back.
+
+Reference: Snell, W. van Roijen (1621) — the law of refraction, establishing that the ratio of sines of incidence and refraction angles is constant for a given pair of media. Applied to code: the ratio of change intent on one side of a module boundary to change intent on the other side is a constant property of the architecture.

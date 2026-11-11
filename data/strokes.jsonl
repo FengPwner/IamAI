@@ -6334,3 +6334,6 @@
 {"seq": 6334, "at": "2026-11-10T22:10:56+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 6333 strokes written so far into 2067 files"}
 {"seq": 6335, "at": "2026-11-10T23:04:01+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 2067 files; 469870 lines is a lot for a toy"}
 {"seq": 6336, "at": "2026-11-10T23:08:40+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 1373 python files, 6337 logged thoughts"}
+{"seq": 6337, "at": "2026-11-11T00:02:34+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 6336 strokes written so far into 2069 files"}
+{"seq": 6338, "at": "2026-11-11T00:07:46+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 2069 files; 471338 lines is a lot for a toy"}
+{"seq": 6339, "at": "2026-11-11T00:13:00+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 1373 python files, 6340 logged thoughts"}
