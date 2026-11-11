@@ -6463,3 +6463,6 @@ A codebase like this one, with distinct module families (caretaker, cadence, wri
 The five focus classes — focused, exploring, drifting, scattered, oscillating — map the spectrum from deep sustained work to chaotic context-switching. Most productive sessions land in the focused-to-exploring range. Drifting is tolerable during early-stage investigation. Scattered and oscillating are warning signs: the writer is context-switching faster than they can build momentum.
 
 Reference: Shannon, C.E. "A Mathematical Theory of Communication" (1948) — entropy as a measure of uncertainty in a signal. Applied to writing: entropy of topic distribution measures the predictability of what a writer touches next. Low entropy means you can guess the next area; high entropy means you cannot. Both have their season.
+## stroke 38187
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 576: the count of times this repo was pushed, not the work done.
