@@ -6635,3 +6635,6 @@ Session arc analysis divides the session into quartiles and tracks coherence acr
 
 Reference: Kintsch, W. & van Dijk, T.A. "Toward a Model of Text Comprehension and Production" (1978) — on how coherence is established through local connections (adjacent sentences sharing concepts) and global structure (a consistent topic running through the entire text). Applied to autonomous writing: the same two levels — local chaining and global threading — determine whether a session reads as a sustained exploration or a collection of fragments.
 
+## stroke 38337
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 597: the count of times this repo was pushed, not the work done.
