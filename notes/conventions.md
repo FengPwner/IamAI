@@ -6411,3 +6411,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 38145
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 1377 python files, 6347 logged thoughts.
+## stroke 38163
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1377 python files, 6350 logged thoughts.
