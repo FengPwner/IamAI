@@ -6487,3 +6487,21 @@ Reference: March, J.G. "Exploration and Exploitation in Organizational Learning"
 ## stroke 38211
 
 a repo that only accumulates is a landfill with a README. At this moment: 6356 strokes written so far into 2083 files.
+
+## writer focus score — measuring attention coherence in autonomous writing
+
+Focus is not the same as persistence. A persistent writer keeps going; a focused writer keeps going *on the same thread*. The distinction matters because persistence without focus produces a codebase that grows steadily but coheres poorly — modules multiply, features accrete, but no clear architecture emerges. Focus without persistence produces elegant fragments that never become complete.
+
+The thread-and-switch model captures focus through a simple observation: consecutive strokes that touch related files (same cluster, overlapping paths) belong to the same thread. A stroke that jumps to an unrelated cluster is a context switch. The ratio of context switches to total strokes is the **context switch rate** — a direct measure of fragmentation. The average number of strokes between switches is the **thread length** — a direct measure of sustained attention.
+
+Coherence goes beyond file overlap. Two strokes can touch different files but still be coherent if those files live in the same directory (structural proximity) or share semantic relationships (conceptual proximity). The **coherence score** captures this by measuring how often consecutive strokes are related by any of these criteria. The **fragmentation index** captures the inverse: how many distinct clusters are touched relative to the number of strokes.
+
+The four focus classes describe a spectrum of attention patterns. **Laser** focus (score ≥ 0.80) means the writer stays deeply on one thread for many strokes — excellent for complex refactors, deep debugging, or writing a single large module. **Focused** (0.60–0.80) means good sustained work with occasional deliberate context switches — the productive default. **Drifting** (0.40–0.60) means moderate focus with frequent switches — may indicate exploration, confusion, or a writer losing the thread. **Scattered** (below 0.40) means high fragmentation — the writer is jumping between many unrelated areas without completing threads.
+
+The composite focus score weights four components: thread length (30%), switch rate (25%), coherence (30%), and fragmentation (15%). These weights reflect the intuition that sustained threads and coherence are slightly more important than low switch rates — a writer who switches contexts every ten strokes but maintains high coherence within each thread is more focused than one who switches every fifteen strokes but produces disconnected work.
+
+Focus interacts with exploration balance in interesting ways. A writer can be highly focused (long threads, low switches) while still exploring (touching new files within each thread). This is deep exploration — staying with a new area long enough to understand it. Conversely, a writer can be unfocused (frequent switches) while exploiting (returning to the same familiar files across different threads). This is scattered repetition — touching the same work without building on it.
+
+The relationship to topic drift is complementary: topic drift measures *what* the writer thinks about (which conceptual areas), while focus measures *how* the writer thinks about it (sustained attention vs fragmented jumping). A writer can have low topic drift (staying on one conceptual area) but low focus (jumping between many files within that area) — deep but scattered. A writer can have high topic drift (covering many conceptual areas) but high focus (staying on each area for many strokes) — broad but disciplined.
+
+Reference: Csikszentmihalyi, M. "Flow: The Psychology of Optimal Experience" (1990) — the foundational work on how sustained, focused attention produces both higher quality work and greater satisfaction. Applied to autonomous writing: the same principles govern whether a writer stays on a coherent thread long enough to produce substantial work, or fragments attention across many incomplete threads.
