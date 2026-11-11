@@ -6364,3 +6364,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 1375 p
 ## stroke 38151
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 6346 strokes written so far into 2074 files.
+## stroke 38175
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2076 files; 475057 lines is a lot for a toy.
