@@ -6484,3 +6484,6 @@ The five balance classes — deepening, balanced-low, balanced, balanced-high, b
 The connection to topic drift is complementary: topic drift measures *where* the writer looks (which conceptual areas), while exploration balance measures *how* the writer looks (new ground vs familiar ground within any area). A writer can be focused on one topic area while still exploring new files within it — deep learning, not tunnel vision. Conversely, a writer can revisit the same files across many topic areas — scattered repetition, not broad exploration.
 
 Reference: March, J.G. "Exploration and Exploitation in Organizational Learning" (1991) — the foundational paper on how organizations balance the need to explore new possibilities with the need to exploit existing competencies. Applied to writing: the same tradeoff governs whether a writer deepens existing threads or opens new ones, and the optimal balance shifts with the phase of creative work.
+## stroke 38211
+
+a repo that only accumulates is a landfill with a README. At this moment: 6356 strokes written so far into 2083 files.
