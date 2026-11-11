@@ -6477,3 +6477,9 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 38427
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 492848 lines across 2111 tracked files, 608 commits deep.
+## stroke 38451
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 612: the count of times this repo was pushed, not the work done.
+## stroke 38451
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 612: the count of times this repo was pushed, not the work done.

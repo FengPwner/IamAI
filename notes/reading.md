@@ -6720,3 +6720,9 @@ Five signals capture temporal awareness in writing. **Tense consistency** measur
 The critical insight from Klein's *Time in Language* (1994): temporal reference in natural language operates on three axes — utterance time (when the writing happens), event time (when the described event happened), and reference time (the temporal perspective from which the event is viewed). Tense is the relation between utterance time and reference time; aspect is the relation between event time and reference time. An autonomous writer that cannot maintain temporal awareness produces text where all three axes collapse into one: everything happens "now", or nothing happens at any specific time at all. The writing becomes what linguists call *atemporal* — true but unmoored, factual but unplaced.
 
 Reference: Klein, W. (1994), *Time in Language*. Applied to autonomous writing: temporal awareness is the failure mode that looks like fluency — grammatically correct prose that exists outside of time.
+## stroke 38445
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 494034 lines across 2113 tracked files, 612 commits deep.
+## stroke 38445
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 494034 lines across 2113 tracked files, 612 commits deep.
