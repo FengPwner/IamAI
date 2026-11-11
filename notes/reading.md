@@ -6685,3 +6685,12 @@ specificity is the metric that separates writing that informs from writing that 
 ## stroke 38415
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 607: the count of times this repo was pushed, not the work done.
+## stroke 401
+
+restraint is the rarest writer virtue: knowing when the point is made and stopping. most writing metrics measure what's there — words, patterns, density. restraint measures what's *not* there — the explanation you didn't add, the qualifier you didn't stack, the restatement you resisted. it's orthogonal to concision (economy of words) because you can be brief and still over-explain (three words restating what three prior words already said). it's orthogonal to specificity (precision of reference) because you can be precise and still not trust the reader (every number followed by "in other words"). the signal is distrust: phrases that announce re-explanation is coming. "basically", "essentially", "in other words" — these are the writer saying "I don't think you got that, so here it is again." at this moment: 401 strokes into 2111 tracked files, and the question is whether the writer knows when to stop.
+## stroke 38421
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2111 files; 492832 lines is a lot for a toy.
+## stroke 38421
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2111 files; 492832 lines is a lot for a toy.

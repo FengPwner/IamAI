@@ -6471,3 +6471,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 38403
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2109 files; 491415 lines is a lot for a toy.
+## stroke 38427
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 492848 lines across 2111 tracked files, 608 commits deep.
+## stroke 38427
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 492848 lines across 2111 tracked files, 608 commits deep.
