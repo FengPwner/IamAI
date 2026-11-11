@@ -6370,3 +6370,4 @@ feat: add commit_churn_index — detect writer rewrite loops (23 tests); caretak
 - `2026-11-11T03:15:11+00:00` stroke 38179: 6351 strokes written so far into 2076 files
 - `2026-11-11T04:06:32+00:00` stroke 38185: 476173 lines across 2078 tracked files, 576 commits deep
 - `2026-11-11T04:11:44+00:00` stroke 38191: 1381 python files, 6355 logged thoughts
+- `2026-11-11T05:04:28+00:00` stroke 6354: add writer_exploration_balance module + 55 tests + reading note — measure explore/exploit tradeoff via exploration_ratio, exploitation_ratio, breadth_index, depth_index, novelty_half_life; classify as deepening/balanced-low/balanced/balanced-high/broadening; trend analysis tracks increasing/stable/decreasing balance

@@ -6466,3 +6466,21 @@ Reference: Shannon, C.E. "A Mathematical Theory of Communication" (1948) — ent
 ## stroke 38187
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 576: the count of times this repo was pushed, not the work done.
+
+## writer exploration balance — the explore/exploit tradeoff in writing
+
+The explore/exploit dilemma is one of the oldest problems in decision theory. A gambler at a slot machine must choose between pulling the arm they know pays reasonably well (exploitation) and trying a new machine that might pay better or worse (exploration). The same tradeoff appears in reinforcement learning, clinical trials, restaurant choice, and — as it turns out — autonomous writing.
+
+A writer that only exploits is a writer in a rut. They touch the same files, refine the same modules, polish the same paragraphs. The work gets incrementally better but never surprises. A writer that only explores is a writer with no follow-through. They open new modules, start new threads, touch new areas — but never stay long enough to build anything substantial. The codebase grows wide but shallow.
+
+The productive zone is dynamic, not static. Healthy creative work oscillates between phases of deepening (staying with a problem, building on recent work) and broadening (opening new ground, connecting to adjacent areas). The rhythm of this oscillation is itself informative: a writer who deepens for fifty strokes then broadens for five has a very different creative signature than one who alternates every third stroke.
+
+This module captures the tradeoff through three lenses. **Exploration ratio** asks: what fraction of each stroke is genuinely new ground? **Breadth index** asks: across the window, how many distinct files are touched relative to total touches? **Depth index** asks: what is the maximum concentration on any single file?
+
+The novelty half-life — how many strokes it takes for a file to go from "fresh" to "re-touched" — is a particularly elegant metric. A short half-life means the writer returns to work quickly, suggesting tight iterative loops. A long half-life means the writer moves on after touching something, suggesting broad survey work. Neither is inherently better; the right half-life depends on the phase of work.
+
+The five balance classes — deepening, balanced-low, balanced, balanced-high, broadening — describe a spectrum from tunnel focus to scattered exploration. Most productive sessions land in the balanced-low to balanced-high range. Deepening is appropriate during bug-fix sprints or refactoring marathons. Broadening is appropriate during early-stage investigation or when mapping a new problem space.
+
+The connection to topic drift is complementary: topic drift measures *where* the writer looks (which conceptual areas), while exploration balance measures *how* the writer looks (new ground vs familiar ground within any area). A writer can be focused on one topic area while still exploring new files within it — deep learning, not tunnel vision. Conversely, a writer can revisit the same files across many topic areas — scattered repetition, not broad exploration.
+
+Reference: March, J.G. "Exploration and Exploitation in Organizational Learning" (1991) — the foundational paper on how organizations balance the need to explore new possibilities with the need to exploit existing competencies. Applied to writing: the same tradeoff governs whether a writer deepens existing threads or opens new ones, and the optimal balance shifts with the phase of creative work.
