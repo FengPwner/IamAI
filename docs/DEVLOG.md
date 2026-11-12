@@ -6462,3 +6462,20 @@ feat: add commit_churn_index — detect writer rewrite loops (23 tests); caretak
 - `2026-11-12T09:48:30+00:00` stroke 38641: 512071 lines across 2139 tracked files, 638 commits deep
 - `2026-11-12T09:53:41+00:00` stroke 38647: commit 638: the count of times this repo was pushed, not the work done
 - `2026-11-12T09:58:49+00:00` stroke 38653: 6443 strokes written so far into 2139 files
+- `2026-11-12T10:05:31+00:00` stroke 38659: 512106 lines across 2139 tracked files, 639 commits deep
+
+## 2026-11-12 — writer_linearity module (caretaker visit 604)
+
+Added `iamai/writer_linearity.py` + 99 tests in `tests/test_writer_linearity.py`.
+
+Linearity measures whether prose *advances* or *circles in place*. Five sub-metrics:
+
+- **back_reference_density** — sentences pointing backward ("in other words", "as mentioned above")
+- **rephrasing_loop_rate** — consecutive sentences restating the same idea with different words
+- **idea_recursion_rate** — paragraphs revisiting an earlier idea after intervening content
+- **forward_build_ratio** — sentences introducing at least one genuinely new content word
+- **paragraph_drift_rate** — topic shifts without temporal/causal bridges
+
+Orthogonal to momentum (stroke-level build-up), coherence (logical flow), concision (word economy), and topic_drift (thematic wandering). Classes: arrow → river → meandering → stagnant.
+
+Process recovery: both writer and batch committer had been reclaimed. Restarted via `tools/run_both.sh`.
