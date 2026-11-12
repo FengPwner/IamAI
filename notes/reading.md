@@ -6798,3 +6798,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 38733
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1443 python files, 6458 logged thoughts.
+## stroke 38751
+
+deleting a file is progress too, eventually. At this moment: 1445 python files, 6461 logged thoughts.
+## stroke 38757
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 646: the count of times this repo was pushed, not the work done.
