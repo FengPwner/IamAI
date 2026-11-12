@@ -6570,3 +6570,4 @@ formality_index as weighted composite (contraction_inv 0.20, pronoun_inv
 0.15, colloquial_inv 0.20, passive 0.15, latinate 0.20, hedge 0.10) and
 classify as academic|formal|conversational|casual|colloquial; orthogonal
 to concreteness, elegance, conviction, readability, and vocabulary_richness.
+- `2026-11-12T20:07:39+00:00` stroke 38845: tree is 2166 files; 525391 lines is a lot for a toy
