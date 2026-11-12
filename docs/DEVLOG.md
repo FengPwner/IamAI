@@ -6508,3 +6508,23 @@ Process recovery: both writer (pid 4193) and batch committer (pid 4194) restarte
 - `2026-11-12T12:10:52+00:00` stroke 38725: commit 644: the count of times this repo was pushed, not the work done
 - `2026-11-12T12:15:47+00:00` stroke 38731: tree is 2146 files; 516036 lines is a lot for a toy
 - `2026-11-12T12:20:51+00:00` stroke 38737: 516055 lines across 2146 tracked files, 644 commits deep
+- `2026-11-12T13:02:40+00:00` stroke 38743: commit 645: the count of times this repo was pushed, not the work done
+- `2026-11-12T13:08:18+00:00` stroke 38749: tree is 2146 files; 516071 lines is a lot for a toy
+
+## 2026-11-12 — writer_concreteness module (caretaker visit 607)
+
+Added `iamai/writer_concreteness.py` + 89 tests in `tests/test_writer_concreteness.py`.
+
+Concreteness measures the *sensory grounding* of prose — the balance between concrete/sensory language and abstract/conceptual language. Five sub-metrics:
+
+- **sensory_word_ratio** — fraction of content words invoking the five senses (visual, auditory, tactile, gustatory, olfactory)
+- **concrete_noun_ratio** — fraction of nouns denoting physical objects vs abstract concepts
+- **action_verb_ratio** — fraction of verbs denoting physical actions vs stative/mental verbs
+- **spatial_marker_density** — fraction of sentences containing spatial prepositions/adverbs that locate entities in physical space
+- **embodied_language_rate** — fraction of sentences containing body-related expressions (body parts, physical sensations, proprioceptive terms)
+
+Orthogonal to specificity (precision of detail), density (information per unit), elegance (aesthetic quality), and vocabulary_richness (lexical diversity). Classes: vivid → concrete → balanced → abstract → ethereal.
+
+Word lists adapted from Brysbaert et al. (2014) concreteness norms. Includes simple POS tagger and stemming heuristics for verb form matching.
+
+Process recovery: both writer (pid 4256) and batch committer (pid 4257) restarted via `tools/run_both.sh`. Backlog of 8 files committed before restart.
