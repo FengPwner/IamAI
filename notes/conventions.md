@@ -6483,3 +6483,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 38451
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 612: the count of times this repo was pushed, not the work done.
+## stroke 38457
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 6411 strokes written so far into 2115 files.
