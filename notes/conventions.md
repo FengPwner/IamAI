@@ -6492,3 +6492,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 38505
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1423 python files, 6421 logged thoughts.
+## stroke 38529
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 626: the count of times this repo was pushed, not the work done.
