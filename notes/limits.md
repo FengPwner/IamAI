@@ -6472,3 +6472,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 38481
 
 deleting a file is progress too, eventually. At this moment: 497491 lines across 2117 tracked files, 616 commits deep.
+## stroke 38487
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1419 python files, 6418 logged thoughts.
