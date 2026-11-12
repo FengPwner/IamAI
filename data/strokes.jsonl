@@ -6428,3 +6428,4 @@
 {"seq": 6428, "at": "2026-11-12T06:08:05+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 2131 files; 507955 lines is a lot for a toy"}
 {"seq": 6429, "at": "2026-11-12T07:08:19+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 6428 strokes written so far into 2133 files"}
 {"seq": 6430, "at": "2026-11-12T07:13:37+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 2133 files; 509262 lines is a lot for a toy"}
+{"seq": 6431, "at": "2026-11-12T08:05:47+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 1433 python files, 6432 logged thoughts"}

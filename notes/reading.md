@@ -6764,3 +6764,10 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 38571
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6429 strokes written so far into 2133 files.
+## stroke 38577
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 509276 lines across 2133 tracked files, 635 commits deep.
+
+## stroke 38601 — precision module added by Qwen
+
+precision is the writer metric for exactness: hedges, vague quantifiers, ambiguous pronouns, and numerical specificity. distinct from density (payload per word) and specificity (detail granularity). legal documents are precise but unclear; casual prose can be clear but imprecise. 4 signals, 5 classes from surgical to nebulous. 92 tests passing. At this moment: 2134 files, 636 commits deep.
