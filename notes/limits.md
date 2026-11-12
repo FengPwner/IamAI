@@ -6538,3 +6538,7 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 38847
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 1459 python files, 6482 logged thoughts.
+## stroke 6484
+
+temporal orientation is grammar, not narrative — a past-tense thriller can have high tension; a future-tense plan can have none. At this moment: 153 tests for temporal_orientation, 2168 tracked files.
+

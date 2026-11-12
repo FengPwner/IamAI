@@ -6571,3 +6571,31 @@ formality_index as weighted composite (contraction_inv 0.20, pronoun_inv
 classify as academic|formal|conversational|casual|colloquial; orthogonal
 to concreteness, elegance, conviction, readability, and vocabulary_richness.
 - `2026-11-12T20:07:39+00:00` stroke 38845: tree is 2166 files; 525391 lines is a lot for a toy
+- `2026-11-12T21:02:07+00:00` stroke 38851: 1459 python files, 6483 logged thoughts
+- `2026-11-12T21:07:34+00:00` stroke 38857: commit 662: the count of times this repo was pushed, not the work done
+- `2026-11-12T21:13:05+00:00` stroke 38863: tree is 2166 files; 525426 lines is a lot for a toy
+
+## caretaker visit 2026-11-13 05:01 UTC
+
+writer[qwen] and batch[qwen] found **not running** — both had been
+recycled since the last batch push.  7 files uncommitted (accumulated
+strokes from the previous run).
+
+actions taken:
+1. committed pending backlog as catch-up commit `2425aef`
+2. restarted both processes via `tools/run_both.sh` — writer pid 4723,
+   batch pid 4724
+3. pushed accumulated commits (db7269a..2425aef) to origin/main
+4. added **writer_temporal_orientation** module + 153 tests: measure
+   where prose lives in time via past_tense_density (simple past -ed
+   forms, 120+ irregular past forms: went, saw, took, made, came, gave,
+   broke, understood), present_tense_density (third-person -s verbs,
+   present context), future_tense_density (will, shall, going to, about
+   to, gonna), temporal_adverbial_density (100+ time adverbials and
+   phrases: yesterday, tomorrow, last year, next month, back then),
+   perfective_aspect_ratio (have/has/had + past participle), and
+   progressive_aspect_ratio (be + present participle -ing); compute
+   temporal_orientation_index as directional score (-1.0 past to +1.0
+   future) and classify as retrospective|immediate|prospective;
+   orthogonal to formality, pacing, prose_rhythm, tension,
+   temporal_awareness, and linearity.

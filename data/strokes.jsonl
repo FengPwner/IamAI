@@ -6479,3 +6479,6 @@
 {"seq": 6479, "at": "2026-11-12T20:01:52+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 2164 files; 524118 lines is a lot for a toy"}
 {"seq": 6480, "at": "2026-11-12T20:06:47+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 525390 lines across 2166 tracked files, 661 commits deep"}
 {"seq": 6481, "at": "2026-11-12T20:11:51+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 661: the count of times this repo was pushed, not the work done"}
+{"seq": 6482, "at": "2026-11-12T21:06:36+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: tree is 2166 files; 525406 lines is a lot for a toy"}
+{"seq": 6483, "at": "2026-11-12T21:12:10+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 525425 lines across 2166 tracked files, 662 commits deep"}
+{"seq": 6484, "at": "2026-11-12T21:01:00+00:00", "kind": "thought", "text": "a caretaker visit is a proof that someone still reads the logs -- measured now: 525440 lines across 2168 tracked files, 663 commits deep"}
