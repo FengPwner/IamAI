@@ -6479,3 +6479,8 @@ Linearity measures whether prose *advances* or *circles in place*. Five sub-metr
 Orthogonal to momentum (stroke-level build-up), coherence (logical flow), concision (word economy), and topic_drift (thematic wandering). Classes: arrow → river → meandering → stagnant.
 
 Process recovery: both writer and batch committer had been reclaimed. Restarted via `tools/run_both.sh`.
+- `2026-11-12T10:11:00+00:00` stroke 38665: 1439 python files, 6447 logged thoughts
+- `2026-11-12T10:16:23+00:00` stroke 38671: 6446 strokes written so far into 2142 files
+- `2026-11-12T10:21:48+00:00` stroke 38677: 513435 lines across 2142 tracked files, 640 commits deep
+- `2026-11-12T10:27:09+00:00` stroke 38683: 1439 python files, 6450 logged thoughts
+- `2026-11-12T10:32:33+00:00` stroke 38689: 6449 strokes written so far into 2142 files
