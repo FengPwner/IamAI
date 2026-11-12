@@ -6505,3 +6505,6 @@ Transitions measure the *connective tissue* between sentences and paragraphs. Fi
 Orthogonal to coherence (logical flow of ideas), linearity (forward progression), cohesion (discourse-level reference chains), and concision (word economy). Classes: seamless → smooth → adequate → choppy → disjointed.
 
 Process recovery: both writer (pid 4193) and batch committer (pid 4194) restarted via `tools/run_both.sh`. Backlog of 7 files committed before restart.
+- `2026-11-12T12:10:52+00:00` stroke 38725: commit 644: the count of times this repo was pushed, not the work done
+- `2026-11-12T12:15:47+00:00` stroke 38731: tree is 2146 files; 516036 lines is a lot for a toy
+- `2026-11-12T12:20:51+00:00` stroke 38737: 516055 lines across 2146 tracked files, 644 commits deep
