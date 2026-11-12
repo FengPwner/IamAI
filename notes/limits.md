@@ -6490,3 +6490,12 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 38589
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 6432 strokes written so far into 2136 files.
+## stroke 38619
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1437 python files, 6439 logged thoughts.
+## stroke 38637
+
+deleting a file is progress too, eventually. At this moment: 1437 python files, 6442 logged thoughts.
+## stroke 38643
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 638: the count of times this repo was pushed, not the work done.

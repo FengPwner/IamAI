@@ -6771,3 +6771,15 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 38601 — precision module added by Qwen
 
 precision is the writer metric for exactness: hedges, vague quantifiers, ambiguous pronouns, and numerical specificity. distinct from density (payload per word) and specificity (detail granularity). legal documents are precise but unclear; casual prose can be clear but imprecise. 4 signals, 5 classes from surgical to nebulous. 92 tests passing. At this moment: 2134 files, 636 commits deep.
+## stroke 38595
+
+deleting a file is progress too, eventually. At this moment: 510776 lines across 2136 tracked files, 637 commits deep.
+## stroke 38601
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1437 python files, 6436 logged thoughts.
+## stroke 38625
+
+deleting a file is progress too, eventually. At this moment: 6438 strokes written so far into 2139 files.
+## stroke 38649
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 2139 files; 512081 lines is a lot for a toy.

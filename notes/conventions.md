@@ -6504,3 +6504,15 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 38583
 
 deleting a file is progress too, eventually. At this moment: commit 636: the count of times this repo was pushed, not the work done.
+## stroke 38607
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 6435 strokes written so far into 2139 files.
+## stroke 38613
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 2139 files; 512022 lines is a lot for a toy.
+## stroke 38631
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2139 files; 512057 lines is a lot for a toy.
+## stroke 38655
+
+most architecture is choosing which coupling you will live with. At this moment: 1437 python files, 6445 logged thoughts.
