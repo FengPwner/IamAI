@@ -6749,3 +6749,9 @@ Four signals capture cohesion in writing. **Transition density** measures the fr
 The critical insight from Halliday & Hasan's *Cohesion in English* (1976): cohesion is not style — it is the texture that makes a text a text rather than a list of sentences. Their five types of cohesive ties (reference, substitution, ellipsis, conjunction, lexical cohesion) are the theoretical basis for this module's four signals. An autonomous writer that cannot maintain cohesion produces output that reads like shuffled index cards: each sentence may be individually well-formed, but the reader cannot follow the thread from one to the next.
 
 Reference: Halliday, M.A.K. & Hasan, R. (1976), *Cohesion in English*. Applied to autonomous writing: cohesion is the failure mode that looks like completeness — every fact present, every sentence grammatical, yet nothing seems to flow into the next thing.
+## stroke 38493
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 6417 strokes written so far into 2119 files.
+## stroke 38499
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 2119 files; 499026 lines is a lot for a toy.
