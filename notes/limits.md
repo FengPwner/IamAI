@@ -6542,3 +6542,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 
 temporal orientation is grammar, not narrative — a past-tense thriller can have high tension; a future-tense plan can have none. At this moment: 153 tests for temporal_orientation, 2168 tracked files.
 
+## stroke 38877
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 2170 files; 528394 lines is a lot for a toy.
