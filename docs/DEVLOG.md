@@ -6547,3 +6547,26 @@ Process recovery: both writer (pid 4256) and batch committer (pid 4257) restarte
 - `2026-11-12T18:11:05+00:00` stroke 38821: 6476 strokes written so far into 2162 files
 - `2026-11-12T19:02:14+00:00` stroke 38827: tree is 2162 files; 522665 lines is a lot for a toy
 - `2026-11-12T19:07:54+00:00` stroke 38833: 1457 python files, 6480 logged thoughts
+- `2026-11-12T20:02:40+00:00` stroke 38839: commit 660: the count of times this repo was pushed, not the work done
+
+## caretaker visit 2026-11-13 04:01 CST (Qwen, manual)
+
+writer[qwen] and batch[qwen] were both dead on arrival — processes
+reclaimed by the container runtime. 7 files uncommitted, gap of 2960s
+(longest 3485s). restarted both via tools/run_both.sh, committed
+backlog, pushed clean.
+
+while here, added **writer_formality** module + 103 tests: measure
+formality register of prose via contraction_rate (contracted verb
+forms: don't, can't, I'm, you're, won't, we've), informal_pronoun_rate
+(first/second person density per sentence), colloquial_density (200+
+curated slang/abbreviation/discourse markers: gonna, wanna, kinda,
+basically, literally, super, lowkey, deadass, bussin), passive_voice_ratio
+(be + past participle patterns), latinate_vocabulary_ratio (Latinate
+morphology: -tion, -ment, -ity, -ence, -ism suffixes and con-, pre-,
+sub-, inter- prefixes), and formality_hedge_rate (academic hedging:
+approximately, arguably, it should be noted, one might argue); compute
+formality_index as weighted composite (contraction_inv 0.20, pronoun_inv
+0.15, colloquial_inv 0.20, passive 0.15, latinate 0.20, hedge 0.10) and
+classify as academic|formal|conversational|casual|colloquial; orthogonal
+to concreteness, elegance, conviction, readability, and vocabulary_richness.
