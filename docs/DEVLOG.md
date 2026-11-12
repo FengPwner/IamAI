@@ -6488,3 +6488,20 @@ Process recovery: both writer and batch committer had been reclaimed. Restarted 
 - `2026-11-12T11:08:17+00:00` stroke 38701: 1439 python files, 6453 logged thoughts
 - `2026-11-12T11:13:29+00:00` stroke 38707: 6452 strokes written so far into 2144 files
 - `2026-11-12T11:18:24+00:00` stroke 38713: tree is 2144 files; 514758 lines is a lot for a toy
+- `2026-11-12T12:05:45+00:00` stroke 38719: 1441 python files, 6456 logged thoughts
+
+## 2026-11-12 — writer_transitions module (caretaker visit 606)
+
+Added `iamai/writer_transitions.py` + 105 tests in `tests/test_writer_transitions.py`.
+
+Transitions measure the *connective tissue* between sentences and paragraphs. Five sub-metrics:
+
+- **transitional_word_rate** — sentences beginning with a transitional word/phrase (however, therefore, moreover, etc.)
+- **logical_connector_density** — sentences containing causal/concessive/conditional connectives (because, although, unless, etc.)
+- **semantic_bridge_ratio** — consecutive sentence pairs sharing at least one content word
+- **temporal_sequence_rate** — sentences with temporal markers (before, after, then, meanwhile, etc.)
+- **paragraph_transition_density** — paragraph breaks bridged by explicit transitions, shared vocabulary, or demonstrative pronouns
+
+Orthogonal to coherence (logical flow of ideas), linearity (forward progression), cohesion (discourse-level reference chains), and concision (word economy). Classes: seamless → smooth → adequate → choppy → disjointed.
+
+Process recovery: both writer (pid 4193) and batch committer (pid 4194) restarted via `tools/run_both.sh`. Backlog of 7 files committed before restart.
