@@ -6761,3 +6761,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 38547
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 629: the count of times this repo was pushed, not the work done.
+## stroke 38571
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6429 strokes written so far into 2133 files.
