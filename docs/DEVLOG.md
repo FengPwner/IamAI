@@ -6600,3 +6600,31 @@ actions taken:
    orthogonal to formality, pacing, prose_rhythm, tension,
    temporal_awareness, and linearity.
 - `2026-11-12T21:18:28+00:00` stroke 38869: 527148 lines across 2168 tracked files, 663 commits deep
+- `2026-11-12T22:04:19+00:00` stroke 38875: commit 664: the count of times this repo was pushed, not the work done
+
+## caretaker visit 2026-11-13 06:01 UTC
+
+writer[qwen] and batch[qwen] found **not running** — both had been
+recycled since the previous caretaker visit.  7 files uncommitted
+(accumulated strokes from the batch cycle).
+
+actions taken:
+1. committed pending backlog as catch-up commit
+2. restarted both processes via `tools/run_both.sh`
+3. pushed accumulated commits to origin/main
+4. added **writer_dialog_density** module + 94 tests: measure how much
+   of a text lives inside quoted speech versus narrative prose via
+   dialog_ratio (fraction of tokens inside quotation marks — standard
+   double quotes, smart/curly quotes, guillemets, em-dash dialog, and
+   single-quote fallback), attribution_density (fraction of dialog
+   segments with a speech verb — 120+ verbs covering common, volume,
+   and manner categories: said, whispered, shouted, muttered, demanded,
+   begged, confessed, etc.), quote_count (total dialog segments),
+   mean_quote_length (average words per dialog turn),
+   dialog_turn_frequency (turns per 1000 words), and
+   narrative_bridge_ratio (fraction of inter-dialog gaps containing
+   narrative description vs bare attribution); compute
+   dialog_density_index as weighted composite (0.0 pure narrative to
+   1.0 dialog-heavy) and classify as dialog_heavy|mixed|
+   narrative_heavy|pure_narrative; orthogonal to formality, pacing,
+   tension, concreteness, and prose_rhythm.
