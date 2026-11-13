@@ -6566,3 +6566,4 @@ added writer_contrast_density module (101 tests) — measures how much prose rel
 arrived to find processes reclaimed; restarted run_both.sh, committed backlog (de65aee), verified push.
 added writer_citation_density module (103 tests) — measures how much prose is spent quoting or attributing external sources via direct_quotation_rate, attribution_verb_rate, named_source_rate, statistical_citation_rate, bibliographic_marker_rate; composite citation_density_index (0.0 to 1.0); classify as uncited|minimally_cited|moderately_cited|heavily_cited|saturated_with_citation; orthogonal to hedging_density, conviction, formality, contrast_density, causal_density, ellipsis_density.
 - stroke 39029: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 39035: `retry.py` is already in the pool of 9 modules, nothing new to add there
