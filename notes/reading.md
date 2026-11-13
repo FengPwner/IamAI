@@ -6831,3 +6831,11 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 38889
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 666: the count of times this repo was pushed, not the work done.
+## stroke 38907
+
+deleting a file is progress too, eventually. At this moment: commit 668: the count of times this repo was pushed, not the work done.
+
+- `iamai/writer_negation_density.py` — how to measure what a text
+  refuses to say. six dimensions of denial, extensive false-positive
+  filtering for morphological negation, and a composite index from
+  strongly_affirmative to negation_saturated.

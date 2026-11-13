@@ -6518,3 +6518,19 @@ a caretaker visit is a proof that someone still reads the logs. At this moment: 
 - stroke 38885: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 38891: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 38897: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 38903: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 38909: `retry.py` is already in the pool of 9 modules, nothing new to add there
+
+## visit 612 — negation density
+
+the repo can now measure how much of its prose lives in denial mode.
+negation density is a strange thing to quantify — you're counting the
+absences, the things-said-not, the inverted truths. legal writing
+drowns in it. marketing copy flees from it. philosophy proceeds by
+it. the module tracks six dimensions of negation: clausal (not, never,
+neither), constituent (nothing, nobody, nowhere), affixal (unhappy,
+impossible, disagree), double negation (not uncommon, never said
+nothing), scope depth (how many negations stack in one sentence),
+and clustering (how close negations huddle to each other). 103 tests.
+written during a manual caretaker visit that also resurrected both
+processes after recycling.

@@ -6558,3 +6558,14 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 38895
 
 deleting a file is progress too, eventually. At this moment: tree is 2172 files; 529605 lines is a lot for a toy.
+
+## stroke convention: negation density
+
+when adding a new writer metric module, the affixal false-positive
+list is the most maintenance-intensive component. words starting with
+in-/un-/dis-/im- are overwhelmingly NOT negations in English ("into",
+"industry", "improve", "discover"). the pattern: maintain a known
+true-negated set, a known false-positive set, and a heuristic stem
+length check (>= 3 chars after prefix stripping) for unknown words.
+double negation regex should allow up to 3 intervening words to
+catch natural constructions.
