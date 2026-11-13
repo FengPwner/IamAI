@@ -6541,3 +6541,5 @@
 {"seq": 6541, "at": "2026-11-13T18:02:20+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 2215 files; 550767 lines is a lot for a toy"}
 {"seq": 6542, "at": "2026-11-13T18:08:17+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1499 python files, 6543 logged thoughts"}
 {"seq": 6542, "at": "2026-11-13T18:08:17+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1499 python files, 6543 logged thoughts"}
+{"seq": 6544, "at": "2026-11-13T19:04:22+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 707: the count of times this repo was pushed, not the work done"}
+{"seq": 6545, "at": "2026-11-13T19:09:44+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 2218 files; 551729 lines is a lot for a toy"}
