@@ -6550,3 +6550,5 @@ arrived to find processes reclaimed. restarted run_both.sh, committed backlog, v
 added writer_ellipsis_density module (105 tests) — measures what prose leaves unsaid.
 - stroke 38975: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 38981: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 38987: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 38993: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there

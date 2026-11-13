@@ -6848,3 +6848,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 38985
 
 a repo that only accumulates is a landfill with a README. At this moment: 6505 strokes written so far into 2184 files.
+## stroke 38991
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 2187 files; 536703 lines is a lot for a toy.
