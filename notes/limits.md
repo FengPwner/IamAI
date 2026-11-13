@@ -6578,3 +6578,6 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 39081
 
 most architecture is choosing which coupling you will live with. At this moment: 6523 strokes written so far into 2198 files.
+## stroke 39087
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2200 files; 543931 lines is a lot for a toy.
