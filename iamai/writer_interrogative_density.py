@@ -1,116 +1,111 @@
 #!/usr/bin/env python3
-"""writer_interrogative_density — measure how much prose relies on questions.
+"""writer_interrogative_density — measure how frequently a text asks questions.
 
-Questions are the rhetorical device of inquiry: they invite the reader
-to think, doubt, consider, or reflect.  A text rich in questions pulls
-the reader into dialogue — the writer is not lecturing but conversing.
-A text poor in questions presents statements as settled fact: every
-sentence declares, and none asks.
+Questions are the writer's act of inquiry — opening a gap in the
+reader's knowledge and inviting them to fill it.  Every "why?",
+"how could this be?", "what if?" creates a cognitive hook that
+pulls the reader forward.  Some writing styles live in questions:
+Socratic dialogues, investigative journalism, philosophical
+meditations.  Others almost never ask: legal contracts, technical
+specifications, declarative manifestos.
 
-Interrogative density is not a quality metric.  Socratic dialogues and
-philosophical essays *must* be question-dense — the point is to
-provoke thought.  Legal contracts and recipes should have near-zero
-interrogative density.  Technical writing occasionally uses questions
-to guide the reader ("what happens when the buffer overflows?").
-The right density depends on genre, audience, and the writer's
-relationship with their reader.
-
-This module measures **how much of a text is spent on interrogative
-structures** — direct questions, rhetorical questions, embedded
-indirect questions, self-addressed questions, and interrogative
-pronoun/adverb usage.
+Question density is not a quality metric.  A text full of questions
+can be deeply engaging (Dostoevsky's underground man) or deeply
+annoying (a FAQ that never answers).  A text with no questions can
+be powerfully assertive (Nietzsche's aphorisms) or flatly dogmatic.
+What this module measures is **how frequently and how varied a text's
+use of interrogative constructions is**.
 
 Orthogonality to other metrics
 -------------------------------
 
-- **hedging_density** tracks uncertainty and caution (perhaps,
-  maybe, it seems, might).  Hedging softens statements; questions
-  suspend them entirely.  "Perhaps this is wrong" hedges; "Is this
-  wrong?" interrogates.  A text can hedge without asking anything,
-  and can ask boldly without any hedging.
+- **conviction** tracks assertiveness.  Questions can be highly
+  rhetorical and assertive ("who could deny this?") or genuinely
+  uncertain ("what should we do?").  Conviction measures force of
+  assertion; interrogative density measures inquiry frequency.
 
-- **conviction** tracks assertiveness and certainty.  Questions
-  and conviction are not simple inverses: a rhetorical question
-  ("who would deny this?") carries enormous conviction, while a
-  genuine question ("what should we do?") signals uncertainty.
-  Conviction measures force; interrogative measures form.
+- **hedging_density** tracks uncertainty signals — "might",
+  "perhaps", "possibly."  Hedging softens a claim; a question
+  opens an inquiry.  "It might be wrong" is a hedge; "could it
+  be wrong?" is a question.  Hedging measures doubt; interrogative
+  density measures inquiry.
 
-- **formality** tracks register conventions.  Questions appear in
-  all registers — from casual "what's up?" to formal "to what
-  extent does the evidence support the hypothesis?"  Some formal
-  genres (legal cross-examination, academic defense) are intensely
-  interrogative; others (declarative policy, technical specification)
-  avoid questions entirely.
+- **negation_density** tracks denial frequency.  Questions can
+  contain negation ("isn't this wrong?") or not ("what happened?").
+  Negation measures denial; interrogative density measures inquiry.
 
-- **subtext** tracks implied meaning.  Rhetorical questions often
-  carry subtext ("is the pope Catholic?" implies "obviously yes"),
-  but subtext also operates through implication, irony, and silence.
-  A rhetorical question makes its subtext *almost* explicit; genuine
-  subtext remains entirely beneath the surface.
+- **dialog_density** tracks conversational exchanges.  Dialogues
+  often contain questions, but questions also appear in narration,
+  exposition, and interior monologue.  Dialog density measures
+  conversational structure; interrogative density measures question
+  frequency regardless of context.
 
-- **ellipsis_density** tracks what is left unsaid.  Questions and
-  ellipsis both create gaps, but differently: a question marks the
-  gap explicitly (the answer is missing and wanted); ellipsis lets
-  the gap stand without acknowledgment.  Questions invite completion;
-  ellipsis accepts incompleteness.
+- **specificity** tracks concrete detail.  A question can be very
+  specific ("what was the temperature at 3pm on June 4th?") or
+  utterly vague ("what is the meaning of it all?").  Specificity
+  measures detail level; interrogative density measures question
+  frequency.
 
-- **contrast_density** tracks oppositional structures.  Questions
-  can set up contrast ("on one hand... but on the other...?"), but
-  contrast operates through statements too.  Interrogative creates
-  tension through inquiry; contrast creates it through opposition.
+Interrogative density asks: **how often does the writer invite the
+reader into an inquiry, and how varied are the forms of that
+invitation?**
 
-Interrogative asks: **is the text trying to inquire, provoke thought,
-or invite the reader into dialogue, and how much of its language is
-spent on that effort?**
+Six signals are tracked:
 
-Dimensions
-----------
+1. **Direct question rate** — frequency of sentences ending with
+   a question mark per 100 sentences.  The simplest and most
+   unambiguous signal: if it ends with "?", it's a question.
 
-=============================  =============================================
-metric                         meaning
-=============================  =============================================
-direct_question_rate           frequency of explicit questions per sentence:
-                               yes/no questions, wh-questions, tag questions,
-                               alternative questions — any sentence ending
-                               with a question mark or structured as an
-                               interrogative clause
-rhetorical_question_rate       frequency of rhetorical questions per sentence:
-                               questions that do not expect an answer, used
-                               for emphasis or effect — "who knows?", "what's
-                               the point?", "isn't that obvious?", "who
-                               cares?", "why bother?"
-embedded_question_rate         frequency of embedded/indirect questions per
-                               sentence: interrogative clauses within
-                               declarative statements — "I wonder whether...",
-                               "the question is how...", "we must ask if...",
-                               "it remains unclear what...", "one might
-                               consider whether..."
-self_addressed_question_rate   frequency of self-directed questions per
-                               sentence: the writer questioning themselves,
-                               their process, or their choices — "why do I
-                               keep doing this?", "what was I thinking?",
-                               "how should I explain this?", "do I even
-                               know?", "am I the only one who..."
-interrogative_pronoun_density  frequency of interrogative pronouns and
-                               adverbs per sentence: who, what, where, when,
-                               why, how, which, whose, whom — measured as
-                               raw token density regardless of whether the
-                               word functions as a question or a relative
-                               pronoun
-=============================  =============================================
+2. **Wh-word question rate** — frequency of interrogative words
+   per 100 sentences.  "who", "what", "when", "where", "why",
+   "how", "which", "whose", "whom", "whichever", "whoever",
+   "whatever."  Wh-words signal information-seeking questions,
+   whether or not they end with a question mark.
 
-From these five dimensions a composite **interrogative_density_index**
-is computed as a weighted average and classified:
+3. **Tag question rate** — frequency of tag questions per 100
+   sentences.  "isn't it?", "don't you think?", "right?",
+   "wouldn't you agree?", "won't they?", "haven't we?"
+   Tag questions are conversational — they invite agreement
+   rather than information.
 
-========================  =================================================
-class                     meaning
-========================  =================================================
-statement_dominant        index < 0.05 — prose is almost entirely declarative
-minimally_interrogative   0.05 <= index < 0.15 — occasional questions
-moderately_interrogative  0.15 <= index < 0.30 — regular questioning
-richly_interrogative      0.30 <= index < 0.50 — questions are a major mode
-socratic                  index >= 0.50 — text is primarily interrogative
-========================  =================================================
+4. **Indirect question rate** — frequency of embedded or reported
+   questions per 100 sentences.  "she wondered if...", "he asked
+   whether...", "the question is how...", "it remains unclear
+   why...", "one might ask what..."  Indirect questions embed
+   inquiry within declarative structure.
+
+5. **Rhetorical question rate** — frequency of questions with
+   rhetorical markers per 100 sentences.  "after all, who...?",
+   "isn't it obvious that...?", "what could be more...?",
+   "who among us hasn't...?", "how many times must we...?"
+   Rhetorical questions expect no answer — they assert through
+   the form of inquiry.
+
+6. **Question clustering ratio** — fraction of question sentences
+   that appear within two sentences of another question.  High
+   clustering signals interrogation bursts — rapid-fire questioning
+   passages.  Low clustering signals questions are evenly
+   distributed throughout the text.
+
+The composite **interrogative_density_index** (0.0 to 1.0) is a
+weighted combination:
+
+- direct_question_rate:      0.30
+- wh_word_question_rate:     0.20
+- tag_question_rate:         0.10
+- indirect_question_rate:    0.15
+- rhetorical_question_rate:  0.10
+- question_clustering_ratio: 0.15
+
+Classification thresholds:
+
+- 0.00 – 0.08:  declarative        — prose that asserts, rarely asking
+- 0.08 – 0.20:  lightly_inquisitive — occasional questions for engagement
+- 0.20 – 0.40:  moderately_inquisitive — frequent questions, Socratic style
+- 0.40 – 0.60:  heavily_inquisitive  — most paragraphs contain a question
+- 0.60 – 1.00:  question_saturated   — text structured primarily as inquiry
+
+written by Qwen during manual caretaker visit 2026-11-14
 """
 
 from __future__ import annotations
@@ -118,241 +113,240 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List
 
+# ── Patterns ────────────────────────────────────────────────────────
 
-# ---------------------------------------------------------------------------
-# Pattern libraries
-# ---------------------------------------------------------------------------
+# Direct questions: sentences ending with ?
+# (detected at sentence-split level, but also useful as regex for
+# mid-text detection of question-marked fragments)
+DIRECT_QUESTION_RE = re.compile(r"\?")
 
-DIRECT_QUESTION_PATTERNS: List[re.Pattern] = [
-    # Sentence ends with question mark
-    re.compile(r"\?$"),
-    # Wh- question starters
-    re.compile(r"^\s*(?:who|what|where|when|why|how|which|whose|whom)\b", re.IGNORECASE),
-    # Yes/no question starters (auxiliary verbs)
-    re.compile(r"^\s*(?:is|are|was|were|do|does|did|can|could|will|would|shall|should|may|might|must|have|has|had)\b", re.IGNORECASE),
-    # Tag questions
-    re.compile(r",?\s*(?:isn'?t|aren'?t|wasn'?t|weren'?t|don'?t|doesn'?t|didn'?t|can'?t|couldn'?t|won'?t|wouldn'?t|shan'?t|shouldn'?t|haven'?t|hasn'?t|hadn'?t)\s+(?:it|they|we|you|he|she|I|one)\s*\?", re.IGNORECASE),
-    # Alternative questions (X or Y?)
-    re.compile(r"\b(?:is|are|was|were|do|does|did|can|could|will|would)\b.*\b(?:or|or\s+not)\b.*\?", re.IGNORECASE),
-    # Question mark anywhere in sentence (catches mid-sentence questions)
-    re.compile(r"\?"),
-]
+# Wh-words (interrogative pronouns and adverbs)
+WH_WORD_RE = re.compile(
+    r"\b(?:who|whom|whose|what|which|when|where|why|how|"
+    r"whoever|whomever|whatever|whichever|wherever|whenever)\b",
+    re.IGNORECASE,
+)
 
-RHETORICAL_QUESTION_PATTERNS: List[re.Pattern] = [
-    re.compile(r"\bwho\s+(?:knows|cares|minds|cares|gives\s+a\s+(?:damn|shit|fuck|hoot))\s*\?", re.IGNORECASE),
-    re.compile(r"\bwhat(?:'s|\s+is)\s+the\s+(?:point|use|good|sense|meaning|difference)\s*\?", re.IGNORECASE),
-    re.compile(r"\b(?:isn'?t\s+it|aren'?t\s+they|don'?t\s+you\s+think)\b", re.IGNORECASE),
-    re.compile(r"\bright\s*\?", re.IGNORECASE),
-    re.compile(r"\bwhy\s+(?:bother|worry|care|try|even\s+try|does\s+it\s+matter)\s*\?", re.IGNORECASE),
-    re.compile(r"\b(?:is|are)\s+(?:that|this)\s+(?:clear|obvious|evident|apparent)\s*\?", re.IGNORECASE),
-    re.compile(r"\b(?:is|are)\s+the\s+(?:pope|sun\s+going\s+to\s+rise|sky\s+blue|earth\s+round)\b.*\?", re.IGNORECASE),
-    re.compile(r"\bdoes\s+a\s+bear\s+shit\s+in\s+the\s+woods\b", re.IGNORECASE),
-    re.compile(r"\b(?:what|who)\s+(?:gives|cares)\s*\?", re.IGNORECASE),
-    re.compile(r"\b(?:after\s+all|really|seriously|honestly|come\s+on),?\s*\?", re.IGNORECASE),
-    re.compile(r"\b(?:how\s+could|how\s+can)\s+(?:anyone|anybody|one|we|you|I)\s+(?:possibly|ever|really)\b", re.IGNORECASE),
-    re.compile(r"\bwhat(?:'s|\s+is)\s+(?:not\s+to\s+love|to\s+lose|the\s+worst\s+that\s+could)\b", re.IGNORECASE),
-    re.compile(r"\bwho\s+(?:am|are|is)\s+(?:I|we|they|he|she)\s+to\s+(?:judge|say|tell|question)\b", re.IGNORECASE),
-    re.compile(r"\b(?:do|does|did)\s+(?:it|that|this)\s+(?:really|even|actually)\s+matter\s*\?", re.IGNORECASE),
-    re.compile(r"\b(?:is|are)\s+(?:this|that|these|those)\s+(?:really|actually|truly)\b.*\?", re.IGNORECASE),
-]
+# Tag questions: auxiliary + pronoun at sentence end, or short tags
+TAG_QUESTION_RE = re.compile(
+    r",\s*(?:"
+    # standard tags: isn't it, don't you, won't they, etc.
+    r"(?:is|are|was|were|do|does|did|has|have|had|"
+    r"will|would|shall|should|can|could|may|might|must)"
+    r"(?:n't)?\s+(?:it|he|she|they|we|you|I|one|there|that|this)"
+    # negative-first tags: isn't it?, aren't they?
+    r"|(?:isn't|aren't|wasn't|weren't|don't|doesn't|didn't|"
+    r"hasn't|haven't|hadn't|won't|wouldn't|shan't|shouldn't|"
+    r"can't|couldn't|mustn't|needn't|daren't|oughtn't)"
+    r"\s+(?:it|he|she|they|we|you|I|one|there|that|this)"
+    # short tags
+    r"|right|correct|eh|yeah|huh|see|okay|ok|y'know|"
+    r"you know|you see|innit"
+    r")\s*\?",
+    re.IGNORECASE,
+)
 
-EMBEDDED_QUESTION_PATTERNS: List[re.Pattern] = [
-    re.compile(r"\b(?:I\s+)?wonder\s+(?:if|whether|what|how|why|when|where|who)\b", re.IGNORECASE),
-    re.compile(r"\bthe\s+question\s+(?:is|was|remains|becomes)\s+(?:whether|what|how|why|when|where|who)\b", re.IGNORECASE),
-    re.compile(r"\b(?:we|one|you|I)\s+must\s+(?:ask|consider|examine|explore)\s+(?:whether|what|how|why|if)\b", re.IGNORECASE),
-    re.compile(r"\bit\s+(?:remains|is)\s+(?:unclear|unknown|uncertain|undecided|unsettled|a\s+mystery)\s+(?:what|how|why|whether|if|who)\b", re.IGNORECASE),
-    re.compile(r"\b(?:consider|ask|examine|explore|investigate|determine)\s+(?:whether|what|how|why|if|who)\b", re.IGNORECASE),
-    re.compile(r"\b(?:one|you|we)\s+might\s+(?:ask|wonder|consider|question|ponder)\s+(?:whether|what|how|why|if)\b", re.IGNORECASE),
-    re.compile(r"\b(?:the\s+)?(?:answer|issue|problem|matter|point)\s+(?:of|is)\s+(?:whether|what|how|why)\b", re.IGNORECASE),
-    re.compile(r"\b(?:I|we)\s+(?:don'?t|cannot|can'?t)\s+know\s+(?:what|how|why|whether|if|who)\b", re.IGNORECASE),
-    re.compile(r"\b(?:there\s+is\s+)?(?:no\s+(?:way|telling|knowing)|no\s+question)\s+(?:what|how|why|whether)\b", re.IGNORECASE),
-    re.compile(r"\bwhat\s+(?:happens|happened|will\s+happen|would\s+happen|if)\b", re.IGNORECASE),
-    re.compile(r"\b(?:whether|if)\s+(?:or\s+not)\b", re.IGNORECASE),
-    re.compile(r"\b(?:I|we|you|they)\s+(?:need\s+to|have\s+to|should)\s+(?:figure\s+out|work\s+out|find\s+out|decide|determine)\s+(?:what|how|why|whether|if|who)\b", re.IGNORECASE),
-]
+# Indirect questions: embedded interrogative clauses
+INDIRECT_QUESTION_RE = re.compile(
+    r"\b(?:"
+    r"(?:wonder|wondered|wondering|ask|asked|asking|"
+    r"question|questioned|questioning|"
+    r"ponder|pondered|pondering|"
+    r"consider|considered|considering|"
+    r"contemplate|contemplated|contemplating|"
+    r"debate|debated|debating|"
+    r"explore|explored|exploring|"
+    r"examine|examined|examining)"
+    r"\s+(?:if|whether|what|why|how|when|where|who|which|whose)"
+    r"|(?:the\s+question\s+(?:is|was|remains|becomes))"
+    r"|(?:one\s+might\s+(?:ask|wonder|question))"
+    r"|(?:it\s+remains\s+(?:unclear|unknown|unseen|unanswered)"
+    r"\s+(?:why|how|what|when|where|who|whether|if))"
+    r"|(?:I\s+(?:wonder|ask\s+myself|can't\s+help\s+but\s+wonder))"
+    r")\b",
+    re.IGNORECASE,
+)
 
-SELF_ADDRESSED_QUESTION_PATTERNS: List[re.Pattern] = [
-    re.compile(r"\bwhy\s+do\s+I\s+(?:keep|always|still|even|bother\s+to)\b", re.IGNORECASE),
-    re.compile(r"\bwhat\s+was\s+I\s+(?:thinking|doing|saying|expecting|hoping)\s*\?", re.IGNORECASE),
-    re.compile(r"\bhow\s+should\s+I\s+(?:explain|describe|put\s+this|phrase\s+this|say\s+this|begin)\b", re.IGNORECASE),
-    re.compile(r"\bdo\s+I\s+(?:even|really|actually|truly)\s+(?:know|understand|get\s+it|care|want\s+to)\b", re.IGNORECASE),
-    re.compile(r"\bam\s+I\s+(?:the\s+only\s+one|wrong|crazy|missing\s+something|the\s+problem|overthinking)\b", re.IGNORECASE),
-    re.compile(r"\bwhy\s+(?:can'?t|don'?t|won'?t)\s+I\s+(?:just|simply|ever)\b", re.IGNORECASE),
-    re.compile(r"\bwhat\s+(?:am\s+I|the\s+hell\s+am\s+I)\s+doing\b", re.IGNORECASE),
-    re.compile(r"\b(?:where|how)\s+did\s+I\s+(?:go\s+wrong|lose|mess\s+up|get\s+here)\b", re.IGNORECASE),
-    re.compile(r"\b(?:is|am)\s+this\s+(?:just\s+)?(?:me|my\s+problem|my\s+fault|my\s+issue)\s*\?", re.IGNORECASE),
-    re.compile(r"\bI\s+(?:ask|wonder|question)\s+myself\s*:", re.IGNORECASE),
-    re.compile(r"\bnote\s+to\s+self\s*:", re.IGNORECASE),
-    re.compile(r"\bwhat\s+(?:do|did)\s+I\s+(?:mean|say|write|think)\s+(?:by|when|about)\b", re.IGNORECASE),
-    re.compile(r"\bhave\s+I\s+(?:mentioned|said|noted|explained|told\s+you)\b.*\?", re.IGNORECASE),
-]
-
-INTERROGATIVE_PRONOUN_PATTERNS: List[re.Pattern] = [
-    re.compile(r"\bwho\b", re.IGNORECASE),
-    re.compile(r"\bwhom\b", re.IGNORECASE),
-    re.compile(r"\bwhose\b", re.IGNORECASE),
-    re.compile(r"\bwhat\b", re.IGNORECASE),
-    re.compile(r"\bwhich\b", re.IGNORECASE),
-    re.compile(r"\bwhere\b", re.IGNORECASE),
-    re.compile(r"\bwhen\b", re.IGNORECASE),
-    re.compile(r"\bwhy\b", re.IGNORECASE),
-    re.compile(r"\bhow\b", re.IGNORECASE),
-]
+# Rhetorical question markers: questions with rhetorical signals
+RHETORICAL_RE = re.compile(
+    r"(?:"
+    r"\bafter\s+all\b.*\?"
+    r"|\bisn't\s+it\s+(?:obvious|clear|evident|plain|apparent)\b"
+    r"|\bwhat\s+(?:could|would|might)\s+(?:be\s+)?more\b"
+    r"|\bwho\s+(?:among\s+us|in\s+their\s+right|could\s+possibly|"
+    r"would\s+ever|hasn't)\b"
+    r"|\bhow\s+(?:many\s+times|often\s+must|long\s+must|"
+    r"could\s+(?:we|one|anyone))\b"
+    r"|\bwhy\s+(?:on\s+earth|in\s+the\s+world|would\s+anyone|"
+    r"bother|should\s+we)\b"
+    r"|\bneed\s+(?:we|I)\s+(?:really\s+)?\w+\b"
+    r"|\bare\s+we\s+(?:really\s+)?(?:supposed|expected|"
+    r"meant|going)\s+to\s+believe\b"
+    r")",
+    re.IGNORECASE,
+)
 
 
-# ---------------------------------------------------------------------------
-# Helper functions
-# ---------------------------------------------------------------------------
-
-
-def _split_sentences(text: str) -> List[str]:
-    """Split text into sentences, preserving terminal punctuation."""
-    parts = re.split(r'(?<=[.!?])\s+', text)
-    return [p.strip() for p in parts if p.strip()]
-
-
-def _count_matching(sentences: List[str], patterns: List[re.Pattern]) -> int:
-    """Count sentences matching at least one pattern."""
-    count = 0
-    for sent in sentences:
-        if any(p.search(sent) for p in patterns):
-            count += 1
-    return count
-
-
-def _count_tokens(text: str, patterns: List[re.Pattern]) -> int:
-    """Count total token matches across all patterns."""
-    count = 0
-    for p in patterns:
-        count += len(p.findall(text))
-    return count
-
-
-# ---------------------------------------------------------------------------
-# WriterInterrogativeDensity class
-# ---------------------------------------------------------------------------
+# ── Public data class ───────────────────────────────────────────────
 
 
 class WriterInterrogativeDensity:
-    """Measure the interrogative density in prose."""
+    """Compute interrogative density metrics for a text."""
 
-    def __init__(self):
-        self.direct_question = DIRECT_QUESTION_PATTERNS
-        self.rhetorical_question = RHETORICAL_QUESTION_PATTERNS
-        self.embedded_question = EMBEDDED_QUESTION_PATTERNS
-        self.self_addressed_question = SELF_ADDRESSED_QUESTION_PATTERNS
-        self.interrogative_pronoun = INTERROGATIVE_PRONOUN_PATTERNS
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self._sentences = _split_sentences(text)
+        self._n_sentences = max(len(self._sentences), 1)
+        self._question_indices = self._compute_question_indices()
 
-    def _split_sentences(self, text: str) -> List[str]:
-        return _split_sentences(text)
+    # ── Individual signals ──────────────────────────────────────────
 
-    def _count_matching(self, sentences: List[str], patterns: List[re.Pattern]) -> int:
-        return _count_matching(sentences, patterns)
+    @property
+    def direct_question_rate(self) -> float:
+        """Sentences ending with ? per 100 sentences."""
+        count = sum(
+            1 for s in self._sentences if s.rstrip().endswith("?")
+        )
+        return (count / self._n_sentences) * 100.0
 
-    def measure_direct_question_rate(self, text: str) -> float:
-        sentences = self._split_sentences(text)
-        if not sentences:
+    @property
+    def wh_word_question_rate(self) -> float:
+        """Interrogative wh-words per 100 sentences."""
+        count = 0
+        for s in self._sentences:
+            count += len(WH_WORD_RE.findall(s))
+        return (count / self._n_sentences) * 100.0
+
+    @property
+    def tag_question_rate(self) -> float:
+        """Tag questions per 100 sentences."""
+        count = 0
+        for s in self._sentences:
+            count += len(TAG_QUESTION_RE.findall(s))
+        return (count / self._n_sentences) * 100.0
+
+    @property
+    def indirect_question_rate(self) -> float:
+        """Indirect/embedded questions per 100 sentences."""
+        count = 0
+        for s in self._sentences:
+            count += len(INDIRECT_QUESTION_RE.findall(s))
+        return (count / self._n_sentences) * 100.0
+
+    @property
+    def rhetorical_question_rate(self) -> float:
+        """Rhetorical questions (with markers) per 100 sentences."""
+        count = 0
+        for s in self._sentences:
+            if RHETORICAL_RE.search(s):
+                count += 1
+        return (count / self._n_sentences) * 100.0
+
+    @property
+    def question_clustering_ratio(self) -> float:
+        """Fraction of question sentences within 2 sentences of another."""
+        if not self._question_indices:
             return 0.0
-        return self._count_matching(sentences, self.direct_question) / len(sentences)
+        clustered = 0
+        qi_set = set(self._question_indices)
+        for idx in self._question_indices:
+            # check if any other question is within ±2 sentences
+            for delta in (-2, -1, 1, 2):
+                neighbour = idx + delta
+                if neighbour in qi_set and neighbour != idx:
+                    clustered += 1
+                    break
+        return clustered / len(self._question_indices)
 
-    def measure_rhetorical_question_rate(self, text: str) -> float:
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
-        return self._count_matching(sentences, self.rhetorical_question) / len(sentences)
+    # ── Composite ───────────────────────────────────────────────────
 
-    def measure_embedded_question_rate(self, text: str) -> float:
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
-        return self._count_matching(sentences, self.embedded_question) / len(sentences)
+    @property
+    def interrogative_density_index(self) -> float:
+        """Composite index 0.0 to 1.0."""
+        direct_norm = min(self.direct_question_rate / 50.0, 1.0)
+        wh_norm = min(self.wh_word_question_rate / 40.0, 1.0)
+        tag_norm = min(self.tag_question_rate / 15.0, 1.0)
+        indirect_norm = min(self.indirect_question_rate / 20.0, 1.0)
+        rhetorical_norm = min(self.rhetorical_question_rate / 15.0, 1.0)
+        cluster_norm = self.question_clustering_ratio  # already 0-1
 
-    def measure_self_addressed_question_rate(self, text: str) -> float:
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
-        return self._count_matching(sentences, self.self_addressed_question) / len(sentences)
-
-    def measure_interrogative_pronoun_density(self, text: str) -> float:
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
-        total_tokens = _count_tokens(text, self.interrogative_pronoun)
-        return total_tokens / len(sentences)
-
-    def compute_interrogative_density_index(
-        self,
-        direct: float,
-        rhetorical: float,
-        embedded: float,
-        self_addr: float,
-        pronoun: float,
-    ) -> float:
         return (
-            direct * 0.25
-            + rhetorical * 0.25
-            + embedded * 0.20
-            + self_addr * 0.15
-            + pronoun * 0.15
+            0.30 * direct_norm
+            + 0.20 * wh_norm
+            + 0.10 * tag_norm
+            + 0.15 * indirect_norm
+            + 0.10 * rhetorical_norm
+            + 0.15 * cluster_norm
         )
 
-    def classify(self, index: float) -> str:
-        if index >= 0.50:
-            return "socratic"
-        elif index >= 0.30:
-            return "richly_interrogative"
-        elif index >= 0.15:
-            return "moderately_interrogative"
-        elif index >= 0.05:
-            return "minimally_interrogative"
-        else:
-            return "statement_dominant"
+    @property
+    def classification(self) -> str:
+        """Human-readable classification."""
+        idx = self.interrogative_density_index
+        if idx < 0.08:
+            return "declarative"
+        if idx < 0.20:
+            return "lightly_inquisitive"
+        if idx < 0.40:
+            return "moderately_inquisitive"
+        if idx < 0.60:
+            return "heavily_inquisitive"
+        return "question_saturated"
 
-    def measure(self, text: str) -> Dict[str, Any]:
-        direct = self.measure_direct_question_rate(text)
-        rhetorical = self.measure_rhetorical_question_rate(text)
-        embedded = self.measure_embedded_question_rate(text)
-        self_addr = self.measure_self_addressed_question_rate(text)
-        pronoun = self.measure_interrogative_pronoun_density(text)
-        index = self.compute_interrogative_density_index(
-            direct, rhetorical, embedded, self_addr, pronoun
-        )
-        classification = self.classify(index)
+    # ── Public accessor ─────────────────────────────────────────────
 
+    @property
+    def n_sentences(self) -> int:
+        """Number of sentences in the text."""
+        return len(self._sentences)
+
+    @property
+    def n_questions(self) -> int:
+        """Number of question sentences (ending with ?)."""
+        return len(self._question_indices)
+
+    # ── Summary ─────────────────────────────────────────────────────
+
+    def as_dict(self) -> Dict[str, Any]:
+        """Return all metrics as a dictionary."""
         return {
-            "direct_question_rate": round(direct, 4),
-            "rhetorical_question_rate": round(rhetorical, 4),
-            "embedded_question_rate": round(embedded, 4),
-            "self_addressed_question_rate": round(self_addr, 4),
-            "interrogative_pronoun_density": round(pronoun, 4),
-            "interrogative_density_index": round(index, 4),
-            "classification": classification,
+            "direct_question_rate": round(self.direct_question_rate, 4),
+            "wh_word_question_rate": round(self.wh_word_question_rate, 4),
+            "tag_question_rate": round(self.tag_question_rate, 4),
+            "indirect_question_rate": round(self.indirect_question_rate, 4),
+            "rhetorical_question_rate": round(self.rhetorical_question_rate, 4),
+            "question_clustering_ratio": round(self.question_clustering_ratio, 4),
+            "interrogative_density_index": round(self.interrogative_density_index, 4),
+            "classification": self.classification,
+            "n_sentences": len(self._sentences),
+            "n_questions": len(self._question_indices),
         }
 
+    # ── Internal ────────────────────────────────────────────────────
 
-if __name__ == "__main__":
-    interrogative_text = """What is the meaning of this? Why do I keep
-    writing these modules? How should I explain the pattern? Who knows?
-    What's the point? Isn't it obvious? The question is whether we can
-    measure inquiry itself. I wonder if this sentence counts as a
-    question. Am I the only one who sees the irony? What was I thinking
-    when I designed this classification? Do I even know anymore?
-    After all, what gives? Who cares? Does it really matter?"""
+    def _compute_question_indices(self) -> List[int]:
+        """Return indices of sentences that are questions (end with ?)."""
+        indices: List[int] = []
+        for i, s in enumerate(self._sentences):
+            if s.rstrip().endswith("?"):
+                indices.append(i)
+        return indices
 
-    declarative_text = """The committee reviewed the quarterly financial
-    statements. Revenue increased by twelve percent compared to the
-    previous period. Operating expenses remained within the approved
-    budget. The board approved the proposed capital expenditure plan.
-    Next quarter projections were presented for discussion."""
 
-    wid = WriterInterrogativeDensity()
+# ── Helpers ─────────────────────────────────────────────────────────
 
-    print("=== Interrogative Text ===")
-    result = wid.measure(interrogative_text)
-    for key, value in result.items():
-        print(f"{key:35s} {value}")
 
-    print("\n=== Declarative Text ===")
-    result = wid.measure(declarative_text)
-    for key, value in result.items():
-        print(f"{key:35s} {value}")
+def _split_sentences(text: str) -> List[str]:
+    """Split text into sentences on . ! ? followed by space or end."""
+    if not text or not text.strip():
+        return []
+    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    return [p.strip() for p in parts if p.strip()]
+
+
+# ── Module-level convenience ────────────────────────────────────────
+
+
+def analyse(text: str) -> Dict[str, Any]:
+    """One-call convenience: return all metrics for *text*."""
+    return WriterInterrogativeDensity(text).as_dict()

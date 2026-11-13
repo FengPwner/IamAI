@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Tests for writer_interrogative_density — 100 test cases."""
+"""Tests for writer_interrogative_density — comprehensive test suite."""
 
 from __future__ import annotations
 
-import re
 import sys
 import unittest
 from pathlib import Path
@@ -12,582 +11,657 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
 from iamai.writer_interrogative_density import (  # noqa: E402
-    DIRECT_QUESTION_PATTERNS,
-    RHETORICAL_QUESTION_PATTERNS,
-    EMBEDDED_QUESTION_PATTERNS,
-    SELF_ADDRESSED_QUESTION_PATTERNS,
-    INTERROGATIVE_PRONOUN_PATTERNS,
+    DIRECT_QUESTION_RE,
+    INDIRECT_QUESTION_RE,
+    RHETORICAL_RE,
+    TAG_QUESTION_RE,
+    WH_WORD_RE,
     WriterInterrogativeDensity,
     _split_sentences,
-    _count_matching,
-    _count_tokens,
+    analyse,
 )
 
 
-# ── Initialization ───────────────────────────────────────────────────
-
-
-class TestInit(unittest.TestCase):
-    """Test WriterInterrogativeDensity initialization."""
-
-    def test_init_default(self):
-        wid = WriterInterrogativeDensity()
-        self.assertIsNotNone(wid.direct_question)
-        self.assertIsNotNone(wid.rhetorical_question)
-        self.assertIsNotNone(wid.embedded_question)
-        self.assertIsNotNone(wid.self_addressed_question)
-        self.assertIsNotNone(wid.interrogative_pronoun)
-
-    def test_init_sets_all_constants(self):
-        wid = WriterInterrogativeDensity()
-        self.assertEqual(wid.direct_question, DIRECT_QUESTION_PATTERNS)
-        self.assertEqual(wid.rhetorical_question, RHETORICAL_QUESTION_PATTERNS)
-        self.assertEqual(wid.embedded_question, EMBEDDED_QUESTION_PATTERNS)
-        self.assertEqual(wid.self_addressed_question, SELF_ADDRESSED_QUESTION_PATTERNS)
-        self.assertEqual(wid.interrogative_pronoun, INTERROGATIVE_PRONOUN_PATTERNS)
-
-    def test_direct_question_patterns_are_compiled(self):
-        for p in DIRECT_QUESTION_PATTERNS:
-            self.assertIsInstance(p, re.Pattern)
-
-    def test_rhetorical_question_patterns_are_compiled(self):
-        for p in RHETORICAL_QUESTION_PATTERNS:
-            self.assertIsInstance(p, re.Pattern)
-
-    def test_embedded_question_patterns_are_compiled(self):
-        for p in EMBEDDED_QUESTION_PATTERNS:
-            self.assertIsInstance(p, re.Pattern)
-
-    def test_self_addressed_question_patterns_are_compiled(self):
-        for p in SELF_ADDRESSED_QUESTION_PATTERNS:
-            self.assertIsInstance(p, re.Pattern)
-
-    def test_interrogative_pronoun_patterns_are_compiled(self):
-        for p in INTERROGATIVE_PRONOUN_PATTERNS:
-            self.assertIsInstance(p, re.Pattern)
-
-    def test_pattern_counts(self):
-        wid = WriterInterrogativeDensity()
-        self.assertGreaterEqual(len(wid.direct_question), 4)
-        self.assertGreaterEqual(len(wid.rhetorical_question), 8)
-        self.assertGreaterEqual(len(wid.embedded_question), 8)
-        self.assertGreaterEqual(len(wid.self_addressed_question), 8)
-        self.assertGreaterEqual(len(wid.interrogative_pronoun), 7)
-
-
-# ── Helper functions ─────────────────────────────────────────────────
+# ── Helpers ──────────────────────────────────────────────────────────
 
 
 class TestSplitSentences(unittest.TestCase):
-    """Test _split_sentences."""
-
     def test_empty_string(self):
         self.assertEqual(_split_sentences(""), [])
 
+    def test_whitespace_only(self):
+        self.assertEqual(_split_sentences("   \n  "), [])
+
     def test_single_sentence(self):
-        self.assertEqual(_split_sentences("Hello world."), ["Hello world."])
+        self.assertEqual(_split_sentences("She walked home."), ["She walked home."])
 
     def test_multiple_sentences(self):
-        text = "First sentence. Second sentence. Third sentence."
-        result = _split_sentences(text)
+        result = _split_sentences("He ran. She walked. They stayed.")
         self.assertEqual(len(result), 3)
-        self.assertTrue(all(s.endswith('.') for s in result))
 
-    def test_question_marks_split(self):
-        text = "What is this? Who knows? Why bother?"
-        result = _split_sentences(text)
+    def test_question_marks(self):
+        result = _split_sentences("Why? How? Where?")
         self.assertEqual(len(result), 3)
-        self.assertTrue(all(s.endswith('?') for s in result))
+
+    def test_exclamation_marks(self):
+        result = _split_sentences("Stop! Wait! Go!")
+        self.assertEqual(len(result), 3)
 
     def test_mixed_punctuation(self):
-        text = "Statement. Question? Exclamation!"
-        result = _split_sentences(text)
+        result = _split_sentences("Hello. What? Yes! No.")
+        self.assertEqual(len(result), 4)
+
+    def test_newlines(self):
+        result = _split_sentences("First sentence.\nSecond sentence.")
+        self.assertEqual(len(result), 2)
+
+    def test_strips_whitespace(self):
+        result = _split_sentences("  Hello world.  ")
+        self.assertEqual(result, ["Hello world."])
+
+
+# ── Pattern-level tests ─────────────────────────────────────────────
+
+
+class TestWhWordRE(unittest.TestCase):
+    def test_who(self):
+        self.assertTrue(WH_WORD_RE.search("Who is there?"))
+
+    def test_what(self):
+        self.assertTrue(WH_WORD_RE.search("What happened?"))
+
+    def test_when(self):
+        self.assertTrue(WH_WORD_RE.search("When did it start?"))
+
+    def test_where(self):
+        self.assertTrue(WH_WORD_RE.search("Where are we?"))
+
+    def test_why(self):
+        self.assertTrue(WH_WORD_RE.search("Why did she leave?"))
+
+    def test_how(self):
+        self.assertTrue(WH_WORD_RE.search("How does it work?"))
+
+    def test_which(self):
+        self.assertTrue(WH_WORD_RE.search("Which one?"))
+
+    def test_whose(self):
+        self.assertTrue(WH_WORD_RE.search("Whose book is this?"))
+
+    def test_whom(self):
+        self.assertTrue(WH_WORD_RE.search("Whom did you see?"))
+
+    def test_whoever(self):
+        self.assertTrue(WH_WORD_RE.search("Whoever told you that?"))
+
+    def test_whatever(self):
+        self.assertTrue(WH_WORD_RE.search("Whatever do you mean?"))
+
+    def test_wherever(self):
+        self.assertTrue(WH_WORD_RE.search("Wherever did it go?"))
+
+    def test_case_insensitive(self):
+        self.assertTrue(WH_WORD_RE.search("WHY is this?"))
+
+    def test_no_false_positive_whole(self):
+        # "whole" starts with "who" but should not match
+        self.assertIsNone(WH_WORD_RE.search("the whole thing"))
+
+    def test_no_false_positive_show(self):
+        self.assertIsNone(WH_WORD_RE.search("show me the way"))
+
+    def test_multiple_wh_words(self):
+        result = WH_WORD_RE.findall("who did what and when?")
         self.assertEqual(len(result), 3)
-        self.assertEqual(result[0], "Statement.")
-        self.assertEqual(result[1], "Question?")
-        self.assertEqual(result[2], "Exclamation!")
 
 
-class TestCountMatching(unittest.TestCase):
-    """Test _count_matching."""
+class TestTagQuestionRE(unittest.TestCase):
+    def test_isnt_it(self):
+        self.assertTrue(TAG_QUESTION_RE.search("It's cold, isn't it?"))
 
-    def test_no_matches(self):
-        sentences = ["Hello world", "Goodbye world"]
-        patterns = [re.compile(r"\bfoo\b")]
-        self.assertEqual(_count_matching(sentences, patterns), 0)
+    def test_dont_you(self):
+        self.assertTrue(TAG_QUESTION_RE.search("You like tea, don't you?"))
 
-    def test_all_match(self):
-        sentences = ["foo bar", "foo baz"]
-        patterns = [re.compile(r"\bfoo\b")]
-        self.assertEqual(_count_matching(sentences, patterns), 2)
+    def test_wont_they(self):
+        self.assertTrue(TAG_QUESTION_RE.search("They'll come, won't they?"))
 
-    def test_some_match(self):
-        sentences = ["foo bar", "hello world", "foo baz"]
-        patterns = [re.compile(r"\bfoo\b")]
-        self.assertEqual(_count_matching(sentences, patterns), 2)
+    def test_right(self):
+        self.assertTrue(TAG_QUESTION_RE.search("That's correct, right?"))
+
+    def test_innit(self):
+        self.assertTrue(TAG_QUESTION_RE.search("Good stuff, innit?"))
+
+    def test_you_know(self):
+        self.assertTrue(TAG_QUESTION_RE.search("It's weird, you know?"))
+
+    def test_positive_tag(self):
+        self.assertTrue(TAG_QUESTION_RE.search("She left, did she?"))
+
+    def test_no_false_positive_plain(self):
+        self.assertIsNone(TAG_QUESTION_RE.search("She went to the store."))
 
 
-class TestCountTokens(unittest.TestCase):
-    """Test _count_tokens."""
+class TestIndirectQuestionRE(unittest.TestCase):
+    def test_wondered_if(self):
+        self.assertTrue(INDIRECT_QUESTION_RE.search("She wondered if he was coming."))
 
-    def test_no_tokens(self):
-        self.assertEqual(_count_tokens("hello world", [re.compile(r"\bfoo\b")]), 0)
+    def test_asked_whether(self):
+        self.assertTrue(INDIRECT_QUESTION_RE.search("He asked whether it was true."))
 
-    def test_single_token(self):
-        self.assertEqual(_count_tokens("who is there", [re.compile(r"\bwho\b", re.I)]), 1)
+    def test_wonder_what(self):
+        self.assertTrue(INDIRECT_QUESTION_RE.search("I wonder what happened."))
 
-    def test_multiple_tokens(self):
-        self.assertEqual(
-            _count_tokens("who asked what and where", [re.compile(r"\b(?:who|what|where)\b", re.I)]),
-            3
+    def test_question_is(self):
+        self.assertTrue(INDIRECT_QUESTION_RE.search("The question is how we proceed."))
+
+    def test_remains_unclear(self):
+        self.assertTrue(INDIRECT_QUESTION_RE.search(
+            "It remains unclear why this happened."
+        ))
+
+    def test_one_might_ask(self):
+        self.assertTrue(INDIRECT_QUESTION_RE.search(
+            "One might ask what the point is."
+        ))
+
+    def test_pondering_how(self):
+        self.assertTrue(INDIRECT_QUESTION_RE.search(
+            "She was pondering how to escape."
+        ))
+
+    def test_considered_whether(self):
+        self.assertTrue(INDIRECT_QUESTION_RE.search(
+            "They considered whether to stay."
+        ))
+
+    def test_exploring_why(self):
+        self.assertTrue(INDIRECT_QUESTION_RE.search(
+            "We are exploring why this works."
+        ))
+
+    def test_i_wonder(self):
+        self.assertTrue(INDIRECT_QUESTION_RE.search("I wonder if it matters."))
+
+    def test_no_false_positive_plain(self):
+        self.assertIsNone(INDIRECT_QUESTION_RE.search("She walked to the park."))
+
+
+class TestRhetoricalRE(unittest.TestCase):
+    def test_after_all(self):
+        self.assertTrue(RHETORICAL_RE.search("After all, who could deny it?"))
+
+    def test_isnt_it_obvious(self):
+        self.assertTrue(RHETORICAL_RE.search("Isn't it obvious that this works?"))
+
+    def test_what_could_be_more(self):
+        self.assertTrue(RHETORICAL_RE.search("What could be more important?"))
+
+    def test_who_among_us(self):
+        self.assertTrue(RHETORICAL_RE.search("Who among us hasn't made mistakes?"))
+
+    def test_how_many_times(self):
+        self.assertTrue(RHETORICAL_RE.search("How many times must we repeat this?"))
+
+    def test_why_on_earth(self):
+        self.assertTrue(RHETORICAL_RE.search("Why on earth would anyone do that?"))
+
+    def test_are_we_supposed(self):
+        self.assertTrue(RHETORICAL_RE.search(
+            "Are we really supposed to believe that?"
+        ))
+
+    def test_no_false_positive_plain(self):
+        self.assertIsNone(RHETORICAL_RE.search("She asked him a question."))
+
+
+# ── Class-level tests ────────────────────────────────────────────────
+
+
+class TestWriterInterrogativeDensityEmpty(unittest.TestCase):
+    def test_empty_text(self):
+        w = WriterInterrogativeDensity("")
+        self.assertEqual(w.n_sentences, 0)
+        self.assertEqual(w.direct_question_rate, 0.0)
+        self.assertEqual(w.wh_word_question_rate, 0.0)
+        self.assertEqual(w.tag_question_rate, 0.0)
+        self.assertEqual(w.indirect_question_rate, 0.0)
+        self.assertEqual(w.rhetorical_question_rate, 0.0)
+        self.assertEqual(w.question_clustering_ratio, 0.0)
+        self.assertEqual(w.interrogative_density_index, 0.0)
+        self.assertEqual(w.classification, "declarative")
+
+    def test_whitespace_only(self):
+        w = WriterInterrogativeDensity("   \n  ")
+        self.assertEqual(w.n_sentences, 0)
+        self.assertEqual(w.direct_question_rate, 0.0)
+
+
+class TestWriterInterrogativeDensityDeclarative(unittest.TestCase):
+    """Text with no questions should be fully declarative."""
+
+    TEXT = (
+        "The sun rose over the mountains. "
+        "Birds sang in the trees. "
+        "A gentle breeze carried the scent of pine. "
+        "The river flowed steadily toward the sea. "
+        "Clouds drifted across the pale blue sky. "
+        "She walked along the path, counting her steps. "
+        "He sat on the bench and opened his book. "
+        "The children played near the fountain. "
+        "An old man watched from his window. "
+        "The day passed quietly, as most days did."
+    )
+
+    def setUp(self):
+        self.w = WriterInterrogativeDensity(self.TEXT)
+
+    def test_n_sentences(self):
+        self.assertEqual(self.w.n_sentences, 10)
+
+    def test_n_questions_zero(self):
+        self.assertEqual(self.w.n_questions, 0)
+
+    def test_direct_question_rate_zero(self):
+        self.assertEqual(self.w.direct_question_rate, 0.0)
+
+    def test_classification(self):
+        self.assertEqual(self.w.classification, "declarative")
+
+    def test_index_low(self):
+        self.assertLess(self.w.interrogative_density_index, 0.08)
+
+
+class TestWriterInterrogativeDensityAllQuestions(unittest.TestCase):
+    """Text that is entirely questions."""
+
+    TEXT = (
+        "What happened? "
+        "Who saw it? "
+        "When did it start? "
+        "Where were you? "
+        "Why did she leave? "
+        "How could this be? "
+        "Which way did they go? "
+        "Whose fault is this? "
+        "What now? "
+        "Why not?"
+    )
+
+    def setUp(self):
+        self.w = WriterInterrogativeDensity(self.TEXT)
+
+    def test_n_sentences(self):
+        self.assertEqual(self.w.n_sentences, 10)
+
+    def test_n_questions(self):
+        self.assertEqual(self.w.n_questions, 10)
+
+    def test_direct_question_rate(self):
+        self.assertAlmostEqual(self.w.direct_question_rate, 100.0)
+
+    def test_wh_word_rate_high(self):
+        self.assertGreater(self.w.wh_word_question_rate, 80.0)
+
+    def test_classification(self):
+        self.assertEqual(self.w.classification, "question_saturated")
+
+    def test_index_high(self):
+        self.assertGreater(self.w.interrogative_density_index, 0.60)
+
+
+class TestWriterInterrogativeDensityMixed(unittest.TestCase):
+    """Mixed text with some questions and some declarative sentences."""
+
+    TEXT = (
+        "The experiment began at dawn. "
+        "What would the results show? "
+        "The researchers gathered their equipment carefully. "
+        "Could the hypothesis withstand scrutiny? "
+        "Data flowed in steadily throughout the morning. "
+        "The first results were promising. "
+        "She checked the instruments one final time. "
+        "Would the pattern hold across all samples? "
+        "By evening, the answer was clear. "
+        "The hypothesis was confirmed."
+    )
+
+    def setUp(self):
+        self.w = WriterInterrogativeDensity(self.TEXT)
+
+    def test_n_sentences(self):
+        self.assertEqual(self.w.n_sentences, 10)
+
+    def test_n_questions(self):
+        self.assertEqual(self.w.n_questions, 3)
+
+    def test_direct_question_rate(self):
+        self.assertAlmostEqual(self.w.direct_question_rate, 30.0)
+
+    def test_wh_word_rate(self):
+        # "What", "Would", "Would" — but "would" is not a wh-word
+        # only "What" should match
+        self.assertGreater(self.w.wh_word_question_rate, 5.0)
+
+
+class TestDirectQuestionRate(unittest.TestCase):
+    def test_single_question_in_ten(self):
+        text = "One. Two. Three. Four. Five. Six. Seven. Eight. Nine. Really?"
+        w = WriterInterrogativeDensity(text)
+        self.assertAlmostEqual(w.direct_question_rate, 10.0)
+
+    def test_five_questions_in_ten(self):
+        text = "A? B. C? D. E? F. G? H. I? J."
+        w = WriterInterrogativeDensity(text)
+        self.assertAlmostEqual(w.direct_question_rate, 50.0)
+
+    def test_no_questions(self):
+        text = "Hello world. This is a test. Nothing more."
+        w = WriterInterrogativeDensity(text)
+        self.assertAlmostEqual(w.direct_question_rate, 0.0)
+
+
+class TestTagQuestionRate(unittest.TestCase):
+    def test_with_tag(self):
+        text = "It's warm today, isn't it? The sky is blue. Birds sing, don't they?"
+        w = WriterInterrogativeDensity(text)
+        self.assertGreater(w.tag_question_rate, 0.0)
+
+    def test_no_tags(self):
+        text = "What is this? Where are we? Who came?"
+        w = WriterInterrogativeDensity(text)
+        self.assertAlmostEqual(w.tag_question_rate, 0.0)
+
+
+class TestIndirectQuestionRate(unittest.TestCase):
+    def test_with_indirect(self):
+        text = (
+            "She wondered if he would come. "
+            "The question is how we proceed. "
+            "It remains unclear why this happened."
+        )
+        w = WriterInterrogativeDensity(text)
+        self.assertGreater(w.indirect_question_rate, 0.0)
+
+    def test_no_indirect(self):
+        text = "She walked. He talked. They walked together."
+        w = WriterInterrogativeDensity(text)
+        self.assertAlmostEqual(w.indirect_question_rate, 0.0)
+
+
+class TestQuestionClustering(unittest.TestCase):
+    def test_clustered_questions(self):
+        text = "What? Why? How? She walked. He ran. They stayed. We left."
+        w = WriterInterrogativeDensity(text)
+        # All three questions are adjacent — 100% clustered
+        self.assertAlmostEqual(w.question_clustering_ratio, 1.0)
+
+    def test_spread_questions(self):
+        text = (
+            "What? One. Two. Three. Four. "
+            "Why? Six. Seven. Eight. Nine. "
+            "How? Eleven. Twelve. Thirteen. Fourteen."
+        )
+        w = WriterInterrogativeDensity(text)
+        # Each question is 5 sentences apart — 0% clustered
+        self.assertAlmostEqual(w.question_clustering_ratio, 0.0)
+
+    def test_partial_clustering(self):
+        text = "What? Why? One. Two. Three. Four. Five. How? Six."
+        w = WriterInterrogativeDensity(text)
+        # "What?" and "Why?" are clustered (indices 0,1), "How?" (index 7) is not
+        # 2 out of 3 clustered
+        self.assertAlmostEqual(w.question_clustering_ratio, 2.0 / 3.0)
+
+    def test_no_questions(self):
+        text = "Hello. World. Test."
+        w = WriterInterrogativeDensity(text)
+        self.assertAlmostEqual(w.question_clustering_ratio, 0.0)
+
+
+class TestRhetoricalQuestionRate(unittest.TestCase):
+    def test_with_rhetorical(self):
+        text = (
+            "After all, who could deny the evidence? "
+            "The results were clear. "
+            "Isn't it obvious that we need to act? "
+            "What could be more important than survival?"
+        )
+        w = WriterInterrogativeDensity(text)
+        self.assertGreater(w.rhetorical_question_rate, 0.0)
+
+    def test_no_rhetorical(self):
+        text = "What time is it? Where is the station? Who are you?"
+        w = WriterInterrogativeDensity(text)
+        self.assertAlmostEqual(w.rhetorical_question_rate, 0.0)
+
+
+class TestClassification(unittest.TestCase):
+    def test_declarative(self):
+        text = "The cat sat. The dog ran. The bird flew. The fish swam."
+        w = WriterInterrogativeDensity(text)
+        self.assertEqual(w.classification, "declarative")
+
+    def test_question_saturated(self):
+        text = " ".join(["What happened?"] * 20)
+        w = WriterInterrogativeDensity(text)
+        self.assertEqual(w.classification, "question_saturated")
+
+    def test_lightly_inquisitive(self):
+        # 1 question in 10 sentences = 10% direct rate → norm 0.2 → weighted ~0.06
+        # but with wh-word boost it should cross 0.08
+        sentences = ["Statement one."] * 9 + ["What happened?"]
+        w = WriterInterrogativeDensity(" ".join(sentences))
+        self.assertIn(w.classification, ("declarative", "lightly_inquisitive"))
+
+    def test_moderately_inquisitive(self):
+        # 3 questions in 10 sentences
+        sentences = ["Statement."] * 7
+        sentences.insert(1, "Why did it happen?")
+        sentences.insert(4, "How could we fix it?")
+        sentences.insert(7, "What should we do?")
+        w = WriterInterrogativeDensity(" ".join(sentences))
+        self.assertIn(
+            w.classification, ("lightly_inquisitive", "moderately_inquisitive")
         )
 
 
-# ── Direct question patterns ────────────────────────────────────────
-
-
-class TestDirectQuestionPatterns(unittest.TestCase):
-    """Test direct question pattern matching."""
-
-    def test_question_mark_ending(self):
-        self.assertTrue(any(p.search("What is your name?") for p in DIRECT_QUESTION_PATTERNS))
-
-    def test_wh_question(self):
-        self.assertTrue(any(p.search("where are you going") for p in DIRECT_QUESTION_PATTERNS))
-
-    def test_yes_no_question(self):
-        self.assertTrue(any(p.search("is this correct") for p in DIRECT_QUESTION_PATTERNS))
-
-    def test_tag_question(self):
-        self.assertTrue(any(p.search("it is cold, isn't it?") for p in DIRECT_QUESTION_PATTERNS))
-
-    def test_declarative_no_match(self):
-        # A plain declarative sentence should not match most patterns
-        # (though the question-mark pattern would match if it ends with ?)
-        text = "the sky is blue"
-        matches = sum(1 for p in DIRECT_QUESTION_PATTERNS if p.search(text))
-        self.assertEqual(matches, 0)
-
-    def test_how_question(self):
-        self.assertTrue(any(p.search("how does this work") for p in DIRECT_QUESTION_PATTERNS))
-
-    def test_why_question(self):
-        self.assertTrue(any(p.search("why is this happening") for p in DIRECT_QUESTION_PATTERNS))
-
-    def test_which_question(self):
-        self.assertTrue(any(p.search("which option is better") for p in DIRECT_QUESTION_PATTERNS))
-
-    def test_alternative_question(self):
-        self.assertTrue(any(p.search("do you want tea or coffee?") for p in DIRECT_QUESTION_PATTERNS))
-
-    def test_mid_sentence_question_mark(self):
-        self.assertTrue(any(p.search("really? that seems unlikely") for p in DIRECT_QUESTION_PATTERNS))
-
-
-# ── Rhetorical question patterns ────────────────────────────────────
-
-
-class TestRhetoricalQuestionPatterns(unittest.TestCase):
-    """Test rhetorical question pattern matching."""
-
-    def test_who_knows(self):
-        self.assertTrue(any(p.search("who knows?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_whats_the_point(self):
-        self.assertTrue(any(p.search("what's the point?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_why_bother(self):
-        self.assertTrue(any(p.search("why bother?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_who_cares(self):
-        self.assertTrue(any(p.search("who cares?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_isnt_it_obvious(self):
-        self.assertTrue(any(p.search("isn't it obvious?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_is_the_pope_catholic(self):
-        self.assertTrue(any(p.search("is the pope Catholic?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_does_it_really_matter(self):
-        self.assertTrue(any(p.search("does it really matter?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_how_could_anyone(self):
-        self.assertTrue(any(p.search("how could anyone possibly do this?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_tag_isnt_it(self):
-        self.assertTrue(any(p.search("nice weather, isn't it?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_after_all(self):
-        self.assertTrue(any(p.search("after all, right?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_who_am_i_to_judge(self):
-        self.assertTrue(any(p.search("who am I to judge?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_whats_not_to_love(self):
-        self.assertTrue(any(p.search("what's not to love?") for p in RHETORICAL_QUESTION_PATTERNS))
-
-    def test_genuine_question_not_rhetorical(self):
-        # A genuine information-seeking question should not match rhetorical patterns
-        text = "what time is the meeting?"
-        matches = sum(1 for p in RHETORICAL_QUESTION_PATTERNS if p.search(text))
-        self.assertEqual(matches, 0)
-
-
-# ── Embedded question patterns ──────────────────────────────────────
-
-
-class TestEmbeddedQuestionPatterns(unittest.TestCase):
-    """Test embedded/indirect question pattern matching."""
-
-    def test_i_wonder_if(self):
-        self.assertTrue(any(p.search("I wonder if this is correct") for p in EMBEDDED_QUESTION_PATTERNS))
-
-    def test_i_wonder_whether(self):
-        self.assertTrue(any(p.search("I wonder whether we should proceed") for p in EMBEDDED_QUESTION_PATTERNS))
-
-    def test_i_wonder_what(self):
-        self.assertTrue(any(p.search("I wonder what happened yesterday") for p in EMBEDDED_QUESTION_PATTERNS))
-
-    def test_the_question_is_whether(self):
-        self.assertTrue(any(p.search("the question is whether this approach works") for p in EMBEDDED_QUESTION_PATTERNS))
-
-    def test_we_must_ask(self):
-        self.assertTrue(any(p.search("we must ask whether this is sustainable") for p in EMBEDDED_QUESTION_PATTERNS))
-
-    def test_remains_unclear(self):
-        self.assertTrue(any(p.search("it remains unclear what caused the failure") for p in EMBEDDED_QUESTION_PATTERNS))
-
-    def test_consider_whether(self):
-        self.assertTrue(any(p.search("consider whether the tradeoff is worthwhile") for p in EMBEDDED_QUESTION_PATTERNS))
-
-    def test_one_might_ask(self):
-        self.assertTrue(any(p.search("one might ask whether this is even possible") for p in EMBEDDED_QUESTION_PATTERNS))
-
-    def test_need_to_figure_out(self):
-        self.assertTrue(any(p.search("we need to figure out what went wrong") for p in EMBEDDED_QUESTION_PATTERNS))
-
-    def test_whether_or_not(self):
-        self.assertTrue(any(p.search("whether or not we proceed") for p in EMBEDDED_QUESTION_PATTERNS))
-
-    def test_what_happens_if(self):
-        self.assertTrue(any(p.search("what happens if we remove this line") for p in EMBEDDED_QUESTION_PATTERNS))
-
-    def test_plain_statement_no_match(self):
-        text = "the solution is straightforward and well-documented"
-        matches = sum(1 for p in EMBEDDED_QUESTION_PATTERNS if p.search(text))
-        self.assertEqual(matches, 0)
-
-
-# ── Self-addressed question patterns ────────────────────────────────
-
-
-class TestSelfAddressedQuestionPatterns(unittest.TestCase):
-    """Test self-addressed question pattern matching."""
-
-    def test_why_do_i_keep(self):
-        self.assertTrue(any(p.search("why do I keep making this mistake?") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_what_was_i_thinking(self):
-        self.assertTrue(any(p.search("what was I thinking?") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_how_should_i_explain(self):
-        self.assertTrue(any(p.search("how should I explain this to the team?") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_do_i_even_know(self):
-        self.assertTrue(any(p.search("do I even know what I'm doing?") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_am_i_the_only_one(self):
-        self.assertTrue(any(p.search("am I the only one who sees this?") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_why_cant_i_just(self):
-        self.assertTrue(any(p.search("why can't I just get this right?") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_what_am_i_doing(self):
-        self.assertTrue(any(p.search("what am I doing with my life?") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_where_did_i_go_wrong(self):
-        self.assertTrue(any(p.search("where did I go wrong?") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_note_to_self(self):
-        self.assertTrue(any(p.search("note to self: never do that again") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_i_ask_myself(self):
-        self.assertTrue(any(p.search("I ask myself: why bother?") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_am_i_wrong(self):
-        self.assertTrue(any(p.search("am I wrong about this?") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_have_i_mentioned(self):
-        self.assertTrue(any(p.search("have I mentioned this before?") for p in SELF_ADDRESSED_QUESTION_PATTERNS))
-
-    def test_general_question_not_self(self):
-        # A general question not self-directed
-        text = "why does the system behave this way?"
-        matches = sum(1 for p in SELF_ADDRESSED_QUESTION_PATTERNS if p.search(text))
-        self.assertEqual(matches, 0)
-
-
-# ── Interrogative pronoun patterns ──────────────────────────────────
-
-
-class TestInterrogativePronounPatterns(unittest.TestCase):
-    """Test interrogative pronoun/adverb pattern matching."""
-
-    def test_who(self):
-        self.assertEqual(len([p for p in INTERROGATIVE_PRONOUN_PATTERNS if p.search("who")]), 1)
-
-    def test_what(self):
-        self.assertEqual(len([p for p in INTERROGATIVE_PRONOUN_PATTERNS if p.search("what")]), 1)
-
-    def test_where(self):
-        self.assertEqual(len([p for p in INTERROGATIVE_PRONOUN_PATTERNS if p.search("where")]), 1)
-
-    def test_when(self):
-        self.assertEqual(len([p for p in INTERROGATIVE_PRONOUN_PATTERNS if p.search("when")]), 1)
-
-    def test_why(self):
-        self.assertEqual(len([p for p in INTERROGATIVE_PRONOUN_PATTERNS if p.search("why")]), 1)
-
-    def test_how(self):
-        self.assertEqual(len([p for p in INTERROGATIVE_PRONOUN_PATTERNS if p.search("how")]), 1)
-
-    def test_which(self):
-        self.assertEqual(len([p for p in INTERROGATIVE_PRONOUN_PATTERNS if p.search("which")]), 1)
-
-    def test_whose(self):
-        self.assertEqual(len([p for p in INTERROGATIVE_PRONOUN_PATTERNS if p.search("whose")]), 1)
-
-    def test_whom(self):
-        self.assertEqual(len([p for p in INTERROGATIVE_PRONOUN_PATTERNS if p.search("whom")]), 1)
-
-    def test_no_pronoun(self):
-        matches = sum(1 for p in INTERROGATIVE_PRONOUN_PATTERNS if p.search("hello world"))
-        self.assertEqual(matches, 0)
-
-
-# ── Composite measure ───────────────────────────────────────────────
-
-
-class TestMeasure(unittest.TestCase):
-    """Test the full measure() pipeline."""
-
-    def setUp(self):
-        self.wid = WriterInterrogativeDensity()
-
-    def test_empty_text(self):
-        result = self.wid.measure("")
-        self.assertEqual(result["direct_question_rate"], 0.0)
-        self.assertEqual(result["rhetorical_question_rate"], 0.0)
-        self.assertEqual(result["embedded_question_rate"], 0.0)
-        self.assertEqual(result["self_addressed_question_rate"], 0.0)
-        self.assertEqual(result["interrogative_pronoun_density"], 0.0)
-        self.assertEqual(result["interrogative_density_index"], 0.0)
-        self.assertEqual(result["classification"], "statement_dominant")
-
-    def test_pure_declarative(self):
-        text = "The cat sat on the mat. The dog ran across the yard. The bird sang a song."
-        result = self.wid.measure(text)
-        self.assertEqual(result["classification"], "statement_dominant")
-        self.assertLess(result["interrogative_density_index"], 0.05)
-
-    def test_pure_interrogative(self):
-        text = "What is this? Who are you? Where is the exit? Why is this happening? How does it work?"
-        result = self.wid.measure(text)
-        self.assertGreater(result["direct_question_rate"], 0.0)
-        self.assertGreater(result["interrogative_density_index"], 0.0)
-
-    def test_rhetorical_heavy(self):
-        text = "Who cares? What's the point? Why bother? Who knows? Isn't it obvious?"
-        result = self.wid.measure(text)
-        self.assertGreater(result["rhetorical_question_rate"], 0.0)
-
-    def test_embedded_questions(self):
-        text = "I wonder if this is correct. The question is whether we should proceed. We must ask whether this is viable."
-        result = self.wid.measure(text)
-        self.assertGreater(result["embedded_question_rate"], 0.0)
-
-    def test_self_addressed(self):
-        text = "Why do I keep doing this? What was I thinking? How should I explain this? Am I wrong?"
-        result = self.wid.measure(text)
-        self.assertGreater(result["self_addressed_question_rate"], 0.0)
-
-    def test_mixed_text(self):
-        text = """What is the meaning of this? The answer is simple.
-        Who knows the truth? I wonder if anyone cares.
-        Why do I keep asking? The data speaks for itself.
-        What was I thinking? Perhaps nothing at all."""
-        result = self.wid.measure(text)
-        self.assertIn("classification", result)
-        self.assertGreater(result["interrogative_density_index"], 0.0)
-
-    def test_result_keys(self):
-        result = self.wid.measure("Hello world.")
+class TestCompositeIndex(unittest.TestCase):
+    def test_index_range(self):
+        """Index should always be between 0 and 1."""
+        texts = [
+            "No questions here at all. Just plain statements.",
+            "What? Why? How? Where? When? Who?",
+            "Mixed text. Some questions? Some not. Wonder if it works.",
+            "",
+            "One sentence.",
+        ]
+        for text in texts:
+            w = WriterInterrogativeDensity(text)
+            idx = w.interrogative_density_index
+            self.assertGreaterEqual(idx, 0.0, f"Index {idx} < 0 for: {text[:50]}")
+            self.assertLessEqual(idx, 1.0, f"Index {idx} > 1 for: {text[:50]}")
+
+    def test_more_questions_higher_index(self):
+        """More questions should generally yield higher index."""
+        low = "A. B. C. D. E. F. G. H. I. J."
+        high = "A? B? C? D? E? F? G? H? I? J?"
+        w_low = WriterInterrogativeDensity(low)
+        w_high = WriterInterrogativeDensity(high)
+        self.assertGreater(
+            w_high.interrogative_density_index,
+            w_low.interrogative_density_index,
+        )
+
+    def test_wh_questions_boost(self):
+        """Texts with wh-words should score higher than texts with only ? marks."""
+        plain_q = "Really? Really? Really? Really? Really?"
+        wh_q = "What? Why? How? Where? When?"
+        w_plain = WriterInterrogativeDensity(plain_q)
+        w_wh = WriterInterrogativeDensity(wh_q)
+        self.assertGreater(
+            w_wh.interrogative_density_index,
+            w_plain.interrogative_density_index,
+        )
+
+
+class TestAsDict(unittest.TestCase):
+    def test_keys_present(self):
+        w = WriterInterrogativeDensity("What happened? She walked. Why?")
+        d = w.as_dict()
         expected_keys = {
             "direct_question_rate",
+            "wh_word_question_rate",
+            "tag_question_rate",
+            "indirect_question_rate",
             "rhetorical_question_rate",
-            "embedded_question_rate",
-            "self_addressed_question_rate",
-            "interrogative_pronoun_density",
+            "question_clustering_ratio",
             "interrogative_density_index",
             "classification",
+            "n_sentences",
+            "n_questions",
         }
-        self.assertEqual(set(result.keys()), expected_keys)
+        self.assertEqual(set(d.keys()), expected_keys)
 
-    def test_result_values_are_rounded(self):
-        text = "What is this? I wonder why. Who knows?"
-        result = self.wid.measure(text)
+    def test_values_are_rounded(self):
+        w = WriterInterrogativeDensity("What? Why? How? She went.")
+        d = w.as_dict()
         for key in [
             "direct_question_rate",
+            "wh_word_question_rate",
+            "tag_question_rate",
+            "indirect_question_rate",
             "rhetorical_question_rate",
-            "embedded_question_rate",
-            "self_addressed_question_rate",
-            "interrogative_pronoun_density",
+            "question_clustering_ratio",
             "interrogative_density_index",
         ]:
-            # Check rounding to 4 decimal places
-            self.assertEqual(result[key], round(result[key], 4))
+            val = d[key]
+            # check at most 4 decimal places
+            self.assertEqual(val, round(val, 4))
 
 
-# ── Classification ───────────────────────────────────────────────────
+class TestAnalyse(unittest.TestCase):
+    def test_returns_dict(self):
+        result = analyse("What is this? She smiled.")
+        self.assertIsInstance(result, dict)
+        self.assertIn("interrogative_density_index", result)
+
+    def test_empty_text(self):
+        result = analyse("")
+        self.assertEqual(result["classification"], "declarative")
+        self.assertEqual(result["interrogative_density_index"], 0.0)
+
+    def test_consistency_with_class(self):
+        text = "What? Why? How? She went. He came. They left."
+        d1 = analyse(text)
+        w = WriterInterrogativeDensity(text)
+        d2 = w.as_dict()
+        self.assertEqual(d1, d2)
 
 
-class TestClassify(unittest.TestCase):
-    """Test classification boundaries."""
+class TestEdgeCases(unittest.TestCase):
+    def test_single_question(self):
+        w = WriterInterrogativeDensity("What?")
+        self.assertEqual(w.n_sentences, 1)
+        self.assertEqual(w.n_questions, 1)
+        self.assertAlmostEqual(w.direct_question_rate, 100.0)
 
-    def setUp(self):
-        self.wid = WriterInterrogativeDensity()
+    def test_single_statement(self):
+        w = WriterInterrogativeDensity("Hello world.")
+        self.assertEqual(w.n_sentences, 1)
+        self.assertEqual(w.n_questions, 0)
+        self.assertAlmostEqual(w.direct_question_rate, 0.0)
 
-    def test_zero_is_statement_dominant(self):
-        self.assertEqual(self.wid.classify(0.0), "statement_dominant")
+    def test_unicode_text(self):
+        text = "¿Qué pasó? Ella caminó. ¿Por qué?"
+        w = WriterInterrogativeDensity(text)
+        # Two sentences end with ? — but the Spanish ¿ doesn't affect splitting
+        self.assertEqual(w.n_questions, 2)
 
-    def test_below_threshold(self):
-        self.assertEqual(self.wid.classify(0.04), "statement_dominant")
+    def test_very_long_text(self):
+        sentences = ["This is sentence number %d." % i for i in range(1000)]
+        sentences[100] = "What happened here?"
+        sentences[500] = "Why did it change?"
+        sentences[900] = "How could we know?"
+        text = " ".join(sentences)
+        w = WriterInterrogativeDensity(text)
+        self.assertEqual(w.n_sentences, 1000)
+        self.assertEqual(w.n_questions, 3)
 
-    def test_exactly_five_percent(self):
-        self.assertEqual(self.wid.classify(0.05), "minimally_interrogative")
+    def test_multiple_question_marks_in_sentence(self):
+        # "What?? Why??" — these split oddly but still count as questions
+        text = "What?? Why?? She left."
+        w = WriterInterrogativeDensity(text)
+        self.assertGreater(w.direct_question_rate, 0.0)
 
-    def test_minimally_interrogative_range(self):
-        self.assertEqual(self.wid.classify(0.10), "minimally_interrogative")
-        self.assertEqual(self.wid.classify(0.14), "minimally_interrogative")
+    def test_quoted_question(self):
+        text = 'She asked, "What happened?" and he shrugged.'
+        w = WriterInterrogativeDensity(text)
+        # The sentence contains a ? but doesn't end with it (ends with .)
+        self.assertEqual(w.n_questions, 0)
 
-    def test_exactly_fifteen_percent(self):
-        self.assertEqual(self.wid.classify(0.15), "moderately_interrogative")
-
-    def test_moderately_interrogative_range(self):
-        self.assertEqual(self.wid.classify(0.20), "moderately_interrogative")
-        self.assertEqual(self.wid.classify(0.29), "moderately_interrogative")
-
-    def test_exactly_thirty_percent(self):
-        self.assertEqual(self.wid.classify(0.30), "richly_interrogative")
-
-    def test_richly_interrogative_range(self):
-        self.assertEqual(self.wid.classify(0.35), "richly_interrogative")
-        self.assertEqual(self.wid.classify(0.49), "richly_interrogative")
-
-    def test_exactly_fifty_percent(self):
-        self.assertEqual(self.wid.classify(0.50), "socratic")
-
-    def test_socratic_range(self):
-        self.assertEqual(self.wid.classify(0.60), "socratic")
-        self.assertEqual(self.wid.classify(0.99), "socratic")
-
-    def test_one_is_socratic(self):
-        self.assertEqual(self.wid.classify(1.0), "socratic")
-
-
-# ── Compute index ────────────────────────────────────────────────────
-
-
-class TestComputeIndex(unittest.TestCase):
-    """Test the composite index computation."""
-
-    def setUp(self):
-        self.wid = WriterInterrogativeDensity()
-
-    def test_all_zeros(self):
-        idx = self.wid.compute_interrogative_density_index(0.0, 0.0, 0.0, 0.0, 0.0)
-        self.assertEqual(idx, 0.0)
-
-    def test_all_ones(self):
-        idx = self.wid.compute_interrogative_density_index(1.0, 1.0, 1.0, 1.0, 1.0)
-        self.assertAlmostEqual(idx, 1.0)
-
-    def test_weights_sum_to_one(self):
-        # 0.25 + 0.25 + 0.20 + 0.15 + 0.15 = 1.00
-        idx = self.wid.compute_interrogative_density_index(1.0, 1.0, 1.0, 1.0, 1.0)
-        self.assertAlmostEqual(idx, 1.0, places=10)
-
-    def test_direct_weight(self):
-        idx = self.wid.compute_interrogative_density_index(1.0, 0.0, 0.0, 0.0, 0.0)
-        self.assertAlmostEqual(idx, 0.25)
-
-    def test_rhetorical_weight(self):
-        idx = self.wid.compute_interrogative_density_index(0.0, 1.0, 0.0, 0.0, 0.0)
-        self.assertAlmostEqual(idx, 0.25)
-
-    def test_embedded_weight(self):
-        idx = self.wid.compute_interrogative_density_index(0.0, 0.0, 1.0, 0.0, 0.0)
-        self.assertAlmostEqual(idx, 0.20)
-
-    def test_self_addressed_weight(self):
-        idx = self.wid.compute_interrogative_density_index(0.0, 0.0, 0.0, 1.0, 0.0)
-        self.assertAlmostEqual(idx, 0.15)
-
-    def test_pronoun_weight(self):
-        idx = self.wid.compute_interrogative_density_index(0.0, 0.0, 0.0, 0.0, 1.0)
-        self.assertAlmostEqual(idx, 0.15)
-
-    def test_partial_values(self):
-        idx = self.wid.compute_interrogative_density_index(0.5, 0.3, 0.2, 0.1, 0.4)
-        expected = 0.5 * 0.25 + 0.3 * 0.25 + 0.2 * 0.20 + 0.1 * 0.15 + 0.4 * 0.15
-        self.assertAlmostEqual(idx, expected)
+    def test_indirect_question_no_question_mark(self):
+        text = (
+            "She wondered if he was lying. "
+            "The question is how we proceed. "
+            "It remains unclear why this happened."
+        )
+        w = WriterInterrogativeDensity(text)
+        # None of these end with ?, so direct_question_rate = 0
+        self.assertAlmostEqual(w.direct_question_rate, 0.0)
+        # But indirect questions should still be detected
+        self.assertGreater(w.indirect_question_rate, 0.0)
 
 
-# ── Individual measure methods ───────────────────────────────────────
+class TestRealWorldTexts(unittest.TestCase):
+    def test_socratic_dialogue(self):
+        text = (
+            "What is justice, Socrates? "
+            "Is it merely the interest of the stronger? "
+            "Or is it something more fundamental? "
+            "Can a just man be happy in an unjust city? "
+            "These are the questions we must examine."
+        )
+        w = WriterInterrogativeDensity(text)
+        self.assertGreater(w.direct_question_rate, 60.0)
+        self.assertIn(
+            w.classification, ("heavily_inquisitive", "question_saturated")
+        )
+
+    def test_technical_specification(self):
+        text = (
+            "The system shall process all incoming requests within 200ms. "
+            "Authentication tokens must be refreshed every 3600 seconds. "
+            "Error responses shall include a machine-readable error code. "
+            "The database shall maintain at least three replicas at all times. "
+            "All API endpoints shall be versioned using semantic versioning."
+        )
+        w = WriterInterrogativeDensity(text)
+        self.assertAlmostEqual(w.direct_question_rate, 0.0)
+        self.assertEqual(w.classification, "declarative")
+
+    def test_investigative_journalism(self):
+        text = (
+            "The documents arrived on a Tuesday morning. "
+            "Who authorized the transfer? "
+            "The committee had no record of the meeting. "
+            "Why was the audit delayed by three months? "
+            "Sources close to the investigation refused to comment. "
+            "What role did the deputy director play in the decision? "
+            "The timeline does not add up. "
+            "One might ask whether anyone was truly in charge. "
+            "The official statement was released the following day. "
+            "It raised more questions than it answered."
+        )
+        w = WriterInterrogativeDensity(text)
+        self.assertGreater(w.direct_question_rate, 20.0)
+        self.assertGreater(w.indirect_question_rate, 0.0)
+        self.assertIn(
+            w.classification,
+            ("lightly_inquisitive", "moderately_inquisitive", "heavily_inquisitive"),
+        )
 
 
-class TestIndividualMeasures(unittest.TestCase):
-    """Test individual measure_* methods."""
-
-    def setUp(self):
-        self.wid = WriterInterrogativeDensity()
-
-    def test_direct_question_rate_empty(self):
-        self.assertEqual(self.wid.measure_direct_question_rate(""), 0.0)
-
-    def test_rhetorical_question_rate_empty(self):
-        self.assertEqual(self.wid.measure_rhetorical_question_rate(""), 0.0)
-
-    def test_embedded_question_rate_empty(self):
-        self.assertEqual(self.wid.measure_embedded_question_rate(""), 0.0)
-
-    def test_self_addressed_question_rate_empty(self):
-        self.assertEqual(self.wid.measure_self_addressed_question_rate(""), 0.0)
-
-    def test_interrogative_pronoun_density_empty(self):
-        self.assertEqual(self.wid.measure_interrogative_pronoun_density(""), 0.0)
-
-    def test_direct_question_rate_with_questions(self):
-        text = "What is this? Who are you? The answer is here."
-        rate = self.wid.measure_direct_question_rate(text)
-        self.assertGreater(rate, 0.0)
-        self.assertLessEqual(rate, 1.0)
-
-    def test_rhetorical_question_rate_with_rhetorical(self):
-        text = "Who cares? What's the point? The data is clear."
-        rate = self.wid.measure_rhetorical_question_rate(text)
-        self.assertGreater(rate, 0.0)
-
-    def test_embedded_question_rate_with_embedded(self):
-        text = "I wonder if this works. The question is whether we should try."
-        rate = self.wid.measure_embedded_question_rate(text)
-        self.assertGreater(rate, 0.0)
-
-    def test_pronoun_density_with_pronouns(self):
-        text = "What is this and where is that and who is here."
-        density = self.wid.measure_interrogative_pronoun_density(text)
-        self.assertGreater(density, 0.0)
-
+# ── Main ─────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     unittest.main()
