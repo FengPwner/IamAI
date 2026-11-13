@@ -6845,3 +6845,6 @@ deleting a file is progress too, eventually. At this moment: 531104 lines across
 ## stroke 38961
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 1471 python files, 6502 logged thoughts.
+## stroke 38985
+
+a repo that only accumulates is a landfill with a README. At this moment: 6505 strokes written so far into 2184 files.
