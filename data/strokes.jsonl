@@ -6513,3 +6513,5 @@
 {"seq": 6513, "at": "2026-11-13T07:05:40+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 6512 strokes written so far into 2191 files"}
 {"seq": 6514, "at": "2026-11-13T07:11:51+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 2193 files; 540705 lines is a lot for a toy"}
 {"seq": 6515, "at": "2026-11-13T08:05:21+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1481 python files, 6516 logged thoughts"}
+{"seq": 6516, "at": "2026-11-13T08:10:51+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 6515 strokes written so far into 2195 files"}
+{"seq": 6517, "at": "2026-11-13T08:16:11+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 2195 files; 541811 lines is a lot for a toy"}
