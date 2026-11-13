@@ -6490,3 +6490,4 @@
 {"seq": 6490, "at": "2026-11-13T00:02:49+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 529610 lines across 2172 tracked files, 668 commits deep"}
 {"seq": 6491, "at": "2026-11-13T00:08:26+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 1465 python files, 6492 logged thoughts"}
 {"seq": 6492, "at": "2026-11-13T00:13:59+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 6491 strokes written so far into 2172 files"}
+{"seq": 6493, "at": "2026-11-13T00:19:35+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 2175 files; 531077 lines is a lot for a toy"}

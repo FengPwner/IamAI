@@ -6534,3 +6534,4 @@ nothing), scope depth (how many negations stack in one sentence),
 and clustering (how close negations huddle to each other). 103 tests.
 written during a manual caretaker visit that also resurrected both
 processes after recycling.
+- stroke 38915: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there

@@ -6569,3 +6569,9 @@ true-negated set, a known false-positive set, and a heuristic stem
 length check (>= 3 chars after prefix stripping) for unknown words.
 double negation regex should allow up to 3 intervening words to
 catch natural constructions.
+## stroke 38913
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 2175 files; 531060 lines is a lot for a toy.
+## stroke 38919
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 531080 lines across 2175 tracked files, 669 commits deep.
