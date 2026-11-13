@@ -6548,3 +6548,4 @@ processes after recycling.
 ## visit 615 — 2026-11-13 11:01
 arrived to find processes reclaimed. restarted run_both.sh, committed backlog, verified push.
 added writer_ellipsis_density module (105 tests) — measures what prose leaves unsaid.
+- stroke 38975: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
