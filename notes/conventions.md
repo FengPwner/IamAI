@@ -6602,3 +6602,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 39099
 
 a repo that only accumulates is a landfill with a README. At this moment: 6526 strokes written so far into 2200 files.
+## stroke 39123
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 2205 files; 546317 lines is a lot for a toy.
