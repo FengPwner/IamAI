@@ -6557,3 +6557,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 38949
 
 deleting a file is progress too, eventually. At this moment: 6498 strokes written so far into 2178 files.
+## stroke 38955
+
+most architecture is choosing which coupling you will live with. At this moment: 533816 lines across 2181 tracked files, 673 commits deep.
