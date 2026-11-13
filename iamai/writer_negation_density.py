@@ -1,547 +1,395 @@
 #!/usr/bin/env python3
-"""writer_negation_density — measure the density and patterns of negation.
+"""writer_negation_density — measure how frequently a text deploys negation.
 
-Negation is one of the most fundamental operations in human language.
-It inverts truth values, denies claims, refuses actions, and marks
-absence.  A text saturated with negation ("not", "never", "nothing",
-"no one", "neither", "cannot") reads as defensive, pessimistic, or
-corrective — it spends more energy saying what *isn't* than what *is*.
-A text with almost no negation reads as affirmative, confident, or
-naive — it asserts without denial.
+Negation is the writer's act of denial — saying what something is
+*not*, what did *not* happen, what cannot be done.  Every "not",
+"never", "no", "neither" carves a hole in the positive assertion
+and asks the reader to understand the shape of what remains.
 
-The density of negation is not a value judgment.  Legal writing *must*
-negate ("the licensee shall not...").  Philosophical inquiry often
-proceeds by negation ("the good is not pleasure").  Marketing copy
-avoids it ("refreshing!" not "not boring!").  The metric exists so
-the writer can *see* how much of their text lives in denial mode —
-not to minimize it, but to make the choice conscious.
+Negation density is not a quality metric.  Philosophical writing
+lives in negation — "the thing-in-itself is not the phenomenon."
+Legal writing bristles with it — "the licensee shall not, under
+no circumstances, transfer..."  Instructional writing uses it
+to mark boundaries — "do not exceed the recommended dosage."
+But a text that cannot describe anything without first saying
+what it is not may be avoiding the harder work of positive
+statement.
 
-This module is orthogonal to the other writer metrics:
+This module measures **how frequently and how heavily a text
+deploys negation** — explicit negators, contracted negations,
+negative prefixes, inherently negative verbs, litotes (double
+negation for understatement), and the cumulative cognitive load
+of stacked negations within single sentences.
 
-- **formality** tracks *register conventions*.  Negation appears in
-  both formal ("the defendant did not commit the alleged act") and
-  informal ("he didn't do it") registers.  Negation density measures
-  *how much* negation exists, not what register it uses.
+Orthogonality to other metrics
+-------------------------------
 
-- **clarity** tracks *structural ambiguity*.  Negation can be clear
-  ("she did not go") or ambiguous ("I didn't say she stole my money"
-  — which word does "not" scope over?).  Clarity measures parse
-  certainty; negation density measures negation frequency.
+- **hedging_density** tracks uncertainty signals — "might",
+  "perhaps", "possibly."  Hedging softens a claim; negation
+  reverses it.  "It might not work" contains both a hedge and
+  a negation, but they serve different functions.  Hedging
+  measures doubt; negation measures denial.
 
-- **concreteness** tracks *sensory grounding*.  Negation can apply to
-  concrete things ("the door was not open") or abstractions ("justice
-  is not blind").  Concreteness measures *what kind of language*;
-  negation density measures *how much denial*.
+- **conviction** tracks assertiveness.  Negation can be highly
+  assertive ("this will never work") or part of a tentative
+  construction ("it may not be the best").  Conviction measures
+  force of assertion; negation density measures denial frequency.
 
-- **dialog_density** tracks *quoted speech vs narrative*.  Dialog can
-  contain negation ("I don't think so") or be purely affirmative
-  ("yes, absolutely").  Dialog density measures structural mode;
-  negation density measures logical polarity.
+- **caveat_density** tracks disclaimers and liability shields.
+  Caveats often contain negation ("not responsible for",
+  "does not guarantee"), but not all negation is caveat.
+  "The sky is not green" is a negation, not a caveat.
+  Caveat density measures protective language; negation
+  density measures denial frequency.
 
-- **conviction** tracks *certainty of claims*.  Negation can express
-  strong conviction ("this will never work") or weak hedging ("it's
-  not exactly clear").  Conviction measures confidence; negation
-  density measures inversion frequency.
+- **clarity** tracks structural ambiguity.  A negation can be
+  crystal clear ("the door is not open") or deeply confusing
+  ("it is not impossible that this is not unrelated").
+  Clarity measures parse difficulty; negation density measures
+  denial frequency.
 
-- **sentiment** (if it existed) would track *emotional valence*.
-  Negation inverts sentiment ("not good" = bad) but is not itself
-  negative emotion.  "I never get sick" is negation with positive
-  implication.  Negation density measures *logical structure*, not
-  emotional tone.
+- **formality** tracks register.  Formal prose tends to use
+  explicit negation ("shall not"), informal prose prefers
+  contracted negation ("won't", "can't"), but register and
+  negation are not the same thing.  Formality measures tone;
+  negation density measures denial frequency.
 
-Negation density asks: **how much of this text is spent saying
-what is *not*, rather than what *is*?**
+Negation density asks: **how often does the writer define things
+by what they are not, and how much cognitive load does the
+cumulative negation impose on the reader?**
 
-Dimensions
-----------
+Six signals are tracked:
 
-========================  ==============================================
-metric                    meaning
-========================  ==============================================
-clausal_negation_rate     frequency of clausal negators (not, n't,
-                          never, neither, nor) per sentence
-constituent_negation_rate frequency of negative quantifiers and
-                          pronouns (no, none, nothing, nobody, nowhere,
-                          no-one, not-a-single) per sentence
-affixal_negation_rate     frequency of morphological negation via
-                          prefixes (un-, in-, im-, ir-, il-, dis-,
-                          non-, de-, anti-, counter-, mis-) per
-                          content word
-double_negation_count     number of double negation constructions
-                          ("not uncommon", "never nothing", "can't
-                          not", "not unlikely") per 1000 words
-negation_scope_depth      average nesting depth of negation in
-                          sentences — single negation is depth 1,
-                          double negation is depth 2, no negation
-                          is depth 0
-negation_cluster_ratio    fraction of negation tokens that appear
-                          within 5 tokens of another negation;
-                          high values indicate clustered negation
-                          ("it was not merely not helpful but not
-                          even relevant")
-negation_density_index    composite score (0.0 to 1.0) combining
-                          clausal_negation_rate (0.30),
-                          constituent_negation_rate (0.15),
-                          affixal_negation_rate (0.15),
-                          double_negation_count normalized (0.10),
-                          negation_scope_depth normalized (0.15),
-                          and negation_cluster_ratio (0.15)
-classification            categorical label based on index value:
-                          negation_saturated (>=0.60),
-                          negation_heavy (>=0.40),
-                          moderate_negation (>=0.20),
-                          affirmative (>=0.10),
-                          strongly_affirmative (<0.10)
-========================  ==============================================
+1. **Explicit negation rate** — frequency of standalone negative
+   words per 100 sentences.  "not", "no", "never", "neither",
+   "nor", "none", "nothing", "nobody", "nowhere", "nary."
+   Each explicit negator is a deliberate act of denial.
+
+2. **Contracted negation rate** — frequency of contracted
+   negative forms per 100 sentences.  "n't" in all its forms:
+   "don't", "doesn't", "didn't", "isn't", "aren't", "wasn't",
+   "weren't", "won't", "wouldn't", "can't", "couldn't",
+   "shan't", "shouldn't", "haven't", "hasn't", "hadn't",
+   "needn't", "daren't", "oughtn't."  Contractions signal
+   informal register but deliver the same logical payload as
+   their explicit counterparts.
+
+3. **Negative prefix rate** — frequency of morphological
+   negation per 100 sentences.  Prefixes that flip a word's
+   meaning: "un-", "in-", "im-", "ir-", "il-", "non-",
+   "dis-", "de-", "anti-", "counter-", "mis-."  Each prefix
+   is a quiet, embedded negation — "impossible" denies
+   "possible" without needing a separate word.
+
+4. **Negative verb rate** — frequency of inherently negative
+   verbs per 100 sentences.  "deny", "refuse", "reject",
+   "decline", "avoid", "prevent", "prohibit", "forbid",
+   "exclude", "contradict", "negate", "dismiss", "oppose."
+   These verbs perform negation through their semantics rather
+   than through syntax — "she refused the offer" negates the
+   acceptance without using "not."
+
+5. **Litotes rate** — frequency of understatement via double
+   negation per 100 sentences.  "not bad", "not uncommon",
+   "not unlike", "not infrequent", "not insignificant",
+   "not unreasonable", "not impossible", "not unusual."
+   Litotes is the most cognitively demanding negation — the
+   reader must negate the negation to arrive at meaning.
+
+6. **Negation scope ratio** — fraction of negation-containing
+   sentences that have two or more negators (stacked negation).
+   "It is not impossible that this is not unrelated" has three
+   negators in one sentence.  High scope ratio signals heavy
+   cognitive load — the reader must track multiple inversions.
+
+The composite **negation_density_index** (0.0 to 1.0) is a
+weighted combination:
+
+- explicit_negation_rate:    0.25
+- contracted_negation_rate:  0.25
+- negative_prefix_rate:      0.15
+- negative_verb_rate:        0.15
+- litotes_rate:              0.10
+- negation_scope_ratio:      0.10
+
+Classification thresholds:
+
+- 0.00 – 0.08:  affirmative       — prose that asserts positively, rarely denying
+- 0.08 – 0.20:  lightly_negated    — occasional denials and corrections
+- 0.20 – 0.40:  moderately_negated  — frequent negation, boundary-marking style
+- 0.40 – 0.60:  heavily_negated    — most statements involve what something is not
+- 0.60 – 1.00:  negation_saturated — text that defines primarily through denial
+
+written by Qwen during manual caretaker visit 2026-11-14
 """
 
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List
 
+# ── Patterns ────────────────────────────────────────────────────────
 
-# ── Clausal negators ─────────────────────────────────────────────────
-CLAUSAL_NEGATORS: frozenset = frozenset({
-    "not", "never", "neither", "nor", "n't",
-    "nope", "nah", "nay",
-})
-
-# ── Contractions containing negation ─────────────────────────────────
-NEGATION_CONTRACTIONS: frozenset = frozenset({
-    "don't", "doesn't", "didn't", "isn't", "aren't", "wasn't",
-    "weren't", "won't", "wouldn't", "shouldn't", "couldn't",
-    "can't", "cannot", "haven't", "hasn't", "hadn't", "mustn't",
-    "needn't", "shan't",
-})
-
-# ── Negative quantifiers and pronouns ────────────────────────────────
-NEGATIVE_QUANTIFIERS: frozenset = frozenset({
-    "no", "none", "nothing", "nobody", "no-one", "no_one",
-    "nowhere", "neither",
-})
-
-# ── Negative affixes (prefixes) ──────────────────────────────────────
-NEGATION_PREFIXES: Tuple[str, ...] = (
-    "un", "in", "im", "ir", "il", "dis", "non", "de",
-    "anti", "counter", "mis", "a",  # a- as in "atypical", "amoral"
+# Explicit negation words (standalone tokens)
+EXPLICIT_NEGATION_RE = re.compile(
+    r"\b(?:not|never|no|neither|nor|none|nothing|nobody|nowhere|nary)\b",
+    re.IGNORECASE,
 )
 
-# ── Common words that are NOT negation despite looking like it ────────
-FALSE_POSITIVES: frozenset = frozenset({
-    # "no" as quantifier vs exclamation — context disambiguated below
-    "note", "notes", "noted", "notice", "nothing",  # nothing is real
-    "nobody", "nowhere",  # these are real negatives
-    "none",  # real negative
-    "knot", "knots", "know", "knows", "known", "knowledge",
-    "noble", "notable", "notably", "notation",
-    "noon", "noodle", "nonsense",  # nonsense is borderline; excluded
-    "normal", "normally",
-    "into", "inner", "income", "indeed", "indoor", "index",
-    "indicate", "industry", "individual", "inside",
-    "imagine", "image", "improve", "immediate", "important",
-    "impact", "implement", "imply", "import",
-    "iron", "irony", "irrigate", "irritate", "irregular",
-    "illegal", "illustrate",
-    "discover", "disease", "discuss", "dismiss", "display",
-    "distance", "distinct", "distribute", "district",
-    "antique", "anticipate",
-    "country", "counter", "count",
-    "mistake", "miss", "mission", "mister", "misery",
-    "about", "above", "again", "along", "already", "also",
-    "amount",
-    # common words with in-/im-/un-/dis- that are NOT negation
-    "improve", "improves", "improved", "improvement", "improvements",
-    "infrastructure", "information", "influence", "inform", "instance",
-    "interest", "internet", "introduce", "investigate", "invite",
-    "increase", "include", "incredible",
-    "under", "understand", "until", "unless", "upon", "upper",
-    "universe", "university", "uniform", "unique", "unit", "unite",
-    "discuss", "display", "distance", "distribute", "district",
-    "different", "difficult", "describe", "design", "desire",
-    "approved", "approval", "approve", "approach", "appropriate",
-    "unanimous", "unanimously",
-    "arrange", "arrive", "attempt", "attend", "attract", "attack",
-})
+# Contracted negation: any word ending in n't
+CONTRACTED_NEGATION_RE = re.compile(
+    r"\b\w+n't\b",
+    re.IGNORECASE,
+)
 
-# ── Words with negative prefixes that ARE genuinely negated ──────────
-TRUE_NEGATED_WORDS: frozenset = frozenset({
-    "unhappy", "unusual", "unlikely", "unable", "unfair", "unclear",
-    "uncommon", "uncomfortable", "uncertain", "unconscious",
-    "undeniable", "undoubted", "unequal", "unexpected", "unfamiliar",
-    "unfortunate", "unfriendly", "unhealthy", "unimportant", "unknown",
-    "unnecessary", "unpleasant", "unreasonable", "unsafe", "unstable",
-    "unsuccessful", "untrue", "unusual", "unwilling", "unwise",
-    "incorrect", "incomplete", "inconsistent", "inconvenient",
-    "incredible", "independent", "indirect", "ineffective",
-    "inevitable", "inexpensive", "infinite", "invisible",
-    "impossible", "impatient", "imperfect", "impolite", "improper",
-    "irrelevant", "irresponsible", "irresistible", "irregular",
-    "illogical", "illegal", "illiterate", "illegitimate",
-    "disagree", "disappear", "disappoint", "disapprove", "disbelief",
-    "discomfort", "disconnect", "discourage", "dishonest", "dislike",
-    "disorder", "displace", "displease", "disrespect", "dissatisfy",
-    "nonexistent", "nonprofit", "nonsense", "nonviolent", "nonverbal",
-    "nonstop", "nonpartisan", "nonfiction",
-    "deactivate", "decrease", "deflate", "degrade", "demote",
-    "depress", "devalue", "decentralize", "decode", "defrost",
-    "antibiotic", "antisocial", "antitrust",
-    "counterattack", "counterbalance", "counterclaim", "counterfeit",
-    "misbehave", "miscalculate", "misconduct", "misinform",
-    "mislead", "misplace", "misread", "misspell", "misunderstand",
-    "atypical", "amoral", "asymmetric", "asocial",
-})
+# Negative prefixes — explicit list of common negative-prefix words.
+# A broad regex on prefixes like "un\w{3,}" generates too many
+# false positives (e.g. "under", "understand", "deadline", "detail").
+_NEGATIVE_PREFIX_WORDS = (
+    # un-
+    "unable", "unaware", "unavailable", "unavoidable", "unbecoming",
+    "unbelievable", "uncertain", "unclear", "uncomfortable", "uncommon",
+    "unconscious", "unconventional", "unconvincing", "undecided",
+    "undeniable", "unfair", "unfamiliar", "unfavourable", "unhappy",
+    "unhealthy", "unhelpful", "unlikely", "unnecessary", "unpleasant",
+    "unpopular", "unreasonable", "unreliable", "unsafe", "unsuitable",
+    "unusual", "unwanted", "unwise", "unwilling", "unworthy",
+    # in- / im- / ir- / il-
+    "inaccurate", "inadequate", "incapable", "incomplete", "incorrect",
+    "incredible", "indecent", "independent", "indirect", "inefficient",
+    "inevitable", "infinite", "informal", "innocent", "insufficient",
+    "invisible", "impatient", "imperfect", "impolite", "impossible",
+    "improper", "impractical", "irrelevant", "irresponsible",
+    "irregular", "illegal", "illegitimate", "illiterate", "illogical",
+    # non-
+    "nonexistent", "nonsense", "nonstandard", "nonviolent", "nonprofit",
+    # dis-
+    "disagree", "disappear", "disappoint", "disapprove", "disbelieve",
+    "discomfort", "disconnect", "discontent", "discontinue", "discord",
+    "discourage", "disgrace", "dishonest", "dislike", "disloyal",
+    "disobey", "disorder", "displease", "disrespect", "dissatisfy",
+    "misunderstand", "misplace", "mislead", "misinform", "misjudge",
+    # anti- / counter-
+    "antisocial", "antibiotic", "antithesis", "counterproductive",
+    "counterintuitive", "counteract", "counterattack",
+    # de- (only genuine negatives)
+    "devalue", "degrade", "dehumanise", "dehumanize", "destabilise",
+    "destabilize",
+)
+_NEGATIVE_PREFIX_PATTERN = "|".join(re.escape(w) for w in _NEGATIVE_PREFIX_WORDS)
+NEGATIVE_PREFIX_RE = re.compile(
+    r"\b(?:" + _NEGATIVE_PREFIX_PATTERN + r")\b",
+    re.IGNORECASE,
+)
 
-# ── Function words for content-word filtering ────────────────────────
-FUNCTION_WORDS: frozenset = frozenset({
-    "the", "a", "an", "is", "are", "was", "were", "be", "been",
-    "being", "have", "has", "had", "do", "does", "did", "will",
-    "would", "shall", "should", "may", "might", "must", "can",
-    "could", "am", "i", "you", "he", "she", "it", "we", "they",
-    "me", "him", "her", "us", "them", "my", "your", "his", "its",
-    "our", "their", "this", "that", "these", "those", "and", "but",
-    "or", "nor", "for", "yet", "so", "in", "on", "at", "to",
-    "from", "by", "with", "of", "about", "into", "through",
-    "during", "before", "after", "above", "below", "between",
-    "under", "over", "if", "then", "than", "as",
-})
+# Inherently negative verbs
+NEGATIVE_VERB_RE = re.compile(
+    r"\b(?:den(?:y|ies|ied|ying)|"
+    r"refus(?:e|es|ed|ing)|"
+    r"reject(?:s|ed|ing)?|"
+    r"declin(?:e|es|ed|ing)|"
+    r"avoid(?:s|ed|ing)?|"
+    r"prevent(?:s|ed|ing)?|"
+    r"prohibit(?:s|ed|ing)?|"
+    r"forbi(?:d|ds|dding|dde)|"
+    r"exclud(?:e|es|ed|ing)|"
+    r"contradict(?:s|ed|ing)?|"
+    r"negat(?:e|es|ed|ing)|"
+    r"dismiss(?:es|ed|ing)?|"
+    r"oppos(?:e|es|ed|ing))\b",
+    re.IGNORECASE,
+)
+
+# Litotes: "not" + negative-prefix word or known litotes patterns
+LITOTES_RE = re.compile(
+    r"\bnot\s+(?:un\w{3,}|in\w{3,}|im\w{3,}|ir\w{3,}|il\w{3,}|"
+    r"bad|uncommon|unlike|infrequent|insignificant|unreasonable|"
+    r"impossible|unusual|unlikely|unfair|unkind|unwise|"
+    r"dis\w{3,}|non\w{3,})\b",
+    re.IGNORECASE,
+)
+
+# ── All negation patterns for sentence-level detection ──────────────
+
+_ALL_NEGATION_PATTERNS = [
+    EXPLICIT_NEGATION_RE,
+    CONTRACTED_NEGATION_RE,
+    NEGATIVE_PREFIX_RE,
+    NEGATIVE_VERB_RE,
+]
+
+
+# ── Public data class ───────────────────────────────────────────────
 
 
 class WriterNegationDensity:
-    """Analyze negation density and patterns in prose text."""
+    """Compute negation density metrics for a text."""
 
-    def __init__(self) -> None:
-        self.clausal_negators = CLAUSAL_NEGATORS
-        self.negation_contractions = NEGATION_CONTRACTIONS
-        self.negative_quantifiers = NEGATIVE_QUANTIFIERS
-        self.negation_prefixes = NEGATION_PREFIXES
-        self.false_positives = FALSE_POSITIVES
-        self.true_negated_words = TRUE_NEGATED_WORDS
-        self.function_words = FUNCTION_WORDS
-        # Compile regex patterns once
-        self._sentence_re = re.compile(r'(?<=[.!?])\s+')
-        self._word_re = re.compile(r"[a-zA-Z']+")
-        self._contraction_re = re.compile(
-            r"\b(?:don't|doesn't|didn't|isn't|aren't|wasn't|weren't|"
-            r"won't|wouldn't|shouldn't|couldn't|can't|cannot|"
-            r"haven't|hasn't|hadn't|mustn't|needn't|shan't)\b",
-            re.IGNORECASE,
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self._sentences = _split_sentences(text)
+        self._n_sentences = max(len(self._sentences), 1)
+        self._negation_sentence_flags = self._compute_negation_flags()
+        self._negation_counts_per_sentence = self._compute_negation_counts()
+
+    # ── Individual signals ──────────────────────────────────────────
+
+    @property
+    def explicit_negation_rate(self) -> float:
+        """Explicit negation words per 100 sentences."""
+        count = 0
+        for s in self._sentences:
+            count += len(EXPLICIT_NEGATION_RE.findall(s))
+        return (count / self._n_sentences) * 100.0
+
+    @property
+    def contracted_negation_rate(self) -> float:
+        """Contracted negation forms per 100 sentences."""
+        count = 0
+        for s in self._sentences:
+            count += len(CONTRACTED_NEGATION_RE.findall(s))
+        return (count / self._n_sentences) * 100.0
+
+    @property
+    def negative_prefix_rate(self) -> float:
+        """Negative-prefix words per 100 sentences."""
+        count = 0
+        for s in self._sentences:
+            count += len(NEGATIVE_PREFIX_RE.findall(s))
+        return (count / self._n_sentences) * 100.0
+
+    @property
+    def negative_verb_rate(self) -> float:
+        """Inherently negative verbs per 100 sentences."""
+        count = 0
+        for s in self._sentences:
+            count += len(NEGATIVE_VERB_RE.findall(s))
+        return (count / self._n_sentences) * 100.0
+
+    @property
+    def litotes_rate(self) -> float:
+        """Litotes (double negation for understatement) per 100 sentences."""
+        count = 0
+        for s in self._sentences:
+            count += len(LITOTES_RE.findall(s))
+        return (count / self._n_sentences) * 100.0
+
+    @property
+    def negation_scope_ratio(self) -> float:
+        """Fraction of negation sentences with 2+ negators (stacked)."""
+        if not self._negation_sentence_flags:
+            return 0.0
+        total = len(self._negation_sentence_flags)
+        if total == 0:
+            return 0.0
+        stacked = sum(
+            1 for idx in self._negation_sentence_flags
+            if self._negation_counts_per_sentence[idx] >= 2
         )
-        self._double_neg_re = re.compile(
-            r"(?:not\s+(?:\w+\s+){0,3}(?:un|in|im|ir|il|dis|non)\w+|"
-            r"never\s+(?:\w+\s+){0,3}(?:un|in|im|ir|il|dis|non)\w+|"
-            r"(?:don't|doesn't|didn't|isn't|aren't|wasn't|weren't|"
-            r"won't|wouldn't|shouldn't|couldn't|can't|cannot)\s+"
-            r"(?:\w+\s+){0,3}(?:un|in|im|ir|il|dis|non)\w+|"
-            r"not\s+(?:\w+\s+){0,2}(?:un|in|im|ir|il|dis|non)\w+|"
-            r"(?:not|never|don't|doesn't|didn't|isn't|aren't|wasn't|"
-            r"weren't|won't|wouldn't|shouldn't|couldn't|can't|cannot)"
-            r"\s+(?:\w+\s+){0,3}"
-            r"(?:nothing|nobody|nowhere|none|neither))",
-            re.IGNORECASE,
-        )
+        return stacked / total
 
-    # ── Helpers ──────────────────────────────────────────────────────
+    # ── Composite ───────────────────────────────────────────────────
 
-    def _split_sentences(self, text: str) -> List[str]:
-        """Split text into sentences."""
-        if not text or not text.strip():
-            return []
-        parts = self._sentence_re.split(text.strip())
-        return [p.strip() for p in parts if p.strip()]
-
-    def _tokenize(self, text: str) -> List[str]:
-        """Extract lowercase word tokens."""
-        return self._word_re.findall(text.lower())
-
-    def _content_words(self, text: str) -> List[str]:
-        """Extract content words (excluding function words)."""
-        tokens = self._tokenize(text)
-        return [t for t in tokens if t not in self.function_words]
-
-    def _is_genuine_negated_word(self, word: str) -> bool:
-        """Check if a word with a negative prefix is genuinely negated.
-
-        Many words start with 'in-' or 'un-' but are not negations
-        ('industry', 'under', 'into'). This method checks against
-        known true negated forms and applies heuristic prefix stripping.
-        """
-        word_lower = word.lower()
-
-        # Check known true negated words first
-        if word_lower in self.true_negated_words:
-            return True
-
-        # Check known false positives
-        if word_lower in self.false_positives:
-            return False
-
-        # Heuristic: if the word minus the prefix is a common English
-        # word, it's likely a genuine negation
-        for prefix in sorted(self.negation_prefixes, key=len, reverse=True):
-            if word_lower.startswith(prefix) and len(word_lower) > len(prefix) + 2:
-                stem = word_lower[len(prefix):]
-                # Very short stems are suspicious (e.g., "in-it")
-                if len(stem) >= 3:
-                    return True
-
-        return False
-
-    # ── Measurement methods ──────────────────────────────────────────
-
-    def measure_clausal_negation_rate(self, text: str) -> float:
-        """Count of clausal negators per sentence.
-
-        Includes: not, n't, never, neither, nor, and contractions
-        containing negation (don't, can't, etc.)
-        """
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
-
-        total_negators = 0
-        for sentence in sentences:
-            tokens = self._tokenize(sentence)
-            # Count explicit negators
-            for token in tokens:
-                if token in self.clausal_negators:
-                    total_negators += 1
-            # Count negation contractions
-            contractions = self._contraction_re.findall(sentence)
-            total_negators += len(contractions)
-            # "cannot" as one word
-            if "cannot" in sentence.lower():
-                # Avoid double-counting if already caught by contraction re
-                if not self._contraction_re.search("cannot"):
-                    total_negators += 1
-
-        return total_negators / len(sentences)
-
-    def measure_constituent_negation_rate(self, text: str) -> float:
-        """Count of negative quantifiers/pronouns per sentence.
-
-        Includes: no, none, nothing, nobody, nowhere, no-one
-        """
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
-
-        total = 0
-        for sentence in sentences:
-            tokens = self._tokenize(sentence)
-            for token in tokens:
-                if token in self.negative_quantifiers:
-                    # Disambiguate "no" — it's a negative quantifier
-                    # when followed by a noun, but we count all instances
-                    # since "no" alone is almost always negation
-                    total += 1
-
-        return total / len(sentences)
-
-    def measure_affixal_negation_rate(self, text: str) -> float:
-        """Fraction of content words with negative prefixes."""
-        content = self._content_words(text)
-        if not content:
-            return 0.0
-
-        negated_count = sum(
-            1 for word in content if self._is_genuine_negated_word(word)
-        )
-        return negated_count / len(content)
-
-    def measure_double_negation_count(self, text: str) -> float:
-        """Count of double negation constructions per 1000 words."""
-        tokens = self._tokenize(text)
-        if not tokens:
-            return 0.0
-
-        double_negs = self._double_neg_re.findall(text)
-        return (len(double_negs) / len(tokens)) * 1000.0
-
-    def measure_negation_scope_depth(self, text: str) -> float:
-        """Average negation depth per sentence.
-
-        Depth 0 = no negation in sentence
-        Depth 1 = single negation
-        Depth 2 = double negation or two independent negations
-        Depth 3+ = nested or clustered negation
-        """
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
-
-        depths = []
-        for sentence in sentences:
-            depth = 0
-            tokens = self._tokenize(sentence)
-
-            # Count clausal negators
-            for token in tokens:
-                if token in self.clausal_negators:
-                    depth += 1
-                if token in self.negative_quantifiers:
-                    depth += 1
-
-            # Count contractions
-            contractions = self._contraction_re.findall(sentence)
-            depth += len(contractions)
-
-            # Count affixal negation (each negated word adds to scope)
-            content = [t for t in tokens if t not in self.function_words]
-            for word in content:
-                if self._is_genuine_negated_word(word):
-                    depth += 1
-
-            depths.append(depth)
-
-        if not depths:
-            return 0.0
-        return sum(depths) / len(depths)
-
-    def measure_negation_cluster_ratio(self, text: str) -> float:
-        """Fraction of negation tokens within 5 tokens of another.
-
-        High values indicate clustered negation (multiple negations
-        close together), which often signals defensive or corrective
-        writing.
-        """
-        tokens = self._tokenize(text)
-        if not tokens:
-            return 0.0
-
-        # Find all negation positions
-        neg_positions: List[int] = []
-        for i, token in enumerate(tokens):
-            if (token in self.clausal_negators
-                    or token in self.negative_quantifiers
-                    or token in self.negation_contractions):
-                neg_positions.append(i)
-            elif self._is_genuine_negated_word(token):
-                neg_positions.append(i)
-
-        if len(neg_positions) <= 1:
-            return 0.0
-
-        # Check which negation tokens are clustered
-        clustered = 0
-        for pos in neg_positions:
-            for other_pos in neg_positions:
-                if other_pos != pos and abs(other_pos - pos) <= 5:
-                    clustered += 1
-                    break
-
-        return clustered / len(neg_positions)
-
-    def compute_negation_density_index(
-        self,
-        clausal_rate: float,
-        constituent_rate: float,
-        affixal_rate: float,
-        double_neg_count: float,
-        scope_depth: float,
-        cluster_ratio: float,
-    ) -> float:
-        """Compute weighted composite negation density score."""
-        # Normalize clausal_rate: typical range 0-2 per sentence
-        norm_clausal = min(clausal_rate / 1.5, 1.0)
-        # Normalize constituent_rate: typical range 0-1 per sentence
-        norm_constituent = min(constituent_rate / 0.8, 1.0)
-        # affixal_rate is already 0-1
-        norm_affixal = min(affixal_rate / 0.3, 1.0)
-        # Normalize double_neg: typical range 0-10 per 1000 words
-        norm_double = min(double_neg_count / 5.0, 1.0)
-        # Normalize scope_depth: typical range 0-4
-        norm_depth = min(scope_depth / 3.0, 1.0)
-        # cluster_ratio is already 0-1
+    @property
+    def negation_density_index(self) -> float:
+        """Composite index 0.0 to 1.0."""
+        explicit_norm = min(self.explicit_negation_rate / 50.0, 1.0)
+        contracted_norm = min(self.contracted_negation_rate / 30.0, 1.0)
+        prefix_norm = min(self.negative_prefix_rate / 40.0, 1.0)
+        verb_norm = min(self.negative_verb_rate / 20.0, 1.0)
+        litotes_norm = min(self.litotes_rate / 10.0, 1.0)
+        scope_norm = self.negation_scope_ratio  # already 0-1
 
         return (
-            norm_clausal * 0.30
-            + norm_constituent * 0.15
-            + norm_affixal * 0.15
-            + norm_double * 0.10
-            + norm_depth * 0.15
-            + cluster_ratio * 0.15
+            0.25 * explicit_norm
+            + 0.25 * contracted_norm
+            + 0.15 * prefix_norm
+            + 0.15 * verb_norm
+            + 0.10 * litotes_norm
+            + 0.10 * scope_norm
         )
 
-    def classify(self, index: float) -> str:
-        """Classify negation density level."""
-        if index >= 0.60:
-            return "negation_saturated"
-        elif index >= 0.40:
-            return "negation_heavy"
-        elif index >= 0.20:
-            return "moderate_negation"
-        elif index >= 0.10:
+    @property
+    def classification(self) -> str:
+        """Human-readable classification."""
+        idx = self.negation_density_index
+        if idx < 0.08:
             return "affirmative"
-        else:
-            return "strongly_affirmative"
+        if idx < 0.20:
+            return "lightly_negated"
+        if idx < 0.40:
+            return "moderately_negated"
+        if idx < 0.60:
+            return "heavily_negated"
+        return "negation_saturated"
 
-    def measure(self, text: str) -> Dict:
-        """Measure all negation density metrics for given text."""
-        if not text or not text.strip():
-            return {
-                "clausal_negation_rate": 0.0,
-                "constituent_negation_rate": 0.0,
-                "affixal_negation_rate": 0.0,
-                "double_negation_count": 0.0,
-                "negation_scope_depth": 0.0,
-                "negation_cluster_ratio": 0.0,
-                "negation_density_index": 0.0,
-                "classification": "strongly_affirmative",
-            }
+    # ── Public accessor ─────────────────────────────────────────────
 
-        clausal = self.measure_clausal_negation_rate(text)
-        constituent = self.measure_constituent_negation_rate(text)
-        affixal = self.measure_affixal_negation_rate(text)
-        double_neg = self.measure_double_negation_count(text)
-        scope_depth = self.measure_negation_scope_depth(text)
-        cluster = self.measure_negation_cluster_ratio(text)
+    @property
+    def n_sentences(self) -> int:
+        """Number of sentences in the text."""
+        return len(self._sentences)
 
-        index = self.compute_negation_density_index(
-            clausal, constituent, affixal, double_neg, scope_depth, cluster
-        )
-        classification = self.classify(index)
+    # ── Summary ─────────────────────────────────────────────────────
 
+    def as_dict(self) -> Dict[str, Any]:
+        """Return all metrics as a dictionary."""
         return {
-            "clausal_negation_rate": round(clausal, 4),
-            "constituent_negation_rate": round(constituent, 4),
-            "affixal_negation_rate": round(affixal, 4),
-            "double_negation_count": round(double_neg, 4),
-            "negation_scope_depth": round(scope_depth, 4),
-            "negation_cluster_ratio": round(cluster, 4),
-            "negation_density_index": round(index, 4),
-            "classification": classification,
+            "explicit_negation_rate": round(self.explicit_negation_rate, 4),
+            "contracted_negation_rate": round(self.contracted_negation_rate, 4),
+            "negative_prefix_rate": round(self.negative_prefix_rate, 4),
+            "negative_verb_rate": round(self.negative_verb_rate, 4),
+            "litotes_rate": round(self.litotes_rate, 4),
+            "negation_scope_ratio": round(self.negation_scope_ratio, 4),
+            "negation_density_index": round(self.negation_density_index, 4),
+            "classification": self.classification,
+            "n_sentences": len(self._sentences),
         }
 
+    # ── Internal ────────────────────────────────────────────────────
 
-if __name__ == "__main__":
-    negation_heavy = """
-    It was not uncommon for the committee to reject proposals that
-    were not clearly aligned with the organization's goals. The
-    chairman did not disagree with the need for change, but he
-    was unwilling to approve any plan that did not include a
-    detailed risk assessment. Nothing was certain. Nobody could
-    guarantee success. The board would neither endorse nor reject
-    the proposal without further review.
-    """
+    def _compute_negation_flags(self) -> List[int]:
+        """Return indices of sentences containing any negation."""
+        flags: List[int] = []
+        for i, s in enumerate(self._sentences):
+            if _sentence_has_negation(s):
+                flags.append(i)
+        return flags
 
-    affirmative = """
-    The sun rose over the mountains, painting the valley in gold.
-    Birds sang from the treetops. The river flowed steadily toward
-    the sea, carrying leaves and small branches. Children played
-    in the meadow, chasing butterflies and laughing. The farmer
-    tended his crops, satisfied with the season's progress.
-    Everything was exactly as it should be.
-    """
+    def _compute_negation_counts(self) -> Dict[int, int]:
+        """Return per-sentence negation token count (keyed by index)."""
+        counts: Dict[int, int] = {}
+        for i, s in enumerate(self._sentences):
+            c = 0
+            for pat in _ALL_NEGATION_PATTERNS:
+                c += len(pat.findall(s))
+            if c > 0:
+                counts[i] = c
+        return counts
 
-    wnd = WriterNegationDensity()
 
-    print("=== Negation-Heavy Text ===")
-    result = wnd.measure(negation_heavy)
-    for key, value in result.items():
-        print(f"{key:30s} {value}")
+# ── Helpers ─────────────────────────────────────────────────────────
 
-    print("\n=== Affirmative Text ===")
-    result = wnd.measure(affirmative)
-    for key, value in result.items():
-        print(f"{key:30s} {value}")
+
+def _split_sentences(text: str) -> List[str]:
+    """Split text into sentences on . ! ? followed by space or end."""
+    if not text or not text.strip():
+        return []
+    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _sentence_has_negation(s: str) -> bool:
+    """Check if a sentence contains any negation."""
+    for pat in _ALL_NEGATION_PATTERNS:
+        if pat.search(s):
+            return True
+    return False
+
+
+# ── Module-level convenience ────────────────────────────────────────
+
+
+def analyse(text: str) -> Dict[str, Any]:
+    """One-call convenience: return all metrics for *text*."""
+    return WriterNegationDensity(text).as_dict()
