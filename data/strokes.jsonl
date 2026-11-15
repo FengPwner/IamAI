@@ -6562,3 +6562,4 @@
 {"seq": 6562, "at": "2026-11-15T16:11:07+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1517 python files, 6563 logged thoughts"}
 {"seq": 6563, "at": "2026-11-15T17:06:55+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 725: the count of times this repo was pushed, not the work done"}
 {"seq": 6564, "at": "2026-11-15T17:08:00Z", "kind": "thought", "text": "emphasis is the distance between saying something and pointing at it — measured now: tree is 2241 files; 6564 logged thoughts"}
+{"seq": 6565, "at": "2026-11-15T17:12:00+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 2241 files; 561305 lines is a lot for a toy"}

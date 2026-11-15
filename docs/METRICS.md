@@ -6558,3 +6558,5 @@ _regenerated 2026-10-03 03:06 UTC by `tools/round.py`, measured from git and the
 | 2026-11-15T16:09:08Z | 2239 | 560317 | 724 | 6561 |
 | 2026-11-15T17:05:16Z | 2239 | 560336 | 725 | 6562 |
 - **writer_emphasis_density**: emphasis and spotlighting techniques — lexical_rate, syntactic_rate, typographic_rate, rhetorical_rate → emphasis_density_index (unemphasized|lightly_emphasized|moderately_emphasized|heavily_emphasized|emphasis_saturated)
+| 2026-11-15T17:10:19Z | 2241 | 561303 | 726 | 6564 |
+| 2026-11-15T17:15:21Z | 2241 | 561311 | 726 | 6565 |
