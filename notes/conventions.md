@@ -6641,3 +6641,19 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 39327
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 6567 strokes written so far into 2242 files.
+## stroke 39333
+
+deleting a file is progress too, eventually. At this moment: tree is 2242 files; 561336 lines is a lot for a toy.
+## stroke 39333
+
+deleting a file is progress too, eventually. At this moment: tree is 2242 files; 561336 lines is a lot for a toy.
+
+## stroke 6600+ (visit 642)
+
+numbers are evidence, not decoration. A text that quantifies itself
+invites verification — every "45 ms" is a promise, every "23%" is
+a bet. The unquantified prose says "trust me"; the quantified prose
+says "check me." Quantification density measures how much the writer
+trusts the reader to handle numbers, and how much the domain supports
+measurement. At this moment: tree is 2244 files; 101 new tests join
+the suite.
