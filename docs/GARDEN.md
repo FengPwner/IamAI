@@ -30432,3 +30432,8 @@ round 39278  bloom 100.0%  plants  146/384
 added writer_gradation_density — degree and comparison language analysis (40 tests). the tree grows a new axis: how much prose lives on a scale.
 - stroke 39284: round 39284  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 39290: round 39290  bloom 100.0%  plants  146/384, bloom 100.0%
+
+## caretaker visit 639
+
+added writer_pleonasm_density — redundant and tautological expression analysis (89 tests). every language accumulates fossils of saying the same thing twice.
+- stroke 39291: round 39291  bloom 100.0%  plants  146/384, bloom 100.0%

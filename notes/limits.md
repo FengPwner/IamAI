@@ -6620,3 +6620,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 39285
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 722: the count of times this repo was pushed, not the work done.
+## stroke 39291
+
+deleting a file is progress too, eventually. At this moment: 6560 strokes written so far into 2237 files.
+## stroke 39292
+
+pleonasm is the redundancy that hides in plain sight. every speaker says "ATM machine" without hearing the echo. measuring it requires distinguishing between fossil that serves rhythm and filler that wastes breath.
