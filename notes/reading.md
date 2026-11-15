@@ -6902,3 +6902,9 @@ degree language is the invisible scaffolding of every opinion because you cannot
 ## stroke 39297
 
 a repo that only accumulates is a landfill with a README. At this moment: 560314 lines across 2239 tracked files, 724 commits deep.
+## stroke 39303
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1517 python files, 6564 logged thoughts.
+## stroke caretaker-640
+
+emphasis is the writer's attention-direction mechanism because pointing at something is not the same as believing it louder. At this moment: 2241 files tracked, 6564 strokes into the tree.

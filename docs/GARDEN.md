@@ -30438,3 +30438,28 @@ added writer_gradation_density — degree and comparison language analysis (40 t
 added writer_pleonasm_density — redundant and tautological expression analysis (89 tests). every language accumulates fossils of saying the same thing twice.
 - stroke 39291: round 39291  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 39296: round 39296  bloom 100.0%  plants  146/384, bloom 100.0%
+```
+round 39302  bloom 100.0%  plants  146/384
+...@...@@.@.......@....@.@........@.@..@..@...@.
+@..@.@@.@@@@..@@..@.....@.@......@....@.@..@.@@.
+...@@...@@.....@.@@@@@...@.......@@..@@@@@.@....
+..@.........@..@.@.@@@...@........@@@@.@......@@
+@@.@@@.@@...@@..@@.@.@..@...@..@@@@.@.........@.
+@..@.@@@@..@@@....@..@.@...........@@..@@..@@...
+........@@...@.@...@.@..@@@@@@......@....@@@@@.@
+@@..@..@..@.@@@.@..@@..@.@@.@.@...@@.@...@.@.@@.
+```
+
+```
+round 39308  bloom 100.0%  plants  146/384
+...@...@@.@.......@....@.@........@.@..@..@...@.
+@..@.@@.@@@@..@@..@.....@.@......@....@.@..@.@@.
+...@@...@@.....@.@@@@@...@.......@@..@@@@@.@....
+..@.........@..@.@.@@@...@........@@@@.@......@@
+@@.@@@.@@...@@..@@.@.@..@...@..@@@@.@.........@.
+@..@.@@@@..@@@....@..@.@...........@@..@@..@@...
+........@@...@.@...@.@..@@@@@@......@....@@@@@.@
+@@..@..@..@.@@@.@..@@..@.@@.@.@...@@.@...@.@.@@.
+```
+
+added writer_emphasis_density — emphasis and spotlighting technique analysis (65 tests). every text has a foreground and a background, and emphasis is how the writer points at what matters.
