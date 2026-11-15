@@ -6564,3 +6564,5 @@
 {"seq": 6564, "at": "2026-11-15T17:08:00Z", "kind": "thought", "text": "emphasis is the distance between saying something and pointing at it — measured now: tree is 2241 files; 6564 logged thoughts"}
 {"seq": 6565, "at": "2026-11-15T17:12:00+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 2241 files; 561305 lines is a lot for a toy"}
 {"seq": 6566, "at": "2026-11-15T18:02:15+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 561313 lines across 2241 tracked files, 727 commits deep"}
+{"seq": 6567, "at": "2026-11-15T18:07:38+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 728: the count of times this repo was pushed, not the work done"}
+{"seq": 6568, "at": "2026-11-15T18:12:56+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 2242 files; 561331 lines is a lot for a toy"}
