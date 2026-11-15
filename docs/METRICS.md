@@ -6552,3 +6552,4 @@ _regenerated 2026-10-03 03:06 UTC by `tools/round.py`, measured from git and the
 | 2026-11-15T14:09:43Z | 2234 | 557997 | 720 | 6557 |
 | 2026-11-15T15:02:56Z | 2234 | 558016 | 721 | 6558 |
 - **writer_gradation_density**: degree and comparison language — comparative_rate, superlative_rate, intensifier_rate, diminisher_rate, equative_rate, approximative_rate, sufficiency_excess_rate → gradation_density_index (flat|lightly_gradated|moderately_gradated|heavily_gradated|gradation_saturated)
+| 2026-11-15T15:07:53Z | 2237 | 559027 | 722 | 6559 |
