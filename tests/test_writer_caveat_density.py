@@ -1,845 +1,703 @@
 #!/usr/bin/env python3
-"""Tests for writer_caveat_density — comprehensive test suite."""
+"""Tests for writer_caveat_density module."""
 
-from __future__ import annotations
-
+import pytest
 import sys
-import unittest
-from pathlib import Path
+import os
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from iamai.writer_caveat_density import (  # noqa: E402
-    LIABILITY_DISCLAIMER_PATTERNS,
-    PROFESSIONAL_ADVICE_PATTERNS,
-    RESULT_QUALIFIER_PATTERNS,
-    SCOPE_LIMITATION_PATTERNS,
-    TEMPORAL_RESTRICTION_PATTERNS,
-    WARRANTY_LIMITATION_PATTERNS,
-    WriterCaveatDensity,
-    _count_matching,
-    _split_sentences,
+from iamai.writer_caveat_density import (
+    CaveatDensityResult,
+    measure_caveat_density,
 )
 
 
-# ── Helpers ──────────────────────────────────────────────────────────
+# ── empty / degenerate input ────────────────────────────────────
 
 
-class TestSplitSentences(unittest.TestCase):
+class TestEmptyInput:
     def test_empty_string(self):
-        self.assertEqual(_split_sentences(""), [])
+        r = measure_caveat_density("")
+        assert r.caveat_density_index == 0.0
+        assert r.classification == "uncaveated"
 
     def test_whitespace_only(self):
-        self.assertEqual(_split_sentences("   \n  "), [])
-
-    def test_single_sentence(self):
-        self.assertEqual(_split_sentences("She walked home."), ["She walked home."])
-
-    def test_multiple_sentences(self):
-        result = _split_sentences("He ran. She walked. They stayed.")
-        self.assertEqual(len(result), 3)
-
-    def test_question_marks(self):
-        result = _split_sentences("Why? How? Where?")
-        self.assertEqual(len(result), 3)
-
-    def test_exclamation_marks(self):
-        result = _split_sentences("Stop! Wait! Go!")
-        self.assertEqual(len(result), 3)
-
-    def test_mixed_punctuation(self):
-        result = _split_sentences("Hello. What? Yes! No.")
-        self.assertEqual(len(result), 4)
-
-    def test_newlines(self):
-        result = _split_sentences("First sentence.\nSecond sentence.")
-        self.assertEqual(len(result), 2)
-
-    def test_strips_whitespace(self):
-        result = _split_sentences("  Hello world.  ")
-        self.assertEqual(result, ["Hello world."])
-
-
-class TestCountMatching(unittest.TestCase):
-    def test_empty_sentences(self):
-        self.assertEqual(_count_matching([], LIABILITY_DISCLAIMER_PATTERNS), 0)
-
-    def test_no_matches(self):
-        sentences = ["The cat sat on the mat.", "She walked home quietly."]
-        self.assertEqual(_count_matching(sentences, LIABILITY_DISCLAIMER_PATTERNS), 0)
-
-    def test_all_match(self):
-        sentences = [
-            "The product is provided as is.",
-            "We are not liable for damages.",
-        ]
-        count = _count_matching(sentences, LIABILITY_DISCLAIMER_PATTERNS)
-        self.assertGreater(count, 0)
-
-    def test_partial_match(self):
-        sentences = [
-            "Not liable for any damages.",
-            "The cat sat on the mat.",
-            "Use at your own risk.",
-            "She walked home.",
-        ]
-        count = _count_matching(sentences, LIABILITY_DISCLAIMER_PATTERNS)
-        self.assertGreaterEqual(count, 2)
-
-
-# ── Liability Disclaimer Patterns ────────────────────────────────────
-
-
-class TestLiabilityDisclaimerPatterns(unittest.TestCase):
-    def test_not_liable_for(self):
-        self.assertTrue(
-            any(p.search("We are not liable for any damages.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_not_responsible_for(self):
-        self.assertTrue(
-            any(p.search("We are not responsible for losses.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_not_accountable_for(self):
-        self.assertTrue(
-            any(p.search("Not accountable for user actions.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_at_your_own_risk(self):
-        self.assertTrue(
-            any(p.search("Use this software at your own risk.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_as_is(self):
-        self.assertTrue(
-            any(p.search("The product is provided as is.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_as_is_hyphenated(self):
-        self.assertTrue(
-            any(p.search("Provided as-is to users.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_no_warranty(self):
-        self.assertTrue(
-            any(p.search("There is no warranty for this product.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_without_guarantee(self):
-        self.assertTrue(
-            any(p.search("Sold without guarantee of fitness.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_disclaims_liability(self):
-        self.assertTrue(
-            any(p.search("The author disclaims all liability.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_hold_harmless(self):
-        self.assertTrue(
-            any(p.search("You agree to hold harmless the company.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_no_obligation(self):
-        self.assertTrue(
-            any(p.search("We have no obligation to support this.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_shall_not_be_liable(self):
-        self.assertTrue(
-            any(p.search("The company shall not be liable for indirect damages.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_under_no_circumstances(self):
-        self.assertTrue(
-            any(p.search("Under no circumstances shall we be liable.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_indemnify(self):
-        self.assertTrue(
-            any(p.search("You shall indemnify the provider.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_case_insensitive(self):
-        self.assertTrue(
-            any(p.search("NOT LIABLE FOR DAMAGES.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_no_false_positive_narrative(self):
-        self.assertFalse(
-            any(p.search("The sun set over the mountains.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-    def test_no_false_positive_casual(self):
-        self.assertFalse(
-            any(p.search("She walked to the store yesterday.") for p in LIABILITY_DISCLAIMER_PATTERNS)
-        )
-
-
-# ── Result Qualifier Patterns ────────────────────────────────────────
-
-
-class TestResultQualifierPatterns(unittest.TestCase):
-    def test_results_may_vary(self):
-        self.assertTrue(
-            any(p.search("Results may vary from person to person.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_your_results_may_vary(self):
-        self.assertTrue(
-            any(p.search("Your results may vary.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_your_mileage_may_vary(self):
-        self.assertTrue(
-            any(p.search("Your mileage may vary.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_ymmv(self):
-        self.assertTrue(
-            any(p.search("The tool works well, YMMV.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_individual_results(self):
-        self.assertTrue(
-            any(p.search("Individual results will differ.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_not_guaranteed(self):
-        self.assertTrue(
-            any(p.search("Success is not guaranteed.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_no_guarantee(self):
-        self.assertTrue(
-            any(p.search("There is no guarantee of profit.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_past_performance(self):
-        self.assertTrue(
-            any(p.search("Past performance does not predict future results.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_may_not_work_for_everyone(self):
-        self.assertTrue(
-            any(p.search("This approach may not work for everyone.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_no_assurance(self):
-        self.assertTrue(
-            any(p.search("We provide no assurance of success.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_does_not_ensure(self):
-        self.assertTrue(
-            any(p.search("Using this method does not ensure success.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_actual_results_may_differ(self):
-        self.assertTrue(
-            any(p.search("Actual results may differ from projections.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_outcomes_may_vary(self):
-        self.assertTrue(
-            any(p.search("Outcomes may vary by region.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-    def test_no_false_positive_narrative(self):
-        self.assertFalse(
-            any(p.search("The results were impressive.") for p in RESULT_QUALIFIER_PATTERNS)
-        )
-
-
-# ── Professional Advice Patterns ─────────────────────────────────────
-
-
-class TestProfessionalAdvicePatterns(unittest.TestCase):
-    def test_not_medical_advice(self):
-        self.assertTrue(
-            any(p.search("This is not medical advice.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_not_legal_advice(self):
-        self.assertTrue(
-            any(p.search("This is not legal advice.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_not_financial_advice(self):
-        self.assertTrue(
-            any(p.search("This is not financial advice.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_consult_a_doctor(self):
-        self.assertTrue(
-            any(p.search("Consult a doctor before starting.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_consult_your_physician(self):
-        self.assertTrue(
-            any(p.search("Consult your physician first.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_consult_a_lawyer(self):
-        self.assertTrue(
-            any(p.search("Consult a lawyer for legal questions.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_seek_professional_advice(self):
-        self.assertTrue(
-            any(p.search("Seek professional advice before proceeding.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_seek_medical_help(self):
-        self.assertTrue(
-            any(p.search("Seek medical help if symptoms persist.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_not_a_substitute_for(self):
-        self.assertTrue(
-            any(p.search("This is not a substitute for professional care.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_talk_to_your_doctor(self):
-        self.assertTrue(
-            any(p.search("Talk to your doctor about this.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_always_consult(self):
-        self.assertTrue(
-            any(p.search("Always consult a professional before deciding.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_before_starting_program(self):
-        self.assertTrue(
-            any(p.search("Before starting any exercise program, check with your doctor.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_does_not_constitute_advice(self):
-        self.assertTrue(
-            any(p.search("This does not constitute investment advice.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-    def test_no_false_positive(self):
-        self.assertFalse(
-            any(p.search("She gave good advice to her friend.") for p in PROFESSIONAL_ADVICE_PATTERNS)
-        )
-
-
-# ── Warranty Limitation Patterns ─────────────────────────────────────
-
-
-class TestWarrantyLimitationPatterns(unittest.TestCase):
-    def test_subject_to_change(self):
-        self.assertTrue(
-            any(p.search("Prices are subject to change.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-    def test_without_notice(self):
-        self.assertTrue(
-            any(p.search("Features may change without notice.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-    def test_without_prior_notice(self):
-        self.assertTrue(
-            any(p.search("Terms may change without prior notice.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-    def test_no_warranty_expressed_or_implied(self):
-        self.assertTrue(
-            any(p.search("There is no warranty expressed or implied.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-    def test_may_be_discontinued(self):
-        self.assertTrue(
-            any(p.search("This service may be discontinued.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-    def test_may_be_withdrawn(self):
-        self.assertTrue(
-            any(p.search("The offer may be withdrawn at any time.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-    def test_not_obligated_to_maintain(self):
-        self.assertTrue(
-            any(p.search("We are not obligated to maintain this service.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-    def test_not_obligated_to_support(self):
-        self.assertTrue(
-            any(p.search("Not obligated to support older versions.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-    def test_provided_as_is(self):
-        self.assertTrue(
-            any(p.search("The software is provided as-is.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-    def test_provided_without_warranties(self):
-        self.assertTrue(
-            any(p.search("Provided without any warranties.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-    def test_expressly_disclaims(self):
-        self.assertTrue(
-            any(p.search("The company expressly disclaims all warranties.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-    def test_no_false_positive(self):
-        self.assertFalse(
-            any(p.search("The weather may change tomorrow.") for p in WARRANTY_LIMITATION_PATTERNS)
-        )
-
-
-# ── Temporal Restriction Patterns ────────────────────────────────────
-
-
-class TestTemporalRestrictionPatterns(unittest.TestCase):
-    def test_as_of_date(self):
-        self.assertTrue(
-            any(p.search("Information is accurate as of January 2026.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-    def test_as_of_the_date(self):
-        self.assertTrue(
-            any(p.search("Valid as of the date of purchase.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-    def test_at_the_time_of_writing(self):
-        self.assertTrue(
-            any(p.search("At the time of writing, this was accurate.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-    def test_at_the_time_of_publication(self):
-        self.assertTrue(
-            any(p.search("At the time of publication, prices were stable.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-    def test_current_as_of(self):
-        self.assertTrue(
-            any(p.search("Data is current as of November 2026.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-    def test_valid_until(self):
-        self.assertTrue(
-            any(p.search("This coupon is valid until December 31.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-    def test_valid_through(self):
-        self.assertTrue(
-            any(p.search("Offer valid through the end of the month.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-    def test_may_expire(self):
-        self.assertTrue(
-            any(p.search("These discounts may expire soon.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-    def test_limited_time(self):
-        self.assertTrue(
-            any(p.search("This is a limited-time offer.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-    def test_prices_subject_to_change(self):
-        self.assertTrue(
-            any(p.search("Prices are subject to change.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-    def test_effective_date(self):
-        self.assertTrue(
-            any(p.search("Effective date of this policy is January 1.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-    def test_no_false_positive(self):
-        self.assertFalse(
-            any(p.search("She arrived at the station as of usual.") for p in TEMPORAL_RESTRICTION_PATTERNS)
-        )
-
-
-# ── Scope Limitation Patterns ────────────────────────────────────────
-
-
-class TestScopeLimitationPatterns(unittest.TestCase):
-    def test_for_informational_purposes_only(self):
-        self.assertTrue(
-            any(p.search("This is for informational purposes only.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_for_educational_purposes(self):
-        self.assertTrue(
-            any(p.search("This guide is for educational purposes.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_for_entertainment_purposes(self):
-        self.assertTrue(
-            any(p.search("This content is for entertainment purposes only.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_not_exhaustive(self):
-        self.assertTrue(
-            any(p.search("This list is not exhaustive.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_not_comprehensive(self):
-        self.assertTrue(
-            any(p.search("This overview is not comprehensive.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_does_not_cover(self):
-        self.assertTrue(
-            any(p.search("This guide does not cover advanced topics.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_does_not_address(self):
-        self.assertTrue(
-            any(p.search("This article does not address edge cases.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_limited_to(self):
-        self.assertTrue(
-            any(p.search("Support is limited to business hours.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_applies_only_to(self):
-        self.assertTrue(
-            any(p.search("This policy applies only to premium users.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_in_certain_jurisdictions(self):
-        self.assertTrue(
-            any(p.search("This feature is available in certain jurisdictions.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_may_not_be_available(self):
-        self.assertTrue(
-            any(p.search("This service may not be available in all regions.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_not_a_complete_list(self):
-        self.assertTrue(
-            any(p.search("This is not a complete list of features.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_including_but_not_limited_to(self):
-        self.assertTrue(
-            any(p.search("Risks include but are not limited to data loss.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-    def test_no_false_positive(self):
-        self.assertFalse(
-            any(p.search("She walked to the store.") for p in SCOPE_LIMITATION_PATTERNS)
-        )
-
-
-# ── WriterCaveatDensity class ────────────────────────────────────────
-
-
-class TestWriterCaveatDensity(unittest.TestCase):
-    def setUp(self):
-        self.wcd = WriterCaveatDensity()
-
-    # ── Empty / edge cases ──
-
-    def test_empty_text(self):
-        result = self.wcd.measure("")
-        self.assertEqual(result["caveat_density_index"], 0.0)
-        self.assertEqual(result["classification"], "unencumbered")
-
-    def test_whitespace_only(self):
-        result = self.wcd.measure("   \n  ")
-        self.assertEqual(result["caveat_density_index"], 0.0)
-
-    def test_single_non_caveat_sentence(self):
-        result = self.wcd.measure("The cat sat on the mat.")
-        self.assertEqual(result["caveat_density_index"], 0.0)
-        self.assertEqual(result["classification"], "unencumbered")
-
-    # ── Liability disclaimer rate ──
-
-    def test_liability_rate_all_caveats(self):
-        text = "Not liable for damages. At your own risk. No warranty."
-        rate = self.wcd.measure_liability_disclaimer_rate(text)
-        self.assertGreater(rate, 0.5)
-
-    def test_liability_rate_no_caveats(self):
-        text = "The weather is nice. She walked home. He read a book."
-        rate = self.wcd.measure_liability_disclaimer_rate(text)
-        self.assertEqual(rate, 0.0)
-
-    def test_liability_rate_mixed(self):
-        text = "Not liable for damages. The weather is nice. Use at your own risk."
-        rate = self.wcd.measure_liability_disclaimer_rate(text)
-        self.assertGreater(rate, 0.3)
-        self.assertLess(rate, 1.0)
-
-    # ── Result qualifier rate ──
-
-    def test_result_rate_all_caveats(self):
-        text = "Results may vary. Not guaranteed. Past performance is no indicator."
-        rate = self.wcd.measure_result_qualifier_rate(text)
-        self.assertGreater(rate, 0.5)
-
-    def test_result_rate_no_caveats(self):
-        text = "She won the race. He finished first. They celebrated."
-        rate = self.wcd.measure_result_qualifier_rate(text)
-        self.assertEqual(rate, 0.0)
-
-    # ── Professional advice rate ──
-
-    def test_professional_rate_all_caveats(self):
-        text = "Not medical advice. Consult a doctor. Seek professional help."
-        rate = self.wcd.measure_professional_advice_rate(text)
-        self.assertGreater(rate, 0.5)
-
-    def test_professional_rate_no_caveats(self):
-        text = "She cooked dinner. He washed dishes. They watched TV."
-        rate = self.wcd.measure_professional_advice_rate(text)
-        self.assertEqual(rate, 0.0)
-
-    # ── Warranty limitation rate ──
-
-    def test_warranty_rate_all_caveats(self):
-        text = "Subject to change. Without notice. May be discontinued."
-        rate = self.wcd.measure_warranty_limitation_rate(text)
-        self.assertGreater(rate, 0.5)
-
-    def test_warranty_rate_no_caveats(self):
-        text = "The store opens at nine. She bought groceries. He paid cash."
-        rate = self.wcd.measure_warranty_limitation_rate(text)
-        self.assertEqual(rate, 0.0)
-
-    # ── Temporal restriction rate ──
-
-    def test_temporal_rate_all_caveats(self):
-        text = "Current as of January. At the time of writing. Valid until March."
-        rate = self.wcd.measure_temporal_restriction_rate(text)
-        self.assertGreater(rate, 0.5)
-
-    def test_temporal_rate_no_caveats(self):
-        text = "She went to the park. He read a novel. They had lunch."
-        rate = self.wcd.measure_temporal_restriction_rate(text)
-        self.assertEqual(rate, 0.0)
-
-    # ── Scope limitation rate ──
-
-    def test_scope_rate_all_caveats(self):
-        text = "For informational purposes only. Not exhaustive. Does not cover all cases."
-        rate = self.wcd.measure_scope_limitation_rate(text)
-        self.assertGreater(rate, 0.5)
-
-    def test_scope_rate_no_caveats(self):
-        text = "The garden bloomed in spring. Roses lined the path."
-        rate = self.wcd.measure_scope_limitation_rate(text)
-        self.assertEqual(rate, 0.0)
-
-    # ── Composite index ──
-
-    def test_composite_index_all_zeros(self):
-        index = self.wcd.compute_caveat_density_index(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-        self.assertEqual(index, 0.0)
-
-    def test_composite_index_all_ones(self):
-        index = self.wcd.compute_caveat_density_index(1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
-        self.assertEqual(index, 1.0)
-
-    def test_composite_index_capped_at_one(self):
-        index = self.wcd.compute_caveat_density_index(2.0, 2.0, 2.0, 2.0, 2.0, 2.0)
-        self.assertLessEqual(index, 1.0)
-
-    def test_composite_index_partial(self):
-        index = self.wcd.compute_caveat_density_index(0.5, 0.0, 0.0, 0.0, 0.0, 0.0)
-        self.assertAlmostEqual(index, 0.125, places=3)
-
-    def test_composite_index_weights(self):
-        # liability=0.25 weight, result=0.20 weight
-        index_liability = self.wcd.compute_caveat_density_index(1.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-        index_result = self.wcd.compute_caveat_density_index(0.0, 1.0, 0.0, 0.0, 0.0, 0.0)
-        self.assertGreater(index_liability, index_result)
-
-    # ── Classification ──
-
-    def test_classify_unencumbered(self):
-        self.assertEqual(self.wcd.classify(0.0), "unencumbered")
-        self.assertEqual(self.wcd.classify(0.01), "unencumbered")
-        self.assertEqual(self.wcd.classify(0.029), "unencumbered")
-
-    def test_classify_lightly_caveated(self):
-        self.assertEqual(self.wcd.classify(0.03), "lightly_caveated")
-        self.assertEqual(self.wcd.classify(0.05), "lightly_caveated")
-        self.assertEqual(self.wcd.classify(0.099), "lightly_caveated")
-
-    def test_classify_moderately_caveated(self):
-        self.assertEqual(self.wcd.classify(0.10), "moderately_caveated")
-        self.assertEqual(self.wcd.classify(0.15), "moderately_caveated")
-        self.assertEqual(self.wcd.classify(0.249), "moderately_caveated")
-
-    def test_classify_heavily_caveated(self):
-        self.assertEqual(self.wcd.classify(0.25), "heavily_caveated")
-        self.assertEqual(self.wcd.classify(0.35), "heavily_caveated")
-        self.assertEqual(self.wcd.classify(0.449), "heavily_caveated")
-
-    def test_classify_legally_saturated(self):
-        self.assertEqual(self.wcd.classify(0.45), "legally_saturated")
-        self.assertEqual(self.wcd.classify(0.60), "legally_saturated")
-        self.assertEqual(self.wcd.classify(1.0), "legally_saturated")
-
-    # ── Full measure integration ──
-
-    def test_measure_legal_text(self):
-        text = (
-            "This product is provided as-is without warranty. "
-            "The company shall not be liable for damages. "
-            "Results may vary depending on your setup. "
-            "This is not legal advice. "
-            "Consult a lawyer before proceeding. "
-            "Features are subject to change without notice. "
-            "Information is current as of January 2026. "
-            "This guide is for informational purposes only. "
-            "The list is not exhaustive. "
-            "This does not cover all scenarios."
-        )
-        result = self.wcd.measure(text)
-        self.assertIn("caveat_density_index", result)
-        self.assertIn("classification", result)
-        self.assertGreater(result["caveat_density_index"], 0.10)
-        self.assertIn(
-            result["classification"],
-            ["moderately_caveated", "heavily_caveated", "legally_saturated"],
-        )
-
-    def test_measure_narrative_text(self):
-        text = (
-            "The morning sun cast long shadows across the garden. "
-            "She knelt beside the rose bushes, examining the new growth. "
-            "A cardinal landed on the fence, tilted its head, and flew away. "
-            "The soil was dark and rich after last night's rain. "
-            "She worked slowly, methodically, pulling weeds by the root. "
-            "By noon the garden looked transformed."
-        )
-        result = self.wcd.measure(text)
-        self.assertEqual(result["caveat_density_index"], 0.0)
-        self.assertEqual(result["classification"], "unencumbered")
-
-    def test_measure_mixed_text(self):
-        text = (
-            "This tool improves performance significantly. "
-            "Results may vary depending on your hardware. "
-            "The algorithm processes data in linear time. "
-            "Not guaranteed to work on all platforms. "
-            "She tested it on three different systems."
-        )
-        result = self.wcd.measure(text)
-        self.assertGreater(result["caveat_density_index"], 0.0)
-        self.assertLess(result["caveat_density_index"], 0.5)
-
-    def test_measure_returns_all_keys(self):
-        result = self.wcd.measure("Hello world.")
-        expected_keys = {
-            "liability_disclaimer_rate",
-            "result_qualifier_rate",
-            "professional_advice_rate",
-            "warranty_limitation_rate",
-            "temporal_restriction_rate",
-            "scope_limitation_rate",
-            "caveat_density_index",
-            "classification",
-        }
-        self.assertEqual(set(result.keys()), expected_keys)
-
-    def test_measure_values_are_rounded(self):
-        text = "Results may vary. Not liable for damages. Consult a doctor."
-        result = self.wcd.measure(text)
-        for key, value in result.items():
-            if key != "classification":
-                # Check that value has at most 4 decimal places
-                self.assertEqual(value, round(value, 4))
-
-    # ── Orthogonality smoke tests ──
-
-    def test_hedging_text_low_caveat(self):
-        """Hedging language (perhaps, possibly, may) should not trigger caveat patterns."""
-        text = (
-            "Perhaps the results are accurate. "
-            "It is possible that the method works. "
-            "The data might suggest a correlation. "
-            "We may have found a solution."
-        )
-        result = self.wcd.measure(text)
-        self.assertLess(result["caveat_density_index"], 0.10)
-
-    def test_qualifier_text_low_caveat(self):
-        """Intensity qualifiers (very, extremely) should not trigger caveat patterns."""
-        text = (
-            "The method is very effective. "
-            "Results are extremely consistent. "
-            "The approach is quite reliable. "
-            "Performance is remarkably stable."
-        )
-        result = self.wcd.measure(text)
-        self.assertLess(result["caveat_density_index"], 0.10)
-
-    def test_imperative_text_low_caveat(self):
-        """Imperatives (do this, run that) should not trigger caveat patterns."""
-        text = (
-            "Run the tests first. "
-            "Check the output carefully. "
-            "Make sure to save your work. "
-            "Don't forget to commit your changes."
-        )
-        result = self.wcd.measure(text)
-        self.assertLess(result["caveat_density_index"], 0.10)
-
-
-# ── Boundary and edge cases ──────────────────────────────────────────
-
-
-class TestBoundaryCases(unittest.TestCase):
-    def setUp(self):
-        self.wcd = WriterCaveatDensity()
+        r = measure_caveat_density("   \n\n   ")
+        assert r.caveat_density_index == 0.0
+
+    def test_none_like_empty(self):
+        r = measure_caveat_density("")
+        assert r.total_sentences == 0 or r.total_sentences == 1
 
     def test_single_word(self):
-        result = self.wcd.measure("Hello.")
-        self.assertEqual(result["caveat_density_index"], 0.0)
+        r = measure_caveat_density("Hello.")
+        assert r.caveat_density_index == 0.0
+        assert r.classification == "uncaveated"
 
-    def test_repeated_caveats(self):
-        text = "Results may vary. " * 50
-        result = self.wcd.measure(text)
-        self.assertGreater(result["caveat_density_index"], 0.0)
-
-    def test_very_long_text(self):
-        caveats = [
-            "Not liable for damages.",
-            "Results may vary.",
-            "Consult a doctor.",
-            "Subject to change.",
-            "For informational purposes only.",
-            "The sun rose in the east.",
-        ] * 20
-        text = " ".join(caveats)
-        result = self.wcd.measure(text)
-        self.assertIn("classification", result)
-        self.assertGreater(result["caveat_density_index"], 0.0)
-
-    def test_mixed_languages(self):
-        text = "这是免责声明。Not liable for damages. 结果可能不同。"
-        result = self.wcd.measure(text)
-        # Should still detect the English caveat
-        self.assertGreater(result["liability_disclaimer_rate"], 0.0)
-
-    def test_newlines_and_formatting(self):
-        text = "Not liable for damages.\nResults may vary.\n\nConsult a doctor."
-        result = self.wcd.measure(text)
-        self.assertGreater(result["caveat_density_index"], 0.0)
-
-    def test_case_sensitivity(self):
-        text_lower = "results may vary. not liable for damages."
-        text_upper = "RESULTS MAY VARY. NOT LIABLE FOR DAMAGES."
-        r_lower = self.wcd.measure(text_lower)
-        r_upper = self.wcd.measure(text_upper)
-        self.assertEqual(r_lower["caveat_density_index"], r_upper["caveat_density_index"])
+    def test_no_caveat_plain_sentence(self):
+        r = measure_caveat_density("The cat sat on the mat.")
+        assert r.adversative_count == 0
+        assert r.scope_limiter_count == 0
+        assert r.exception_marker_count == 0
 
 
-if __name__ == "__main__":
-    unittest.main()
+# ── uncaveated prose ────────────────────────────────────────────
+
+
+class TestUncaveatedProse:
+    PLAIN = (
+        "The committee reviewed the proposal on Tuesday. "
+        "Three members voted in favor and two abstained. "
+        "The project will begin next month. "
+        "Budget allocation covers all departments. "
+        "Staff will receive training materials by email. "
+        "The next meeting is scheduled for December. "
+        "Reports will be submitted quarterly. "
+        "No changes to the existing policy are planned."
+    )
+
+    def test_uncaveated_classification(self):
+        r = measure_caveat_density(self.PLAIN)
+        assert r.classification in ("uncaveated", "lightly_caveated")
+        assert r.caveat_density_index < 0.15
+
+    def test_no_adversative(self):
+        r = measure_caveat_density(self.PLAIN)
+        assert r.adversative_count == 0
+
+    def test_no_scope_limiter(self):
+        r = measure_caveat_density(self.PLAIN)
+        assert r.scope_limiter_count == 0
+
+    def test_no_preemptive(self):
+        r = measure_caveat_density(self.PLAIN)
+        assert r.preemptive_concession_count == 0
+
+    def test_no_exception(self):
+        r = measure_caveat_density(self.PLAIN)
+        assert r.exception_marker_count == 0
+
+    def test_no_provisional(self):
+        r = measure_caveat_density(self.PLAIN)
+        assert r.provisional_count == 0
+
+    def test_no_qualification(self):
+        r = measure_caveat_density(self.PLAIN)
+        assert r.qualification_adverb_count == 0
+
+
+# ── heavily caveated prose ──────────────────────────────────────
+
+
+class TestHeavilyCaveatedProse:
+    ACADEMIC = (
+        "The results suggest a correlation, although causation cannot be established. "
+        "Generally speaking, participants showed improvement in most cases. "
+        "However, this finding is limited to the study population. "
+        "Admittedly, the sample size was small, and results may not generalize. "
+        "In principle, the approach should work, provided that the input data is clean. "
+        "To be fair, prior studies reached similar conclusions, albeit with different methods. "
+        "Typically, such interventions produce moderate effects, barring unforeseen variables. "
+        "Nevertheless, the evidence is compelling, at least to a certain extent. "
+        "Of course, one could argue that the methodology has limitations. "
+        "Subject to replication, these findings offer preliminary support for the hypothesis. "
+        "While it is true that confounds exist, the overall pattern is consistent. "
+        "In practice, the implementation depends on available resources. "
+        "Theoretically, the model predicts improvement, all else being equal. "
+        "That said, alternative explanations cannot be ruled out entirely. "
+        "Except for the outlier group, participants benefited from the treatment."
+    )
+
+    def test_heavily_caveated_classification(self):
+        r = measure_caveat_density(self.ACADEMIC)
+        assert r.classification in (
+            "heavily_caveated",
+            "caveat_saturated",
+            "moderately_caveated",
+        )
+        assert r.caveat_density_index >= 0.15
+
+    def test_high_adversative_count(self):
+        r = measure_caveat_density(self.ACADEMIC)
+        assert r.adversative_count >= 3
+
+    def test_high_scope_count(self):
+        r = measure_caveat_density(self.ACADEMIC)
+        assert r.scope_limiter_count >= 2
+
+    def test_high_preemptive_count(self):
+        r = measure_caveat_density(self.ACADEMIC)
+        assert r.preemptive_concession_count >= 2
+
+    def test_high_exception_count(self):
+        r = measure_caveat_density(self.ACADEMIC)
+        assert r.exception_marker_count >= 1
+
+    def test_high_provisional_count(self):
+        r = measure_caveat_density(self.ACADEMIC)
+        assert r.provisional_count >= 2
+
+    def test_high_qualification_count(self):
+        r = measure_caveat_density(self.ACADEMIC)
+        assert r.qualification_adverb_count >= 2
+
+    def test_diversity_nonzero(self):
+        r = measure_caveat_density(self.ACADEMIC)
+        assert r.caveat_diversity_index > 0.0
+
+
+# ── adversative conjunctions ────────────────────────────────────
+
+
+class TestAdversative:
+    def test_however(self):
+        r = measure_caveat_density("The plan is sound. However, risks remain.")
+        assert r.adversative_count >= 1
+
+    def test_although(self):
+        r = measure_caveat_density("Although the code compiles, tests are failing.")
+        assert r.adversative_count >= 1
+
+    def test_nevertheless(self):
+        r = measure_caveat_density("The API is slow. Nevertheless, it meets requirements.")
+        assert r.adversative_count >= 1
+
+    def test_nonetheless(self):
+        r = measure_caveat_density("Budget is tight. Nonetheless, the project proceeds.")
+        assert r.adversative_count >= 1
+
+    def test_on_the_other_hand(self):
+        r = measure_caveat_density("The design is clean. On the other hand, it lacks flexibility.")
+        assert r.adversative_count >= 1
+
+    def test_conversely(self):
+        r = measure_caveat_density("High latency helps diagnosis. Conversely, it hurts throughput.")
+        assert r.adversative_count >= 1
+
+    def test_that_said(self):
+        r = measure_caveat_density("The algorithm is fast. That said, memory usage is high.")
+        assert r.adversative_count >= 1
+
+    def test_having_said_that(self):
+        r = measure_caveat_density("The approach works. Having said that, edge cases exist.")
+        assert r.adversative_count >= 1
+
+    def test_multiple_adversative(self):
+        text = (
+            "However, the initial results were promising. "
+            "Although the dataset was limited, patterns emerged. "
+            "Nevertheless, the team continued. "
+            "The design, albeit imperfect, served its purpose."
+        )
+        r = measure_caveat_density(text)
+        assert r.adversative_count >= 4
+
+
+# ── scope limiters ──────────────────────────────────────────────
+
+
+class TestScopeLimiters:
+    def test_in_some_cases(self):
+        r = measure_caveat_density("In some cases, the cache invalidates early.")
+        assert r.scope_limiter_count >= 1
+
+    def test_under_certain_conditions(self):
+        r = measure_caveat_density("Under certain conditions, the lock is released.")
+        assert r.scope_limiter_count >= 1
+
+    def test_to_a_certain_extent(self):
+        r = measure_caveat_density("The fix works, to a certain extent.")
+        assert r.scope_limiter_count >= 1
+
+    def test_for_the_most_part(self):
+        r = measure_caveat_density("For the most part, users reported satisfaction.")
+        assert r.scope_limiter_count >= 1
+
+    def test_in_practice(self):
+        r = measure_caveat_density("In practice, the overhead is negligible.")
+        assert r.scope_limiter_count >= 1
+
+    def test_in_most_cases(self):
+        r = measure_caveat_density("In most cases, the default configuration suffices.")
+        assert r.scope_limiter_count >= 1
+
+    def test_generally_speaking(self):
+        r = measure_caveat_density("Generally speaking, the migration is non-destructive.")
+        assert r.scope_limiter_count >= 1
+
+    def test_on_the_whole(self):
+        r = measure_caveat_density("On the whole, the refactor improved readability.")
+        assert r.scope_limiter_count >= 1
+
+    def test_as_far_as(self):
+        r = measure_caveat_density("As far as performance goes, the change is neutral.")
+        assert r.scope_limiter_count >= 1
+
+    def test_insofar_as(self):
+        r = measure_caveat_density("The fix helps insofar as it prevents data loss.")
+        assert r.scope_limiter_count >= 1
+
+
+# ── preemptive concessions ──────────────────────────────────────
+
+
+class TestPreemptiveConcessions:
+    def test_admittedly(self):
+        r = measure_caveat_density("Admittedly, the test coverage is incomplete.")
+        assert r.preemptive_concession_count >= 1
+
+    def test_to_be_fair(self):
+        r = measure_caveat_density("To be fair, the deadline was unrealistic.")
+        assert r.preemptive_concession_count >= 1
+
+    def test_of_course(self):
+        r = measure_caveat_density("Of course, this assumes a stable network.")
+        assert r.preemptive_concession_count >= 1
+
+    def test_granted(self):
+        r = measure_caveat_density("Granted, the initial version had bugs.")
+        assert r.preemptive_concession_count >= 1
+
+    def test_to_be_sure(self):
+        r = measure_caveat_density("To be sure, the metrics are only approximate.")
+        assert r.preemptive_concession_count >= 1
+
+    def test_one_could_argue(self):
+        r = measure_caveat_density("One could argue that simpler designs exist.")
+        assert r.preemptive_concession_count >= 1
+
+    def test_one_might_say(self):
+        r = measure_caveat_density("One might say the API is over-engineered.")
+        assert r.preemptive_concession_count >= 1
+
+    def test_it_is_true_that(self):
+        r = measure_caveat_density("It is true that the migration takes time.")
+        assert r.preemptive_concession_count >= 1
+
+    def test_while_it_is_true_that(self):
+        r = measure_caveat_density(
+            "While it is true that costs are high, the benefits outweigh them."
+        )
+        assert r.preemptive_concession_count >= 1
+
+    def test_could_object(self):
+        r = measure_caveat_density("Critics might object that the study lacks controls.")
+        assert r.preemptive_concession_count >= 1
+
+    def test_to_be_clear(self):
+        r = measure_caveat_density("To be clear, this is not a regression.")
+        assert r.preemptive_concession_count >= 1
+
+
+# ── exception markers ───────────────────────────────────────────
+
+
+class TestExceptionMarkers:
+    def test_except_for(self):
+        r = measure_caveat_density("All tests pass except for the integration suite.")
+        assert r.exception_marker_count >= 1
+
+    def test_with_the_exception_of(self):
+        r = measure_caveat_density(
+            "All modules are stable, with the exception of the auth layer."
+        )
+        assert r.exception_marker_count >= 1
+
+    def test_apart_from(self):
+        r = measure_caveat_density("Apart from the latency issue, performance is good.")
+        assert r.exception_marker_count >= 1
+
+    def test_aside_from(self):
+        r = measure_caveat_density("Aside from the cost, the solution is ideal.")
+        assert r.exception_marker_count >= 1
+
+    def test_barring(self):
+        r = measure_caveat_density("Barring unexpected outages, the deploy finishes at midnight.")
+        assert r.exception_marker_count >= 1
+
+    def test_unless(self):
+        r = measure_caveat_density("The process completes automatically unless the queue is full.")
+        assert r.exception_marker_count >= 1
+
+    def test_save_for(self):
+        r = measure_caveat_density("Save for one edge case, the refactor is complete.")
+        assert r.exception_marker_count >= 1
+
+    def test_excluding(self):
+        r = measure_caveat_density("Excluding test files, the codebase has 5000 lines.")
+        assert r.exception_marker_count >= 1
+
+    def test_in_the_event_that(self):
+        r = measure_caveat_density("In the event that the server restarts, data is preserved.")
+        assert r.exception_marker_count >= 1
+
+    def test_in_the_absence_of(self):
+        r = measure_caveat_density("In the absence of network errors, the sync completes.")
+        assert r.exception_marker_count >= 1
+
+    def test_multiple_exceptions(self):
+        text = (
+            "Except for the auth module, everything works. "
+            "Unless the cache is stale, results are accurate. "
+            "Barring power failure, the backup finishes nightly. "
+            "Apart from one regression, the release is clean."
+        )
+        r = measure_caveat_density(text)
+        assert r.exception_marker_count >= 4
+
+
+# ── provisional language ────────────────────────────────────────
+
+
+class TestProvisional:
+    def test_in_principle(self):
+        r = measure_caveat_density("In principle, the algorithm is correct.")
+        assert r.provisional_count >= 1
+
+    def test_theoretically(self):
+        r = measure_caveat_density("Theoretically, throughput scales linearly.")
+        assert r.provisional_count >= 1
+
+    def test_on_paper(self):
+        r = measure_caveat_density("On paper, the architecture handles 10k requests.")
+        assert r.provisional_count >= 1
+
+    def test_ideally(self):
+        r = measure_caveat_density("Ideally, we would have more test coverage.")
+        assert r.provisional_count >= 1
+
+    def test_all_else_being_equal(self):
+        r = measure_caveat_density("All else being equal, the simpler design wins.")
+        assert r.provisional_count >= 1
+
+    def test_assuming_that(self):
+        r = measure_caveat_density("Assuming that the input is well-formed, parsing succeeds.")
+        assert r.provisional_count >= 1
+
+    def test_contingent_on(self):
+        r = measure_caveat_density("Success is contingent on timely data delivery.")
+        assert r.provisional_count >= 1
+
+    def test_subject_to(self):
+        r = measure_caveat_density("The schedule is subject to change without notice.")
+        assert r.provisional_count >= 1
+
+    def test_provided_that(self):
+        r = measure_caveat_density("The system recovers, provided that the disk is not full.")
+        assert r.provisional_count >= 1
+
+    def test_as_long_as(self):
+        r = measure_caveat_density("The cache stays warm as long as traffic is steady.")
+        assert r.provisional_count >= 1
+
+    def test_in_an_ideal_world(self):
+        r = measure_caveat_density("In an ideal world, every function would have a test.")
+        assert r.provisional_count >= 1
+
+    def test_in_theory(self):
+        r = measure_caveat_density("In theory, the model generalizes to unseen data.")
+        assert r.provisional_count >= 1
+
+
+# ── qualification adverbs ───────────────────────────────────────
+
+
+class TestQualificationAdverbs:
+    def test_generally(self):
+        r = measure_caveat_density("Generally, the response time is under 200ms.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_typically(self):
+        r = measure_caveat_density("Typically, the queue drains within minutes.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_usually(self):
+        r = measure_caveat_density("Usually, the deploy takes five minutes.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_predominantly(self):
+        r = measure_caveat_density("The errors are predominantly network-related.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_largely(self):
+        r = measure_caveat_density("The migration was largely successful.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_mostly(self):
+        r = measure_caveat_density("The output is mostly correct.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_primarily(self):
+        r = measure_caveat_density("The bottleneck is primarily disk I/O.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_arguably(self):
+        r = measure_caveat_density("This is arguably the best approach.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_presumably(self):
+        r = measure_caveat_density("Presumably, the backup completed overnight.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_ostensibly(self):
+        r = measure_caveat_density("The ostensibly simple fix introduced a regression.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_conceivably(self):
+        r = measure_caveat_density("Conceivably, the issue could recur under load.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_tends_to(self):
+        r = measure_caveat_density("The system tends to slow down during peak hours.")
+        assert r.qualification_adverb_count >= 1
+
+    def test_multiple_qualifiers(self):
+        text = (
+            "Generally, the process is reliable. "
+            "Typically, it completes within minutes. "
+            "Usually, errors are transient. "
+            "Largely, the system self-heals. "
+            "Primarily, failures stem from network issues."
+        )
+        r = measure_caveat_density(text)
+        assert r.qualification_adverb_count >= 5
+
+
+# ── classification thresholds ────────────────────────────────────
+
+
+class TestClassificationThresholds:
+    def test_uncaveated(self):
+        text = "The server runs the process. The output goes to a file. Done."
+        r = measure_caveat_density(text)
+        assert r.classification == "uncaveated"
+
+    def test_lightly_caveated(self):
+        text = (
+            "The process runs on the server every morning. "
+            "Output is logged to a file in the data directory. "
+            "Results are formatted as JSON for downstream consumption. "
+            "Configuration is handled automatically via environment variables. "
+            "No manual intervention is needed under normal operation. "
+            "The scheduler checks health endpoints before dispatching. "
+            "Errors are written to stderr and captured by the logger. "
+            "Restart behavior is idempotent by design. "
+            "The backoff strategy on failure uses exponential delay. "
+            "Logs rotate weekly and compress to gzip."
+        )
+        r = measure_caveat_density(text)
+        assert r.classification in ("uncaveated", "lightly_caveated")
+
+    def test_moderately_caveated(self):
+        text = (
+            "Generally, the approach works well in practice. "
+            "However, edge cases require special handling. "
+            "Although the algorithm is theoretically optimal, constant factors matter. "
+            "In most cases, the default settings suffice. "
+            "Admittedly, the documentation could be more thorough. "
+            "Provided that inputs are valid, the parser handles all formats. "
+            "Typically, the cache hit rate exceeds ninety percent."
+        )
+        r = measure_caveat_density(text)
+        assert r.caveat_density_index >= 0.15
+
+    def test_caveat_saturated(self):
+        text = (
+            "However, this is generally true only in some cases. "
+            "Although the results are typically reliable, admittedly there are limitations. "
+            "Nevertheless, in principle the approach works, barring edge cases. "
+            "Of course, one could argue that, theoretically, the model is provisional. "
+            "That said, ideally the system recovers, except for catastrophic failures. "
+            "Conversely, largely the output is mostly correct, subject to noise. "
+            "Granted, while it is true that the fix helps, to a certain extent problems remain. "
+            "Nonetheless, generally speaking, the design is arguably sound. "
+            "On the other hand, presumably the tests pass, unless the environment differs. "
+            "To be fair, under certain conditions, the results are arguably acceptable."
+        )
+        r = measure_caveat_density(text)
+        assert r.caveat_density_index >= 0.35
+
+
+# ── rates ────────────────────────────────────────────────────────
+
+
+class TestRates:
+    def test_rates_scale_with_sentences(self):
+        short = "However, the fix works. Generally, it is reliable."
+        r = measure_caveat_density(short)
+        assert r.adversative_rate > 0 or r.qualification_adverb_rate > 0
+        assert r.total_sentences == 2
+
+    def test_rate_zero_for_plain_text(self):
+        text = "The file exists. The process completed. The output was saved."
+        r = measure_caveat_density(text)
+        assert r.adversative_rate == 0.0
+        assert r.scope_limiter_rate == 0.0
+        assert r.provisional_rate == 0.0
+
+
+# ── composite and diversity ──────────────────────────────────────
+
+
+class TestComposite:
+    def test_composite_range(self):
+        texts = [
+            "Plain text with no caveats at all.",
+            "However, the fix is generally reliable in most cases.",
+            "Although theoretically sound, ideally it works barring failures.",
+        ]
+        for text in texts:
+            r = measure_caveat_density(text)
+            assert 0.0 <= r.caveat_density_index <= 1.0
+
+    def test_diversity_range(self):
+        texts = [
+            "Plain text.",
+            "However, although, nevertheless, admittedly, generally, typically.",
+        ]
+        for text in texts:
+            r = measure_caveat_density(text)
+            assert 0.0 <= r.caveat_diversity_index <= 1.0
+
+    def test_more_caveats_higher_index(self):
+        plain = (
+            "The committee met on Tuesday. "
+            "Three proposals were reviewed. "
+            "The budget was approved for next quarter. "
+            "Staff will receive updated guidelines. "
+            "The next meeting is in December."
+        )
+        caveated = (
+            "However, the committee met on Tuesday, generally as scheduled. "
+            "Although three proposals were reviewed, in most cases they passed. "
+            "Admittedly, the budget was approved, subject to revision. "
+            "Typically, staff will receive guidelines, barring delays. "
+            "In principle, the next meeting is in December, provided rooms are available."
+        )
+        r_plain = measure_caveat_density(plain)
+        r_caveat = measure_caveat_density(caveated)
+        assert r_caveat.caveat_density_index > r_plain.caveat_density_index
+
+    def test_diversity_increases_with_variety(self):
+        low_div = "However, the fix works. However, it is slow. However, tests pass."
+        high_div = (
+            "However, the fix works. Although it is slow, generally tests pass. "
+            "Admittedly, typically the design is sound, barring edge cases. "
+            "Nevertheless, ideally the approach is theoretically valid."
+        )
+        r_low = measure_caveat_density(low_div)
+        r_high = measure_caveat_density(high_div)
+        assert r_high.caveat_diversity_index >= r_low.caveat_diversity_index
+
+
+# ── orthogonality ────────────────────────────────────────────────
+
+
+class TestOrthogonality:
+    def test_caveat_without_hedging(self):
+        """Caveated text can be certain (no hedging)."""
+        text = (
+            "The algorithm is correct, however, only for sorted inputs. "
+            "The fix works, except for the auth module. "
+            "Generally, the process completes in five minutes."
+        )
+        r = measure_caveat_density(text)
+        assert r.adversative_count >= 1
+        assert r.exception_marker_count >= 1
+        assert r.qualification_adverb_count >= 1
+
+    def test_caveat_without_conviction_change(self):
+        """Caveated text can be fully convicted."""
+        text = (
+            "This is the correct approach, provided that the input is valid. "
+            "The system recovers automatically, barring power failure. "
+            "All tests pass, except for the known flaky integration test."
+        )
+        r = measure_caveat_density(text)
+        assert r.provisional_count >= 1
+        assert r.exception_marker_count >= 2
+
+    def test_caveat_without_emphasis(self):
+        """Caveated text need not use emphasis techniques."""
+        text = (
+            "The process runs nightly, generally without issue. "
+            "However, on weekends the schedule differs. "
+            "In most cases, results are available by morning."
+        )
+        r = measure_caveat_density(text)
+        assert r.qualification_adverb_count >= 1
+        assert r.adversative_count >= 1
+        assert r.scope_limiter_count >= 1
+
+
+# ── metadata ─────────────────────────────────────────────────────
+
+
+class TestMetadata:
+    def test_total_sentences_nonzero(self):
+        r = measure_caveat_density("One sentence. Two sentences.")
+        assert r.total_sentences == 2
+
+    def test_details_dict_populated(self):
+        r = measure_caveat_density(
+            "However, the fix is generally reliable. Admittedly, tests pass."
+        )
+        assert "caveat_density_index" in r.details
+        assert "classification" in r.details
+        assert "adversative_rate" in r.details
+
+    def test_result_dataclass_defaults(self):
+        r = CaveatDensityResult()
+        assert r.adversative_count == 0
+        assert r.caveat_density_index == 0.0
+        assert r.classification == "uncaveated"
+        assert r.details == {}
+
+    def test_counts_match_rates_direction(self):
+        text = (
+            "However, the fix works. Although slow, it is reliable. "
+            "Generally, the system recovers. Nevertheless, monitoring helps."
+        )
+        r = measure_caveat_density(text)
+        assert r.adversative_count > 0
+        assert r.adversative_rate > 0
+        assert r.qualification_adverb_count > 0
+        assert r.qualification_adverb_rate > 0
+
+
+# ── edge cases ───────────────────────────────────────────────────
+
+
+class TestEdgeCases:
+    def test_single_sentence_with_caveat(self):
+        r = measure_caveat_density("However, the fix generally works.")
+        assert r.adversative_count >= 1
+        assert r.qualification_adverb_count >= 1
+        assert r.total_sentences == 1
+
+    def test_long_text_no_caveats(self):
+        sentences = [
+            f"The process step {i} completed successfully." for i in range(20)
+        ]
+        text = " ".join(sentences)
+        r = measure_caveat_density(text)
+        assert r.classification == "uncaveated"
+        assert r.caveat_density_index < 0.05
+
+    def test_all_categories_present(self):
+        text = (
+            "However, the approach generally works. "
+            "In some cases, exceptions arise. "
+            "Admittedly, the fix is provisional. "
+            "Except for edge cases, the system is stable. "
+            "In principle, the design is sound. "
+            "Typically, results are consistent."
+        )
+        r = measure_caveat_density(text)
+        assert r.adversative_count >= 1
+        assert r.scope_limiter_count >= 1
+        assert r.preemptive_concession_count >= 1
+        assert r.exception_marker_count >= 1
+        assert r.provisional_count >= 1
+        assert r.qualification_adverb_count >= 1

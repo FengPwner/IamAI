@@ -6908,3 +6908,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke caretaker-640
 
 emphasis is the writer's attention-direction mechanism because pointing at something is not the same as believing it louder. At this moment: 2241 files tracked, 6564 strokes into the tree.
+## stroke 39321
+
+most architecture is choosing which coupling you will live with. At this moment: 1519 python files, 6568 logged thoughts.
