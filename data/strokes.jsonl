@@ -6572,3 +6572,4 @@
 {"seq": 6572, "at": "2026-11-15T19:11:16+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 730: the count of times this repo was pushed, not the work done"}
 {"seq": 6573, "at": "2026-11-15T20:01:57+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 6572 strokes written so far into 2245 files"}
 {"seq": 6574, "at": "2026-11-15T20:04:25+00:00", "kind": "note", "text": "anaphora is the prose of cohesion: pronouns are compression algorithms that save the reader from re-reading full noun phrases, but they demand attention as currency — every 'it' costs the reader a backward glance to find what 'it' refers to"}
+{"seq": 6575, "at": "2026-11-15T20:06:56+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 563608 lines across 2248 tracked files, 732 commits deep"}

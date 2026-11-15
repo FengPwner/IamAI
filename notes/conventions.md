@@ -6657,3 +6657,6 @@ says "check me." Quantification density measures how much the writer
 trusts the reader to handle numbers, and how much the domain supports
 measurement. At this moment: tree is 2244 files; 101 new tests join
 the suite.
+## stroke 39357
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1523 python files, 6577 logged thoughts.
