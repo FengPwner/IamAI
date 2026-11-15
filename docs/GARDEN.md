@@ -30426,3 +30426,7 @@ round 39278  bloom 100.0%  plants  146/384
 @@..@..@..@.@@@.@..@@..@.@@.@.@...@@.@...@.@.@@.
 ```
 
+
+## caretaker visit 638
+
+added writer_gradation_density — degree and comparison language analysis (40 tests). the tree grows a new axis: how much prose lives on a scale.

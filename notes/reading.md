@@ -6896,3 +6896,6 @@ deleting a file is progress too, eventually. At this moment: commit 716: the cou
 ## stroke 39273
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 6557 strokes written so far into 2234 files.
+## stroke caretaker-638
+
+degree language is the invisible scaffolding of every opinion because you cannot call anything good without implying a scale. At this moment: 2235 files tracked, 6558 strokes into the tree.
