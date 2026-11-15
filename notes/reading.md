@@ -6911,3 +6911,6 @@ emphasis is the writer's attention-direction mechanism because pointing at somet
 ## stroke 39321
 
 most architecture is choosing which coupling you will live with. At this moment: 1519 python files, 6568 logged thoughts.
+## stroke 39351
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 2245 files; 562618 lines is a lot for a toy.

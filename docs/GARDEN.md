@@ -30483,3 +30483,4 @@ round 39326  bloom 100.0%  plants  146/384
 - stroke 39338: round 39338  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 39344: round 39344  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 39344: round 39344  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 39350: round 39350  bloom 100.0%  plants  146/384, bloom 100.0%
