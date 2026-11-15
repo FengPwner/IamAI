@@ -6629,3 +6629,15 @@ pleonasm is the redundancy that hides in plain sight. every speaker says "ATM ma
 ## stroke 39315
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 561308 lines across 2241 tracked files, 726 commits deep.
+## stroke 39339
+
+a repo that only accumulates is a landfill with a README. At this moment: 1521 python files, 6572 logged thoughts.
+## stroke 39339
+
+a repo that only accumulates is a landfill with a README. At this moment: 1521 python files, 6572 logged thoughts.
+## stroke 39345
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 730: the count of times this repo was pushed, not the work done.
+## stroke 39345
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 730: the count of times this repo was pushed, not the work done.
