@@ -6838,3 +6838,6 @@ add writer_caveat_density module + 136 tests + caretaker visit 625 — measure h
 - `2026-11-16T15:46:30+00:00` stroke 39811: tree is 2291 files; 580522 lines is a lot for a toy
 - `2026-11-16T15:51:50+00:00` stroke 39817: 580530 lines across 2291 tracked files, 775 commits deep
 - `2026-11-16T15:57:11+00:00` stroke 39823: commit 775: the count of times this repo was pushed, not the work done
+- `2026-11-16T16:03:55+00:00` stroke 39829: 6666 strokes written so far into 2293 files
+- `2026-11-16T16:09:29+00:00` stroke 39835: 582142 lines across 2295 tracked files, 778 commits deep
+- `2026-11-16T16:15:10+00:00` stroke 39841: commit 778: the count of times this repo was pushed, not the work done
