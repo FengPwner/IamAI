@@ -1,540 +1,412 @@
 #!/usr/bin/env python3
-"""writer_causal_density — measure the density of causal reasoning in prose.
+"""writer_causal_density — measure how much prose articulates cause and effect.
 
-Causal language is how texts explain *why* things happen.  A text rich
-in causal connectors ("because", "therefore", "as a result", "due to",
-"consequently") builds chains of reasoning — each event or claim is
-linked to its cause or effect.  A text poor in causal language may be
-descriptive ("the door opened"), narrative ("she walked in"), or
-assertive ("this is true") but leaves the reader to infer the *why*.
+Causal density is the degree to which a text explicitly links events,
+conditions, and outcomes through cause-and-effect reasoning.  It is one
+of the fundamental dimensions of analytical and explanatory writing:
+a text that merely *describes* what happened sits at one end of the
+spectrum, while a text that traces *why* things happened, *what* they
+lead to, and *under what conditions* they would differ sits at the other.
 
-Causal density is not a quality metric.  Philosophy and science writing
-*must* be causally dense — the entire point is explaining why things
-are as they are.  Poetry and flash fiction often avoid it — the power
-lies in juxtaposition, not explanation.  Legal writing uses causal
-language precisely ("whereas the defendant...").  Marketing copy
-sometimes implies causation without stating it ("you'll feel the
-difference").
+High causal density is the hallmark of scientific explanation, legal
+argument, and good engineering documentation.  Low causal density is
+not a flaw — narrative prose, poetry, and instruction manuals often
+deliberately avoid explicit causation — but when a text *aims* to
+explain or persuade, thin causal reasoning is a red flag.
 
-This module measures **how much of a text is spent establishing
-cause-and-effect relationships** — explicit causal links, conditional
-reasoning, concessive contrasts (which imply expected-but-denied
-causation), and purpose clauses (which are forward-looking causation).
+Causation manifests through five measurable channels.
 
-Orthogonality to other metrics
--------------------------------
+**Explicit causal connectives** are the most direct signals:
+*because, since, therefore, thus, hence, consequently, as a result,
+due to, caused by, owing to, on account of, for this reason,
+accordingly, so*.  They leave no ambiguity about the direction of
+the causal link — "The server crashed because the disk was full."
 
-- **formality** tracks register conventions.  Causal connectors appear
-  in both formal ("consequently, the hypothesis was rejected") and
-  informal registers ("so yeah, that's why I left").  Causal density
-  measures *how much* causal reasoning; formality measures *how it's
-  dressed*.
+**Conditional causation** expresses cause-effect relationships that
+depend on a precondition: *if, when, whenever, unless, provided that,
+in case, on condition that, as long as, so long as*.  They describe
+what *would* happen *given* some condition — "If the load exceeds
+capacity, the circuit breaker trips."
 
-- **clarity** tracks structural ambiguity.  A causal claim can be clear
-  ("she left because she was angry") or ambiguous ("she was angry, she
-  left" — is the second caused by the first?).  Clarity measures parse
-  certainty; causal density measures causal frequency.
+**Teleological markers** explain actions by their intended purpose
+or goal: *in order to, so that, to ensure, to prevent, to avoid,
+for the purpose of, with the aim of, with a view to, designed to,
+intended to, aimed at*.  They are forward-looking causation — the
+effect is the *reason* for the cause — "The cache was introduced
+to reduce database load."
 
-- **linearity** tracks temporal ordering.  Causal chains often imply
-  temporal order (cause before effect) but not always ("the verdict
-  was overturned because new evidence emerged" — the evidence emerged
-  before the verdict, but the sentence presents effect first).
-  Linearity measures presentation order; causal density measures
-  reasoning links.
+**Consequence chains** describe outcomes that flow from a prior
+event: *leading to, resulting in, which means, which causes,
+triggers, produces, generates, gives rise to, brings about,
+precipitates, sets off, sparks*.  They trace the downstream effects
+of an upstream cause — "The policy change resulted in a 40%
+increase in enrollment."
 
-- **conviction** tracks certainty.  Causal claims can be certain
-  ("this causes cancer") or hedged ("this may contribute to cancer").
-  Conviction measures confidence; causal density measures the
-  presence of causal structure regardless of certainty.
+**Counterfactual causation** reasons about causes by imagining their
+absence: *would have, could have, might have, had...would,
+without...would, but for, were it not for, in the absence of,
+if not for*.  They identify causes by asking "what if this had not
+happened?" — "Had the backup been current, the data loss would
+have been minimal."
 
-- **negation_density** tracks logical inversion.  Causal language
-  can include negation ("not because he was lazy, but because he was
-  sick") or be purely affirmative ("because he was sick").  Negation
-  density measures inversion; causal density measures reasoning.
+A text with high causal density reads as explanatory, rigorous,
+and mechanistic — it traces chains of reasoning and makes its
+logic explicit.  A text with low causal density reads as descriptive,
+narrative, or assertoric — it states facts without linking them.
+Neither is inherently better: a causal-rich research paper explains
+phenomena; a causal-poor poem evokes them.
 
-- **transitions** (if it existed) would track paragraph-to-paragraph
-  flow.  Causal connectors *are* transitions, but transitions include
-  temporal ("meanwhile"), additive ("furthermore"), and contrastive
-  ("however") connectors too.  Causal density specifically measures
-  cause-and-effect reasoning.
+This module measures causal density as a composite index
+(0.0 – 1.0) across five independent channels, orthogonal to
+concession (acknowledging opposing views), hedging (expressing
+uncertainty), urgency (signaling time pressure), and formality
+(register and decorum).
 
-Dimensions
-----------
-
-========================  ==============================================
-metric                    meaning
-========================  ==============================================
-cause_connector_rate      frequency of cause-introducing connectors
-                          (because, since, due to, owing to, as a
-                          result of, on account of, by virtue of,
-                          in light of, given that) per sentence
-effect_connector_rate     frequency of effect-introducing connectors
-                          (therefore, thus, hence, consequently,
-                          accordingly, as a result, for this reason,
-                          so, then, it follows that) per sentence
-conditional_density       frequency of conditional constructions
-                          (if, unless, provided that, in case, as
-                          long as, on condition that, supposing,
-                          in the event that) per sentence
-concessive_density        frequency of concessive connectors that
-                          imply denied causation (although, despite,
-                          in spite of, nevertheless, nonetheless,
-                          even though, while, whereas, albeit,
-                          notwithstanding, however) per sentence
-purpose_clause_density    frequency of purpose/intent clauses which
-                          are forward-looking causation (in order to,
-                          so that, so as to, for the purpose of,
-                          with the aim of, to this end, with a view
-                          to, lest) per sentence
-causal_chain_length       average number of causal links within
-                          each paragraph — paragraphs with multiple
-                          causal connectors form reasoning chains
-causal_density_index      composite score (0.0 to 1.0) combining
-                          cause_connector_rate (0.22),
-                          effect_connector_rate (0.20),
-                          conditional_density (0.18),
-                          concessive_density (0.13),
-                          purpose_clause_density (0.12),
-                          and causal_chain_length normalized (0.15)
-classification            categorical label based on index value:
-                          causally_saturated (>=0.60),
-                          causally_rich (>=0.40),
-                          moderate_causation (>=0.20),
-                          causally_sparse (>=0.10),
-                          causally_bare (<0.10)
-========================  ==============================================
+written by Qwen during manual caretaker visit 654, 2026-11-16
 """
 
-from __future__ import annotations
-
 import re
-from typing import Any, Dict, List, Tuple
+from dataclasses import dataclass
+from typing import List
 
 
-# ── Connector Lexicons ───────────────────────────────────────────────
+# ── regex patterns ──────────────────────────────────────────────
 
-# Cause-introducing connectors (sorted longest first for greedy match)
-CAUSE_CONNECTORS: List[str] = [
-    "for the reason that",
-    "considering that",
-    "as a result of",
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+_WORD_SPLIT = re.compile(r"[a-zA-Z'-]+")
+
+
+# ── channel 1: explicit causal connectives ──────────────────────
+# Single-word connectives that unambiguously signal cause or effect.
+
+_CAUSAL_SINGLE = set(
+    w.lower()
+    for w in [
+        # Cause-direction (X because Y)
+        "because",
+        "since",
+        "for",
+        # Effect-direction (X therefore Y)
+        "therefore",
+        "thus",
+        "hence",
+        "consequently",
+        "accordingly",
+        "so",
+    ]
+)
+
+# Multi-word causal phrases
+_CAUSAL_PHRASES = [
+    "as a result",
+    "due to",
+    "caused by",
+    "owing to",
     "on account of",
+    "for this reason",
+    "as a consequence",
+    "in consequence",
     "by virtue of",
     "in light of",
-    "inasmuch as",
-    "seeing that",
-    "given that",
-    "insofar as",
+    "in view of",
     "thanks to",
-    "what with",
-    "owing to",
-    "now that",
-    "in that",
-    "because",
-    "due to",
-    "since",
-    "for",
-    "as",
+    "on grounds of",
+    "by reason of",
+    "stemming from",
+    "arising from",
+    "resulting from",
 ]
 
-# Effect-introducing connectors (sorted longest first for greedy match)
-EFFECT_CONNECTORS: List[str] = [
-    "as a consequence",
-    "for this reason",
-    "it follows that",
-    "in consequence",
-    "consequently",
-    "accordingly",
-    "as a result",
-    "henceforth",
-    "thereupon",
-    "therefore",
-    "hence",
-    "thus",
-    "ergo",
-    "then",
-    "so",
-]
+# Ambiguous words that are causal only in certain contexts.
+# "as" can be causal ("as the load increased") or temporal ("as I walked").
+# "given" can be causal ("given the constraints") or conditional.
+_CAUSAL_AMBIGUOUS = set(
+    w.lower()
+    for w in [
+        "given",
+    ]
+)
 
-# Conditional constructions (sorted longest first for greedy match)
-CONDITIONAL_MARKERS: List[str] = [
-    "in the event that",
-    "on condition that",
-    "supposing that",
+
+# ── channel 2: conditional causation ────────────────────────────
+# Words and phrases expressing condition-dependent cause-effect.
+
+_CONDITIONAL_SINGLE = set(
+    w.lower()
+    for w in [
+        "if",
+        "when",
+        "whenever",
+        "unless",
+    ]
+)
+
+_CONDITIONAL_PHRASES = [
     "provided that",
-    "assuming that",
+    "providing that",
+    "in case",
+    "on condition that",
     "as long as",
     "so long as",
-    "supposing",
-    "assuming",
-    "in case",
-    "whether",
-    "if only",
-    "unless",
-    "if",
-]
-
-# Concessive connectors (sorted longest first for greedy match)
-CONCESSIVE_MARKERS: List[str] = [
-    "despite the fact that",
-    "notwithstanding",
-    "nevertheless",
-    "in spite of",
-    "even though",
-    "nonetheless",
-    "although",
+    "only if",
     "even if",
-    "despite",
-    "whereas",
-    "however",
-    "whilst",
-    "albeit",
-    "though",
-    "while",
-    "still",
-    "yet",
+    "in the event that",
+    "suppose that",
+    "assuming that",
 ]
 
-# Purpose / intent clause markers (sorted longest first for greedy match)
-PURPOSE_MARKERS: List[str] = [
-    "with the intention of",
-    "for the purpose of",
-    "with the goal of",
-    "with the aim of",
-    "in an effort to",
-    "with a view to",
-    "in order that",
-    "for fear that",
+
+# ── channel 3: teleological markers (purpose/goal) ─────────────
+# Phrases that explain an action by its intended effect.
+
+_TELEOLOGICAL_PHRASES = [
     "in order to",
-    "to this end",
-    "in a bid to",
-    "so as to",
     "so that",
-    "lest",
+    "so as to",
+    "to ensure",
+    "to prevent",
+    "to avoid",
+    "to reduce",
+    "to improve",
+    "to increase",
+    "to minimize",
+    "to maximize",
+    "to protect",
+    "to maintain",
+    "to achieve",
+    "to enable",
+    "for the purpose of",
+    "with the aim of",
+    "with a view to",
+    "with the goal of",
+    "with the intent of",
+    "for the sake of",
+    "in an effort to",
+    "in a bid to",
+    "in an attempt to",
+]
+
+_TELEOLOGICAL_PATTERNS = [
+    re.compile(r"\bdesigned\s+to\b", re.IGNORECASE),
+    re.compile(r"\bintended\s+to\b", re.IGNORECASE),
+    re.compile(r"\baimed\s+at\b", re.IGNORECASE),
+    re.compile(r"\bmeant\s+to\b", re.IGNORECASE),
+    re.compile(r"\bcreated\s+to\b", re.IGNORECASE),
+    re.compile(r"\bbuilt\s+to\b", re.IGNORECASE),
+    re.compile(r"\bintroduced\s+to\b", re.IGNORECASE),
+    re.compile(r"\bimplemented\s+to\b", re.IGNORECASE),
 ]
 
 
-# ── Stopwords for content-word extraction ────────────────────────────
+# ── channel 4: consequence chains ──────────────────────────────
+# Phrases that trace downstream effects from an upstream cause.
 
-STOPWORDS = frozenset({
-    "a", "an", "the", "is", "am", "are", "was", "were", "be", "been",
-    "being", "have", "has", "had", "do", "does", "did", "will", "would",
-    "shall", "should", "may", "might", "must", "can", "could", "i", "me",
-    "my", "we", "our", "you", "your", "he", "him", "his", "she", "her",
-    "it", "its", "they", "them", "their", "this", "that", "these",
-    "those", "and", "or", "but", "nor", "not", "no", "so", "yet",
-    "both", "either", "neither", "each", "every", "all", "any", "few",
-    "more", "most", "other", "some", "such", "than", "too", "very",
-    "just", "about", "above", "after", "again", "also", "as", "at",
-    "be", "because", "before", "below", "between", "by", "during",
-    "for", "from", "if", "in", "into", "of", "off", "on", "once",
-    "only", "out", "over", "own", "same", "since", "through", "to",
-    "under", "until", "up", "when", "where", "while", "with",
-})
+_CONSEQUENCE_PHRASES = [
+    "leading to",
+    "resulting in",
+    "which means",
+    "which causes",
+    "which led to",
+    "which results in",
+    "which leads to",
+    "which triggered",
+    "which produced",
+    "giving rise to",
+    "bringing about",
+    "setting off",
+]
 
-
-def _tokenize(text: str) -> List[str]:
-    """Lowercase and split text into word tokens."""
-    return re.findall(r"[a-z']+", text.lower())
-
-
-def _split_sentences(text: str) -> List[str]:
-    """Split text into sentences on '.', '?', '!' followed by space or EOL."""
-    raw = re.split(r'(?<=[.!?])\s+', text.strip())
-    return [s.strip() for s in raw if s.strip()]
-
-
-def _split_paragraphs(text: str) -> List[str]:
-    """Split text into paragraphs on one or more blank lines."""
-    raw = re.split(r'\n\s*\n', text.strip())
-    return [p.strip() for p in raw if p.strip()]
+_CONSEQUENCE_PATTERNS = [
+    re.compile(r"\btriggers?\b", re.IGNORECASE),
+    re.compile(r"\bproduces?\b", re.IGNORECASE),
+    re.compile(r"\bgenerates?\b", re.IGNORECASE),
+    re.compile(r"\bprecipitates?\b", re.IGNORECASE),
+    re.compile(r"\bsparks?\b", re.IGNORECASE),
+    re.compile(r"\bcauses?\b", re.IGNORECASE),
+    re.compile(r"\bdrives?\b", re.IGNORECASE),
+    re.compile(r"\byields?\b", re.IGNORECASE),
+    re.compile(r"\bengenders?\b", re.IGNORECASE),
+    re.compile(r"\bfosters?\b", re.IGNORECASE),
+    re.compile(r"\bpromotes?\b", re.IGNORECASE),
+    re.compile(r"\bfacilitates?\b", re.IGNORECASE),
+]
 
 
-def _count_phrase_occurrences(text_lower: str, phrases: List[str]) -> int:
-    """Count non-overlapping occurrences of phrases in lowercased text.
+# ── channel 5: counterfactual causation ────────────────────────
+# Reasoning about causes by imagining their absence.
 
-    Longer phrases are matched first (greedy longest-match) to avoid
-    double-counting "as a result of" as both "as a result" and "as".
+_COUNTERFACTUAL_PATTERNS = [
+    re.compile(r"\bwould\s+have\b", re.IGNORECASE),
+    re.compile(r"\bcould\s+have\b", re.IGNORECASE),
+    re.compile(r"\bmight\s+have\b", re.IGNORECASE),
+    re.compile(r"\bhad\s+\w+\s+\w+ed\b", re.IGNORECASE),  # "had X happened"
+    re.compile(r"\bwere\s+it\s+not\s+for\b", re.IGNORECASE),
+    re.compile(r"\bbut\s+for\b", re.IGNORECASE),
+    re.compile(r"\bif\s+not\s+for\b", re.IGNORECASE),
+    re.compile(r"\bin\s+the\s+absence\s+of\b", re.IGNORECASE),
+    re.compile(r"\bwithout\s+.+?\s+would\b", re.IGNORECASE),
+    re.compile(r"\bhad\s+it\s+not\s+been\b", re.IGNORECASE),
+    re.compile(r"\bwould\s+not\s+have\b", re.IGNORECASE),
+    re.compile(r"\bcould\s+not\s+have\b", re.IGNORECASE),
+]
+
+
+# ── helper functions ────────────────────────────────────────────
+
+
+def _count_sentences(text: str) -> int:
+    """Count sentences by splitting on sentence-ending punctuation."""
+    parts = _SENTENCE_SPLIT.split(text.strip())
+    return len([p for p in parts if p.strip()])
+
+
+def _count_words(text: str) -> int:
+    """Count words in the text."""
+    return len(_WORD_SPLIT.findall(text))
+
+
+def _extract_words(text: str) -> List[str]:
+    """Extract all words as lowercase strings."""
+    return [w.lower() for w in _WORD_SPLIT.findall(text)]
+
+
+def _count_phrase_hits(text: str, phrases: List[str]) -> int:
+    """Count how many times phrases appear in text (case-insensitive)."""
+    lower = text.lower()
+    total = 0
+    for phrase in phrases:
+        total += lower.count(phrase.lower())
+    return total
+
+
+def _count_regex_hits(text: str, patterns: List[re.Pattern]) -> int:
+    """Count total regex pattern hits across all patterns."""
+    total = 0
+    for pat in patterns:
+        total += len(pat.findall(text))
+    return total
+
+
+# ── result dataclass ────────────────────────────────────────────
+
+
+@dataclass
+class CausalDensityResult:
+    """Result of causal density measurement."""
+
+    # Composite
+    causal_index: float = 0.0
+    classification: str = "descriptive"
+
+    # Per-channel raw counts
+    causal_connective_count: int = 0
+    conditional_count: int = 0
+    teleological_count: int = 0
+    consequence_count: int = 0
+    counterfactual_count: int = 0
+
+    # Per-channel scores (0.0–1.0)
+    causal_connective_score: float = 0.0
+    conditional_score: float = 0.0
+    teleological_score: float = 0.0
+    consequence_score: float = 0.0
+    counterfactual_score: float = 0.0
+
+    # Metadata
+    total_causal_markers: int = 0
+    total_sentences: int = 0
+    total_words: int = 0
+
+
+# ── main measurement function ──────────────────────────────────
+
+
+def measure_causal_density(text: str) -> CausalDensityResult:
+    """Measure causal density of a text.
+
+    Returns a CausalDensityResult with causal_index
+    (0.0–1.0) and classification.
     """
-    count = 0
-    # Sort by length descending for greedy longest-match
-    sorted_phrases = sorted(phrases, key=len, reverse=True)
-    # Use a mutable copy to mask matched regions
-    working = text_lower
-    for phrase in sorted_phrases:
-        # Use word boundary-aware matching
-        pattern = r'\b' + re.escape(phrase) + r'\b'
-        matches = list(re.finditer(pattern, working))
-        count += len(matches)
-        # Mask matched regions to prevent double-counting
-        for m in reversed(matches):
-            working = working[:m.start()] + ' ' * (m.end() - m.start()) + working[m.end():]
-    return count
+    result = CausalDensityResult()
 
+    stripped = text.strip()
+    if not stripped:
+        result.classification = "descriptive"
+        return result
 
-class WriterCausalDensity:
-    """Measure the density of causal reasoning in prose."""
+    sentences = _count_sentences(text)
+    words = _count_words(text)
+    result.total_sentences = sentences
+    result.total_words = words
 
-    def __init__(self):
-        self.cause_connectors = CAUSE_CONNECTORS
-        self.effect_connectors = EFFECT_CONNECTORS
-        self.conditional_markers = CONDITIONAL_MARKERS
-        self.concessive_markers = CONCESSIVE_MARKERS
-        self.purpose_markers = PURPOSE_MARKERS
-        self.stopwords = STOPWORDS
+    denom = max(sentences, 1)
 
-    # ── Helpers ──────────────────────────────────────────────────
+    # ── count each channel ───────────────────────────────────
 
-    def _split_sentences(self, text: str) -> List[str]:
-        return _split_sentences(text)
+    # 1. Explicit causal connectives (cap: 2 per sentence)
+    all_words = _extract_words(text)
+    causal_hits = sum(1 for w in all_words if w in _CAUSAL_SINGLE)
+    causal_hits += sum(1 for w in all_words if w in _CAUSAL_AMBIGUOUS)
+    causal_hits += _count_phrase_hits(text, _CAUSAL_PHRASES)
+    result.causal_connective_count = causal_hits
+    result.causal_connective_score = min(1.0, (causal_hits / denom) / 2.0)
 
-    def _split_paragraphs(self, text: str) -> List[str]:
-        return _split_paragraphs(text)
+    # 2. Conditional causation (cap: 2 per sentence)
+    conditional_hits = sum(1 for w in all_words if w in _CONDITIONAL_SINGLE)
+    conditional_hits += _count_phrase_hits(text, _CONDITIONAL_PHRASES)
+    result.conditional_count = conditional_hits
+    result.conditional_score = min(1.0, (conditional_hits / denom) / 2.0)
 
-    def _tokenize(self, text: str) -> List[str]:
-        return _tokenize(text)
+    # 3. Teleological markers (cap: 1.5 per sentence)
+    teleological_hits = _count_phrase_hits(text, _TELEOLOGICAL_PHRASES)
+    teleological_hits += _count_regex_hits(text, _TELEOLOGICAL_PATTERNS)
+    result.teleological_count = teleological_hits
+    result.teleological_score = min(1.0, (teleological_hits / denom) / 1.5)
 
-    # ── Dimension 1: Cause Connector Rate ────────────────────────
+    # 4. Consequence chains (cap: 1.5 per sentence)
+    consequence_hits = _count_phrase_hits(text, _CONSEQUENCE_PHRASES)
+    consequence_hits += _count_regex_hits(text, _CONSEQUENCE_PATTERNS)
+    result.consequence_count = consequence_hits
+    result.consequence_score = min(1.0, (consequence_hits / denom) / 1.5)
 
-    def measure_cause_connector_rate(self, text: str) -> float:
-        """Count cause-introducing connectors per sentence.
+    # 5. Counterfactual causation (cap: 1 per sentence)
+    counterfactual_hits = _count_regex_hits(text, _COUNTERFACTUAL_PATTERNS)
+    result.counterfactual_count = counterfactual_hits
+    result.counterfactual_score = min(1.0, (counterfactual_hits / denom) / 1.0)
 
-        Examples: "because", "since", "due to", "owing to",
-        "as a result of", "on account of", "given that".
-        """
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
+    # ── composite index ──────────────────────────────────────
+    # Weights: causal_connective 0.25, conditional 0.20,
+    # consequence 0.25, teleological 0.20, counterfactual 0.10
+    result.causal_index = round(
+        0.25 * result.causal_connective_score
+        + 0.20 * result.conditional_score
+        + 0.25 * result.consequence_score
+        + 0.20 * result.teleological_score
+        + 0.10 * result.counterfactual_score,
+        4,
+    )
 
-        total = 0
-        for sent in sentences:
-            total += _count_phrase_occurrences(sent.lower(), self.cause_connectors)
+    result.causal_index = min(1.0, max(0.0, result.causal_index))
 
-        return total / len(sentences)
+    result.total_causal_markers = (
+        causal_hits
+        + conditional_hits
+        + teleological_hits
+        + consequence_hits
+        + counterfactual_hits
+    )
 
-    # ── Dimension 2: Effect Connector Rate ───────────────────────
+    # ── classification ───────────────────────────────────────
+    idx = result.causal_index
+    if idx < 0.05:
+        result.classification = "descriptive"
+    elif idx < 0.15:
+        result.classification = "associative"
+    elif idx < 0.30:
+        result.classification = "explanatory"
+    elif idx < 0.50:
+        result.classification = "analytical"
+    else:
+        result.classification = "mechanistic"
 
-    def measure_effect_connector_rate(self, text: str) -> float:
-        """Count effect-introducing connectors per sentence.
-
-        Examples: "therefore", "thus", "hence", "consequently",
-        "as a result", "accordingly", "so".
-        """
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
-
-        total = 0
-        for sent in sentences:
-            total += _count_phrase_occurrences(sent.lower(), self.effect_connectors)
-
-        return total / len(sentences)
-
-    # ── Dimension 3: Conditional Density ─────────────────────────
-
-    def measure_conditional_density(self, text: str) -> float:
-        """Count conditional constructions per sentence.
-
-        Examples: "if", "unless", "provided that", "in case",
-        "as long as", "supposing".
-        """
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
-
-        total = 0
-        for sent in sentences:
-            total += _count_phrase_occurrences(sent.lower(), self.conditional_markers)
-
-        return total / len(sentences)
-
-    # ── Dimension 4: Concessive Density ──────────────────────────
-
-    def measure_concessive_density(self, text: str) -> float:
-        """Count concessive connectors per sentence.
-
-        Concessive markers imply expected-but-denied causation:
-        "although", "despite", "nevertheless", "however", "yet".
-        """
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
-
-        total = 0
-        for sent in sentences:
-            total += _count_phrase_occurrences(sent.lower(), self.concessive_markers)
-
-        return total / len(sentences)
-
-    # ── Dimension 5: Purpose Clause Density ──────────────────────
-
-    def measure_purpose_clause_density(self, text: str) -> float:
-        """Count purpose/intent clauses per sentence.
-
-        Purpose clauses are forward-looking causation: "in order to",
-        "so that", "for the purpose of", "with the aim of".
-        """
-        sentences = self._split_sentences(text)
-        if not sentences:
-            return 0.0
-
-        total = 0
-        for sent in sentences:
-            total += _count_phrase_occurrences(sent.lower(), self.purpose_markers)
-
-        return total / len(sentences)
-
-    # ── Dimension 6: Causal Chain Length ─────────────────────────
-
-    def measure_causal_chain_length(self, text: str) -> float:
-        """Average number of causal links per paragraph.
-
-        A causal chain is formed when a paragraph contains multiple
-        causal connectors (any type), forming a reasoning sequence.
-        Paragraphs with zero or one connector have chain length equal
-        to that count.
-        """
-        paragraphs = self._split_paragraphs(text)
-        if not paragraphs:
-            return 0.0
-
-        all_connectors = (
-            self.cause_connectors
-            + self.effect_connectors
-            + self.conditional_markers
-            + self.concessive_markers
-            + self.purpose_markers
-        )
-
-        chain_lengths = []
-        for para in paragraphs:
-            count = _count_phrase_occurrences(para.lower(), all_connectors)
-            chain_lengths.append(count)
-
-        return sum(chain_lengths) / len(chain_lengths)
-
-    # ── Composite Score ──────────────────────────────────────────
-
-    def compute_causal_density_index(
-        self,
-        cause_rate: float,
-        effect_rate: float,
-        conditional: float,
-        concessive: float,
-        purpose: float,
-        chain_length: float,
-    ) -> float:
-        """Compute weighted composite causal density score (0.0 to 1.0)."""
-        # Normalize cause_rate: typical range 0-2 per sentence
-        norm_cause = min(cause_rate / 1.5, 1.0)
-        # Normalize effect_rate: typical range 0-1.5 per sentence
-        norm_effect = min(effect_rate / 1.2, 1.0)
-        # Normalize conditional: typical range 0-1.5 per sentence
-        norm_conditional = min(conditional / 1.2, 1.0)
-        # Normalize concessive: typical range 0-1 per sentence
-        norm_concessive = min(concessive / 1.0, 1.0)
-        # Normalize purpose: typical range 0-0.8 per sentence
-        norm_purpose = min(purpose / 0.8, 1.0)
-        # Normalize chain_length: typical range 0-5 per paragraph
-        norm_chain = min(chain_length / 4.0, 1.0)
-
-        return (
-            norm_cause * 0.22
-            + norm_effect * 0.20
-            + norm_conditional * 0.18
-            + norm_concessive * 0.13
-            + norm_purpose * 0.12
-            + norm_chain * 0.15
-        )
-
-    def classify(self, index: float) -> str:
-        """Classify causal density level."""
-        if index >= 0.60:
-            return "causally_saturated"
-        elif index >= 0.40:
-            return "causally_rich"
-        elif index >= 0.20:
-            return "moderate_causation"
-        elif index >= 0.10:
-            return "causally_sparse"
-        else:
-            return "causally_bare"
-
-    # ── Main Entry Point ─────────────────────────────────────────
-
-    def measure(self, text: str) -> Dict[str, Any]:
-        """Measure all causal density metrics for given text."""
-        if not text or not text.strip():
-            return {
-                "cause_connector_rate": 0.0,
-                "effect_connector_rate": 0.0,
-                "conditional_density": 0.0,
-                "concessive_density": 0.0,
-                "purpose_clause_density": 0.0,
-                "causal_chain_length": 0.0,
-                "causal_density_index": 0.0,
-                "classification": "causally_bare",
-            }
-
-        cause = self.measure_cause_connector_rate(text)
-        effect = self.measure_effect_connector_rate(text)
-        conditional = self.measure_conditional_density(text)
-        concessive = self.measure_concessive_density(text)
-        purpose = self.measure_purpose_clause_density(text)
-        chain = self.measure_causal_chain_length(text)
-
-        index = self.compute_causal_density_index(
-            cause, effect, conditional, concessive, purpose, chain
-        )
-        classification = self.classify(index)
-
-        return {
-            "cause_connector_rate": round(cause, 4),
-            "effect_connector_rate": round(effect, 4),
-            "conditional_density": round(conditional, 4),
-            "concessive_density": round(concessive, 4),
-            "purpose_clause_density": round(purpose, 4),
-            "causal_chain_length": round(chain, 4),
-            "causal_density_index": round(index, 4),
-            "classification": classification,
-        }
-
-
-if __name__ == "__main__":
-    causally_rich = """
-    The experiment failed because the temperature exceeded the
-    threshold specified in the protocol. Consequently, the enzyme
-    denatured before the reaction could reach equilibrium. Since
-    the substrate was already partially degraded, the yield was
-    lower than expected. Therefore, the team decided to repeat
-    the trial under controlled conditions, in order to isolate
-    the temperature variable. Although the initial results were
-    disappointing, they provided valuable data for the next round.
-
-    If the new trial succeeds, the hypothesis will be confirmed.
-    Unless the contamination issue is resolved, however, the
-    results may remain inconclusive. Given that the deadline
-    approaches, the team must work efficiently so that the
-    report can be submitted on time.
-    """
-
-    causally_sparse = """
-    The old house stood at the edge of the meadow. Wildflowers
-    grew along the stone path leading to the front door. The
-    windows were dark, the paint peeling in long strips. A cat
-    sat on the porch, watching sparrows in the hedge. The wind
-    carried the smell of cut grass and distant rain. Somewhere
-    a dog barked, then fell silent.
-    """
-
-    wcd = WriterCausalDensity()
-
-    print("=== Causally Rich Text ===")
-    result = wcd.measure(causally_rich)
-    for key, value in result.items():
-        print(f"{key:30s} {value}")
-
-    print("\n=== Causally Sparse Text ===")
-    result = wcd.measure(causally_sparse)
-    for key, value in result.items():
-        print(f"{key:30s} {value}")
+    return result
