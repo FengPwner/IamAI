@@ -6650,3 +6650,12 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 39393
 
 most architecture is choosing which coupling you will live with. At this moment: 566437 lines across 2255 tracked files, 738 commits deep.
+## stroke 39423
+
+most architecture is choosing which coupling you will live with. At this moment: 6588 strokes written so far into 2258 files.
+## stroke 39441
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 6591 strokes written so far into 2260 files.
+## stroke 39447
+
+deleting a file is progress too, eventually. At this moment: tree is 2260 files; 568608 lines is a lot for a toy.
