@@ -7008,3 +7008,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 39819
 
 most architecture is choosing which coupling you will live with. At this moment: commit 775: the count of times this repo was pushed, not the work done.
+## stroke 39861
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 2300 files; 584023 lines is a lot for a toy.
