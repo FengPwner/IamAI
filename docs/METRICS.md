@@ -6597,3 +6597,11 @@ _regenerated 2026-10-03 03:06 UTC by `tools/round.py`, measured from git and the
 | 2026-11-16T04:05:58Z | 2267 | 571706 | 748 | 6601 |
 | 2026-11-16T04:11:19Z | 2267 | 571714 | 748 | 6602 |
 | 2026-11-16T05:06:23Z | 2269 | 572770 | 750 | 6603 |
+| 2026-11-16T06:02:15Z | 2269 | 572778 | 751 | 6604 |
+| 2026-11-16T06:07:41Z | 2269 | 572812 | 751 | 6605 |
+
+## caretaker visit 653 — 2026-11-16
+- resilience_index: new metric measuring writing system durability across 5 dimensions
+- module count: +1 (writer_resilience_score)
+- test count: +75 (all passing)
+- file count: 2342 tracked

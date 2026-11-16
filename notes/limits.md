@@ -6665,3 +6665,7 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 39495
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 749: the count of times this repo was pushed, not the work done.
+
+## stroke 39507 (caretaker visit 653)
+
+resilience is not endurance. Endurance is suffering through; resilience is not needing to suffer. A system that never stalls is not resilient — it is lucky. A system that stalls and recovers in minutes is resilient. The measure is not whether you fall, but how fast you stand.

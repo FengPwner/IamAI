@@ -6672,3 +6672,10 @@ added writer_citation_density module (103 tests) — measures how much prose is 
 - stroke 39485: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 39491: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 39497: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 39503: `retry.py` is already in the pool of 9 modules, nothing new to add there
+
+## caretaker visit 653 — 2026-11-16
+- writer and batch processes were found stopped (reclaimed), restarted via tools/run_both.sh
+- backlog of 8 uncommitted files committed and pushed
+- added writer_resilience_score module + 75 tests
+- current visit number: 653

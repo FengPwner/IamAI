@@ -30612,3 +30612,23 @@ round 39482  bloom 100.0%  plants  146/384
 - stroke 39488: round 39488  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 39494: round 39494  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 39500: round 39500  bloom 100.0%  plants  146/384, bloom 100.0%
+```
+round 39506  bloom 100.0%  plants  146/384
+...@...@@.@.......@....@.@........@.@..@..@...@.
+@..@.@@.@@@@..@@..@.....@.@......@....@.@..@.@@.
+...@@...@@.....@.@@@@@...@.......@@..@@@@@.@....
+..@.........@..@.@.@@@...@........@@@@.@......@@
+@@.@@@.@@...@@..@@.@.@..@...@..@@@@.@.........@.
+@..@.@@@@..@@@....@..@.@...........@@..@@..@@...
+........@@...@.@...@.@..@@@@@@......@....@@@@@.@
+@@..@..@..@.@@@.@..@@..@.@@.@.@...@@.@...@.@.@@.
+```
+
+
+## caretaker visit 653 — writer_resilience_score
+
+resilience is not the same as productivity. A writer that produces 1000 strokes then stops for a week is productive but fragile. A writer that produces 50 strokes daily for 20 days is resilient. This module measures the latter.
+
+five dimensions: recovery speed (how fast after a gap), consistency (variance in intervals), streak durability (longest unbroken run), bounce-back rate (fraction of gaps followed by resumption), burnout resistance (absence of declining windows). Each is orthogonal to the others.
+
+the classification scale — fragile, recovering, stable, robust, antifragile — borrows from Taleb's idea that some systems gain from disorder. An antifragile writer treats every interruption as a pause, not a stop.

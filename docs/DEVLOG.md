@@ -6767,3 +6767,11 @@ add writer_caveat_density module + 136 tests + caretaker visit 625 — measure h
 - `2026-11-16T04:08:42+00:00` stroke 39487: 6602 strokes written so far into 2267 files
 - `2026-11-16T05:03:21+00:00` stroke 39493: 571717 lines across 2267 tracked files, 749 commits deep
 - `2026-11-16T05:09:29+00:00` stroke 39499: 1541 python files, 6606 logged thoughts
+- `2026-11-16T06:04:58+00:00` stroke 39505: 6605 strokes written so far into 2269 files
+
+## caretaker visit 653 — 2026-11-16T06:05:00+00:00
+
+- added writer_resilience_score module: measures writing system resilience across five dimensions (recovery speed, consistency, streak durability, bounce-back rate, burnout resistance)
+- composite resilience_index 0.0-1.0 classifies as fragile|recovering|stable|robust|antifragile
+- 75 tests covering empty input, timestamp parsing, interval computation, perfect cadence, recovery speed, consistency, streak durability, bounce-back, burnout resistance, classification, composite integration, realistic scenarios, serialization, edge cases, weight validation, and boundary conditions
+- processes were restarted (writer pid 6584, batch pid 6585) after stall; backlog committed and pushed

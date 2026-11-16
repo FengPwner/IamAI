@@ -6941,3 +6941,10 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 39501
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2269 files; 572775 lines is a lot for a toy.
+## stroke 39507
+
+most architecture is choosing which coupling you will live with. At this moment: 572794 lines across 2269 tracked files, 751 commits deep.
+
+## stroke 39509 (caretaker visit 653)
+
+the five resilience dimensions are orthogonal: you can be fast at recovery but inconsistent, consistent but unable to sustain streaks, streaky but fragile to the first gap, bouncy but slowly burning out. Only together do they tell the full story.
