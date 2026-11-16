@@ -6679,3 +6679,4 @@
 {"seq": 6679, "at": "2026-11-16T20:06:31+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 2305 files; 585804 lines is a lot for a toy"}
 {"seq": 6680, "at": "2026-11-16T20:11:57+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1569 python files, 6681 logged thoughts"}
 {"seq": 6681, "at": "2026-11-16T21:14:12+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 797: the count of times this repo was pushed, not the work done"}
+{"seq": 6682, "at": "2026-11-16T22:08:48+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 2311 files; 587989 lines is a lot for a toy"}
