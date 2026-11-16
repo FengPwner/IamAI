@@ -6675,3 +6675,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 573689
 ## stroke 39525
 
 a repo that only accumulates is a landfill with a README. At this moment: 573689 lines across 2272 tracked files, 754 commits deep.
+## stroke 39543
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 574566 lines across 2275 tracked files, 758 commits deep.
