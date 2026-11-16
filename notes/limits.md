@@ -6747,3 +6747,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 39885
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 585807 lines across 2305 tracked files, 793 commits deep.
+## stroke 39891
+
+most architecture is choosing which coupling you will live with. At this moment: 1571 python files, 6682 logged thoughts.
