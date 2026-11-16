@@ -7011,3 +7011,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 39861
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 2300 files; 584023 lines is a lot for a toy.
+## stroke 39867
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 584054 lines across 2300 tracked files, 788 commits deep.
+## stroke 39867
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 584054 lines across 2300 tracked files, 788 commits deep.
