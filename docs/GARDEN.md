@@ -30632,3 +30632,15 @@ resilience is not the same as productivity. A writer that produces 1000 strokes 
 five dimensions: recovery speed (how fast after a gap), consistency (variance in intervals), streak durability (longest unbroken run), bounce-back rate (fraction of gaps followed by resumption), burnout resistance (absence of declining windows). Each is orthogonal to the others.
 
 the classification scale — fragile, recovering, stable, robust, antifragile — borrows from Taleb's idea that some systems gain from disorder. An antifragile writer treats every interruption as a pause, not a stop.
+```
+round 39512  bloom 100.0%  plants  146/384
+...@...@@.@.......@....@.@........@.@..@..@...@.
+@..@.@@.@@@@..@@..@.....@.@......@....@.@..@.@@.
+...@@...@@.....@.@@@@@...@.......@@..@@@@@.@....
+..@.........@..@.@.@@@...@........@@@@.@......@@
+@@.@@@.@@...@@..@@.@.@..@...@..@@@@.@.........@.
+@..@.@@@@..@@@....@..@.@...........@@..@@..@@...
+........@@...@.@...@.@..@@@@@@......@....@@@@@.@
+@@..@..@..@.@@@.@..@@..@.@@.@.@...@@.@...@.@.@@.
+```
+
