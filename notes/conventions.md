@@ -6708,3 +6708,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 6612 s
 ## stroke 39567
 
 a repo that only accumulates is a landfill with a README. At this moment: 1547 python files, 6619 logged thoughts.
+## stroke 39591
+
+most architecture is choosing which coupling you will live with. At this moment: commit 761: the count of times this repo was pushed, not the work done.
