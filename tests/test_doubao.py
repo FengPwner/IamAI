@@ -45,16 +45,25 @@ def test_plan_stroke_is_reproducible_for_a_seed():
 
 
 def test_every_stroke_stays_under_doubao(tmp_path: Path):
+    from iamai import writer as _writer
+
+    # Take the snapshot once: plan_stroke() would otherwise re-scan the whole
+    # tree on every seq, which turns 59 strokes into minutes once the repo is
+    # large. The contract under test is the stroke plan, not the tree size.
+    snap = _writer.snapshot()
     for seq in range(1, 60):
-        stroke = doubao.plan_stroke(seed=20261003, seq=seq, root=tmp_path)
+        stroke = doubao.plan_stroke(seed=20261003, seq=seq, root=tmp_path, snap=snap)
         assert stroke["path"].startswith("doubao/"), stroke["path"]
         assert stroke["text"].strip()
         assert stroke["kind"] in doubao.KINDS or stroke["kind"] == "dnote"
 
 
 def test_prose_strokes_are_written_in_chinese(tmp_path: Path):
+    from iamai import writer as _writer
+
+    snap = _writer.snapshot()
     for seq in range(1, 40):
-        stroke = doubao.plan_stroke(seed=9, seq=seq, root=tmp_path)
+        stroke = doubao.plan_stroke(seed=9, seq=seq, root=tmp_path, snap=snap)
         if stroke["kind"] in ("dthought", "dnote", "dpoem", "dstory"):
             assert _is_chinese(stroke["text"]), f"stroke {seq} should be Chinese: {stroke['text']!r}"
 
