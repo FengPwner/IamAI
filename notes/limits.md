@@ -6659,3 +6659,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 39447
 
 deleting a file is progress too, eventually. At this moment: tree is 2260 files; 568608 lines is a lot for a toy.
+## stroke 39471
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1537 python files, 6601 logged thoughts.
