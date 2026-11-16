@@ -6966,3 +6966,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 39609
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 761: the count of times this repo was pushed, not the work done.
+## stroke 39633
+
+most architecture is choosing which coupling you will live with. At this moment: 6627 strokes written so far into 2284 files.
