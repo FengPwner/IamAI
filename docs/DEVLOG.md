@@ -6852,3 +6852,4 @@ add writer_caveat_density module + 136 tests + caretaker visit 625 — measure h
 - `2026-11-16T20:02:10+00:00` stroke 39877: 1567 python files, 6680 logged thoughts
 - `2026-11-16T20:07:29+00:00` stroke 39883: 6679 strokes written so far into 2305 files
 - `2026-11-16T21:02:11+00:00` stroke 39889: tree is 2305 files; 585813 lines is a lot for a toy
+- `2026-11-17T05:01:00+08:00` caretaker visit 667: added writer_redundancy_density module + 60 tests, cross-sentence semantic redundancy detection
