@@ -6720,3 +6720,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 39729
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2289 files; 579700 lines is a lot for a toy.
+## stroke 39735
+
+most architecture is choosing which coupling you will live with. At this moment: 579716 lines across 2289 tracked files, 771 commits deep.
