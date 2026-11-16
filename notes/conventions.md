@@ -6744,3 +6744,6 @@ a repo that only accumulates is a landfill with a README. At this moment: commit
 ## stroke 39723
 
 a repo that only accumulates is a landfill with a README. At this moment: commit 770: the count of times this repo was pushed, not the work done.
+## stroke 39747
+
+most architecture is choosing which coupling you will live with. At this moment: 6652 strokes written so far into 2291 files.
