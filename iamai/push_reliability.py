@@ -87,7 +87,10 @@ class ReflogEvent:
 # patterns that indicate remote-touching operations
 _PUSH_RE = re.compile(r"commit(?: \(push\))?:", re.IGNORECASE)
 _PULL_REBASE_RE = re.compile(r"pull\s+--rebase\s+origin", re.IGNORECASE)
-_MERGE_RE = re.compile(r"pull\s+origin\s+\w+:\s+Merge", re.IGNORECASE)
+_MERGE_RE = re.compile(
+    r"pull(?: --no-rebase)? origin\s+\w+:\s+Merge|merge origin/|origin/main: Fast-forward",
+    re.IGNORECASE,
+)
 _REBASE_ABORT_RE = re.compile(r"rebase\s*\(abort\)", re.IGNORECASE)
 _RESET_RE = re.compile(r"reset:", re.IGNORECASE)
 _CATCHUP_RE = re.compile(r"catch-up:", re.IGNORECASE)

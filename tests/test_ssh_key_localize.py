@@ -64,40 +64,56 @@ class TestChmodWorks:
 
 
 class TestFindKeys:
+    def _temp_home_with_key(self, home: str) -> None:
+        """Plant a fake private key under <home>/.ssh so discovery is
+        deterministic regardless of whether the real workspace has one."""
+        ssh_dir = os.path.join(home, ".ssh")
+        os.mkdir(ssh_dir)
+        key_path = os.path.join(ssh_dir, "id_ed25519")
+        with open(key_path, "w") as f:
+            f.write("-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n")
+        os.chmod(key_path, 0o600)
+
     def test_finds_keys_in_repo_ssh_dir(self):
-        """should find keys under ../.ssh relative to repo."""
-        result = subprocess.run(
-            [
-                "python3", "-c",
-                textwrap.dedent(f"""\
-                    import sys, json; sys.path.insert(0, {REPO!r})
-                    from tools.ssh_key_localize import _find_keys
-                    keys = _find_keys()
-                    print(json.dumps(len(keys)))
-                """),
-            ],
-            capture_output=True, text=True,
-        )
-        count = int(result.stdout.strip())
-        assert count >= 1, "expected at least one key in the workspace"
+        """should find keys under the workspace's ~/.ssh dir."""
+        with tempfile.TemporaryDirectory() as home:
+            self._temp_home_with_key(home)
+            result = subprocess.run(
+                [
+                    "python3", "-c",
+                    textwrap.dedent(f"""\
+                        import sys, json; sys.path.insert(0, {REPO!r})
+                        from tools.ssh_key_localize import _find_keys
+                        keys = _find_keys()
+                        print(json.dumps(len(keys)))
+                    """),
+                ],
+                capture_output=True, text=True,
+                env={**os.environ, "HOME": home},
+            )
+            count = int(result.stdout.strip())
+            assert count >= 1, "expected at least one key in the workspace"
 
     def test_key_entry_has_required_fields(self):
-        result = subprocess.run(
-            [
-                "python3", "-c",
-                textwrap.dedent(f"""\
-                    import sys, json; sys.path.insert(0, {REPO!r})
-                    from tools.ssh_key_localize import _find_keys
-                    keys = _find_keys()
-                    if keys:
-                        print(json.dumps(sorted(keys[0].keys())))
-                """),
-            ],
-            capture_output=True, text=True,
-        )
-        fields = json.loads(result.stdout.strip())
-        for f in ["path", "mode", "mode_int", "fs_chmod_ok", "safe_mode"]:
-            assert f in fields, f"missing field: {f}"
+        with tempfile.TemporaryDirectory() as home:
+            self._temp_home_with_key(home)
+            result = subprocess.run(
+                [
+                    "python3", "-c",
+                    textwrap.dedent(f"""\
+                        import sys, json; sys.path.insert(0, {REPO!r})
+                        from tools.ssh_key_localize import _find_keys
+                        keys = _find_keys()
+                        if keys:
+                            print(json.dumps(sorted(keys[0].keys())))
+                    """),
+                ],
+                capture_output=True, text=True,
+                env={**os.environ, "HOME": home},
+            )
+            fields = json.loads(result.stdout.strip())
+            for f in ["path", "mode", "mode_int", "fs_chmod_ok", "safe_mode"]:
+                assert f in fields, f"missing field: {f}"
 
     def test_no_keys_in_empty_dir(self):
         """create a temp dir with no keys — should find nothing there."""

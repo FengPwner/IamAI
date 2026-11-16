@@ -40,22 +40,22 @@ zero dependencies beyond heartbeat_escalation. stdlib only.
 ...     EscalationDemo(),
 ...     callback=lambda lvl, m, ts: events.append((lvl, m)),
 ... )
->>> relay.tick()  # level=ok, no fire by default
+>>> _ = relay.tick()  # level=ok, no fire by default
 >>> relay.esc.miss()
 'yellow'
->>> relay.tick()
+>>> _ = relay.tick()
 >>> events
 [('yellow', 1)]
 >>> relay.esc.miss()
 'red'
->>> relay.tick()
+>>> _ = relay.tick()
 >>> events
 [('yellow', 1), ('red', 2)]
 >>> relay.esc.ping()
 'ok'
->>> relay.tick()
+>>> _ = relay.tick()  # ok is suppressed unless fire_on_ok=True
 >>> events
-[('yellow', 1), ('red', 2), ('ok', 0)]
+[('yellow', 1), ('red', 2)]
 """
 
 from __future__ import annotations

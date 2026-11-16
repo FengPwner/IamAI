@@ -105,6 +105,11 @@ def normalize_for_template(text: str) -> str:
     """
     # Replace backtick-quoted identifiers (module names, file names)
     text = re.sub(r"`[^`]+`", "<MOD>", text)
+    # Replace bare *.py filenames too: extract_payload already strips the
+    # backticks, so "`retry.py` is already in the pool" arrives as
+    # "retry.py is already in the pool" and must still collapse to one
+    # template when only the module name changes.
+    text = re.sub(r"\b\w[\w\-]*\.py\b", "<MOD>", text)
     # Replace numbers
     text = re.sub(r"\b\d+\b", "<N>", text)
     # Replace dates/timestamps
@@ -163,7 +168,7 @@ def detect_stall(
     state = "healthy"
     if unique_ratio < threshold:
         state = "stall"
-    elif top_template_ratio > 0.8 and len(unique) <= 5:
+    elif top_template_ratio > 0.8 and len(unique) < 5:
         state = "stall"
 
     return StallReport(

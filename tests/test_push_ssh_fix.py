@@ -160,6 +160,12 @@ class TestFindWorkingKey:
 
 
 class TestMainFlow:
+    @pytest.fixture(autouse=True)
+    def _clean_argv(self, monkeypatch):
+        # main() parses sys.argv; unter pytest that would be pytest's own
+        # flags ("-q", "--deselect", ...) and argparse would exit 2.
+        monkeypatch.setattr(sys, "argv", ["push_ssh_fix"])
+
     def test_no_key_found(self):
         with patch.object(psf, "KNOWN_KEY_LOCATIONS", [Path("/nonexistent")]):
             assert psf.main() == 1

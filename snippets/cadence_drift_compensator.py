@@ -53,12 +53,12 @@ design decisions:
 
 >>> c = CadenceDriftCompensator(target_interval=15.0, window=5)
 >>> for ts in [0.0, 15.0, 30.0, 45.0, 60.0]:  # perfect cadence
-...     c.record(ts)
+...     _ = c.record(ts)
 >>> c.report().severity
 'nominal'
 >>> c2 = CadenceDriftCompensator(target_interval=15.0, window=5)
 >>> for ts in [0.0, 16.0, 32.0, 48.0, 64.0]:  # ~6.7% drift
-...     c2.record(ts)
+...     _ = c2.record(ts)
 >>> r = c2.report()
 >>> r.severity
 'mild'

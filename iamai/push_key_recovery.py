@@ -43,6 +43,18 @@ BACKUP_LOCATIONS = [
     Path("/tmp/iamai_key"),
 ]
 SEARCH_DIRS = [Path("/root")]
+
+
+def _safe_exists(path: Path) -> bool:
+    """exists() that treats an inaccessible parent (OSError) as absent.
+
+    SEARCH_DIRS includes /root, which is 0700 root-owned on most hosts: probing
+    it as a non-root user raises PermissionError and must not abort the scan.
+    """
+    try:
+        return path.exists()
+    except OSError:
+        return False
 SEARCH_DEPTH = 4
 
 
@@ -131,12 +143,12 @@ class PushKeyRecovery:
     def _find_backup(self) -> Optional[Path]:
         """search for a backup key in known locations."""
         for loc in self.backup_locations:
-            if loc.exists() and loc.is_file():
+            if _safe_exists(loc) and loc.is_file():
                 return loc
 
         # deeper search
         for search_dir in self.search_dirs:
-            if not search_dir.exists():
+            if not _safe_exists(search_dir):
                 continue
             for root, dirs, files in os.walk(search_dir):
                 depth = len(Path(root).relative_to(search_dir).parts)

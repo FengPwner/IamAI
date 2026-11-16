@@ -42,17 +42,25 @@ RESCUE_KEY = RESCUE_DIR / "id_ed25519"
 
 def _is_too_open(key_path: Path) -> bool:
     """Return True if the key has permissions wider than 0600."""
-    if not key_path.exists():
+    try:
+        if not key_path.exists():
+            return False
+        mode = key_path.stat().st_mode & 0o777
+    except OSError:
+        # Inaccessible path (e.g. under a 0700 root-owned dir): nothing we
+        # can rescue, and it must not crash callers like rescue_env().
         return False
-    mode = key_path.stat().st_mode & 0o777
     return mode > 0o600
 
 
 def _chmod_works(key_path: Path) -> bool:
     """Test whether chmod actually changes permissions on this filesystem."""
-    if not key_path.exists():
+    try:
+        if not key_path.exists():
+            return False
+        original = key_path.stat().st_mode & 0o777
+    except OSError:
         return False
-    original = key_path.stat().st_mode & 0o777
     try:
         os.chmod(str(key_path), 0o600)
         result = key_path.stat().st_mode & 0o777

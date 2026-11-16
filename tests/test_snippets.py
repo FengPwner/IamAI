@@ -24,6 +24,11 @@ def test_snippet_doctests(path: Path):
 
     spec = importlib.util.spec_from_file_location(f"snippet_{path.stem}", path)
     module = importlib.util.module_from_spec(spec)
+    # Put the snippets dir on sys.path so a snippet's doctest can import a
+    # sibling snippet by bare module name (e.g. escalation_relay importing
+    # heartbeat_escalation).
+    if str(path.parent) not in sys.path:
+        sys.path.insert(0, str(path.parent))
     # Register under its spec name before exec: dataclass string annotations
     # resolve via sys.modules[cls.__module__] on Python 3.12, and an
     # unregistered module crashes dataclasses at import time.

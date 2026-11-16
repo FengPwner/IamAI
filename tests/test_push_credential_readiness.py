@@ -182,7 +182,11 @@ class TestKnownHosts:
     """Tests for check_known_hosts."""
 
     def test_github_in_known_hosts(self, tmp_path):
-        kh = tmp_path / "known_hosts"
+        # check_known_hosts reads Path.home()/".ssh"/"known_hosts", so the
+        # fixture must live under .ssh — writing it at the home root made this
+        # test depend on a real workspace .ssh sibling and fail elsewhere.
+        kh = tmp_path / ".ssh" / "known_hosts"
+        kh.parent.mkdir()
         kh.write_text("github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5...\n")
         cr = CredentialReadiness(ssh_key_path=tmp_path / "key")
         with patch("iamai.push_credential_readiness.Path.home", return_value=tmp_path):
@@ -190,7 +194,8 @@ class TestKnownHosts:
         assert result.passed is True
 
     def test_github_not_in_known_hosts(self, tmp_path):
-        kh = tmp_path / "known_hosts"
+        kh = tmp_path / ".ssh" / "known_hosts"
+        kh.parent.mkdir()
         kh.write_text("otherhost.com ssh-ed25519 AAAAC3Nza...\n")
         cr = CredentialReadiness(ssh_key_path=tmp_path / "key")
         with patch("iamai.push_credential_readiness.Path.home", return_value=tmp_path):

@@ -64,9 +64,80 @@ class PushVerdict:
     executed: bool = False # whether resolution was actually run
 
 
-def _run(cmd: list[str], cwd: Optional[str] = None) -> subprocess.CompletedProcess:
-    """Run a git command and return the result."""
-    return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
+def _run(cmd_or_repo, *git_args, cwd: Optional[str] = None):
+    """Run a git command and return the result.
+
+    Two call shapes are supported:
+
+    ``_run(["git", ...], cwd=repo)``  -> CompletedProcess (the original form)
+    ``_run(repo, "rev-list", ...)``   -> ``(returncode, stdout)``
+
+    The second form is what the caretaker-facing helpers (and their tests,
+    which patch ``_run`` directly) rely on.
+    """
+    if isinstance(cmd_or_repo, (str, Path)):
+        proc = subprocess.run(
+            ["git", *git_args], capture_output=True, text=True, cwd=str(cmd_or_repo)
+        )
+        return proc.returncode, proc.stdout
+    return subprocess.run(cmd_or_repo, capture_output=True, text=True, cwd=cwd)
+
+
+def _count_between(repo: str, spec: str) -> int:
+    """``git rev-list --count <spec>`` as an int; 0 when the command fails."""
+    code, out = _run(repo, "rev-list", "--count", spec)
+    if code != 0:
+        return 0
+    try:
+        return int(out.strip())
+    except ValueError:
+        return 0
+
+
+def local_head(repo_path: str | Path) -> Optional[str]:
+    """Current commit of the local branch, or None for an empty repo."""
+    code, out = _run(repo_path, "rev-parse", "HEAD")
+    return out.strip() or None if code == 0 else None
+
+
+def remote_tip(
+    repo_path: str | Path, remote: str = "origin", branch: str = "main"
+) -> Optional[str]:
+    """Commit the tracking ref points at, or None when it does not exist."""
+    code, out = _run(repo_path, "rev-parse", f"{remote}/{branch}")
+    return out.strip() or None if code == 0 else None
+
+
+def merge_base(repo_path: str | Path, left: str, right: str) -> Optional[str]:
+    """Merge base of two refs, or None when they share no history."""
+    code, out = _run(repo_path, "merge-base", left, right)
+    return out.strip() or None if code == 0 else None
+
+
+def divergence_summary(repo_path: str | Path = ".") -> str:
+    """One-line description of how this checkout relates to its remote.
+
+    Returns one of: ``no commits``, ``no remote``, ``clean``, ``ahead N``,
+    ``behind N``, ``diverged (L local, R remote)``.
+    """
+    repo = str(repo_path)
+    local = local_head(repo)
+    if not local:
+        return "no commits"
+    remote = remote_tip(repo)
+    if not remote:
+        return "no remote"
+    if local == remote:
+        return "clean"
+    ahead = _count_between(repo, f"{remote}..{local}")
+    behind = _count_between(repo, f"{local}..{remote}")
+    if ahead and behind:
+        return f"diverged ({ahead} local, {behind} remote)"
+    if ahead:
+        return f"ahead {ahead}"
+    if behind:
+        return f"behind {behind}"
+    return "clean"
 
 
 def _count_ahead(repo: str, from_ref: str, to_ref: str) -> int:
@@ -224,3 +295,57 @@ def resolve(
         )
 
     return verdict
+
+
+def push_readiness_report(repo_path: str | Path) -> dict:
+    """Pre-push readiness snapshot for a repository.
+
+    Returns a dict with exactly these keys:
+
+    - ``ready``: True only when the tree is clean, not diverged, and no
+      stale push lock is present.
+    - ``dirty_files``: number of changed/uncommitted paths.
+    - ``unpushed``: commits ahead of the configured upstream.
+    - ``diverged``: True when the upstream has commits the local branch lacks.
+    - ``stale_lock``: None when ``data/push.lock`` is absent; True when it
+      exists but its ``expires_at`` is in the past; False otherwise.
+    """
+    import json
+    import time
+
+    repo = str(repo_path)
+
+    status = _run(["git", "status", "--porcelain"], cwd=repo)
+    dirty_files = 0
+    if status.returncode == 0:
+        dirty_files = len([ln for ln in status.stdout.splitlines() if ln.strip()])
+
+    upstream = _run(
+        ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        cwd=repo,
+    )
+    if upstream.returncode == 0 and upstream.stdout.strip():
+        up = upstream.stdout.strip()
+        unpushed = _count_ahead(repo, "HEAD", up)
+        behind = _count_ahead(repo, up, "HEAD")
+    else:
+        unpushed, behind = 0, 0
+    diverged = behind > 0
+
+    stale_lock = None
+    lock_file = Path(repo) / "data" / "push.lock"
+    if lock_file.exists():
+        stale_lock = False
+        try:
+            payload = json.loads(lock_file.read_text())
+            stale_lock = float(payload.get("expires_at", 0)) < time.time()
+        except (OSError, ValueError, TypeError):
+            stale_lock = True
+
+    return {
+        "ready": dirty_files == 0 and not diverged and not stale_lock,
+        "dirty_files": dirty_files,
+        "unpushed": unpushed,
+        "diverged": diverged,
+        "stale_lock": stale_lock,
+    }
