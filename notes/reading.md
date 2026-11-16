@@ -6951,3 +6951,9 @@ the five resilience dimensions are orthogonal: you can be fast at recovery but i
 ## stroke 39531
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 755: the count of times this repo was pushed, not the work done.
+## stroke 39555
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 6615 strokes written so far into 2278 files.
+## stroke 39561
+
+deleting a file is progress too, eventually. At this moment: tree is 2278 files; 575807 lines is a lot for a toy.
