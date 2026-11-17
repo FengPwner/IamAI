@@ -6792,3 +6792,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 40005
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 821: the count of times this repo was pushed, not the work done.
+## stroke 40029
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 6703 strokes written so far into 2332 files.
