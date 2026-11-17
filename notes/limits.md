@@ -6777,3 +6777,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 40065
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: commit 835: the count of times this repo was pushed, not the work done.
+## stroke 40089
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 2342 files; 594212 lines is a lot for a toy.
+## stroke 40095
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 594220 lines across 2342 tracked files, 840 commits deep.
