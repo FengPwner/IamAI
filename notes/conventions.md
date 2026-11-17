@@ -6780,3 +6780,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 39927
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1575 python files, 6688 logged thoughts.
+## stroke 39957
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2320 files; 589478 lines is a lot for a toy.
