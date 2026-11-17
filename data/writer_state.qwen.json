@@ -1,24 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-11-16T12:51:31+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 39678
-    },
-    {
-      "at": "2026-11-16T12:52:34+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 39679
-    },
-    {
-      "at": "2026-11-16T12:53:35+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 39680
-    },
-    {
       "at": "2026-11-16T12:54:32+00:00",
       "kind": "garden",
       "path": "docs/GARDEN.md",
@@ -2399,15 +2381,33 @@
       "kind": "garden",
       "path": "docs/GARDEN.md",
       "seq": 40077
+    },
+    {
+      "at": "2026-11-17T10:05:01+00:00",
+      "kind": "note",
+      "path": "notes/conventions.md",
+      "seq": 40078
+    },
+    {
+      "at": "2026-11-17T10:06:04+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 40079
+    },
+    {
+      "at": "2026-11-17T10:07:11+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 40080
     }
   ],
-  "seq": 40078,
+  "seq": 40081,
   "tally": {
     "devlog": 6625,
     "garden": 6625,
-    "metrics": 6624,
-    "note": 6624,
-    "snippet": 6624,
+    "metrics": 6625,
+    "note": 6625,
+    "snippet": 6625,
     "thought": 6624
   }
 }
