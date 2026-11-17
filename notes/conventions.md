@@ -6807,3 +6807,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 40113
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 595072 lines across 2345 tracked files, 843 commits deep.
+## stroke 40131
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 595249 lines across 2346 tracked files, 847 commits deep.
