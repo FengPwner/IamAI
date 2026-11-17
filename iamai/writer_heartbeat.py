@@ -1,150 +1,222 @@
-"""writer_heartbeat — is the writer actually alive right now?
+#!/usr/bin/env python3
+"""writer_heartbeat — detect a silent writer before the batch committer notices.
 
-Cadence adherence measures whether strokes arrive *on schedule* over a long
-window.  Heartbeat is the sharper, shorter-range companion: look at the last
-few strokes and decide whether the writer has stalled *right now*.
+The IamAI writer emits a stroke every 15 seconds.  When it stops,
+the batch committer keeps running on stale data, committing nothing
+useful, and the caretaker only learns about the failure on its next
+scheduled visit — potentially hours later.
 
-Three public functions:
+This module provides a lightweight heartbeat monitor that:
 
-- ``pulse(strokes_path)`` — read the tail of ``data/strokes.jsonl`` and
-  return the last ``window`` inter-stroke gaps in seconds.
-- ``diagnose(gaps, cadence)`` — classify the heartbeat into one of
-  ``healthy``, ``irregular``, or ``stalled``.
-- ``report(strokes_path, cadence, window)`` — one-liner for caretaker logs.
+1. **Records** each stroke as it arrives (timestamp + sequence number).
+2. **Evaluates** whether the writer is alive based on the gap between
+   the most recent stroke and the current time.
+3. **Classifies** the writer's state into one of three bands:
 
-Interpretation (cadence = 15s default)::
+   - ``healthy`` — last stroke within ``healthy_s`` seconds (default 45).
+   - ``degraded`` — last stroke within ``degraded_s`` seconds (default 120).
+   - ``dead`` — last stroke older than ``degraded_s``, or no stroke ever.
 
-    max(gaps) <  2 × cadence   →  healthy    (writer is on time)
-    max(gaps) < 20 × cadence   →  irregular  (writer missed a beat or two)
-    max(gaps) ≥ 20 × cadence   →  stalled    (writer is probably dead)
+4. **Reports** a structured dict suitable for logging or alerting.
 
-Why this matters: the batch committer only wakes every 600s.  If the writer
-dies silently at minute 3 of a cycle, the committer won't notice for another
-7 minutes.  Heartbeat detects the stall faster than "no commits landed".
+Public API::
 
-Edge cases:
+    from iamai.writer_heartbeat import HeartbeatMonitor
 
-- File missing or empty → gaps = [], diagnosis = "unknown".
-- Only one stroke → gaps = [], diagnosis = "unknown".
-- Non-numeric / missing ``at`` field → that stroke is skipped.
+    monitor = HeartbeatMonitor()
+    monitor.record_stroke(seq=6700, at=1000.0)
+    monitor.record_stroke(seq=6701, at=1015.0)
 
-Usage::
+    status = monitor.check(now=1020.0)
+    # {"state": "healthy", "gap_s": 5.0, "seq": 6701, ...}
 
-    from iamai.writer_heartbeat import pulse, diagnose, report
-    gaps = pulse(Path("data/strokes.jsonl"))
-    print(diagnose(gaps))               # "healthy" | "irregular" | "stalled"
-    print(report(Path("data/strokes.jsonl")))
+    if status["state"] == "dead":
+        # trigger restart
+        ...
+
+Thresholds
+----------
+- **healthy_s** (default 45 s): three cadence cycles.  A healthy writer
+  may skip one or two strokes due to transient load; three consecutive
+  misses is unusual but not yet alarming.
+- **degraded_s** (default 120 s): eight cadence cycles.  Beyond this,
+  the writer is almost certainly stuck — the process may still exist
+  but is hung (deadlock, I/O wait, OOM thrashing).
+- **dead** (anything beyond degraded_s): time to restart.
+
+Design decisions
+----------------
+- **Stroke-driven, not timer-driven.**  The monitor does not run its
+  own clock.  It is updated passively when the batch committer or
+  caretaker calls ``record_stroke()``.  This avoids spawning another
+  long-lived thread in a system that already has two.
+- **Monotonic sequence check.**  ``record_stroke()`` rejects strokes
+  with a sequence number lower than the current high-water mark.  This
+  protects against out-of-order delivery from concurrent writers.
+- **Bounded history.**  The monitor retains the last 100 stroke
+  timestamps for gap analysis.  This is enough to detect patterns
+  (e.g., gradually increasing gaps before a crash) without unbounded
+  memory growth.
+- **No side effects.**  The monitor never restarts processes or sends
+  alerts itself.  It returns a status dict; the caller decides what
+  to do.  This keeps it composable with ``restart_convergence`` and
+  ``git_lock_monitor``.
+
+Relationship to other modules
+-----------------------------
+- ``restart_convergence`` tracks recovery *after* a restart.
+- ``writer_heartbeat`` detects the *need* for a restart.
+- ``git_lock_monitor`` handles a common *cause* of writer silence.
+
+Together they form a detect → clean → restart → verify pipeline.
 """
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Iterable, List, Tuple
-
-DEFAULT_CADENCE = 15  # seconds between strokes
-DEFAULT_WINDOW = 10   # how many recent gaps to inspect
-STALL_MULTIPLE = 20   # cadence × this = stall threshold
+import time
+from collections import deque
+from typing import Any, Deque, Dict, Optional
 
 
-def _parse_iso(ts: str) -> float:
-    """Parse an ISO-8601 timestamp to epoch seconds.
-
-    Accepts trailing 'Z' or ±HH:MM offsets.  Raises ValueError on anything
-    else so callers can skip malformed rows.
-    """
-    if ts.endswith("Z"):
-        ts = ts[:-1] + "+00:00"
-    return datetime.fromisoformat(ts).replace(tzinfo=timezone.utc).timestamp()
+# Default thresholds in seconds.
+DEFAULT_HEALTHY_S = 45.0
+DEFAULT_DEGRADED_S = 120.0
+MAX_HISTORY = 100
 
 
-def _tail_timestamps(strokes_path: Path, n: int) -> List[float]:
-    """Read the last ``n + 1`` parseable timestamps from the strokes log.
+class HeartbeatMonitor:
+    """Track writer heartbeat and classify liveness state."""
 
-    We need n+1 rows to produce n gaps.  Reading the whole file is fine —
-    the log is append-only and rarely exceeds a few MB — but we only keep
-    the tail to stay O(window) in memory for the returned list.
-    """
-    if not strokes_path.exists():
-        return []
+    def __init__(
+        self,
+        healthy_s: float = DEFAULT_HEALTHY_S,
+        degraded_s: float = DEFAULT_DEGRADED_S,
+        now: Optional[float] = None,
+    ) -> None:
+        if healthy_s >= degraded_s:
+            raise ValueError(
+                f"healthy_s ({healthy_s}) must be less than degraded_s ({degraded_s})"
+            )
+        self.healthy_s = healthy_s
+        self.degraded_s = degraded_s
+        self._last_seq: int = -1
+        self._last_at: Optional[float] = None
+        self._stroke_count: int = 0
+        self._history: Deque[float] = deque(maxlen=MAX_HISTORY)
+        self._created_at: float = now if now is not None else time.time()
 
-    all_ts: List[float] = []
-    # Read backwards is overkill; a simple slice of the last N lines is
-    # enough since each stroke is one JSON object on a single line.
-    with strokes_path.open("r", encoding="utf-8") as f:
-        lines = f.readlines()
+    # -- recording ---------------------------------------------------------
 
-    needed = n + 1
-    # Read a bit extra to absorb malformed rows; collect ALL valid timestamps
-    # in that tail slice, then keep only the last ``needed`` of them.
-    for raw in lines[-(needed * 4):]:
-        raw = raw.strip()
-        if not raw:
-            continue
-        try:
-            obj = json.loads(raw)
-            ts = obj.get("at")
-            if not isinstance(ts, str):
-                continue
-            all_ts.append(_parse_iso(ts))
-        except (ValueError, json.JSONDecodeError):
-            continue
+    def record_stroke(
+        self,
+        seq: int,
+        at: Optional[float] = None,
+        now: Optional[float] = None,
+    ) -> bool:
+        """Record a stroke.  Returns True if accepted, False if rejected.
 
-    return sorted(all_ts[-needed:])
+        Rejection reasons:
+        - ``seq`` is not greater than the current high-water mark.
+        - ``at`` is in the future relative to ``now``.
+        """
+        if at is None:
+            at = time.time()
+        if now is None:
+            now = time.time()
 
+        # Reject out-of-order or duplicate sequence numbers.
+        if seq <= self._last_seq:
+            return False
 
-def pulse(strokes_path: Path, window: int = DEFAULT_WINDOW) -> List[float]:
-    """Return the last ``window`` inter-stroke gaps in seconds."""
-    if window <= 0:
-        return []
-    timestamps = _tail_timestamps(strokes_path, window)
-    if len(timestamps) < 2:
-        return []
-    return [b - a for a, b in zip(timestamps, timestamps[1:])]
+        # Reject future timestamps (with 1s tolerance for clock skew).
+        if at > now + 1.0:
+            return False
 
+        self._last_seq = seq
+        self._last_at = at
+        self._stroke_count += 1
+        self._history.append(at)
+        return True
 
-def diagnose(
-    gaps: Iterable[float],
-    cadence: float = DEFAULT_CADENCE,
-    stall_multiple: float = STALL_MULTIPLE,
-) -> str:
-    """Classify the heartbeat from a sequence of recent gaps."""
-    gap_list = list(gaps)
-    if not gap_list:
-        return "unknown"
+    # -- checking ----------------------------------------------------------
 
-    worst = max(gap_list)
-    healthy_ceiling = 2 * cadence
-    stall_ceiling = stall_multiple * cadence
+    def check(self, now: Optional[float] = None) -> Dict[str, Any]:
+        """Return the current heartbeat status."""
+        if now is None:
+            now = time.time()
 
-    if worst < healthy_ceiling:
-        return "healthy"
-    if worst < stall_ceiling:
-        return "irregular"
-    return "stalled"
+        if self._last_at is None:
+            return {
+                "state": "dead",
+                "gap_s": None,
+                "seq": None,
+                "stroke_count": 0,
+                "detail": "no strokes recorded",
+            }
 
+        gap_s = now - self._last_at
 
-def stats(gaps: Iterable[float]) -> Tuple[float, float, float]:
-    """(min, mean, max) of the supplied gaps, or (0, 0, 0) if empty."""
-    gap_list = list(gaps)
-    if not gap_list:
-        return 0.0, 0.0, 0.0
-    return min(gap_list), sum(gap_list) / len(gap_list), max(gap_list)
+        if gap_s <= self.healthy_s:
+            state = "healthy"
+        elif gap_s <= self.degraded_s:
+            state = "degraded"
+        else:
+            state = "dead"
 
+        return {
+            "state": state,
+            "gap_s": round(gap_s, 2),
+            "seq": self._last_seq,
+            "stroke_count": self._stroke_count,
+            "healthy_s": self.healthy_s,
+            "degraded_s": self.degraded_s,
+        }
 
-def report(
-    strokes_path: Path,
-    cadence: float = DEFAULT_CADENCE,
-    window: int = DEFAULT_WINDOW,
-) -> str:
-    """One-liner summary suitable for caretaker visit logs."""
-    gaps = pulse(strokes_path, window=window)
-    verdict = diagnose(gaps, cadence=cadence)
-    lo, mean, hi = stats(gaps)
-    if verdict == "unknown":
-        return f"heartbeat: unknown (insufficient data from {strokes_path})"
-    return (
-        f"heartbeat: {verdict} over last {len(gaps)} gaps "
-        f"(min={lo:.0f}s mean={mean:.0f}s max={hi:.0f}s, cadence={cadence:.0f}s)"
-    )
+    @property
+    def is_healthy(self) -> bool:
+        """Quick check: is the writer currently healthy?"""
+        return self.check()["state"] == "healthy"
+
+    @property
+    def is_dead(self) -> bool:
+        """Quick check: is the writer currently dead?"""
+        return self.check()["state"] == "dead"
+
+    # -- gap analysis ------------------------------------------------------
+
+    def gap_stats(self) -> Dict[str, Any]:
+        """Return statistics on recent inter-stroke gaps.
+
+        Useful for detecting gradual degradation: if the mean gap is
+        creeping upward, the writer may be under load even though it
+        hasn't fully stopped.
+        """
+        if len(self._history) < 2:
+            return {
+                "count": len(self._history),
+                "mean_gap_s": None,
+                "max_gap_s": None,
+                "min_gap_s": None,
+            }
+
+        timestamps = sorted(self._history)
+        gaps = [
+            timestamps[i + 1] - timestamps[i]
+            for i in range(len(timestamps) - 1)
+        ]
+
+        return {
+            "count": len(self._history),
+            "mean_gap_s": round(sum(gaps) / len(gaps), 2),
+            "max_gap_s": round(max(gaps), 2),
+            "min_gap_s": round(min(gaps), 2),
+        }
+
+    # -- reset -------------------------------------------------------------
+
+    def reset(self) -> None:
+        """Clear all state.  Useful after a confirmed restart."""
+        self._last_seq = -1
+        self._last_at = None
+        self._stroke_count = 0
+        self._history.clear()
