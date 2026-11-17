@@ -6707,3 +6707,5 @@
 {"seq": 6707, "at": "2026-11-17T07:10:08+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 6706 strokes written so far into 2336 files"}
 {"seq": 6708, "at": "2026-11-17T08:04:52+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 592546 lines across 2336 tracked files, 834 commits deep"}
 {"seq": 6709, "at": "2026-11-17T08:11:08+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 834: the count of times this repo was pushed, not the work done"}
+{"seq": 6710, "at": "2026-11-17T09:06:10+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 6709 strokes written so far into 2340 files"}
+{"seq": 6711, "at": "2026-11-17T09:12:38+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 593456 lines across 2340 tracked files, 837 commits deep"}
