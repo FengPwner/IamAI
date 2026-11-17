@@ -6753,3 +6753,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 39909
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 1575 python files, 6685 logged thoughts.
+## stroke 39933
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 6687 strokes written so far into 2317 files.
