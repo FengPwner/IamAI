@@ -6795,3 +6795,9 @@ deleting a file is progress too, eventually. At this moment: 1605 python files, 
 ## stroke 40191
 
 deleting a file is progress too, eventually. At this moment: 1605 python files, 6736 logged thoughts.
+## stroke 40197
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 875: the count of times this repo was pushed, not the work done.
+## stroke 40197
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 875: the count of times this repo was pushed, not the work done.
