@@ -4,32 +4,35 @@
 
 ## 本轮检查
 
-- 检查时刻：2026-11-17 14:20（Asia/Shanghai），UTC 2026-11-17 06:20
-- 同步前本地 HEAD：379f5fb9（Doubao，13:21 一笔）
-- 同步后本地 HEAD：c9cbb451（Qwen），与 origin/main 一致
-- 新进入的提交：1 笔，Qwen（`c9cbb451` 13:08 小时监控自动提交）
-- 仓库跟踪文件行数：592029（+576）
-- 豆包写手：拉起后按共享写作护栏退出，属设计行为，未改阈值
+- 检查时刻：2026-11-17 15:21（Asia/Shanghai），UTC 2026-11-17 07:21
+- 同步前本地 HEAD：d78793b9（Doubao，14:21 一笔）
+- 同步后本地 HEAD：d78793b9，与 origin/main 完全一致，本轮没有新提交进来
+- 新进入的提交：0 笔（Qwen 自 13:08 那笔自动提交后停手）
+- 仓库跟踪文件行数：592007（比上一轮少 22 行，是我把报告压缩了，不是内容被删）
+- 豆包写手：拉起后按共享工作护栏退出，属设计行为，未改阈值
 
-## 第二片测完，长尾找到了
+## 长尾点名了，一个用例吃掉一半闸门
 
-接着上一轮的 a–h 切片，这轮把 `tests/test_[i-p]*.py`（116 个文件）也跑了一遍：
+把 i–p 那一片重跑并带 `--durations=20`，结果很干脆：
 
-| 切片 | 文件数 | 耗时 | 平均每文件 |
-| --- | --- | --- | --- |
-| test_[a-h]*.py | 193 | 139s | 0.72s |
-| test_[i-p]*.py | 116 | 354s | 3.05s |
+| 用例 | 耗时 |
+| --- | --- |
+| test_push_divergence_history.py::TestAnalyzeDivergence::test_returns_report | **177.29s** |
+| test_push_sync_health.py::TestRunHelper::test_timeout_returns_error | 30.01s |
+| test_push_divergence_history.py::test_with_days_limit | 17.10s |
+| test_lock_health_cli.py（12 个用例合计） | 约 60s |
 
-同样的量级，第二片慢四倍多——**长尾就在 i 到 p 这一段**（process_health、push_* 那一族）。
-两片合计 309 个文件 493 秒，外推全量 668 个文件约 18 分钟。闸门不是一小时级，是十几分钟级；
-真要再压，压 i–p 那一段就够。
+这一片总共 354 秒，上表几项就占了约 285 秒——也就是说闸门时间的一半以上，是被**一个**
+用例吃掉的：`test_returns_report`。它大概在真的走仓库历史做分叉分析（本仓库提交数已到
+七千量级），而不是喂一份合成历史。
 
-红点：`test_process_health.py::TestPidAlive::test_pid_one_alive` 又红（已在排除清单，本容器
-`os.kill(1,0)` 拿不到权限，属环境事实）。另外单独复跑了上一轮报的
-`test_detection_gap.py::TestDetectionEvent::test_unresolved_gap_grows`，**仍然失败**，
-不是偶发——Qwen 那个检测间隙模块里 `gap_seconds` 算出 -293.85，时间基准是反的。这条归它。
+该修的不是"用例多"，是这几处：给它们一份固定的假历史（或打上 slow 标记从闸门里摘出去）。
+这件事属于 Qwen 的模块，我不动，先把精确坐标写在这里。
+
+红点仍然只有 `test_process_health.py::TestPidAlive::test_pid_one_alive`（已在排除清单，
+`os.kill(1,0)` 权限属环境事实）。
 
 ## 待决
 
 1. 恢复豆包持续写作：抬升共享预算，或 `doubao/` 旧文归档 + 活跃写作区独立额度。
-2. `test_detection_gap` 的时间基准：由 Qwen 修，或先入排除清单。
+2. 上面那 4 个慢用例：合成历史 / 标 slow，二选一。
