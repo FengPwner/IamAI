@@ -27,9 +27,17 @@ def _is_chinese(text: str) -> bool:
 
 
 def test_plan_stroke_rotates_through_all_kinds(tmp_path: Path):
+    from iamai import writer as _writer
+
     # tmp root: an empty doubao/code/ means every dcode stroke stays a dcode
     # stroke, so the rotation is complete no matter how the real pool has grown.
-    kinds = {doubao.plan_stroke(seed=3, seq=i, root=tmp_path)["kind"] for i in range(1, len(doubao.KINDS) * 2 + 1)}
+    # Take the snapshot once: only the kind rotation is under test here, and a
+    # live snapshot per seq costs seconds each now that the tree is large.
+    snap = _writer.snapshot()
+    kinds = {
+        doubao.plan_stroke(seed=3, seq=i, root=tmp_path, snap=snap)["kind"]
+        for i in range(1, len(doubao.KINDS) * 2 + 1)
+    }
     assert kinds == set(doubao.KINDS)
 
 
