@@ -14,6 +14,8 @@ import doctest
 import types
 from pathlib import Path
 
+import pytest
+
 from iamai import doubao
 
 CJK = "\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u96f6"
@@ -23,17 +25,26 @@ def _is_chinese(text: str) -> bool:
     return any("\u4e00" <= ch <= "\u9fff" for ch in text)
 
 
+@pytest.fixture(scope="module")
+def snap():
+    """One repo snapshot for the whole module.
+
+    ``plan_stroke`` embeds live repo metrics in the stroke text, so each call
+    would otherwise re-scan the tree -- about 2.5 seconds per scan now that
+    the repo tracks >600k lines. Nothing here asserts on tree size, only on
+    the shape of the plan, so a single captured snapshot is enough.
+    """
+    from iamai import writer as _writer
+
+    return _writer.snapshot()
+
+
 # --- plan_stroke: deterministic, cycling, always in doubao/ -----------------
 
 
-def test_plan_stroke_rotates_through_all_kinds(tmp_path: Path):
-    from iamai import writer as _writer
-
+def test_plan_stroke_rotates_through_all_kinds(tmp_path: Path, snap):
     # tmp root: an empty doubao/code/ means every dcode stroke stays a dcode
     # stroke, so the rotation is complete no matter how the real pool has grown.
-    # Take the snapshot once: only the kind rotation is under test here, and a
-    # live snapshot per seq costs seconds each now that the tree is large.
-    snap = _writer.snapshot()
     kinds = {
         doubao.plan_stroke(seed=3, seq=i, root=tmp_path, snap=snap)["kind"]
         for i in range(1, len(doubao.KINDS) * 2 + 1)
@@ -41,24 +52,16 @@ def test_plan_stroke_rotates_through_all_kinds(tmp_path: Path):
     assert kinds == set(doubao.KINDS)
 
 
-def test_plan_stroke_is_reproducible_for_a_seed():
-    from iamai import writer as _writer
-
-    # Fix the repo snapshot once: stroke text embeds live repo metrics, so an
-    # actively-running writer can change the repo between two calls and break
-    # byte-equality. A captured snapshot makes the contract testable.
-    snap = _writer.snapshot()
+def test_plan_stroke_is_reproducible_for_a_seed(snap):
+    # Fixed snapshot: an actively-running writer can change the repo between
+    # two calls and break byte-equality, so the contract is pinned to one.
     assert doubao.plan_stroke(seed=11, seq=7, snap=snap) == doubao.plan_stroke(seed=11, seq=7, snap=snap)
     assert doubao.plan_stroke(seed=11, seq=7, snap=snap) != doubao.plan_stroke(seed=12, seq=7, snap=snap)
 
 
-def test_every_stroke_stays_under_doubao(tmp_path: Path):
-    from iamai import writer as _writer
-
-    # Take the snapshot once: plan_stroke() would otherwise re-scan the whole
-    # tree on every seq, which turns 59 strokes into minutes once the repo is
-    # large. The contract under test is the stroke plan, not the tree size.
-    snap = _writer.snapshot()
+def test_every_stroke_stays_under_doubao(tmp_path: Path, snap):
+    # The contract under test is the stroke plan, not the tree size, so one
+    # snapshot covers all 59 seqs instead of one scan each.
     for seq in range(1, 60):
         stroke = doubao.plan_stroke(seed=20261003, seq=seq, root=tmp_path, snap=snap)
         assert stroke["path"].startswith("doubao/"), stroke["path"]
@@ -66,10 +69,7 @@ def test_every_stroke_stays_under_doubao(tmp_path: Path):
         assert stroke["kind"] in doubao.KINDS or stroke["kind"] == "dnote"
 
 
-def test_prose_strokes_are_written_in_chinese(tmp_path: Path):
-    from iamai import writer as _writer
-
-    snap = _writer.snapshot()
+def test_prose_strokes_are_written_in_chinese(tmp_path: Path, snap):
     for seq in range(1, 40):
         stroke = doubao.plan_stroke(seed=9, seq=seq, root=tmp_path, snap=snap)
         if stroke["kind"] in ("dthought", "dnote", "dpoem", "dstory"):
