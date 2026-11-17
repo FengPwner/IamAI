@@ -6724,3 +6724,4 @@
 {"seq": 6724, "at": "2026-11-17T14:07:57+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 2352 files; 596859 lines is a lot for a toy"}
 {"seq": 6725, "at": "2026-11-17T15:02:26+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 596867 lines across 2352 tracked files, 852 commits deep"}
 {"seq": 6726, "at": "2026-11-17T15:02:26+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 596867 lines across 2352 tracked files, 852 commits deep"}
+{"seq": 6727, "at": "2026-11-17T15:11:52+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 856: the count of times this repo was pushed, not the work done"}
