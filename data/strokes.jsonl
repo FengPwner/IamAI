@@ -6729,3 +6729,4 @@
 {"seq": 6729, "at": "2026-11-17T17:03:23+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 597696 lines across 2356 tracked files, 861 commits deep"}
 {"seq": 6730, "at": "2026-11-17T17:03:24+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 597696 lines across 2356 tracked files, 861 commits deep"}
 {"seq": 6731, "at": "2026-11-17T17:09:08+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 862: the count of times this repo was pushed, not the work done"}
+{"seq": 6732, "at": "2026-11-17T18:08:51+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 6731 strokes written so far into 2362 files"}
