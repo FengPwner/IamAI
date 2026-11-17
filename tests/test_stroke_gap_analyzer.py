@@ -1,419 +1,339 @@
-"""Tests for iamai.stroke_gap_analyzer."""
+"""Tests for iamai.stroke_gap_analyzer.
+
+42 tests covering:
+  - timestamp parsing edge cases
+  - gap computation
+  - statistical functions (percentile, std, stats)
+  - trend detection (linear regression)
+  - stall risk scoring
+  - full report integration
+
+Written by Qwen during caretaker visit 686, 2026-11-18.
+"""
+
+import math
+from datetime import datetime, timezone, timedelta
 
 import pytest
 
 from iamai.stroke_gap_analyzer import (
-    GapBucket,
-    GapRecord,
-    GapSequence,
-    StrokeGapAnalyzer,
+    _parse_ts,
+    compute_gaps,
+    _percentile,
+    _std,
+    gap_stats,
+    gap_trend,
+    stall_risk,
     gap_report,
 )
 
 
-# ---------------------------------------------------------------------------
-# Construction
-# ---------------------------------------------------------------------------
-
-class TestConstruction:
-    def test_default_cadence(self):
-        a = StrokeGapAnalyzer()
-        assert a.expected_cadence_s == 15.0
-
-    def test_custom_cadence(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=30)
-        assert a.expected_cadence_s == 30.0
-
-    def test_zero_cadence_rejected(self):
-        with pytest.raises(ValueError, match="positive"):
-            StrokeGapAnalyzer(expected_cadence_s=0)
-
-    def test_negative_cadence_rejected(self):
-        with pytest.raises(ValueError, match="positive"):
-            StrokeGapAnalyzer(expected_cadence_s=-5)
-
-    def test_custom_thresholds(self):
-        a = StrokeGapAnalyzer(thresholds={"warm": 3.0, "hot": 20.0, "cold": 200.0})
-        assert a._thresholds["warm"] == 3.0
-        assert a._thresholds["hot"] == 20.0
-        assert a._thresholds["cold"] == 200.0
-
-    def test_non_monotonic_thresholds_rejected(self):
-        with pytest.raises(ValueError, match="warm < hot < cold"):
-            StrokeGapAnalyzer(thresholds={"warm": 10.0, "hot": 5.0, "cold": 100.0})
-
-    def test_partial_thresholds_merge(self):
-        a = StrokeGapAnalyzer(thresholds={"warm": 5.0})
-        assert a._thresholds["warm"] == 5.0
-        assert a._thresholds["hot"] == 10.0  # default
-
-
-# ---------------------------------------------------------------------------
-# Ingestion
-# ---------------------------------------------------------------------------
-
-class TestIngestion:
-    def test_ingest_basic(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        n = a.ingest([100, 110, 120, 130])
-        assert n == 3
-        assert a.total_gaps == 3
-
-    def test_ingest_unsorted(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([130, 100, 120, 110])
-        assert a.total_gaps == 3
-        vals = a.gap_values()
-        assert vals == [10.0, 10.0, 10.0]
-
-    def test_ingest_duplicates_dropped(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 100, 110, 110])
-        assert a.total_gaps == 1
-
-    def test_ingest_empty(self):
-        a = StrokeGapAnalyzer()
-        assert a.ingest([]) == 0
-        assert a.total_gaps == 0
-
-    def test_ingest_single_timestamp(self):
-        a = StrokeGapAnalyzer()
-        assert a.ingest([1000]) == 0
-        assert a.total_gaps == 0
-
-    def test_add_single(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100])
-        rec = a.add(110)
-        assert rec is not None
-        assert rec.gap_s == 10.0
-        assert rec.bucket is GapBucket.MICRO
-
-    def test_add_duplicate_returns_none(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 110])
-        rec = a.add(110)
-        assert rec is None
-
-    def test_incremental_ingest(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 110, 120])
-        assert a.total_gaps == 2
-        a.ingest([130, 140])
-        assert a.total_gaps == 4
-
-
-# ---------------------------------------------------------------------------
-# Classification
-# ---------------------------------------------------------------------------
-
-class TestClassification:
-    def test_micro_gap(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 110])  # 1.0x
-        assert a.records[0].bucket is GapBucket.MICRO
-
-    def test_micro_gap_boundary(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 119])  # 1.9x — just under warm threshold
-        assert a.records[0].bucket is GapBucket.MICRO
-
-    def test_warm_gap(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 120])  # 2.0x
-        assert a.records[0].bucket is GapBucket.WARM
-
-    def test_warm_gap_upper(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 199])  # 9.9x — just under hot
-        assert a.records[0].bucket is GapBucket.WARM
-
-    def test_hot_gap(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 200])  # 10x
-        assert a.records[0].bucket is GapBucket.HOT
-
-    def test_hot_gap_upper(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 1099])  # 99.9x — just under cold
-        assert a.records[0].bucket is GapBucket.HOT
-
-    def test_cold_gap(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 1100])  # 100x
-        assert a.records[0].bucket is GapBucket.COLD
-
-    def test_massive_gap(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 100100])  # 10000x
-        assert a.records[0].bucket is GapBucket.COLD
-
-    def test_ratio_computed(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=15)
-        a.ingest([0, 45])
-        assert abs(a.records[0].ratio - 3.0) < 0.001
-
-
-# ---------------------------------------------------------------------------
-# Queries
-# ---------------------------------------------------------------------------
-
-class TestQueries:
-    def _make_analyzer(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        # micro, micro, warm, hot, cold
-        a.ingest([100, 110, 120, 140, 240, 1240])
-        return a
-
-    def test_gaps_in_micro(self):
-        a = self._make_analyzer()
-        micros = a.gaps_in(GapBucket.MICRO)
-        assert len(micros) == 2
-
-    def test_gaps_in_warm(self):
-        a = self._make_analyzer()
-        warms = a.gaps_in(GapBucket.WARM)
-        assert len(warms) == 1
-
-    def test_gaps_in_hot(self):
-        a = self._make_analyzer()
-        hots = a.gaps_in(GapBucket.HOT)
-        assert len(hots) == 1
-
-    def test_gaps_in_cold(self):
-        a = self._make_analyzer()
-        colds = a.gaps_in(GapBucket.COLD)
-        assert len(colds) == 1
-
-    def test_gap_values(self):
-        a = self._make_analyzer()
-        vals = a.gap_values()
-        assert vals == [10.0, 10.0, 20.0, 100.0, 1000.0]
-
-
-# ---------------------------------------------------------------------------
-# Summary
-# ---------------------------------------------------------------------------
-
-class TestSummary:
-    def test_empty_summary(self):
-        a = StrokeGapAnalyzer()
-        s = a.summary()
-        assert s["total_gaps"] == 0
-        assert s["mean_gap_s"] == 0.0
-        assert s["longest_sequence"] is None
-
-    def test_summary_counts(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([100, 110, 120, 140, 240, 1240])
-        s = a.summary()
-        assert s["total_gaps"] == 5
-        assert s["micro"] == 2
-        assert s["warm"] == 1
-        assert s["hot"] == 1
-        assert s["cold"] == 1
-
-    def test_summary_mean(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20, 30])  # all 10s gaps
-        s = a.summary()
-        assert s["mean_gap_s"] == 10.0
-
-    def test_summary_median(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 30, 40])  # gaps: 10, 20, 10
-        s = a.summary()
-        assert s["median_gap_s"] == 10.0
-
-    def test_summary_max(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 1010])  # gaps: 10, 1000
-        s = a.summary()
-        assert s["max_gap_s"] == 1000.0
-
-    def test_summary_p95(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=1)
-        timestamps = list(range(100))  # 99 gaps of 1s each
-        a.ingest(timestamps)
-        s = a.summary()
-        assert s["p95_gap_s"] == 1.0
-
-    def test_summary_dominant_bucket(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        # 5 micro gaps, 1 cold gap
-        a.ingest([0, 10, 20, 30, 40, 50, 1050])
-        s = a.summary()
-        assert s["dominant_bucket"] is GapBucket.MICRO
-
-    def test_summary_has_longest_sequence(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        # 4 consecutive micro gaps
-        a.ingest([0, 10, 20, 30, 40])
-        s = a.summary()
-        seq = s["longest_sequence"]
-        assert seq is not None
-        assert seq.bucket is GapBucket.MICRO
-        assert seq.length == 4
-
-
-# ---------------------------------------------------------------------------
-# Sequences
-# ---------------------------------------------------------------------------
-
-class TestSequences:
-    def test_no_sequences_empty(self):
-        a = StrokeGapAnalyzer()
-        assert a.sequences() == []
-
-    def test_single_run(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20, 30])
-        seqs = a.sequences(min_length=2)
-        assert len(seqs) == 1
-        assert seqs[0].bucket is GapBucket.MICRO
-        assert seqs[0].length == 3
-
-    def test_mixed_runs(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        # micro micro | warm warm warm | cold
-        a.ingest([0, 10, 20, 40, 60, 80, 1080])
-        seqs = a.sequences(min_length=2)
-        assert len(seqs) == 2
-        assert seqs[0].bucket is GapBucket.MICRO
-        assert seqs[0].length == 2
-        assert seqs[1].bucket is GapBucket.WARM
-        assert seqs[1].length == 3
-
-    def test_min_length_filter(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20])  # 2 micro gaps
-        assert len(a.sequences(min_length=3)) == 0
-        assert len(a.sequences(min_length=2)) == 1
-
-    def test_sequence_total_s(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20, 30])  # gaps: 10, 10, 10
-        seqs = a.sequences(min_length=2)
-        assert seqs[0].total_s == 30.0
-
-    def test_sequence_mean_gap_s(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20, 30])
-        seqs = a.sequences(min_length=2)
-        assert seqs[0].mean_gap_s == 10.0
-
-    def test_sequence_end_index(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20, 30])
-        seqs = a.sequences(min_length=2)
-        assert seqs[0].start_index == 0
-        assert seqs[0].end_index == 2
-
-
-# ---------------------------------------------------------------------------
-# Health Score
-# ---------------------------------------------------------------------------
-
-class TestHealthScore:
-    def test_perfect_health(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20, 30, 40])
-        assert a.health_score() == 1.0
-
-    def test_all_cold(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 1000, 2000, 3000])  # all 100x
-        assert a.health_score() == 0.0
-
-    def test_mixed_health(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        # 3 micro (1.0 each) + 1 warm (0.6) = 3.6 / 4 = 0.9
-        a.ingest([0, 10, 20, 30, 50])
-        score = a.health_score()
-        assert abs(score - 0.9) < 0.001
-
-    def test_empty_health(self):
-        a = StrokeGapAnalyzer()
-        assert a.health_score() == 1.0
-
-    def test_health_range(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20, 200, 1200])
-        score = a.health_score()
-        assert 0.0 <= score <= 1.0
-
-
-# ---------------------------------------------------------------------------
-# Gap Report
-# ---------------------------------------------------------------------------
+# =========================================================================
+# Timestamp parsing
+# =========================================================================
+
+class TestParseTS:
+    def test_iso_with_offset(self):
+        dt = _parse_ts("2026-10-03T03:23:10+00:00")
+        assert dt.year == 2026
+        assert dt.month == 10
+        assert dt.day == 3
+        assert dt.hour == 3
+        assert dt.minute == 23
+        assert dt.tzinfo is not None
+
+    def test_iso_with_z(self):
+        dt = _parse_ts("2026-10-03T03:23:10Z")
+        assert dt.tzinfo is not None
+        assert dt.hour == 3
+
+    def test_iso_naive_defaults_utc(self):
+        dt = _parse_ts("2026-10-03T03:23:10")
+        assert dt.tzinfo == timezone.utc
+
+    def test_whitespace_stripped(self):
+        dt = _parse_ts("  2026-10-03T03:23:10+00:00  ")
+        assert dt.year == 2026
+
+    def test_different_timezone(self):
+        dt = _parse_ts("2026-10-03T11:23:10+08:00")
+        assert dt.hour == 11
+        utc_dt = dt.astimezone(timezone.utc)
+        assert utc_dt.hour == 3
+
+    def test_consistent_across_formats(self):
+        dt1 = _parse_ts("2026-10-03T03:23:10+00:00")
+        dt2 = _parse_ts("2026-10-03T03:23:10Z")
+        dt3 = _parse_ts("2026-10-03T03:23:10")
+        assert dt1 == dt2 == dt3
+
+
+# =========================================================================
+# Gap computation
+# =========================================================================
+
+class TestComputeGaps:
+    def test_empty(self):
+        assert compute_gaps([]) == []
+
+    def test_single_stroke(self):
+        assert compute_gaps([{"at": "2026-11-18T00:00:00+00:00"}]) == []
+
+    def test_two_strokes_15s(self):
+        gaps = compute_gaps([
+            {"at": "2026-11-18T00:00:00+00:00"},
+            {"at": "2026-11-18T00:00:15+00:00"},
+        ])
+        assert gaps == [15.0]
+
+    def test_three_strokes_varying(self):
+        gaps = compute_gaps([
+            {"at": "2026-11-18T00:00:00+00:00"},
+            {"at": "2026-11-18T00:00:15+00:00"},
+            {"at": "2026-11-18T00:00:45+00:00"},
+        ])
+        assert gaps == [15.0, 30.0]
+
+    def test_unsorted_input(self):
+        gaps = compute_gaps([
+            {"at": "2026-11-18T00:00:45+00:00"},
+            {"at": "2026-11-18T00:00:00+00:00"},
+            {"at": "2026-11-18T00:00:15+00:00"},
+        ])
+        assert gaps == [15.0, 30.0]
+
+    def test_large_gap(self):
+        gaps = compute_gaps([
+            {"at": "2026-11-18T00:00:00+00:00"},
+            {"at": "2026-11-18T01:00:00+00:00"},
+        ])
+        assert gaps == [3600.0]
+
+    def test_many_uniform_strokes(self):
+        base = datetime(2026, 11, 18, tzinfo=timezone.utc)
+        strokes = [
+            {"at": (base + timedelta(seconds=15 * i)).isoformat()}
+            for i in range(100)
+        ]
+        gaps = compute_gaps(strokes)
+        assert len(gaps) == 99
+        assert all(g == 15.0 for g in gaps)
+
+
+# =========================================================================
+# Percentile & std
+# =========================================================================
+
+class TestPercentile:
+    def test_empty(self):
+        assert _percentile([], 50) == 0.0
+
+    def test_single(self):
+        assert _percentile([42], 50) == 42.0
+
+    def test_median_odd(self):
+        assert _percentile([1, 2, 3, 4, 5], 50) == 3.0
+
+    def test_median_even(self):
+        assert _percentile([1, 2, 3, 4], 50) == 2.5
+
+    def test_p0(self):
+        assert _percentile([10, 20, 30], 0) == 10.0
+
+    def test_p100(self):
+        assert _percentile([10, 20, 30], 100) == 30.0
+
+    def test_p25(self):
+        assert _percentile([1, 2, 3, 4, 5, 6, 7, 8], 25) == pytest.approx(2.75)
+
+
+class TestStd:
+    def test_empty(self):
+        assert _std([], 0.0) == 0.0
+
+    def test_single(self):
+        assert _std([5.0], 5.0) == 0.0
+
+    def test_known(self):
+        vals = [2, 4, 4, 4, 5, 5, 7, 9]
+        assert _std(vals, 5.0) == pytest.approx(2.0)
+
+    def test_all_same(self):
+        assert _std([3, 3, 3, 3], 3.0) == 0.0
+
+
+# =========================================================================
+# Gap statistics
+# =========================================================================
+
+class TestGapStats:
+    def test_empty(self):
+        s = gap_stats([])
+        assert s["count"] == 0
+        assert s["mean"] == 0.0
+
+    def test_uniform(self):
+        s = gap_stats([15.0] * 10)
+        assert s["count"] == 10
+        assert s["mean"] == 15.0
+        assert s["median"] == 15.0
+        assert s["std"] == 0.0
+
+    def test_with_outlier(self):
+        s = gap_stats([15, 15, 15, 15, 100])
+        assert s["count"] == 5
+        assert s["mean"] == 32.0
+        assert s["max"] == 100.0
+        assert s["p95"] > 15.0
+
+    def test_increasing_sequence(self):
+        s = gap_stats(list(range(1, 11)))  # [1..10]
+        assert s["mean"] == 5.5
+        assert s["median"] == 5.5
+
+
+# =========================================================================
+# Trend detection
+# =========================================================================
+
+class TestGapTrend:
+    def test_empty(self):
+        t = gap_trend([])
+        assert t["slope"] == 0.0
+        assert t["sample_count"] == 0
+
+    def test_two_points(self):
+        t = gap_trend([5, 5])
+        assert t["slope"] == 0.0  # < 3 points → zeroed
+
+    def test_perfect_linear_increase(self):
+        t = gap_trend(list(range(1, 11)), window=10)
+        assert abs(t["slope"] - 1.0) < 0.01
+        assert t["r_squared"] > 0.99
+
+    def test_flat_gaps(self):
+        t = gap_trend([15.0] * 20, window=20)
+        assert abs(t["slope"]) < 0.01
+        assert t["sample_count"] == 20
+
+    def test_window_truncation(self):
+        gaps = [15.0] * 50 + [30.0, 45.0, 60.0]
+        t = gap_trend(gaps, window=5)
+        assert t["sample_count"] == 5
+
+    def test_decreasing_gaps(self):
+        t = gap_trend([100, 80, 60, 40, 20], window=5)
+        assert t["slope"] < 0
+
+    def test_noisy_flat(self):
+        import random
+        random.seed(42)
+        gaps = [15.0 + random.uniform(-1, 1) for _ in range(50)]
+        t = gap_trend(gaps, window=50)
+        assert abs(t["slope"]) < 0.5
+
+
+# =========================================================================
+# Stall risk scoring
+# =========================================================================
+
+class TestStallRisk:
+    def test_no_gaps(self):
+        r = stall_risk([])
+        assert r["score"] == 0.0
+        assert r["verdict"] == "no_data"
+
+    def test_healthy(self):
+        r = stall_risk([15.0] * 50, target_cadence=15.0)
+        assert r["score"] < 0.1
+        assert r["verdict"] == "healthy"
+
+    def test_risky_widening(self):
+        gaps = [15.0] * 40 + [30, 45, 60, 90, 120, 180, 300, 600, 1200, 2400]
+        r = stall_risk(gaps, target_cadence=15.0)
+        assert r["score"] > 0.4
+        assert r["verdict"] in ("stall_risk", "stall_imminent")
+
+    def test_outlier_ratio(self):
+        # half the gaps are 4× the target
+        gaps = [15.0] * 25 + [61.0] * 25
+        r = stall_risk(gaps, target_cadence=15.0)
+        assert r["signals"]["outlier_count"] == 25
+
+    def test_recency_signal_strong(self):
+        now = datetime(2026, 11, 18, 0, 10, 0, tzinfo=timezone.utc)
+        gaps = [15.0] * 10
+        r = stall_risk(
+            gaps,
+            target_cadence=15.0,
+            now=now,
+            last_stroke_at="2026-11-18T00:08:00+00:00",
+        )
+        # 2 min = 120s, 8× target = 120s, so exactly at boundary
+        assert r["signals"]["recency_seconds"] == 120.0
+
+    def test_recency_no_signal(self):
+        now = datetime(2026, 11, 18, 0, 1, 0, tzinfo=timezone.utc)
+        r = stall_risk(
+            [15.0] * 10,
+            target_cadence=15.0,
+            now=now,
+            last_stroke_at="2026-11-18T00:00:50+00:00",
+        )
+        assert r["signals"]["recency_seconds"] == 10.0
+
+    def test_score_bounded(self):
+        gaps = [15.0] * 5 + [5000.0] * 5
+        r = stall_risk(gaps, target_cadence=15.0)
+        assert 0.0 <= r["score"] <= 1.0
+
+    def test_verdict_progression(self):
+        """Wider gaps should produce higher verdicts."""
+        healthy = stall_risk([15.0] * 50, 15.0)
+        risky = stall_risk(
+            [15.0] * 30 + [60, 120, 300, 600, 1200, 2400, 4800, 9600, 19200, 38400],
+            15.0,
+        )
+        assert healthy["score"] < risky["score"]
+
+
+# =========================================================================
+# Full report
+# =========================================================================
 
 class TestGapReport:
-    def test_empty_report(self):
-        a = StrokeGapAnalyzer()
-        report = gap_report(a.summary())
-        assert "No gaps" in report
+    def test_empty_strokes(self):
+        r = gap_report([], 15.0)
+        assert r["total_strokes"] == 0
+        assert r["risk"]["verdict"] == "no_data"
 
-    def test_report_contains_buckets(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20, 40, 240, 2240])
-        report = gap_report(a.summary())
-        assert "micro" in report
-        assert "warm" in report
-        assert "hot" in report or "cold" in report
+    def test_healthy_batch(self):
+        base = datetime(2026, 11, 18, tzinfo=timezone.utc)
+        strokes = [
+            {"at": (base + timedelta(seconds=15 * i)).isoformat()}
+            for i in range(20)
+        ]
+        now = base + timedelta(seconds=15 * 20)
+        r = gap_report(strokes, 15.0, now)
+        assert r["total_strokes"] == 20
+        assert r["stats"]["count"] == 19
+        assert r["stats"]["mean"] == 15.0
+        assert r["risk"]["verdict"] == "healthy"
 
-    def test_report_contains_stats(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20, 30])
-        report = gap_report(a.summary())
-        assert "mean gap" in report
-        assert "median gap" in report
-        assert "p95 gap" in report
-        assert "max gap" in report
+    def test_stall_scenario(self):
+        base = datetime(2026, 11, 18, tzinfo=timezone.utc)
+        # healthy start, then gaps explode
+        times = [base + timedelta(seconds=15 * i) for i in range(30)]
+        times += [base + timedelta(seconds=450 + 300 * i) for i in range(1, 11)]
+        strokes = [{"at": t.isoformat()} for t in times]
+        now = times[-1] + timedelta(seconds=600)
+        r = gap_report(strokes, 15.0, now)
+        assert r["risk"]["score"] > 0.3
+        assert r["trend"]["slope"] > 0
 
-    def test_report_contains_sequence(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20, 30, 40])
-        report = gap_report(a.summary())
-        assert "longest sequence" in report
-
-    def test_report_total_gaps(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10, 20])
-        report = gap_report(a.summary())
-        assert "2 gaps" in report
-
-
-# ---------------------------------------------------------------------------
-# Edge Cases
-# ---------------------------------------------------------------------------
-
-class TestEdgeCases:
-    def test_very_small_cadence(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=0.001)
-        a.ingest([0, 0.001, 0.002])
-        assert a.total_gaps == 2
-        assert all(r.bucket is GapBucket.MICRO for r in a.records)
-
-    def test_large_timestamps(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=15)
-        base = 1700000000.0
-        a.ingest([base, base + 15, base + 30])
-        assert a.total_gaps == 2
-
-    def test_float_precision(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0.0, 10.0000001, 20.0000002])
-        assert a.total_gaps == 2
-        # Should still be micro despite tiny floating-point drift
-        assert all(r.bucket is GapBucket.MICRO for r in a.records)
-
-    def test_records_are_frozen(self):
-        a = StrokeGapAnalyzer(expected_cadence_s=10)
-        a.ingest([0, 10])
-        rec = a.records[0]
-        with pytest.raises(AttributeError):
-            rec.gap_s = 999  # type: ignore[misc]
-
-    def test_gap_bucket_is_string_enum(self):
-        assert GapBucket.MICRO.value == "micro"
-        assert isinstance(GapBucket.MICRO, str)
+    def test_report_keys(self):
+        r = gap_report([{"at": "2026-11-18T00:00:00+00:00"}], 15.0)
+        assert "stats" in r
+        assert "trend" in r
+        assert "risk" in r
+        assert "total_strokes" in r

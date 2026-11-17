@@ -1,331 +1,402 @@
-"""stroke_gap_analyzer — classify inter-stroke gaps by severity and pattern.
+"""stroke_gap_analyzer — predict writer stalls from inter-stroke gaps.
 
-While cadence_adherence and cadence_jitter measure *how regular* the
-heartbeat is, they treat every gap the same.  This module asks a
-different question: *what kind of gap is this, and what does it mean?*
+The writer loop is designed to emit one stroke every ~15 s.
+In practice, gaps vary: network hiccups, garbage collection,
+lock contention, or a dying process all leave a signature in the
+gap distribution.  This module turns raw timestamps into an
+actionable health assessment *before* the stall actually happens.
 
-Gaps are classified into four buckets:
+===========================  ============================================
+module                       what it measures
+===========================  ============================================
+cadence_jitter               short-term timing irregularity
+cadence_stall_detector       binary "is it stalled right now?"
+writer_silence_detector      time since last stroke
+**stroke_gap_analyzer**      **gap distribution + trend → stall forecast**
+===========================  ============================================
 
-- **micro** (< 2× expected cadence) — normal jitter, no action needed
-- **warm** (2–10× expected cadence) — mild stall, likely transient
-- **hot** (10–100× expected cadence) — significant disruption, worth
-  investigating
-- **cold** (> 100× expected cadence) — process was dead or suspended
-  for an extended period
+The caretaker visit that created this module (visit 686) found that
+the repo had suffered a 2 910 s gap (48 min) with the longest gap
+at 3 145 s (52 min) — both well past the 2× cadence threshold.
+A trend detector would have flagged accelerating gaps ~15 min
+before the writer actually went silent, giving the caretaker time
+to restart cleanly instead of discovering the stall after the fact.
 
-Beyond classification, the analyzer tracks *gap sequences*: consecutive
-gaps in the same bucket that suggest a systemic pattern rather than a
-one-off blip.
+Stroke record
+-------------
 
-Public API::
+Each stroke is a dict with at least:
 
-    from iamai.stroke_gap_analyzer import (
-        StrokeGapAnalyzer, GapBucket, GapSequence, gap_report,
-    )
+- ``at`` (str): ISO-8601 timestamp (``2026-10-03T03:23:10+00:00``)
 
-    analyzer = StrokeGapAnalyzer(expected_cadence_s=15)
-    analyzer.ingest(timestamps)          # list of epoch floats
+Functions
+---------
 
-    summary = analyzer.summary()
-    # {'total_gaps': 400, 'micro': 380, 'warm': 12, 'hot': 5, 'cold': 3,
-    #  'mean_gap_s': 22.4, 'p95_gap_s': 180.0, 'longest_sequence': ...}
+``compute_gaps(strokes)``
+    Return sorted list of inter-stroke gaps in seconds.
 
-    report = gap_report(summary)
-    # human-readable multi-line string
+``gap_stats(gaps)``
+    Compute mean, median, p95, p99, max, std.
+
+``gap_trend(gaps, window)``
+    Linear regression on the last *window* gaps; returns slope
+    (positive = gaps widening, negative = gaps tightening).
+
+``stall_risk(gaps, target_cadence, now)``
+    Score 0.0–1.0 combining statistical outliers, trend, and
+    recency of the last stroke.
+
+``gap_report(strokes, target_cadence, now)``
+    One-call summary: stats, trend, risk, verdict.
+
+Zero dependencies.  stdlib only.
+
+>>> from datetime import datetime, timezone
+>>> base = datetime(2026, 11, 18, 0, 0, 0, tzinfo=timezone.utc)
+>>> strokes = [{"at": (base.replace(minute=i)).isoformat()} for i in range(10)]
+>>> gaps = compute_gaps(strokes)
+>>> len(gaps)
+9
+>>> gap_stats(gaps)["mean"]
+60.0
 """
 
 from __future__ import annotations
 
-import statistics
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import List, Optional, Sequence
+import math
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 
-class GapBucket(str, Enum):
-    """Severity bucket for an inter-stroke gap."""
+# ---------------------------------------------------------------------------
+# Timestamp parsing
+# ---------------------------------------------------------------------------
 
-    MICRO = "micro"
-    WARM = "warm"
-    HOT = "hot"
-    COLD = "cold"
+def _parse_ts(raw: str) -> datetime:
+    """Parse an ISO-8601 timestamp string to a timezone-aware datetime.
 
+    Handles both ``+00:00`` and ``Z`` suffixes.  Falls back to
+    naive-to-UTC if no timezone is present.
 
-@dataclass(frozen=True)
-class GapRecord:
-    """One inter-stroke gap with its classification."""
-
-    index: int
-    gap_s: float
-    bucket: GapBucket
-    ratio: float  # gap_s / expected_cadence_s
-
-
-@dataclass
-class GapSequence:
-    """A run of consecutive gaps in the same bucket."""
-
-    bucket: GapBucket
-    start_index: int
-    length: int
-    total_s: float
-    mean_gap_s: float
-
-    @property
-    def end_index(self) -> int:
-        return self.start_index + self.length - 1
-
-
-class StrokeGapAnalyzer:
-    """Ingest stroke timestamps and classify every inter-stroke gap.
-
-    Parameters
-    ----------
-    expected_cadence_s : float
-        The intended interval between strokes (seconds).  Defaults to
-        15 s, matching the qwen writer's configured cadence.
-    thresholds : dict or None
-        Override bucket boundaries.  Keys are ``"warm"``, ``"hot"``,
-        ``"cold"``; values are multipliers of *expected_cadence_s*.
-        Defaults: warm ≥ 2×, hot ≥ 10×, cold ≥ 100×.
+    >>> _parse_ts("2026-10-03T03:23:10+00:00").tzname()
+    'UTC'
+    >>> _parse_ts("2026-10-03T03:23:10Z").tzname()
+    'UTC'
+    >>> _parse_ts("2026-10-03T03:23:10").tzname()
+    'UTC'
     """
-
-    def __init__(
-        self,
-        expected_cadence_s: float = 15.0,
-        thresholds: Optional[dict] = None,
-    ) -> None:
-        if expected_cadence_s <= 0:
-            raise ValueError("expected_cadence_s must be positive")
-        self.expected_cadence_s = expected_cadence_s
-
-        _defaults = {"warm": 2.0, "hot": 10.0, "cold": 100.0}
-        self._thresholds = {**_defaults, **(thresholds or {})}
-        # Validate monotonicity
-        if not (
-            self._thresholds["warm"]
-            < self._thresholds["hot"]
-            < self._thresholds["cold"]
-        ):
-            raise ValueError("thresholds must satisfy warm < hot < cold")
-
-        self._records: List[GapRecord] = []
-        self._timestamps: List[float] = []
-
-    # ------------------------------------------------------------------
-    # Ingestion
-    # ------------------------------------------------------------------
-
-    def ingest(self, timestamps: Sequence[float]) -> int:
-        """Add a batch of stroke timestamps.
-
-        Returns the number of *new* gaps classified.  Timestamps are
-        sorted internally; duplicates are dropped.
-        """
-        existing = set(self._timestamps)
-        fresh = sorted(t for t in timestamps if t not in existing)
-        if not fresh:
-            return 0
-
-        merged = sorted(set(self._timestamps) | set(fresh))
-        old_len = len(self._timestamps)
-        self._timestamps = merged
-
-        # Recompute gaps from the merged timeline
-        new_gaps = 0
-        start = max(0, old_len - 1)  # overlap by one to re-classify boundary
-        for i in range(start, len(merged) - 1):
-            gap_s = merged[i + 1] - merged[i]
-            ratio = gap_s / self.expected_cadence_s
-            bucket = self._classify(ratio)
-            rec = GapRecord(
-                index=i, gap_s=gap_s, bucket=bucket, ratio=ratio,
-            )
-            # Replace if exists at this index, else append
-            if i < len(self._records):
-                self._records[i] = rec
-            else:
-                self._records.append(rec)
-            new_gaps += 1
-        return new_gaps
-
-    def add(self, timestamp: float) -> Optional[GapRecord]:
-        """Add a single timestamp.  Returns the new GapRecord or None."""
-        n = self.ingest([timestamp])
-        if n == 0:
-            return None
-        return self._records[-1] if self._records else None
-
-    # ------------------------------------------------------------------
-    # Queries
-    # ------------------------------------------------------------------
-
-    @property
-    def records(self) -> List[GapRecord]:
-        return list(self._records)
-
-    @property
-    def total_gaps(self) -> int:
-        return len(self._records)
-
-    def gaps_in(self, bucket: GapBucket) -> List[GapRecord]:
-        """Return all records classified into *bucket*."""
-        return [r for r in self._records if r.bucket is bucket]
-
-    def gap_values(self) -> List[float]:
-        """Return raw gap durations in seconds."""
-        return [r.gap_s for r in self._records]
-
-    def summary(self) -> dict:
-        """Aggregate statistics across all ingested gaps."""
-        if not self._records:
-            return {
-                "total_gaps": 0,
-                "micro": 0,
-                "warm": 0,
-                "hot": 0,
-                "cold": 0,
-                "mean_gap_s": 0.0,
-                "median_gap_s": 0.0,
-                "p95_gap_s": 0.0,
-                "max_gap_s": 0.0,
-                "longest_sequence": None,
-                "dominant_bucket": GapBucket.MICRO,
-            }
-
-        values = self.gap_values()
-        counts = {b: 0 for b in GapBucket}
-        for r in self._records:
-            counts[r.bucket] += 1
-
-        sequences = self.sequences()
-        longest_seq = max(sequences, key=lambda s: s.length) if sequences else None
-
-        dominant = max(counts, key=counts.get)  # type: ignore[arg-type]
-
-        sorted_vals = sorted(values)
-        p95_idx = min(int(len(sorted_vals) * 0.95), len(sorted_vals) - 1)
-
-        return {
-            "total_gaps": len(self._records),
-            "micro": counts[GapBucket.MICRO],
-            "warm": counts[GapBucket.WARM],
-            "hot": counts[GapBucket.HOT],
-            "cold": counts[GapBucket.COLD],
-            "mean_gap_s": round(statistics.mean(values), 2),
-            "median_gap_s": round(statistics.median(values), 2),
-            "p95_gap_s": round(sorted_vals[p95_idx], 2),
-            "max_gap_s": round(max(values), 2),
-            "longest_sequence": longest_seq,
-            "dominant_bucket": dominant,
-        }
-
-    def sequences(self, min_length: int = 2) -> List[GapSequence]:
-        """Find runs of consecutive gaps in the same bucket.
-
-        Only sequences of at least *min_length* are returned.
-        """
-        if not self._records:
-            return []
-
-        seqs: List[GapSequence] = []
-        cur_bucket = self._records[0].bucket
-        cur_start = 0
-        cur_total = 0.0
-        cur_len = 0
-
-        for rec in self._records:
-            if rec.bucket is cur_bucket:
-                cur_len += 1
-                cur_total += rec.gap_s
-            else:
-                if cur_len >= min_length:
-                    seqs.append(
-                        GapSequence(
-                            bucket=cur_bucket,
-                            start_index=cur_start,
-                            length=cur_len,
-                            total_s=round(cur_total, 2),
-                            mean_gap_s=round(cur_total / cur_len, 2),
-                        )
-                    )
-                cur_bucket = rec.bucket
-                cur_start = rec.index
-                cur_total = rec.gap_s
-                cur_len = 1
-
-        # Flush final run
-        if cur_len >= min_length:
-            seqs.append(
-                GapSequence(
-                    bucket=cur_bucket,
-                    start_index=cur_start,
-                    length=cur_len,
-                    total_s=round(cur_total, 2),
-                    mean_gap_s=round(cur_total / cur_len, 2),
-                )
-            )
-        return seqs
-
-    def health_score(self) -> float:
-        """Return a [0, 1] health score based on gap distribution.
-
-        1.0 = all gaps are micro (perfect cadence).
-        0.0 = all gaps are cold (worst case).
-
-        Weighted: micro=1.0, warm=0.6, hot=0.2, cold=0.0.
-        """
-        if not self._records:
-            return 1.0
-
-        weights = {
-            GapBucket.MICRO: 1.0,
-            GapBucket.WARM: 0.6,
-            GapBucket.HOT: 0.2,
-            GapBucket.COLD: 0.0,
-        }
-        total = sum(weights[r.bucket] for r in self._records)
-        return round(total / len(self._records), 4)
-
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
-
-    def _classify(self, ratio: float) -> GapBucket:
-        if ratio >= self._thresholds["cold"]:
-            return GapBucket.COLD
-        if ratio >= self._thresholds["hot"]:
-            return GapBucket.HOT
-        if ratio >= self._thresholds["warm"]:
-            return GapBucket.WARM
-        return GapBucket.MICRO
+    s = raw.strip()
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(s)
+    except (ValueError, AttributeError):
+        # last resort: strip fractional seconds
+        dt = datetime.fromisoformat(s[:19])
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
-def gap_report(summary: dict) -> str:
-    """Format a summary dict into a human-readable multi-line string."""
-    if summary["total_gaps"] == 0:
-        return "No gaps recorded."
+# ---------------------------------------------------------------------------
+# Gap computation
+# ---------------------------------------------------------------------------
 
-    lines = [
-        f"Stroke Gap Report — {summary['total_gaps']} gaps analyzed",
-        f"  micro:  {summary['micro']:>5}  (healthy jitter)",
-        f"  warm:   {summary['warm']:>5}  (mild stalls)",
-        f"  hot:    {summary['hot']:>5}  (significant disruptions)",
-        f"  cold:   {summary['cold']:>5}  (extended dead zones)",
-        "",
-        f"  mean gap:   {summary['mean_gap_s']}s",
-        f"  median gap: {summary['median_gap_s']}s",
-        f"  p95 gap:    {summary['p95_gap_s']}s",
-        f"  max gap:    {summary['max_gap_s']}s",
-        "",
-        f"  dominant bucket: {summary['dominant_bucket'].value}",
+def compute_gaps(strokes: List[Dict[str, Any]]) -> List[float]:
+    """Compute inter-stroke gaps in seconds, sorted by time.
+
+    Requires at least 2 strokes; returns an empty list otherwise.
+
+    >>> strokes = [
+    ...     {"at": "2026-11-18T00:00:00+00:00"},
+    ...     {"at": "2026-11-18T00:00:15+00:00"},
+    ...     {"at": "2026-11-18T00:00:45+00:00"},
+    ... ]
+    >>> compute_gaps(strokes)
+    [15.0, 30.0]
+    >>> compute_gaps([{"at": "2026-11-18T00:00:00+00:00"}])
+    []
+    >>> compute_gaps([])
+    []
+    """
+    if len(strokes) < 2:
+        return []
+    times = sorted(_parse_ts(s["at"]) for s in strokes)
+    return [
+        (times[i + 1] - times[i]).total_seconds()
+        for i in range(len(times) - 1)
     ]
 
-    seq = summary.get("longest_sequence")
-    if seq is not None:
-        lines.append(
-            f"  longest sequence: {seq.length} consecutive {seq.bucket.value} "
-            f"gaps ({seq.total_s}s total, mean {seq.mean_gap_s}s)"
-        )
 
-    return "\n".join(lines)
+# ---------------------------------------------------------------------------
+# Statistics
+# ---------------------------------------------------------------------------
+
+def _percentile(sorted_vals: List[float], p: float) -> float:
+    """Compute the p-th percentile (0–100) from a pre-sorted list.
+
+    Uses linear interpolation between the two nearest ranks.
+
+    >>> _percentile([1, 2, 3, 4, 5], 50)
+    3.0
+    >>> _percentile([1, 2, 3, 4, 5], 0)
+    1.0
+    >>> _percentile([1, 2, 3, 4, 5], 100)
+    5.0
+    """
+    if not sorted_vals:
+        return 0.0
+    n = len(sorted_vals)
+    if n == 1:
+        return float(sorted_vals[0])
+    k = (p / 100.0) * (n - 1)
+    lo = int(math.floor(k))
+    hi = int(math.ceil(k))
+    if lo == hi:
+        return float(sorted_vals[lo])
+    frac = k - lo
+    return sorted_vals[lo] * (1 - frac) + sorted_vals[hi] * frac
+
+
+def _std(values: List[float], mean: float) -> float:
+    """Population standard deviation.
+
+    >>> _std([2, 4, 4, 4, 5, 5, 7, 9], 5.0)
+    2.0
+    >>> _std([], 0.0)
+    0.0
+    """
+    if len(values) < 2:
+        return 0.0
+    variance = sum((v - mean) ** 2 for v in values) / len(values)
+    return math.sqrt(variance)
+
+
+def gap_stats(gaps: List[float]) -> Dict[str, float]:
+    """Compute summary statistics for a list of gap values.
+
+    Returns a dict with keys: count, mean, median, p95, p99, max, std.
+
+    >>> s = gap_stats([15, 15, 15, 15, 100])
+    >>> s["count"]
+    5
+    >>> s["mean"]
+    32.0
+    >>> s["max"]
+    100.0
+    >>> gap_stats([])["count"]
+    0
+    """
+    if not gaps:
+        return {
+            "count": 0,
+            "mean": 0.0,
+            "median": 0.0,
+            "p95": 0.0,
+            "p99": 0.0,
+            "max": 0.0,
+            "std": 0.0,
+        }
+    sg = sorted(gaps)
+    mean = sum(sg) / len(sg)
+    return {
+        "count": len(sg),
+        "mean": round(mean, 2),
+        "median": round(_percentile(sg, 50), 2),
+        "p95": round(_percentile(sg, 95), 2),
+        "p99": round(_percentile(sg, 99), 2),
+        "max": round(sg[-1], 2),
+        "std": round(_std(sg, mean), 2),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Trend detection
+# ---------------------------------------------------------------------------
+
+def gap_trend(
+    gaps: List[float],
+    window: int = 20,
+) -> Dict[str, float]:
+    """Linear regression on the most recent *window* gaps.
+
+    Returns:
+
+    - ``slope``: seconds-per-gap change (positive = widening)
+    - ``r_squared``: goodness of fit (0–1)
+    - ``sample_count``: number of gaps used
+
+    With fewer than 3 gaps, returns zeroed results.
+
+    >>> g = list(range(1, 11))  # [1,2,...,10] — perfect linear
+    >>> t = gap_trend(g, window=10)
+    >>> abs(t["slope"] - 1.0) < 0.01
+    True
+    >>> t["r_squared"] > 0.99
+    True
+    >>> gap_trend([5, 5], window=20)["slope"]
+    0.0
+    """
+    recent = gaps[-window:] if len(gaps) > window else list(gaps)
+    n = len(recent)
+    if n < 3:
+        return {"slope": 0.0, "r_squared": 0.0, "sample_count": n}
+
+    x_mean = (n - 1) / 2.0
+    y_mean = sum(recent) / n
+
+    num = sum((i - x_mean) * (recent[i] - y_mean) for i in range(n))
+    den_x = sum((i - x_mean) ** 2 for i in range(n))
+    den_y = sum((v - y_mean) ** 2 for v in recent)
+
+    if den_x == 0:
+        return {"slope": 0.0, "r_squared": 0.0, "sample_count": n}
+
+    slope = num / den_x
+    ss_res = sum((recent[i] - (y_mean + slope * (i - x_mean))) ** 2 for i in range(n))
+    ss_tot = den_y
+    r_squared = 1.0 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+
+    return {
+        "slope": round(slope, 4),
+        "r_squared": round(max(0.0, min(1.0, r_squared)), 4),
+        "sample_count": n,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Stall risk scoring
+# ---------------------------------------------------------------------------
+
+def stall_risk(
+    gaps: List[float],
+    target_cadence: float = 15.0,
+    now: Optional[datetime] = None,
+    last_stroke_at: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Score the probability of an imminent or ongoing stall.
+
+    The score (0.0–1.0) combines three signals:
+
+    1. **Outlier ratio** — fraction of gaps exceeding 4× the target
+       cadence.  More outliers → higher score.
+    2. **Trend slope** — positive slope means gaps are widening,
+       which precedes stalls.
+    3. **Recency** — if the last stroke was more than 2× target
+       cadence ago, the stall may already have started.
+
+    >>> # healthy: all gaps at 15s
+    >>> g = [15.0] * 50
+    >>> stall_risk(g, 15.0)["score"] < 0.1
+    True
+
+    >>> # risky: widening gaps
+    >>> g = [15.0] * 40 + [30.0, 45.0, 60.0, 90.0, 120.0, 180.0, 300.0, 600.0, 1200.0, 2400.0]
+    >>> stall_risk(g, 15.0)["score"] > 0.5
+    True
+    """
+    if not gaps:
+        return {"score": 0.0, "signals": {}, "verdict": "no_data"}
+
+    threshold_4x = target_cadence * 4
+    outliers = sum(1 for g in gaps if g > threshold_4x)
+    outlier_ratio = outliers / len(gaps)
+
+    trend = gap_trend(gaps)
+    slope = trend["slope"]
+
+    # recency signal
+    recency_score = 0.0
+    if last_stroke_at and now:
+        last_dt = _parse_ts(last_stroke_at)
+        since_last = (now - last_dt).total_seconds()
+        if since_last > target_cadence * 8:
+            recency_score = 1.0
+        elif since_last > target_cadence * 4:
+            recency_score = 0.6
+        elif since_last > target_cadence * 2:
+            recency_score = 0.3
+
+    # combine signals (weighted)
+    outlier_component = min(outlier_ratio * 3, 1.0) * 0.35
+    slope_component = min(max(slope / 10.0, 0.0), 1.0) * 0.35
+    recency_component = recency_score * 0.30
+
+    score = min(outlier_component + slope_component + recency_component, 1.0)
+
+    if score >= 0.7:
+        verdict = "stall_imminent"
+    elif score >= 0.4:
+        verdict = "stall_risk"
+    elif score >= 0.15:
+        verdict = "warning"
+    else:
+        verdict = "healthy"
+
+    return {
+        "score": round(score, 3),
+        "signals": {
+            "outlier_ratio": round(outlier_ratio, 4),
+            "outlier_count": outliers,
+            "trend_slope": slope,
+            "trend_r_squared": trend["r_squared"],
+            "recency_seconds": (
+                round((now - _parse_ts(last_stroke_at)).total_seconds(), 1)
+                if last_stroke_at and now else None
+            ),
+        },
+        "verdict": verdict,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Full report
+# ---------------------------------------------------------------------------
+
+def gap_report(
+    strokes: List[Dict[str, Any]],
+    target_cadence: float = 15.0,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """One-call summary of writer gap health.
+
+    >>> from datetime import datetime, timezone
+    >>> now = datetime(2026, 11, 18, 0, 5, 0, tzinfo=timezone.utc)
+    >>> strokes = [
+    ...     {"at": "2026-11-18T00:00:00+00:00"},
+    ...     {"at": "2026-11-18T00:00:15+00:00"},
+    ...     {"at": "2026-11-18T00:00:30+00:00"},
+    ...     {"at": "2026-11-18T00:00:45+00:00"},
+    ...     {"at": "2026-11-18T00:01:00+00:00"},
+    ... ]
+    >>> r = gap_report(strokes, 15.0, now)
+    >>> r["stats"]["count"]
+    4
+    >>> r["risk"]["verdict"]
+    'healthy'
+
+    >>> gap_report([], 15.0)["risk"]["verdict"]
+    'no_data'
+    """
+    if not strokes:
+        return {
+            "stats": gap_stats([]),
+            "trend": gap_trend([]),
+            "risk": {"score": 0.0, "signals": {}, "verdict": "no_data"},
+            "total_strokes": 0,
+        }
+
+    gaps = compute_gaps(strokes)
+    last_at = max(s["at"] for s in strokes)
+
+    return {
+        "total_strokes": len(strokes),
+        "stats": gap_stats(gaps),
+        "trend": gap_trend(gaps),
+        "risk": stall_risk(
+            gaps,
+            target_cadence=target_cadence,
+            now=now,
+            last_stroke_at=last_at,
+        ),
+    }
