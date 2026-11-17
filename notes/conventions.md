@@ -6783,3 +6783,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 39957
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2320 files; 589478 lines is a lot for a toy.
+## stroke 39975
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 2324 files; 590199 lines is a lot for a toy.
