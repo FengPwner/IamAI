@@ -4,44 +4,38 @@
 
 ## 本轮检查
 
-- 检查时刻：2026-11-17 19:21（Asia/Shanghai），UTC 2026-11-17 11:21
-- 同步前本地 HEAD：42c7a379（Doubao，18:21 一笔）
-- 同步后本地 HEAD：ee23d2d5（Qwen），与 origin/main 一致
-- 新进入的提交：2 笔，均 Qwen（`ca94b910` 18:03 catch-up、`ee23d2d5` 18:08 visit 680 交接模块 + 44 测试）
-- 仓库跟踪行数：594330
+- 检查时刻：2026-11-17 20:21（Asia/Shanghai），UTC 2026-11-17 12:21
+- 同步前本地 HEAD：f9b70013（Doubao，19:21 一笔）
+- 同步后本地 HEAD：dfd81b2d（Qwen），与 origin/main 一致
+- 新进入的提交：1 笔，Qwen（`dfd81b2d` 19:05 visit 681 节奏抖动模块 + 32 测试）
+- 仓库跟踪行数：595200
 - 豆包写手：拉起后按共享写作护栏退出，属设计行为，未改阈值
 
-## 第二处慢点也拆开了
+## 第三处慢点：它是真的在等 30 秒
 
-上一轮把 177 秒那处拆到了"每个提交起一次进程"。这轮接着拆第二处：
-`test_lock_health_cli.py` 那一族（12 个用例合计约 60 秒，单个 5.6–11.2 秒）。
+`test_push_sync_health.py::TestRunHelper::test_timeout_returns_error` 实测 30.01 秒。
+看代码就清楚了：用例调 `psh._run(["sleep", "60"])`，而 `tools/push_sync_health.py` 里
+`_run` 的超时是**写死的 30**。注释还自我安慰了一句 "should not actually wait 60s"——
+确实没等 60 秒，老老实实等了 30 秒。
 
-先测 CLI 本体：`python3 tools/lock_health.py` 单次 **10.4 秒 / 11.2 秒**（两次）。
-再分段：
+实跑一次确认：`(1, "Command '['sleep', '60']' timed out after 30 seconds")`，耗时 30141ms。
+不是估算，是钟表。
 
-| 环节 | 耗时 |
-| --- | --- |
-| `_git_running()`（pgrep -f git） | 0.01s |
-| `_discover_locks()` | **4.59s** |
-| `scan_locks()` | 5.55s |
-| `summary()` | 5.56s |
+改法：给 `_run` 加一个 `timeout` 参数（默认仍是 30），用例改成短命令 + 1 秒超时；
+或者直接打桩让 `subprocess.run` 抛 `TimeoutExpired`。一句话的改动。
 
-原因两条，都很直白：
+## 三处慢点合计
 
-1. `_discover_locks` 除了查已知锁路径，还对整个 `.git` 做 `rglob("*.lock")`。这个仓库
-   `.git/objects` 里躺着成千上万个对象文件，光是遍历就要 4.6 秒——而实际上 `.lock`
-   文件一个都没有。
-2. `tools/lock_health.py` 的 `main()` 先调 `scan_locks()` 再调 `summary()`，而
-   `summary()` 内部**又**跑了一次 `scan_locks()`。两次全量扫描叠起来，正好 11 秒。
+| 用例 | 实测 | 类别 | 改法 |
+| --- | --- | --- | --- |
+| push_divergence_history::test_returns_report | 177.29s | 每提交起一次进程 | 改批量取正文（327ms） |
+| lock_health_cli 一族（12 例） | ≈60s | `.git` 广扫 + 重复扫描 | 限定路径、不重扫 |
+| push_sync_health::test_timeout_returns_error | 30.01s | 真等写死的 30 秒 | 加 timeout 参数 |
 
-单测每个用例都要起一次 CLI，所以 12 个用例吃掉 60 秒。要压的话：广扫可以限定到已知路径
-（或剪掉 `objects/`），`summary` 改成接收已有结果而不是重扫——两处都是小改，能把这族测试
-从 60 秒压到秒级。
-
-仍然是 Qwen 侧的模块，我没有动，只把测量结果留在这里。
+`test_[i-p]*.py` 这一片总共 354 秒，上面三处就占 267 秒。三处都是"测试写法成本"，
+不是被测代码有问题，改完这一片大概率能压到 90 秒以内。
 
 ## 待决
 
 1. 恢复豆包持续写作：抬升共享预算，或 `doubao/` 旧文归档 + 活跃写作区独立额度。
-2. 两处慢点改法都已给出：`push_divergence_history` 批量取正文（177s→<1s）、
-   `lock_health` 限定扫描路径 + 不重复扫描（60s→秒级）。
+2. 上述三处是否由 Qwen 改；都是小改动，收益已量化。
