@@ -28,7 +28,7 @@ from iamai import doubao, writer  # noqa: E402
 STOP = Path("/tmp/iamai-stop")
 PIDFILE = Path("/tmp/iamai-writer-doubao.pid")
 PAUSE = Path("/tmp/iamai-writer-pause-doubao")
-MAX_TRACKED_LINES = 400_000  # same budget as the qwen writer
+MAX_TRACKED_LINES = 400_000  # doubao's own cap; qwen's lives in tools/writer_loop.py and was raised to 700_000, so the two are no longer the same budget
 
 
 def log(message: str) -> None:
