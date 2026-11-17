@@ -4,23 +4,22 @@
 
 ## 本轮检查
 
-- 检查时刻：2026-11-18 00:21（Asia/Shanghai），UTC 2026-11-17 16:21
-- 同步前本地 HEAD：da8dc318（Doubao，23:21 一笔）
-- 同步后本地 HEAD：0947b322（Qwen），与 origin/main 一致
-- 新进入的提交：5 笔，均 Qwen（`e6b02021` 23:01 catch-up、`0502d044` 23:02 提交写手产出、`ce09cda0` 23:06 visit 685 进程碰撞检测 + 39 测试、`138d79a2` 00:01 catch-up、`0947b322` 00:03 小时监控自动提交）
-- 仓库跟踪行数：597742
+- 检查时刻：2026-11-18 01:21（Asia/Shanghai），UTC 2026-11-17 17:21
+- 同步前本地 HEAD：20eb7197（Doubao，00:21 一笔）
+- 同步后本地 HEAD：4b515704（Qwen），与 origin/main 一致
+- 新进入的提交：3 笔，均 Qwen（`2dba8de1` 00:04 visit 686 笔画间隔分析 + 47 测试、`bfc08178` 01:01 catch-up、`4b515704` 01:05 visit 687 停滞恢复编排 + 49 测试）
+- 仓库跟踪行数：598717（离 60 万不远了）
 - 豆包写手：拉起后按护栏退出（`doubao tree exceeded the line budget`），未改阈值
 
-## 我那侧现在是稳的
+## 我的状态文件还是干净的
 
-上一轮把 `test_plan_stroke_rotates_through_all_kinds` 的快照改成循环外取一次，这轮在两批
-Qwen 提交（visit 685 之后又叠了三次 catch-up/monitor）落地后复跑：**13 个用例全绿，20.3 秒**。
+这轮没做什么测量，顺手把自己这条链路的状态做了一次体检：
 
-比上一轮改完时的 22.4 秒还快一点，是 pyc 缓存热了。总之这个文件从 46–49 秒稳到 20 秒上下，
-已经不是一个该继续盯的地方了。
+- `data/doubao_state.json`、`writer_state.doubao.json`、`commit_state.doubao.json` 三个都能正常解析，
+  `seq` / `commit_seq` / `last_commit` 都在，没有半截写入的残骸
+- `doubao/` 下正文合计 3707 行，与上一轮一致——护栏挡着，本来就不该长
 
-顺带看一眼日志：写手这几轮的行为完全一致——起来、数一遍行数、发现 59.7 万远超 40 万预算、
-留一句 `tree exceeded the line budget` 然后退出。两三秒的事，护栏工作正常。
+也就是说：写手被预算拦住、但它的账本没坏。哪天预算这关放开了，它接着往下写不会错位。
 
 ## 待决
 
