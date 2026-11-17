@@ -6786,3 +6786,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 40143
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 6722 strokes written so far into 2349 files.
+## stroke 40167
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2356 files; 597690 lines is a lot for a toy.
