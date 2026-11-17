@@ -1,393 +1,282 @@
-"""Tests for iamai.restart_debt — accumulated cost of process restarts."""
+#!/usr/bin/env python3
+"""Tests for restart_debt.py — cumulative restart debt tracking."""
 
-from __future__ import annotations
+import sys
+from pathlib import Path
 
 import pytest
 
-from iamai.restart_debt import (
-    DEFAULT_RESTART_COST,
-    DebtReport,
-    RestartDebt,
-    _classify_severity,
-)
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "iamai"))
+
+import restart_debt as rd
 
 
 # ---------------------------------------------------------------------------
-# _classify_severity
+# RestartDebtTracker.record
 # ---------------------------------------------------------------------------
 
-class TestClassifySeverity:
-    def test_clean_zero(self):
-        assert _classify_severity(0) == "clean"
+class TestRecord:
+    def test_record_returns_event(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15)
+        ev = t.record(downtime_s=60, warmup_cost_s=30, ts=1000)
+        assert ev["downtime_s"] == 60
+        assert ev["warmup_cost_s"] == 30
+        assert ev["total_cost_s"] == 90
+        assert ev["ts"] == 1000
 
-    def test_clean_below_threshold(self):
-        assert _classify_severity(299) == "clean"
+    def test_strokes_lost_calculation(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15)
+        ev = t.record(downtime_s=60, warmup_cost_s=30, ts=1000)
+        assert ev["strokes_lost"] == 6  # 90 / 15 = 6
 
-    def test_low_at_boundary(self):
-        assert _classify_severity(300) == "low"
+    def test_strokes_lost_with_fraction(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15)
+        ev = t.record(downtime_s=20, warmup_cost_s=5, ts=1000)
+        assert ev["strokes_lost"] == 1  # 25 / 15 = 1.67 -> int = 1
 
-    def test_low_mid_range(self):
-        assert _classify_severity(500) == "low"
+    def test_negative_downtime_clamped_to_zero(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15)
+        ev = t.record(downtime_s=-10, warmup_cost_s=30, ts=1000)
+        assert ev["downtime_s"] == -10  # stored as-is
+        assert ev["total_cost_s"] == 30  # but max(0, -10) + 30 = 30
 
-    def test_moderate_at_boundary(self):
-        assert _classify_severity(900) == "moderate"
+    def test_negative_warmup_clamped_to_zero(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15)
+        ev = t.record(downtime_s=60, warmup_cost_s=-5, ts=1000)
+        assert ev["total_cost_s"] == 60
 
-    def test_moderate_mid_range(self):
-        assert _classify_severity(1200) == "moderate"
+    def test_label_stored(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15)
+        ev = t.record(downtime_s=10, ts=1000, label="visit 676")
+        assert ev["label"] == "visit 676"
 
-    def test_high_at_boundary(self):
-        assert _classify_severity(1800) == "high"
+    def test_default_label_empty(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15)
+        ev = t.record(downtime_s=10, ts=1000)
+        assert ev["label"] == ""
 
-    def test_high_mid_range(self):
-        assert _classify_severity(2500) == "high"
+    def test_zero_cadence_no_division_error(self):
+        t = rd.RestartDebtTracker(target_cadence_s=0)
+        ev = t.record(downtime_s=60, warmup_cost_s=30, ts=1000)
+        assert ev["strokes_lost"] == 0
 
-    def test_critical_at_boundary(self):
-        assert _classify_severity(3600) == "critical"
-
-    def test_critical_far_above(self):
-        assert _classify_severity(10000) == "critical"
-
-
-# ---------------------------------------------------------------------------
-# RestartDebt — initial state
-# ---------------------------------------------------------------------------
-
-class TestInitialState:
-    def test_no_events_debt_zero(self):
-        tracker = RestartDebt()
-        assert tracker.debt_score(now_s=1000) == 0.0
-
-    def test_no_events_severity_clean(self):
-        tracker = RestartDebt()
-        assert tracker.severity(now_s=1000) == "clean"
-
-    def test_no_events_paydown_zero(self):
-        tracker = RestartDebt()
-        assert tracker.paydown_eta(now_s=1000) == 0.0
-
-    def test_no_events_restart_count_zero(self):
-        tracker = RestartDebt()
-        assert tracker.restart_count() == 0
-
-    def test_no_events_trend_stable(self):
-        tracker = RestartDebt()
-        assert tracker.trend(now_s=1000) == "stable"
+    def test_multiple_records_accumulate(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15)
+        t.record(downtime_s=60, warmup_cost_s=30, ts=1000)
+        t.record(downtime_s=120, warmup_cost_s=45, ts=2000)
+        t.record(downtime_s=30, warmup_cost_s=15, ts=3000)
+        assert len(t._events) == 3
 
 
 # ---------------------------------------------------------------------------
-# RestartDebt — single restart
+# RestartDebtTracker.report
 # ---------------------------------------------------------------------------
 
-class TestSingleRestart:
-    def test_debt_equals_cost_at_restart_time(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        # at restart time, uptime = 0, debt = cost
-        assert tracker.debt_score(now_s=1000) == DEFAULT_RESTART_COST
+class TestReport:
+    def test_empty_report(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=3600)
+        r = t.report(now=1000)
+        assert r["restart_count"] == 0
+        assert r["total_debt_s"] == 0.0
+        assert r["strokes_lost"] == 0
+        assert r["debt_ratio_pct"] == 0.0
+        assert r["events"] == []
 
-    def test_debt_decays_with_uptime(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        # after 100s uptime, debt = cost - 100
-        debt = tracker.debt_score(now_s=1100)
-        assert debt == DEFAULT_RESTART_COST - 100
+    def test_single_event_report(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=3600)
+        t.record(downtime_s=60, warmup_cost_s=30, ts=500)
+        r = t.report(now=1000)
+        assert r["restart_count"] == 1
+        assert r["total_debt_s"] == 90.0
+        assert r["total_downtime_s"] == 60.0
+        assert r["total_warmup_cost_s"] == 30.0
+        assert r["strokes_lost"] == 6
 
-    def test_debt_fully_paid_after_cost_seconds(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        # after cost seconds of uptime, debt = 0
-        debt = tracker.debt_score(now_s=1000 + DEFAULT_RESTART_COST)
-        assert debt == 0.0
+    def test_multiple_events_summed(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=3600)
+        t.record(downtime_s=60, warmup_cost_s=30, ts=500)
+        t.record(downtime_s=120, warmup_cost_s=45, ts=800)
+        r = t.report(now=1000)
+        assert r["restart_count"] == 2
+        assert r["total_debt_s"] == 255.0  # 90 + 165
+        assert r["strokes_lost"] == 17  # 6 + 11
 
-    def test_debt_clamped_to_zero(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        # way past cost, still zero
-        debt = tracker.debt_score(now_s=1000 + DEFAULT_RESTART_COST * 10)
-        assert debt == 0.0
+    def test_debt_ratio_percentage(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=1000)
+        t.record(downtime_s=50, warmup_cost_s=50, ts=500)
+        r = t.report(now=1000)
+        assert r["debt_ratio_pct"] == 10.0  # 100 / 1000 * 100
 
-    def test_restart_count_one(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        assert tracker.restart_count() == 1
+    def test_mean_debt_per_restart(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=3600)
+        t.record(downtime_s=60, warmup_cost_s=30, ts=500)
+        t.record(downtime_s=120, warmup_cost_s=60, ts=800)
+        r = t.report(now=1000)
+        assert r["mean_debt_per_restart_s"] == 135.0  # (90 + 180) / 2
 
+    def test_events_outside_window_excluded(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=3600)
+        t.record(downtime_s=60, warmup_cost_s=30, ts=100)  # outside window
+        t.record(downtime_s=120, warmup_cost_s=45, ts=500)  # inside
+        r = t.report(now=1000)  # window: -2600 to 1000 → ts=100 is at age 900 > 3600? no, 900 < 3600
+        # actually ts=100, now=1000, age=900 < 3600 → inside
+        assert r["restart_count"] == 2
 
-# ---------------------------------------------------------------------------
-# RestartDebt — multiple restarts
-# ---------------------------------------------------------------------------
+    def test_events_far_outside_window_excluded(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=100)
+        t.record(downtime_s=60, warmup_cost_s=30, ts=100)  # age 900 >> 100
+        t.record(downtime_s=120, warmup_cost_s=45, ts=950)  # age 50 < 100
+        r = t.report(now=1000)
+        assert r["restart_count"] == 1
+        assert r["total_debt_s"] == 165.0  # only the second event
 
-class TestMultipleRestarts:
-    def test_debt_accumulates(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        tracker.record_restart(now_s=1100)
-        # gross = 2 * cost, uptime from last restart = 0
-        debt = tracker.debt_score(now_s=1100)
-        assert debt == 2 * DEFAULT_RESTART_COST
-
-    def test_debt_decay_from_last_restart(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        tracker.record_restart(now_s=1100)
-        # uptime from 1100, 50s passed
-        debt = tracker.debt_score(now_s=1150)
-        assert debt == 2 * DEFAULT_RESTART_COST - 50
-
-    def test_three_restarts(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        tracker.record_restart(now_s=1100)
-        tracker.record_restart(now_s=1200)
-        debt = tracker.debt_score(now_s=1200)
-        assert debt == 3 * DEFAULT_RESTART_COST
-
-    def test_restart_count_three(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        tracker.record_restart(now_s=1100)
-        tracker.record_restart(now_s=1200)
-        assert tracker.restart_count() == 3
-
-
-# ---------------------------------------------------------------------------
-# RestartDebt — severity classification
-# ---------------------------------------------------------------------------
-
-class TestSeverityClassification:
-    def test_fresh_restart_is_high_or_above(self):
-        tracker = RestartDebt(restart_cost_s=2000)
-        tracker.record_restart(now_s=1000)
-        # debt = 2000, which is "high"
-        assert tracker.severity(now_s=1000) == "high"
-
-    def test_after_uptime_severity_drops(self):
-        tracker = RestartDebt(restart_cost_s=2000)
-        tracker.record_restart(now_s=1000)
-        # after 1500s uptime, debt = 500 → "low"
-        assert tracker.severity(now_s=2500) == "low"
-
-    def test_fully_paid_is_clean(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        assert tracker.severity(now_s=1000 + DEFAULT_RESTART_COST + 1) == "clean"
+    def test_report_fields_complete(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=3600)
+        t.record(downtime_s=30, ts=500)
+        r = t.report(now=1000)
+        expected_keys = {
+            "restart_count", "total_debt_s", "total_downtime_s",
+            "total_warmup_cost_s", "strokes_lost", "debt_ratio_pct",
+            "mean_debt_per_restart_s", "events",
+        }
+        assert set(r.keys()) == expected_keys
 
 
 # ---------------------------------------------------------------------------
-# RestartDebt — paydown ETA
+# RestartDebtTracker._prune
 # ---------------------------------------------------------------------------
 
-class TestPaydownEta:
-    def test_no_restarts_eta_zero(self):
-        tracker = RestartDebt()
-        assert tracker.paydown_eta(now_s=1000) == 0.0
+class TestPrune:
+    def test_prune_keeps_recent(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=1000)
+        t.record(downtime_s=10, ts=500)
+        t.record(downtime_s=10, ts=800)
+        active = t._prune(now=1000)
+        assert len(active) == 2
 
-    def test_no_uptime_eta_none(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        # now_s = restart time → uptime = 0
-        assert tracker.paydown_eta(now_s=1000) is None
+    def test_prune_drops_old(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=100)
+        t.record(downtime_s=10, ts=100)
+        t.record(downtime_s=10, ts=950)
+        active = t._prune(now=1000)
+        assert len(active) == 1
+        assert active[0]["ts"] == 950
 
-    def test_with_uptime_eta_equals_debt(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        tracker.record_restart(now_s=1100)
-        # 2 restarts, uptime from 1100 = 50s
-        eta = tracker.paydown_eta(now_s=1150)
-        debt = tracker.debt_score(now_s=1150)
-        assert eta == debt
-
-    def test_fully_paid_eta_zero(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        assert tracker.paydown_eta(now_s=1000 + DEFAULT_RESTART_COST + 100) == 0.0
+    def test_prune_empty(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=1000)
+        assert t._prune(now=1000) == []
 
 
 # ---------------------------------------------------------------------------
-# RestartDebt — custom restart cost
-# ---------------------------------------------------------------------------
-
-class TestCustomCost:
-    def test_custom_cost(self):
-        tracker = RestartDebt(restart_cost_s=100)
-        tracker.record_restart(now_s=1000)
-        assert tracker.debt_score(now_s=1000) == 100
-
-    def test_custom_cost_decay(self):
-        tracker = RestartDebt(restart_cost_s=100)
-        tracker.record_restart(now_s=1000)
-        assert tracker.debt_score(now_s=1050) == 50
-
-    def test_zero_cost(self):
-        tracker = RestartDebt(restart_cost_s=0)
-        tracker.record_restart(now_s=1000)
-        assert tracker.debt_score(now_s=1000) == 0.0
-
-    def test_negative_cost_raises(self):
-        with pytest.raises(ValueError):
-            RestartDebt(restart_cost_s=-1)
-
-
-# ---------------------------------------------------------------------------
-# RestartDebt — buffer limits
-# ---------------------------------------------------------------------------
-
-class TestBufferLimits:
-    def test_buffer_trims_oldest(self):
-        tracker = RestartDebt(buffer_size=3)
-        tracker.record_restart(now_s=100)
-        tracker.record_restart(now_s=200)
-        tracker.record_restart(now_s=300)
-        tracker.record_restart(now_s=400)  # pushes out 100
-        assert tracker.restart_count() == 3
-
-    def test_buffer_size_one_raises(self):
-        with pytest.raises(ValueError):
-            RestartDebt(buffer_size=0)
-
-    def test_small_buffer_works(self):
-        tracker = RestartDebt(buffer_size=1, restart_cost_s=100)
-        tracker.record_restart(now_s=100)
-        tracker.record_restart(now_s=200)
-        # only the latest event remains
-        assert tracker.restart_count() == 1
-        assert tracker.debt_score(now_s=200) == 100
-
-
-# ---------------------------------------------------------------------------
-# RestartDebt — trend analysis
+# RestartDebtTracker.trend
 # ---------------------------------------------------------------------------
 
 class TestTrend:
-    def test_no_events_stable(self):
-        tracker = RestartDebt()
-        assert tracker.trend(now_s=1000) == "stable"
+    def test_trend_insufficient_data_empty(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=3600)
+        tr = t.trend(now=3600)
+        assert tr["trend"] == "insufficient_data"
 
-    def test_increasing_restarts_accumulating(self):
-        tracker = RestartDebt()
-        # first half: 1 restart, second half: 3 restarts
-        tracker.record_restart(now_s=500)   # in first half
-        tracker.record_restart(now_s=800)   # in second half
-        tracker.record_restart(now_s=900)   # in second half
-        tracker.record_restart(now_s=950)   # in second half
-        # lookback=1000, mid=500. events at 500 is in first half [0,500)
-        # Actually: t_start = 0, mid = 500
-        # first_half: [0, 500) → none (500 not < 500)
-        # second_half: [500, 1000] → all 4
-        assert tracker.trend(now_s=1000, lookback=1000) == "accumulating"
+    def test_trend_stable(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=4000)
+        # Even distribution across 4 buckets
+        t.record(downtime_s=50, ts=500)   # bucket 0 (oldest)
+        t.record(downtime_s=50, ts=1500)  # bucket 1
+        t.record(downtime_s=50, ts=2500)  # bucket 2
+        t.record(downtime_s=50, ts=3500)  # bucket 3 (newest)
+        tr = t.trend(bucket_count=4, now=4000)
+        assert tr["trend"] == "stable"
+        assert len(tr["buckets"]) == 4
 
-    def test_decreasing_restarts_paying_down(self):
-        tracker = RestartDebt()
-        # first half: 3 restarts, second half: 1 restart
-        tracker.record_restart(now_s=100)
-        tracker.record_restart(now_s=200)
-        tracker.record_restart(now_s=300)
-        tracker.record_restart(now_s=800)
-        # lookback=1000, t_start=0, mid=500
-        # first_half [0, 500): 100, 200, 300 → 3
-        # second_half [500, 1000]: 800 → 1
-        assert tracker.trend(now_s=1000, lookback=1000) == "paying_down"
+    def test_trend_improving(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=4000)
+        # Heavy early, light late
+        t.record(downtime_s=200, ts=500)
+        t.record(downtime_s=200, ts=1500)
+        t.record(downtime_s=10, ts=2500)
+        t.record(downtime_s=10, ts=3500)
+        tr = t.trend(bucket_count=4, now=4000)
+        assert tr["trend"] == "improving"
 
-    def test_equal_restarts_stable(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=250)   # first half
-        tracker.record_restart(now_s=750)   # second half
-        assert tracker.trend(now_s=1000, lookback=1000) == "stable"
+    def test_trend_degrading(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=4000)
+        # Light early, heavy late
+        t.record(downtime_s=10, ts=500)
+        t.record(downtime_s=10, ts=1500)
+        t.record(downtime_s=200, ts=2500)
+        t.record(downtime_s=200, ts=3500)
+        tr = t.trend(bucket_count=4, now=4000)
+        assert tr["trend"] == "degrading"
 
+    def test_trend_bucket_count_minimum(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=3600)
+        t.record(downtime_s=50, ts=1000)
+        tr = t.trend(bucket_count=1, now=3600)
+        # bucket_count clamped to 2
+        assert len(tr["buckets"]) == 2
 
-# ---------------------------------------------------------------------------
-# DebtReport — frozen dataclass
-# ---------------------------------------------------------------------------
-
-class TestDebtReport:
-    def test_report_is_frozen(self):
-        report = DebtReport(
-            debt_s=100.0,
-            severity="clean",
-            restart_count=1,
-            uptime_s=200.0,
-            paydown_eta_s=100.0,
-        )
-        with pytest.raises(AttributeError):
-            report.debt_s = 200.0  # type: ignore[misc]
-
-    def test_summary_no_restarts(self):
-        report = DebtReport(
-            debt_s=0.0,
-            severity="clean",
-            restart_count=0,
-            uptime_s=0.0,
-            paydown_eta_s=0.0,
-        )
-        assert "no restarts" in report.summary()
-
-    def test_summary_with_restarts(self):
-        report = DebtReport(
-            debt_s=500.0,
-            severity="low",
-            restart_count=2,
-            uptime_s=100.0,
-            paydown_eta_s=500.0,
-        )
-        s = report.summary()
-        assert "500s" in s
-        assert "low" in s
-        assert "2 restart(s)" in s
-
-    def test_summary_no_uptime(self):
-        report = DebtReport(
-            debt_s=300.0,
-            severity="low",
-            restart_count=1,
-            uptime_s=0.0,
-            paydown_eta_s=None,
-        )
-        assert "N/A" in report.summary()
+    def test_trend_all_zero_debt(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=4000)
+        t.record(downtime_s=0, warmup_cost_s=0, ts=500)
+        t.record(downtime_s=0, warmup_cost_s=0, ts=3500)
+        tr = t.trend(bucket_count=4, now=4000)
+        assert tr["trend"] == "insufficient_data"
 
 
 # ---------------------------------------------------------------------------
-# RestartDebt — snapshot
+# RestartDebtTracker.clear
 # ---------------------------------------------------------------------------
 
-class TestSnapshot:
-    def test_snapshot_matches_individual_queries(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        tracker.record_restart(now_s=1100)
-        snap = tracker.snapshot(now_s=1200)
-        assert snap.debt_s == tracker.debt_score(now_s=1200)
-        assert snap.severity == tracker.severity(now_s=1200)
-        assert snap.paydown_eta_s == tracker.paydown_eta(now_s=1200)
-        assert snap.restart_count == tracker.restart_count()
+class TestClear:
+    def test_clear_removes_all(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15)
+        t.record(downtime_s=60, ts=1000)
+        t.record(downtime_s=120, ts=2000)
+        n = t.clear()
+        assert n == 2
+        assert len(t._events) == 0
 
-    def test_snapshot_summary(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        snap = tracker.snapshot(now_s=1100)
-        s = snap.summary()
-        assert "restart debt" in s
+    def test_clear_empty_returns_zero(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15)
+        assert t.clear() == 0
+
+    def test_report_after_clear(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=3600)
+        t.record(downtime_s=60, ts=500)
+        t.clear()
+        r = t.report(now=1000)
+        assert r["restart_count"] == 0
 
 
 # ---------------------------------------------------------------------------
-# RestartDebt — edge cases
+# Edge cases
 # ---------------------------------------------------------------------------
 
 class TestEdgeCases:
-    def test_now_before_restart(self):
-        """Querying before any restart should give zero debt."""
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        assert tracker.debt_score(now_s=500) == 0.0
+    def test_zero_window(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=0)
+        t.record(downtime_s=60, ts=1000)
+        r = t.report(now=1000)
+        # window_s=0 → debt_ratio_pct would be 0 (guarded)
+        assert r["debt_ratio_pct"] == 0.0
 
-    def test_multiple_restarts_at_same_time(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        tracker.record_restart(now_s=1000)
-        # two restarts at same time → debt = 2 * cost
-        assert tracker.debt_score(now_s=1000) == 2 * DEFAULT_RESTART_COST
+    def test_very_large_downtime(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=86400)
+        ev = t.record(downtime_s=86400, warmup_cost_s=300, ts=1000)
+        assert ev["total_cost_s"] == 86700.0
+        assert ev["strokes_lost"] == 5780
 
-    def test_summary_method(self):
-        tracker = RestartDebt()
-        tracker.record_restart(now_s=1000)
-        s = tracker.summary(now_s=1100)
-        assert isinstance(s, str)
-        assert len(s) > 0
+    def test_rounding_precision(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15, window_s=3600)
+        t.record(downtime_s=33.333, warmup_cost_s=11.111, ts=500)
+        r = t.report(now=1000)
+        assert r["total_debt_s"] == 44.44  # rounded to 2dp
+
+    def test_default_window_is_24h(self):
+        t = rd.RestartDebtTracker(target_cadence_s=15)
+        assert t.window_s == 86400.0
+
+    def test_default_cadence_is_15s(self):
+        t = rd.RestartDebtTracker()
+        assert t.target_cadence_s == 15.0

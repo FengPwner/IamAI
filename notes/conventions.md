@@ -6795,3 +6795,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 40029
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 6703 strokes written so far into 2332 files.
+## stroke 40035
+
+a repo that only accumulates is a landfill with a README. At this moment: tree is 2332 files; 592101 lines is a lot for a toy.
