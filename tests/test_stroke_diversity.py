@@ -1,328 +1,284 @@
-"""Tests for iamai.stroke_diversity — 42 test cases."""
+"""Tests for iamai/stroke_diversity.py — category rotation balance."""
 
-import math
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
 import pytest
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from iamai.stroke_diversity import (
-    KNOWN_CATEGORIES,
-    _category_of,
-    _empty_report,
-    analyse_strokes,
-    brief,
+    ALL_KINDS,
+    classify_diversity,
+    diversity_report,
+    diversity_summary,
+    kind_share,
+    missing_kind_count,
 )
 
 
-# ── helpers ────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# classify_diversity
+# ---------------------------------------------------------------------------
 
-def _make_strokes(counts: dict) -> list:
-    """Build a list of stroke dicts from ``{category: count}``."""
-    out = []
-    for kind, n in counts.items():
-        for _ in range(n):
-            out.append({"kind": kind, "seq": len(out)})
-    return out
+class TestClassifyDiversity:
+    def test_balanced_high(self):
+        assert classify_diversity(1.0) == "balanced"
 
+    def test_balanced_boundary(self):
+        assert classify_diversity(0.85) == "balanced"
 
-def _uniform(count_per_cat: int = 10) -> list:
-    return _make_strokes({c: count_per_cat for c in sorted(KNOWN_CATEGORIES)})
+    def test_skewed_low_boundary(self):
+        assert classify_diversity(0.8499) == "skewed"
 
+    def test_skewed_mid(self):
+        assert classify_diversity(0.75) == "skewed"
 
-# ── _category_of ───────────────────────────────────────────────────────
+    def test_skewed_high_boundary(self):
+        assert classify_diversity(0.65) == "skewed"
 
-class TestCategoryOf:
-    def test_dict_kind(self):
-        assert _category_of({"kind": "note"}) == "note"
+    def test_fixated_below_boundary(self):
+        assert classify_diversity(0.6499) == "fixated"
 
-    def test_dict_category_key(self):
-        assert _category_of({"category": "devlog"}) == "devlog"
+    def test_fixated_low(self):
+        assert classify_diversity(0.30) == "fixated"
 
-    def test_dict_missing_keys(self):
-        assert _category_of({}) == "unknown"
+    def test_fixated_zero(self):
+        assert classify_diversity(0.0) == "fixated"
 
-    def test_tuple_format(self):
-        assert _category_of(("2026-01-01", "metrics", "data")) == "metrics"
+    def test_negative_clamps_to_zero(self):
+        assert classify_diversity(-0.5) == "fixated"
 
-    def test_single_element_tuple(self):
-        assert _category_of(("lonely",)) == "unknown"
 
-    def test_plain_string(self):
-        assert _category_of("snippet") == "unknown"
+# ---------------------------------------------------------------------------
+# diversity_report — balanced input
+# ---------------------------------------------------------------------------
 
-    def test_none(self):
-        assert _category_of(None) == "unknown"
+class TestDiversityReportBalanced:
+    """Perfectly uniform distribution across all six kinds."""
 
+    @pytest.fixture()
+    def report(self):
+        kinds = list(ALL_KINDS) * 10  # 60 strokes, 10 each
+        return diversity_report(kinds)
 
-# ── analyse_strokes — empty / edge cases ───────────────────────────────
+    def test_label_balanced(self, report):
+        assert report["label"] == "balanced"
 
-class TestEmptyInput:
-    def test_empty_list(self):
-        r = analyse_strokes([])
-        assert r["verdict"] == "EMPTY"
-        assert r["sample_size"] == 0
+    def test_diversity_index_one(self, report):
+        assert report["diversity_index"] == 1.0
 
-    def test_none_window_zero(self):
-        r = analyse_strokes([], window=0)
-        assert r["verdict"] == "EMPTY"
+    def test_no_missing_kinds(self, report):
+        assert report["missing_kinds"] == []
 
-    def test_empty_report_helper(self):
-        r = _empty_report(KNOWN_CATEGORIES)
-        assert r["shannon_entropy"] == 0.0
-        assert r["richness"] == 0.0
-        assert r["verdict"] == "EMPTY"
+    def test_dominant_share_uniform(self, report):
+        # All equal, so any one kind is 1/6 ≈ 0.1667
+        assert abs(report["dominant_share"] - 1 / 6) < 0.001
 
+    def test_count(self, report):
+        assert report["count"] == 60
 
-# ── Shannon entropy ────────────────────────────────────────────────────
+    def test_not_fixated(self, report):
+        assert report["is_fixated"] is False
 
-class TestShannonEntropy:
-    def test_perfect_uniform(self):
-        strokes = _uniform(50)
-        r = analyse_strokes(strokes)
-        assert r["shannon_entropy"] == pytest.approx(1.0, abs=0.01)
+    def test_entropy_equals_max(self, report):
+        assert abs(report["entropy"] - report["max_entropy"]) < 0.001
 
-    def test_single_category(self):
-        strokes = _make_strokes({"metrics": 100})
-        r = analyse_strokes(strokes)
-        assert r["shannon_entropy"] == 0.0
+    def test_all_kinds_in_counts(self, report):
+        for k in ALL_KINDS:
+            assert k in report["kind_counts"]
+            assert report["kind_counts"][k] == 10
 
-    def test_two_categories_equal(self):
-        strokes = _make_strokes({"note": 50, "snippet": 50})
-        r = analyse_strokes(strokes)
-        assert r["shannon_entropy"] == pytest.approx(1.0, abs=0.01)
 
-    def test_skewed_distribution(self):
-        strokes = _make_strokes({"metrics": 90, "note": 5, "snippet": 5})
-        r = analyse_strokes(strokes)
-        assert r["shannon_entropy"] < 0.5
+# ---------------------------------------------------------------------------
+# diversity_report — fixated input
+# ---------------------------------------------------------------------------
 
-    def test_entropy_bounded(self):
-        strokes = _uniform(20)
-        r = analyse_strokes(strokes)
-        assert 0.0 <= r["shannon_entropy"] <= 1.0
+class TestDiversityReportFixated:
+    """One kind dominates heavily."""
 
+    @pytest.fixture()
+    def report(self):
+        kinds = ["thought"] * 50 + ["devlog"] * 5 + ["garden"] * 5
+        return diversity_report(kinds)
 
-# ── Richness ───────────────────────────────────────────────────────────
+    def test_label_fixated(self, report):
+        assert report["label"] == "fixated"
 
-class TestRichness:
-    def test_all_categories_present(self):
-        strokes = _uniform(5)
-        r = analyse_strokes(strokes)
-        assert r["richness"] == 1.0
+    def test_dominant_kind_thought(self, report):
+        assert report["dominant_kind"] == "thought"
 
-    def test_one_category(self):
-        strokes = _make_strokes({"garden": 30})
-        r = analyse_strokes(strokes)
-        assert r["richness"] == pytest.approx(1.0 / len(KNOWN_CATEGORIES), abs=0.01)
+    def test_dominant_share_high(self, report):
+        assert report["dominant_share"] == pytest.approx(50 / 60, abs=0.01)
 
-    def test_three_of_seven(self):
-        strokes = _make_strokes({"note": 10, "devlog": 10, "thought": 10})
-        r = analyse_strokes(strokes)
-        assert r["richness"] == pytest.approx(3.0 / len(KNOWN_CATEGORIES), abs=0.01)
-
-    def test_unknown_category_not_counted(self):
-        strokes = [{"kind": "alien"}] + _make_strokes({"note": 5})
-        r = analyse_strokes(strokes)
-        assert r["richness"] == pytest.approx(1.0 / len(KNOWN_CATEGORIES), abs=0.01)
-
-
-# ── Dominance ──────────────────────────────────────────────────────────
-
-class TestDominance:
-    def test_single_category_dominance(self):
-        strokes = _make_strokes({"thought": 100})
-        r = analyse_strokes(strokes)
-        assert r["dominance"] == 1.0
-
-    def test_uniform_dominance(self):
-        strokes = _uniform(10)
-        n = len(KNOWN_CATEGORIES)
-        r = analyse_strokes(strokes)
-        assert r["dominance"] == pytest.approx(1.0 / n, abs=0.01)
-
-    def test_slightly_skewed(self):
-        strokes = _make_strokes({"note": 14, "snippet": 6})
-        r = analyse_strokes(strokes)
-        assert r["dominance"] == 0.70
-
-    def test_dominance_range(self):
-        strokes = _uniform(7)
-        r = analyse_strokes(strokes)
-        assert 0.0 < r["dominance"] <= 1.0
-
-
-# ── Evenness ───────────────────────────────────────────────────────────
-
-class TestEvenness:
-    def test_perfect_evenness(self):
-        strokes = _uniform(20)
-        r = analyse_strokes(strokes)
-        assert r["evenness"] == pytest.approx(1.0, abs=0.01)
-
-    def test_single_category_evenness(self):
-        strokes = _make_strokes({"reading": 50})
-        r = analyse_strokes(strokes)
-        assert r["evenness"] == 0.0
-
-    def test_two_categories_equal(self):
-        strokes = _make_strokes({"metrics": 50, "garden": 50})
-        r = analyse_strokes(strokes)
-        assert r["evenness"] == pytest.approx(1.0, abs=0.01)
-
-    def test_evenness_bounded(self):
-        strokes = _make_strokes({"note": 30, "devlog": 20, "thought": 10})
-        r = analyse_strokes(strokes)
-        assert 0.0 <= r["evenness"] <= 1.0
-
-
-# ── Diversity score ────────────────────────────────────────────────────
-
-class TestDiversityScore:
-    def test_perfect_score(self):
-        strokes = _uniform(50)
-        r = analyse_strokes(strokes)
-        assert r["diversity_score"] >= 0.90
-
-    def test_worst_score(self):
-        strokes = _make_strokes({"metrics": 200})
-        r = analyse_strokes(strokes)
-        assert r["diversity_score"] < 0.35
-
-    def test_score_range(self):
-        strokes = _make_strokes({"note": 40, "devlog": 30, "thought": 20, "garden": 10})
-        r = analyse_strokes(strokes)
-        assert 0.0 <= r["diversity_score"] <= 1.0
-
-    def test_score_increases_with_variety(self):
-        low = _make_strokes({"note": 80, "snippet": 20})
-        high = _make_strokes({"note": 20, "snippet": 20, "thought": 20, "devlog": 20, "garden": 20})
-        assert analyse_strokes(low)["diversity_score"] < analyse_strokes(high)["diversity_score"]
-
-
-# ── Verdict ────────────────────────────────────────────────────────────
-
-class TestVerdict:
-    def test_healthy(self):
-        strokes = _uniform(30)
-        r = analyse_strokes(strokes)
-        assert r["verdict"] == "HEALTHY"
-
-    def test_monotone(self):
-        strokes = _make_strokes({"metrics": 200})
-        r = analyse_strokes(strokes)
-        assert r["verdict"] == "MONOTONE"
-
-    def test_empty_verdict(self):
-        r = analyse_strokes([])
-        assert r["verdict"] == "EMPTY"
-
-    def test_narrow(self):
-        strokes = _make_strokes({"note": 70, "snippet": 30})
-        r = analyse_strokes(strokes)
-        assert r["verdict"] in ("FAIR", "NARROW")
-
-    def test_all_verdicts_are_strings(self):
-        for data in [
-            _uniform(10),
-            _make_strokes({"note": 100}),
-            _make_strokes({"note": 50, "devlog": 50}),
-            [],
-        ]:
-            r = analyse_strokes(data)
-            assert isinstance(r["verdict"], str)
-
-
-# ── Window ─────────────────────────────────────────────────────────────
-
-class TestWindow:
-    def test_window_limits_scope(self):
-        big = _uniform(100)
-        r = analyse_strokes(big, window=10)
-        assert r["sample_size"] == 10
-
-    def test_window_none_uses_all(self):
-        big = _uniform(10)
-        r = analyse_strokes(big)
-        assert r["sample_size"] == len(KNOWN_CATEGORIES) * 10
-
-    def test_window_larger_than_data(self):
-        small = _uniform(5)
-        r = analyse_strokes(small, window=10000)
-        assert r["sample_size"] == len(KNOWN_CATEGORIES) * 5
-
-
-# ── Custom categories ──────────────────────────────────────────────────
-
-class TestCustomCategories:
-    def test_custom_frozenset(self):
-        custom = frozenset({"alpha", "beta"})
-        strokes = [{"kind": "alpha"}, {"kind": "beta"}] * 25
-        r = analyse_strokes(strokes, known_categories=custom)
-        assert r["richness"] == 1.0
-
-    def test_custom_single(self):
-        custom = frozenset({"only"})
-        strokes = [{"kind": "only"}] * 10
-        r = analyse_strokes(strokes, known_categories=custom)
-        assert r["richness"] == 1.0
-
-
-# ── Distribution dict ──────────────────────────────────────────────────
-
-class TestDistribution:
-    def test_distribution_matches_input(self):
-        strokes = _make_strokes({"note": 7, "devlog": 3})
-        r = analyse_strokes(strokes)
-        assert r["distribution"]["note"] == 7
-        assert r["distribution"]["devlog"] == 3
-
-    def test_distribution_sorted_desc(self):
-        strokes = _make_strokes({"a": 1, "b": 5, "c": 3})
-        r = analyse_strokes(strokes, known_categories=frozenset({"a", "b", "c"}))
-        keys = list(r["distribution"].keys())
-        assert keys == ["b", "c", "a"]
-
-
-# ── brief() ────────────────────────────────────────────────────────────
-
-class TestBrief:
-    def test_brief_contains_score(self):
-        r = analyse_strokes(_uniform(10))
-        b = brief(r)
-        assert "diversity=" in b
-
-    def test_brief_contains_verdict(self):
-        r = analyse_strokes(_uniform(10))
-        b = brief(r)
-        assert "HEALTHY" in b
-
-    def test_brief_empty(self):
-        r = analyse_strokes([])
-        b = brief(r)
-        assert "0 strokes" in b
-
-    def test_brief_shows_top_category(self):
-        strokes = _make_strokes({"note": 90, "snippet": 10})
-        r = analyse_strokes(strokes)
-        b = brief(r)
-        assert "note" in b
-
-
-# ── Integration: real-like data ────────────────────────────────────────
-
-class TestIntegration:
-    def test_realistic_cadence(self):
-        """Simulate 400 strokes across 7 categories with slight imbalance."""
-        counts = {"metrics": 67, "note": 67, "snippet": 67, "thought": 67,
-                  "devlog": 66, "garden": 66}
-        strokes = _make_strokes(counts)
-        r = analyse_strokes(strokes)
-        assert r["verdict"] == "HEALTHY"
-        assert r["diversity_score"] >= 0.80
-        assert r["sample_size"] == 400
-
-    def test_mixed_tuple_and_dict(self):
-        """Ensure tuple-format strokes coexist with dict-format."""
-        data = [{"kind": "note"}, ("2026-01-01", "devlog"), {"kind": "note"}]
-        r = analyse_strokes(data)
-        assert r["sample_size"] == 3
-        assert "note" in r["distribution"]
-        assert "devlog" in r["distribution"]
+    def test_missing_kinds(self, report):
+        # snippet, metrics, note are missing
+        assert set(report["missing_kinds"]) == {"snippet", "metrics", "note"}
+
+    def test_is_fixated(self, report):
+        assert report["is_fixated"] is True
+
+    def test_diversity_index_low(self, report):
+        assert report["diversity_index"] < 0.65
+
+
+# ---------------------------------------------------------------------------
+# diversity_report — skewed input
+# ---------------------------------------------------------------------------
+
+class TestDiversityReportSkewed:
+    """Moderate imbalance — not fixated but not balanced either."""
+
+    @pytest.fixture()
+    def report(self):
+        # thought gets 30, devlog 12, garden 8, snippet 5, metrics 3, note 2
+        kinds = (
+            ["thought"] * 30
+            + ["devlog"] * 12
+            + ["garden"] * 8
+            + ["snippet"] * 5
+            + ["metrics"] * 3
+            + ["note"] * 2
+        )
+        return diversity_report(kinds)
+
+    def test_label_skewed(self, report):
+        assert report["label"] == "skewed"
+
+    def test_dominant_kind_thought(self, report):
+        assert report["dominant_kind"] == "thought"
+
+    def test_is_fixated(self, report):
+        # 30/60 = 0.5, above default 0.4 threshold
+        assert report["is_fixated"] is True
+
+    def test_no_missing(self, report):
+        assert report["missing_kinds"] == []
+
+
+# ---------------------------------------------------------------------------
+# diversity_report — insufficient data
+# ---------------------------------------------------------------------------
+
+class TestDiversityReportInsufficient:
+    def test_empty(self):
+        r = diversity_report([])
+        assert r["label"] == "insufficient_data"
+        assert r["count"] == 0
+
+    def test_one_stroke(self):
+        r = diversity_report(["devlog"])
+        assert r["label"] == "insufficient_data"
+
+    def test_five_strokes(self):
+        r = diversity_report(["devlog", "garden", "snippet", "thought", "metrics"])
+        assert r["label"] == "insufficient_data"
+
+    def test_six_strokes_sufficient(self):
+        r = diversity_report(list(ALL_KINDS))
+        assert r["label"] != "insufficient_data"
+
+
+# ---------------------------------------------------------------------------
+# diversity_report — edge cases
+# ---------------------------------------------------------------------------
+
+class TestDiversityReportEdgeCases:
+    def test_two_kinds_only(self):
+        kinds = ["devlog"] * 30 + ["garden"] * 30
+        r = diversity_report(kinds)
+        # Only 2 of 6 kinds used — entropy is low relative to max
+        assert r["label"] in ("fixated", "skewed")
+        assert len(r["missing_kinds"]) == 4
+
+    def test_unknown_kind_included(self):
+        kinds = list(ALL_KINDS) * 5 + ["experimental"] * 10
+        r = diversity_report(kinds)
+        assert "experimental" in r["kind_counts"]
+        assert r["kind_counts"]["experimental"] == 10
+
+    def test_single_kind_repeated(self):
+        kinds = ["thought"] * 100
+        r = diversity_report(kinds)
+        assert r["label"] == "fixated"
+        assert r["diversity_index"] == 0.0
+        assert r["dominant_share"] == 1.0
+        assert len(r["missing_kinds"]) == 5
+
+    def test_fixation_threshold_custom(self):
+        kinds = ["thought"] * 15 + ["devlog"] * 10 + ["garden"] * 10 + \
+                ["snippet"] * 10 + ["metrics"] * 10 + ["note"] * 5
+        # Default threshold 0.4 — thought at 25% should not trigger
+        r_default = diversity_report(kinds)
+        assert r_default["is_fixated"] is False
+        # Lower threshold 0.2 — thought at 25% should trigger
+        r_low = diversity_report(kinds, fixation_threshold=0.2)
+        assert r_low["is_fixated"] is True
+
+
+# ---------------------------------------------------------------------------
+# diversity_summary
+# ---------------------------------------------------------------------------
+
+class TestDiversitySummary:
+    def test_balanced_summary(self):
+        kinds = list(ALL_KINDS) * 2
+        s = diversity_summary(kinds)
+        assert "balanced" in s
+        assert "12 strokes" in s
+
+    def test_insufficient_summary(self):
+        s = diversity_summary(["devlog", "garden"])
+        assert "insufficient data" in s
+
+    def test_fixated_summary(self):
+        kinds = ["thought"] * 30
+        s = diversity_summary(kinds)
+        assert "fixated" in s
+        assert "thought" in s
+
+
+# ---------------------------------------------------------------------------
+# missing_kind_count
+# ---------------------------------------------------------------------------
+
+class TestMissingKindCount:
+    def test_all_present(self):
+        assert missing_kind_count(list(ALL_KINDS)) == 0
+
+    def test_all_missing(self):
+        assert missing_kind_count([]) == 6
+
+    def test_one_kind_present(self):
+        assert missing_kind_count(["thought"] * 10) == 5
+
+    def test_three_kinds_present(self):
+        assert missing_kind_count(["devlog", "garden", "snippet"] * 5) == 3
+
+
+# ---------------------------------------------------------------------------
+# kind_share
+# ---------------------------------------------------------------------------
+
+class TestKindShare:
+    def test_half(self):
+        kinds = ["devlog", "garden", "devlog", "thought"]
+        assert kind_share(kinds, "devlog") == 0.5
+
+    def test_zero(self):
+        kinds = ["garden", "snippet", "thought"]
+        assert kind_share(kinds, "devlog") == 0.0
+
+    def test_empty(self):
+        assert kind_share([], "devlog") == 0.0
+
+    def test_all_same(self):
+        kinds = ["thought"] * 20
+        assert kind_share(kinds, "thought") == 1.0
+
+    def test_all_kinds(self):
+        kinds = list(ALL_KINDS)
+        for k in ALL_KINDS:
+            assert kind_share(kinds, k) == pytest.approx(1 / 6, abs=0.001)
