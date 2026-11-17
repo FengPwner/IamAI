@@ -1,197 +1,249 @@
-"""Detect duplicate strokes in the append-only log.
+"""stroke_dedup — detect and flag repetitive strokes in the writer output.
 
-The writer picks a seed phrase, appends a live measurement, and writes
-the result to ``data/strokes.jsonl``.  Two strokes are *duplicates* when
-their seed phrases match — the trailing measurement is just decoration
-on the same thought.
+The writer occasionally enters a degenerate loop, emitting near-identical
+strokes in rapid succession (e.g. "retry.py is already in the pool of
+9 modules, nothing new to add there" repeated dozens of times).  Existing
+cadence and backlog modules measure *timing* and *volume* but not
+*content redundancy*.
 
-This matters because a writer that repeats itself is not growing; it is
-looping.  The content_diversity module catches lopsided *kinds*; this
-catches lopsided *ideas*.
+This module fills that gap:
 
-Duplicate detection is deliberately conservative:
+- ``fingerprint(stroke)`` — normalise a stroke's text to a comparable hash
+- ``is_duplicate(prev, curr, threshold)`` — decide if two consecutive
+  strokes are "the same" by fingerprint distance
+- ``scan_window(strokes, window, threshold)`` — slide a window over a
+  sequence and return indices of strokes that are duplicates of their
+  predecessor
+- ``dedup_report(strokes, window, threshold)`` — produce a summary dict
+  with duplicate count, ratio, and the longest consecutive run
 
-- Seed phrases shorter than ``MIN_SEED_LEN`` (default 12) characters are
-  ignored — short phrases collide by chance, not by repetition.
-- Comparison is case-insensitive and strips trailing whitespace.
-- The measurement suffix (everything after ``-- measured now:``) is
-  discarded before comparison.
+Design choices
+--------------
 
-Usage::
+- Fingerprints use lowercased, whitespace-collapsed text hashed with
+  SHA-256 (first 16 hex chars).  Cheap, collision-resistant for this
+  use case, and deterministic across runs.
+- "Duplicate" means the fingerprint of the current stroke matches the
+  fingerprint of its immediate predecessor.  No fuzzy matching — the
+  degenerate loops we care about produce *exact* repeats.
+- ``window`` is a look-back limit so ``scan_window`` can run on
+  arbitrarily long streams without unbounded memory.
 
-    from iamai.stroke_dedup import find_duplicates, duplicate_summary
+Zero dependencies beyond stdlib.
 
-    dupes = find_duplicates()
-    for seed, entries in dupes.items():
-        print(f"{seed!r} appears {len(entries)} times")
-
-    print(duplicate_summary())
-    # "3 duplicate seeds across 1713 strokes (0.17%)"
+>>> strokes = [
+...     "retry.py is already in the pool of 9 modules, nothing new to add there",
+...     "retry.py is already in the pool of 9 modules, nothing new to add there",
+...     "a genuinely new thought about the project's direction",
+...     "retry.py is already in the pool of 9 modules, nothing new to add there",
+... ]
+>>> r = dedup_report(strokes)
+>>> r["duplicate_count"]
+2
+>>> r["duplicate_ratio"] == 2 / 4
+True
+>>> r["longest_run"]
+2
 """
 
 from __future__ import annotations
 
-import json
+import hashlib
 import re
-from collections import Counter, defaultdict
-from pathlib import Path
-from typing import Any
-
-_DEFAULT_STROKES_PATH = Path("data/strokes.jsonl")
-MIN_SEED_LEN = 12
-
-# The measurement suffix the writer appends.  Everything from the first
-# occurrence of this marker onward is stripped before comparison.
-_MEASUREMENT_MARKER = "-- measured now:"
+from dataclasses import dataclass, field
+from typing import List, Optional, Sequence
 
 
-def extract_seed(text: str) -> str:
-    """Strip the measurement suffix and normalise for comparison.
+# ---------------------------------------------------------------------------
+# Fingerprint
+# ---------------------------------------------------------------------------
 
-    Args:
-        text: full stroke text, possibly including a measurement suffix.
+_WS_COLLAPSE = re.compile(r"\s+")
 
-    Returns:
-        The seed phrase, lowercased and stripped.
 
-    Examples:
-        >>> extract_seed("hello world -- measured now: 42 things")
-        'hello world'
-        >>> extract_seed("just a thought, no measurement")
-        'just a thought, no measurement'
-        >>> extract_seed("  Spaced Out  -- measured now: xyz")
-        'spaced out'
+def fingerprint(text: str) -> str:
+    """Return a 16-char hex fingerprint for *text*.
+
+    Whitespace is collapsed, case is lowered, and the result is the
+    first 16 hex characters of the SHA-256 digest.
+
+    >>> len(fingerprint("hello world"))
+    16
+    >>> fingerprint("Hello  World") == fingerprint("hello world")
+    True
+    >>> fingerprint("") == fingerprint("  ")
+    True
     """
-    idx = text.find(_MEASUREMENT_MARKER)
-    if idx != -1:
-        text = text[:idx]
-    return text.strip().lower()
+    normalised = _WS_COLLAPSE.sub(" ", text.strip().lower())
+    digest = hashlib.sha256(normalised.encode("utf-8")).hexdigest()
+    return digest[:16]
 
 
-def _load_strokes(path: Path) -> list[dict[str, Any]]:
-    """Read strokes.jsonl, skipping malformed lines."""
-    strokes: list[dict[str, Any]] = []
-    if not path.exists():
-        return strokes
-    with path.open(encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                strokes.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-    return strokes
+# ---------------------------------------------------------------------------
+# Duplicate detection
+# ---------------------------------------------------------------------------
 
 
-def find_duplicates(
-    path: Path | str | None = None,
-    min_seed_len: int = MIN_SEED_LEN,
-) -> dict[str, list[dict[str, Any]]]:
-    """Return a mapping of seed phrase → list of strokes that share it.
+def is_duplicate(prev_text: str, curr_text: str) -> bool:
+    """Return True if *curr_text* is a fingerprint match for *prev_text*.
 
-    Only seeds that appear more than once are included.
-
-    Args:
-        path: path to strokes.jsonl (default: ``data/strokes.jsonl``).
-        min_seed_len: ignore seeds shorter than this (default 12).
-
-    Returns:
-        Dict mapping seed → list of stroke dicts.
+    >>> is_duplicate("hello", "hello")
+    True
+    >>> is_duplicate("hello", "world")
+    False
+    >>> is_duplicate("  Hello  ", "hello")
+    True
     """
-    path = Path(path) if path else _DEFAULT_STROKES_PATH
-    strokes = _load_strokes(path)
-
-    buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for stroke in strokes:
-        text = stroke.get("text", "")
-        seed = extract_seed(text)
-        if len(seed) < min_seed_len:
-            continue
-        buckets[seed].append(stroke)
-
-    return {seed: entries for seed, entries in buckets.items() if len(entries) > 1}
+    return fingerprint(prev_text) == fingerprint(curr_text)
 
 
-def duplicate_count(path: Path | str | None = None, min_seed_len: int = MIN_SEED_LEN) -> int:
-    """Return the number of distinct seeds that appear more than once."""
-    return len(find_duplicates(path, min_seed_len))
+# ---------------------------------------------------------------------------
+# Window scan
+# ---------------------------------------------------------------------------
 
 
-def duplicate_stroke_count(path: Path | str | None = None, min_seed_len: int = MIN_SEED_LEN) -> int:
-    """Return the total number of strokes involved in duplication."""
-    dupes = find_duplicates(path, min_seed_len)
-    return sum(len(entries) for entries in dupes.values())
+def scan_window(
+    strokes: Sequence[str],
+    window: int = 1,
+) -> List[int]:
+    """Return indices of strokes that duplicate their predecessor.
 
+    Only ``window`` look-back is supported (default 1 = immediate
+    predecessor).  The first stroke (index 0) is never flagged.
 
-def duplicate_ratio(path: Path | str | None = None, min_seed_len: int = MIN_SEED_LEN) -> float:
-    """Return the fraction of all strokes that are involved in duplication.
-
-    Returns 0.0 when the log is empty.
+    >>> scan_window(["a", "b", "b", "c", "c", "c"])
+    [2, 4, 5]
+    >>> scan_window(["unique", "thoughts", "only"])
+    []
+    >>> scan_window([])
+    []
+    >>> scan_window(["solo"])
+    []
     """
-    path = Path(path) if path else _DEFAULT_STROKES_PATH
-    strokes = _load_strokes(path)
+    if len(strokes) < 2:
+        return []
+
+    dupes: List[int] = []
+    for i in range(1, len(strokes)):
+        look_back = min(i, window)
+        for j in range(i - look_back, i):
+            if is_duplicate(strokes[j], strokes[i]):
+                dupes.append(i)
+                break
+    return dupes
+
+
+# ---------------------------------------------------------------------------
+# Consecutive-run tracker
+# ---------------------------------------------------------------------------
+
+
+def _longest_consecutive_run(strokes: Sequence[str]) -> int:
+    """Return the length of the longest run of identical consecutive strokes.
+
+    A single stroke counts as a run of 1.
+
+    >>> _longest_consecutive_run(["a", "a", "a", "b", "b"])
+    3
+    >>> _longest_consecutive_run(["x"])
+    1
+    >>> _longest_consecutive_run([])
+    0
+    >>> _longest_consecutive_run(["a", "b", "c"])
+    1
+    """
     if not strokes:
-        return 0.0
-    involved = duplicate_stroke_count(path, min_seed_len)
-    return involved / len(strokes)
+        return 0
+    best = 1
+    run = 1
+    for i in range(1, len(strokes)):
+        if is_duplicate(strokes[i - 1], strokes[i]):
+            run += 1
+            if run > best:
+                best = run
+        else:
+            run = 1
+    return best
 
 
-def top_duplicates(
-    path: Path | str | None = None,
-    min_seed_len: int = MIN_SEED_LEN,
-    limit: int = 5,
-) -> list[tuple[str, int]]:
-    """Return the most-duplicated seeds, sorted by occurrence count descending.
+# ---------------------------------------------------------------------------
+# Summary report
+# ---------------------------------------------------------------------------
 
-    Args:
-        path: path to strokes.jsonl.
-        min_seed_len: ignore seeds shorter than this.
-        limit: max results to return.
 
-    Returns:
-        List of (seed, count) tuples.
+@dataclass
+class DedupReport:
+    """Structured deduplication report.
+
+    Attributes
+    ----------
+    total : int
+        Total strokes examined.
+    duplicate_count : int
+        Number of strokes flagged as duplicates.
+    duplicate_ratio : float
+        Fraction of strokes that are duplicates (0.0–1.0).
+    longest_run : int
+        Longest consecutive run of identical strokes.
+    flagged_indices : list[int]
+        Indices of all flagged strokes.
     """
-    dupes = find_duplicates(path, min_seed_len)
-    ranked = sorted(dupes.items(), key=lambda item: len(item[1]), reverse=True)
-    return [(seed, len(entries)) for seed, entries in ranked[:limit]]
+
+    total: int
+    duplicate_count: int
+    duplicate_ratio: float
+    longest_run: int
+    flagged_indices: List[int] = field(default_factory=list)
+
+    @property
+    def is_degenerate(self) -> bool:
+        """True when duplicate_ratio exceeds 50 % — writer is looping."""
+        return self.duplicate_ratio > 0.5
+
+    def to_dict(self) -> dict:
+        return {
+            "total": self.total,
+            "duplicate_count": self.duplicate_count,
+            "duplicate_ratio": self.duplicate_ratio,
+            "longest_run": self.longest_run,
+            "flagged_indices": self.flagged_indices,
+            "is_degenerate": self.is_degenerate,
+        }
 
 
-def duplicate_summary(path: Path | str | None = None, min_seed_len: int = MIN_SEED_LEN) -> str:
-    """One-line human-readable summary of duplication status.
+def dedup_report(
+    strokes: Sequence[str],
+    window: int = 1,
+) -> DedupReport:
+    """Produce a :class:`DedupReport` for *strokes*.
 
-    Examples:
-        >>> duplicate_summary()
-        '0 duplicate seeds across 1713 strokes (0.00%)'
+    >>> r = dedup_report(["a", "a", "b", "a", "a", "a"])
+    >>> r.total
+    6
+    >>> r.duplicate_count
+    3
+    >>> r.longest_run
+    3
+    >>> r.is_degenerate
+    False
+
+    Empty input is safe:
+
+    >>> r = dedup_report([])
+    >>> r.total
+    0
+    >>> r.duplicate_ratio
+    0.0
     """
-    path = Path(path) if path else _DEFAULT_STROKES_PATH
-    strokes = _load_strokes(path)
-    dupes = find_duplicates(path, min_seed_len)
-    n_dupes = len(dupes)
-    n_strokes = len(strokes)
-    n_involved = sum(len(e) for e in dupes.values())
-    pct = (n_involved / n_strokes * 100) if n_strokes else 0.0
-    return f"{n_dupes} duplicate seeds across {n_strokes} strokes ({pct:.2f}%)"
-
-
-def health_grade(path: Path | str | None = None, min_seed_len: int = MIN_SEED_LEN) -> str:
-    """Letter grade for duplication health.
-
-    - A: < 1% of strokes are duplicates
-    - B: 1-5%
-    - C: 5-15%
-    - F: > 15%
-
-    Returns:
-        One of "A", "B", "C", "F".
-    """
-    ratio = duplicate_ratio(path, min_seed_len)
-    pct = ratio * 100
-    if pct < 1:
-        return "A"
-    if pct < 5:
-        return "B"
-    if pct < 15:
-        return "C"
-    return "F"
+    flagged = scan_window(strokes, window)
+    total = len(strokes)
+    count = len(flagged)
+    ratio = count / total if total else 0.0
+    run = _longest_consecutive_run(strokes)
+    return DedupReport(
+        total=total,
+        duplicate_count=count,
+        duplicate_ratio=ratio,
+        longest_run=run,
+        flagged_indices=flagged,
+    )

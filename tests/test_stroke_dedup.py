@@ -1,312 +1,286 @@
-"""Tests for iamai.stroke_dedup module."""
+"""Tests for stroke_dedup module.
 
-from __future__ import annotations
-
-import json
-import tempfile
-from pathlib import Path
+Covers:
+- fingerprint: normalisation, determinism, collision resistance
+- is_duplicate: exact match, whitespace, case insensitivity
+- scan_window: empty, single, no dupes, all dupes, mixed, window>1
+- _longest_consecutive_run: empty, single, all same, alternating, runs
+- DedupReport: dataclass, is_degenerate, to_dict
+- dedup_report: empty, no dupes, all dupes, mixed, real-world pattern
+"""
 
 import pytest
 
 from iamai.stroke_dedup import (
-    MIN_SEED_LEN,
-    duplicate_count,
-    duplicate_ratio,
-    duplicate_stroke_count,
-    duplicate_summary,
-    extract_seed,
-    find_duplicates,
-    health_grade,
-    top_duplicates,
+    DedupReport,
+    dedup_report,
+    fingerprint,
+    is_duplicate,
+    scan_window,
+    _longest_consecutive_run,
 )
 
 
-# ---------------------------------------------------------------------------
-# Seed extraction
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# fingerprint
+# ===========================================================================
 
 
-class TestExtractSeed:
-    def test_strips_measurement_suffix(self):
-        text = "hello world -- measured now: 42 things"
-        assert extract_seed(text) == "hello world"
+class TestFingerprint:
+    def test_deterministic(self):
+        assert fingerprint("hello world") == fingerprint("hello world")
 
-    def test_no_measurement_suffix(self):
-        text = "just a plain thought"
-        assert extract_seed(text) == "just a plain thought"
+    def test_case_insensitive(self):
+        assert fingerprint("Hello World") == fingerprint("hello world")
 
-    def test_lowercased(self):
-        text = "Hello WORLD -- measured now: xyz"
-        assert extract_seed(text) == "hello world"
+    def test_whitespace_collapse(self):
+        assert fingerprint("hello   world") == fingerprint("hello world")
 
-    def test_strips_whitespace(self):
-        text = "  spaced out  -- measured now: xyz"
-        assert extract_seed(text) == "spaced out"
+    def test_leading_trailing_whitespace(self):
+        assert fingerprint("  hello  ") == fingerprint("hello")
 
-    def test_multiple_markers_uses_first(self):
-        text = "first part -- measured now: second -- measured now: third"
-        assert extract_seed(text) == "first part"
+    def test_empty_strings_match(self):
+        assert fingerprint("") == fingerprint("  ")
 
-    def test_empty_string(self):
-        assert extract_seed("") == ""
+    def test_different_texts_differ(self):
+        assert fingerprint("hello") != fingerprint("world")
 
-    def test_only_measurement(self):
-        text = "-- measured now: nothing before"
-        assert extract_seed(text) == ""
+    def test_returns_16_hex_chars(self):
+        fp = fingerprint("test string")
+        assert len(fp) == 16
+        assert all(c in "0123456789abcdef" for c in fp)
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+    def test_unicode(self):
+        assert fingerprint("你好世界") == fingerprint("你好世界")
+        assert fingerprint("你好世界") != fingerprint("世界你好")
 
 
-def _write_strokes(tmp_path: Path, strokes: list[dict]) -> Path:
-    """Write a list of stroke dicts to a temporary JSONL file."""
-    path = tmp_path / "strokes.jsonl"
-    with path.open("w", encoding="utf-8") as fh:
-        for s in strokes:
-            fh.write(json.dumps(s) + "\n")
-    return path
+# ===========================================================================
+# is_duplicate
+# ===========================================================================
 
 
-def _stroke(seq: int, text: str, kind: str = "thought") -> dict:
-    return {
-        "seq": seq,
-        "at": f"2026-10-06T12:00:{seq:02d}+00:00",
-        "kind": kind,
-        "text": text,
-    }
+class TestIsDuplicate:
+    def test_exact_match(self):
+        assert is_duplicate("hello", "hello") is True
+
+    def test_different(self):
+        assert is_duplicate("hello", "world") is False
+
+    def test_whitespace_normalised(self):
+        assert is_duplicate("  Hello  ", "hello") is True
+
+    def test_empty_strings(self):
+        assert is_duplicate("", "") is True
+
+    def test_long_identical_texts(self):
+        text = "a" * 10000
+        assert is_duplicate(text, text) is True
+
+    def test_similar_but_different(self):
+        assert is_duplicate("hello world", "hello world!") is False
 
 
-# ---------------------------------------------------------------------------
-# find_duplicates
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# scan_window
+# ===========================================================================
 
 
-class TestFindDuplicates:
-    def test_no_duplicates(self, tmp_path):
-        strokes = [
-            _stroke(1, "unique thought alpha -- measured now: 10 files"),
-            _stroke(2, "unique thought beta -- measured now: 20 files"),
-            _stroke(3, "unique thought gamma -- measured now: 30 files"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        dupes = find_duplicates(path)
-        assert dupes == {}
+class TestScanWindow:
+    def test_empty(self):
+        assert scan_window([]) == []
 
-    def test_exact_duplicates(self, tmp_path):
-        strokes = [
-            _stroke(1, "hello world again -- measured now: 10 files"),
-            _stroke(2, "hello world again -- measured now: 20 files"),
-            _stroke(3, "different thought here -- measured now: 30 files"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        dupes = find_duplicates(path)
-        assert "hello world again" in dupes
-        assert len(dupes["hello world again"]) == 2
+    def test_single(self):
+        assert scan_window(["only one"]) == []
 
-    def test_case_insensitive(self, tmp_path):
-        strokes = [
-            _stroke(1, "Hello World Again -- measured now: 10"),
-            _stroke(2, "hello world again -- measured now: 20"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        dupes = find_duplicates(path)
-        assert "hello world again" in dupes
-        assert len(dupes["hello world again"]) == 2
+    def test_no_duplicates(self):
+        assert scan_window(["a", "b", "c", "d"]) == []
 
-    def test_short_seeds_ignored(self, tmp_path):
-        short = "hi"  # len 2 < MIN_SEED_LEN
-        strokes = [
-            _stroke(1, f"{short} -- measured now: 1"),
-            _stroke(2, f"{short} -- measured now: 2"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        dupes = find_duplicates(path)
-        assert dupes == {}
+    def test_all_duplicates(self):
+        result = scan_window(["a", "a", "a", "a"])
+        assert result == [1, 2, 3]
 
-    def test_custom_min_seed_len(self, tmp_path):
-        strokes = [
-            _stroke(1, "hi -- measured now: 1"),
-            _stroke(2, "hi -- measured now: 2"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        dupes = find_duplicates(path, min_seed_len=2)
-        assert "hi" in dupes
+    def test_mixed(self):
+        result = scan_window(["a", "b", "b", "c", "c", "c"])
+        assert result == [2, 4, 5]
 
-    def test_missing_file(self, tmp_path):
-        path = tmp_path / "nonexistent.jsonl"
-        dupes = find_duplicates(path)
-        assert dupes == {}
+    def test_alternating(self):
+        result = scan_window(["a", "b", "a", "b", "a"])
+        assert result == []
 
-    def test_empty_file(self, tmp_path):
-        path = tmp_path / "empty.jsonl"
-        path.write_text("")
-        dupes = find_duplicates(path)
-        assert dupes == {}
+    def test_duplicate_after_gap(self):
+        result = scan_window(["a", "b", "c", "a"])
+        # window=1 only looks at immediate predecessor
+        assert result == []
 
-    def test_malformed_lines_skipped(self, tmp_path):
-        path = tmp_path / "strokes.jsonl"
-        path.write_text(
-            '{"seq":1,"at":"2026-10-06T12:00:00+00:00","kind":"thought","text":"valid stroke -- measured now: 1"}\n'
-            'not json at all\n'
-            '{"seq":2,"at":"2026-10-06T12:00:01+00:00","kind":"thought","text":"valid stroke -- measured now: 2"}\n'
+    def test_window_2_catches_nearby(self):
+        result = scan_window(["a", "b", "a"], window=2)
+        assert result == [2]
+
+    def test_window_larger_than_list(self):
+        result = scan_window(["a", "b"], window=10)
+        assert result == []
+
+    def test_real_world_degenerate_loop(self):
+        stroke = "retry.py is already in the pool of 9 modules, nothing new to add there"
+        strokes = [stroke] * 20
+        result = scan_window(strokes)
+        assert result == list(range(1, 20))
+
+
+# ===========================================================================
+# _longest_consecutive_run
+# ===========================================================================
+
+
+class TestLongestConsecutiveRun:
+    def test_empty(self):
+        assert _longest_consecutive_run([]) == 0
+
+    def test_single(self):
+        assert _longest_consecutive_run(["a"]) == 1
+
+    def test_all_same(self):
+        assert _longest_consecutive_run(["a", "a", "a", "a"]) == 4
+
+    def test_all_different(self):
+        assert _longest_consecutive_run(["a", "b", "c", "d"]) == 1
+
+    def test_two_runs(self):
+        assert _longest_consecutive_run(["a", "a", "a", "b", "b"]) == 3
+
+    def test_longer_second_run(self):
+        assert _longest_consecutive_run(["a", "a", "b", "b", "b", "b"]) == 4
+
+    def test_alternating(self):
+        assert _longest_consecutive_run(["a", "b", "a", "b"]) == 1
+
+    def test_run_at_end(self):
+        assert _longest_consecutive_run(["x", "y", "z", "a", "a", "a"]) == 3
+
+
+# ===========================================================================
+# DedupReport
+# ===========================================================================
+
+
+class TestDedupReport:
+    def test_basic_fields(self):
+        r = DedupReport(total=10, duplicate_count=3, duplicate_ratio=0.3, longest_run=2)
+        assert r.total == 10
+        assert r.duplicate_count == 3
+        assert r.duplicate_ratio == 0.3
+        assert r.longest_run == 2
+
+    def test_is_degenerate_false(self):
+        r = DedupReport(total=10, duplicate_count=3, duplicate_ratio=0.3, longest_run=2)
+        assert r.is_degenerate is False
+
+    def test_is_degenerate_true(self):
+        r = DedupReport(total=10, duplicate_count=8, duplicate_ratio=0.8, longest_run=5)
+        assert r.is_degenerate is True
+
+    def test_is_degenerate_boundary(self):
+        # exactly 0.5 is not degenerate (must exceed)
+        r = DedupReport(total=10, duplicate_count=5, duplicate_ratio=0.5, longest_run=3)
+        assert r.is_degenerate is False
+
+    def test_to_dict(self):
+        r = DedupReport(
+            total=5,
+            duplicate_count=2,
+            duplicate_ratio=0.4,
+            longest_run=2,
+            flagged_indices=[1, 3],
         )
-        dupes = find_duplicates(path)
-        assert "valid stroke" in dupes
-        assert len(dupes["valid stroke"]) == 2
+        d = r.to_dict()
+        assert d == {
+            "total": 5,
+            "duplicate_count": 2,
+            "duplicate_ratio": 0.4,
+            "longest_run": 2,
+            "flagged_indices": [1, 3],
+            "is_degenerate": False,
+        }
 
-    def test_three_way_duplicate(self, tmp_path):
+    def test_flagged_indices_default_empty(self):
+        r = DedupReport(total=0, duplicate_count=0, duplicate_ratio=0.0, longest_run=0)
+        assert r.flagged_indices == []
+
+
+# ===========================================================================
+# dedup_report (integration)
+# ===========================================================================
+
+
+class TestDedupReportFunction:
+    def test_empty(self):
+        r = dedup_report([])
+        assert r.total == 0
+        assert r.duplicate_count == 0
+        assert r.duplicate_ratio == 0.0
+        assert r.longest_run == 0
+        assert r.flagged_indices == []
+        assert r.is_degenerate is False
+
+    def test_no_duplicates(self):
+        r = dedup_report(["alpha", "beta", "gamma", "delta"])
+        assert r.total == 4
+        assert r.duplicate_count == 0
+        assert r.duplicate_ratio == 0.0
+        assert r.longest_run == 1
+
+    def test_all_duplicates(self):
+        r = dedup_report(["x", "x", "x", "x"])
+        assert r.total == 4
+        assert r.duplicate_count == 3
+        assert r.duplicate_ratio == 0.75
+        assert r.longest_run == 4
+        assert r.is_degenerate is True
+
+    def test_mixed(self):
+        r = dedup_report(["a", "a", "b", "a", "a", "a"])
+        assert r.total == 6
+        assert r.duplicate_count == 3
+        assert r.longest_run == 3
+        assert r.flagged_indices == [1, 4, 5]
+
+    def test_real_world_degenerate_loop(self):
+        stroke = "retry.py is already in the pool of 9 modules, nothing new to add there"
+        strokes = [stroke] * 30
+        r = dedup_report(strokes)
+        assert r.total == 30
+        assert r.duplicate_count == 29
+        assert r.duplicate_ratio == pytest.approx(29 / 30)
+        assert r.longest_run == 30
+        assert r.is_degenerate is True
+
+    def test_mostly_unique_with_some_dupes(self):
         strokes = [
-            _stroke(1, "triple thought -- measured now: 1"),
-            _stroke(2, "triple thought -- measured now: 2"),
-            _stroke(3, "triple thought -- measured now: 3"),
+            "thought about architecture",
+            "reviewed the test suite",
+            "reviewed the test suite",
+            "explored new caching strategy",
+            "wrote documentation",
+            "fixed a bug in the parser",
+            "wrote documentation",
         ]
-        path = _write_strokes(tmp_path, strokes)
-        dupes = find_duplicates(path)
-        assert len(dupes["triple thought"]) == 3
+        r = dedup_report(strokes)
+        assert r.total == 7
+        # window=1 only catches index 2 (immediate dup of index 1);
+        # index 6 ("wrote documentation") is not adjacent to index 4
+        assert r.duplicate_count == 1
+        assert r.flagged_indices == [2]
+        assert r.longest_run == 2
+        assert r.is_degenerate is False
 
-
-# ---------------------------------------------------------------------------
-# Counts and ratios
-# ---------------------------------------------------------------------------
-
-
-class TestCounts:
-    def test_duplicate_count(self, tmp_path):
-        strokes = [
-            _stroke(1, "alpha thought -- measured now: 1"),
-            _stroke(2, "alpha thought -- measured now: 2"),
-            _stroke(3, "beta thinking -- measured now: 3"),
-            _stroke(4, "beta thinking -- measured now: 4"),
-            _stroke(5, "gamma unique -- measured now: 5"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        assert duplicate_count(path) == 2
-
-    def test_duplicate_stroke_count(self, tmp_path):
-        strokes = [
-            _stroke(1, "alpha thought -- measured now: 1"),
-            _stroke(2, "alpha thought -- measured now: 2"),
-            _stroke(3, "beta thinking -- measured now: 3"),
-            _stroke(4, "beta thinking -- measured now: 4"),
-            _stroke(5, "gamma unique -- measured now: 5"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        assert duplicate_stroke_count(path) == 4  # 2 + 2
-
-    def test_duplicate_ratio_empty(self, tmp_path):
-        path = tmp_path / "empty.jsonl"
-        path.write_text("")
-        assert duplicate_ratio(path) == 0.0
-
-    def test_duplicate_ratio_half(self, tmp_path):
-        strokes = [
-            _stroke(1, "repeated idea -- measured now: 1"),
-            _stroke(2, "repeated idea -- measured now: 2"),
-            _stroke(3, "unique other -- measured now: 3"),
-            _stroke(4, "unique another -- measured now: 4"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        # 2 of 4 strokes are duplicates
-        assert abs(duplicate_ratio(path) - 0.5) < 1e-9
-
-
-# ---------------------------------------------------------------------------
-# Top duplicates
-# ---------------------------------------------------------------------------
-
-
-class TestTopDuplicates:
-    def test_sorted_by_count(self, tmp_path):
-        strokes = [
-            _stroke(1, "rare thought -- measured now: 1"),
-            _stroke(2, "rare thought -- measured now: 2"),
-            _stroke(3, "common thought -- measured now: 3"),
-            _stroke(4, "common thought -- measured now: 4"),
-            _stroke(5, "common thought -- measured now: 5"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        top = top_duplicates(path, limit=10)
-        assert top[0] == ("common thought", 3)
-        assert top[1] == ("rare thought", 2)
-
-    def test_respects_limit(self, tmp_path):
-        strokes = []
-        seq = 1
-        for i in range(10):
-            word = f"thought number {i:02d}"
-            strokes.append(_stroke(seq, f"{word} -- measured now: {seq}"))
-            seq += 1
-            strokes.append(_stroke(seq, f"{word} -- measured now: {seq}"))
-            seq += 1
-        path = _write_strokes(tmp_path, strokes)
-        top = top_duplicates(path, limit=3)
-        assert len(top) == 3
-
-    def test_no_duplicates_returns_empty(self, tmp_path):
-        strokes = [
-            _stroke(1, "one unique thought -- measured now: 1"),
-            _stroke(2, "another unique one -- measured now: 2"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        assert top_duplicates(path) == []
-
-
-# ---------------------------------------------------------------------------
-# Summary
-# ---------------------------------------------------------------------------
-
-
-class TestSummary:
-    def test_no_duplicates(self, tmp_path):
-        strokes = [
-            _stroke(1, "unique alpha -- measured now: 1"),
-            _stroke(2, "unique beta -- measured now: 2"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        s = duplicate_summary(path)
-        assert "0 duplicate seeds" in s
-        assert "2 strokes" in s
-
-    def test_with_duplicates(self, tmp_path):
-        strokes = [
-            _stroke(1, "repeated idea -- measured now: 1"),
-            _stroke(2, "repeated idea -- measured now: 2"),
-            _stroke(3, "unique one -- measured now: 3"),
-        ]
-        path = _write_strokes(tmp_path, strokes)
-        s = duplicate_summary(path)
-        assert "1 duplicate seeds" in s
-        assert "3 strokes" in s
-
-
-# ---------------------------------------------------------------------------
-# Health grade
-# ---------------------------------------------------------------------------
-
-
-class TestHealthGrade:
-    def test_grade_a_clean(self, tmp_path):
-        # 0% duplication
-        strokes = [_stroke(i, f"unique thought {i:04d} -- measured now: {i}") for i in range(100)]
-        path = _write_strokes(tmp_path, strokes)
-        assert health_grade(path) == "A"
-
-    def test_grade_b_mild(self, tmp_path):
-        # ~3% duplication: 3 dupes out of 100
-        strokes = [_stroke(i, f"unique thought {i:04d} -- measured now: {i}") for i in range(97)]
-        for j in range(3):
-            strokes.append(_stroke(97 + j, "this one repeats -- measured now: 999"))
-        path = _write_strokes(tmp_path, strokes)
-        assert health_grade(path) == "B"
-
-    def test_grade_f_heavy(self, tmp_path):
-        # >15% duplication
-        strokes = []
-        for i in range(80):
-            strokes.append(_stroke(i, f"unique thought {i:04d} -- measured now: {i}"))
-        for j in range(20):
-            strokes.append(_stroke(80 + j, "over and over again -- measured now: 999"))
-        path = _write_strokes(tmp_path, strokes)
-        assert health_grade(path) == "F"
+    def test_window_2(self):
+        strokes = ["a", "b", "a", "c", "b"]
+        r = dedup_report(strokes, window=2)
+        # index 2 matches index 0 (within window 2)
+        # index 4 matches index 3? no, "b" != "c"
+        # index 4 matches index 2? no, "b" != "a"  -- wait
+        # actually: i=2, look_back=min(2,2)=2, check j=0("a"=="a") -> flagged
+        # i=4, look_back=min(4,2)=2, check j=2("b"=="a"? no), j=3("b"=="c"? no)
+        assert r.duplicate_count == 1
+        assert r.flagged_indices == [2]
