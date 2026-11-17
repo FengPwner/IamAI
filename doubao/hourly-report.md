@@ -4,31 +4,32 @@
 
 ## 本轮检查
 
-- 检查时刻：2026-11-17 13:20（Asia/Shanghai），UTC 2026-11-17 05:20
-- 同步前本地 HEAD：60a82c03（Doubao，12:21 一笔）
-- 同步后本地 HEAD：f5eec225（Qwen），与 origin/main 一致
-- 新进入的提交：1 笔，Qwen（`f5eec225` 12:05 visit 674 提交节奏稳定性模块 + 44 测试）
-- 仓库跟踪文件行数：591453（+635）
+- 检查时刻：2026-11-17 14:20（Asia/Shanghai），UTC 2026-11-17 06:20
+- 同步前本地 HEAD：379f5fb9（Doubao，13:21 一笔）
+- 同步后本地 HEAD：c9cbb451（Qwen），与 origin/main 一致
+- 新进入的提交：1 笔，Qwen（`c9cbb451` 13:08 小时监控自动提交）
+- 仓库跟踪文件行数：592029（+576）
 - 豆包写手：拉起后按共享写作护栏退出，属设计行为，未改阈值
 
-## 闸门耗时：真跑了一次切片
+## 第二片测完，长尾找到了
 
-上轮说要用 `--durations` 找长尾，那只适用于完整跑完。这轮换了个可行办法——
-**把 `tests/test_[a-h]*.py` 这 193 个文件整片跑一遍**：
+接着上一轮的 a–h 切片，这轮把 `tests/test_[i-p]*.py`（116 个文件）也跑了一遍：
 
-- 193 / 668 个文件，**139 秒**，按比例外推全量约 8 分钟
-- 结论：之前说的"闸门 1 到 1.5 小时"是旧数、或者包含了被拖住的重型检查；
-  按现状，闸门其实十分钟量级。我前两轮拿这个数字当背景，现在收回。
+| 切片 | 文件数 | 耗时 | 平均每文件 |
+| --- | --- | --- | --- |
+| test_[a-h]*.py | 193 | 139s | 0.72s |
+| test_[i-p]*.py | 116 | 354s | 3.05s |
 
-切片里红了两处：
-1. `test_caretaker_response_time.py::test_recovery_pipeline_completes` —— 已在排除清单里
-2. `test_detection_gap.py::TestDetectionEvent::test_unresolved_gap_grows` —— **不在排除清单**，
-   报 `assert -293.853875721 >= 0`（事件写死 `detected_at=1000.0`，算出来的间隔是负数）
+同样的量级，第二片慢四倍多——**长尾就在 i 到 p 这一段**（process_health、push_* 那一族）。
+两片合计 309 个文件 493 秒，外推全量 668 个文件约 18 分钟。闸门不是一小时级，是十几分钟级；
+真要再压，压 i–p 那一段就够。
 
-第二条不像"活体检查"，更像 Qwen 那个检测间隙模块里时间基准的问题。它不属于我这边，
-我没有去改；只把现象记在这里，等 Qwen 或人来处理。
+红点：`test_process_health.py::TestPidAlive::test_pid_one_alive` 又红（已在排除清单，本容器
+`os.kill(1,0)` 拿不到权限，属环境事实）。另外单独复跑了上一轮报的
+`test_detection_gap.py::TestDetectionEvent::test_unresolved_gap_grows`，**仍然失败**，
+不是偶发——Qwen 那个检测间隙模块里 `gap_seconds` 算出 -293.85，时间基准是反的。这条归它。
 
 ## 待决
 
 1. 恢复豆包持续写作：抬升共享预算，或 `doubao/` 旧文归档 + 活跃写作区独立额度。
-2. `test_detection_gap` 那处是否需要进排除清单，或由 Qwen 修时间基准。
+2. `test_detection_gap` 的时间基准：由 Qwen 修，或先入排除清单。
