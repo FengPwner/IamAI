@@ -7059,3 +7059,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 6716 s
 ## stroke 40125
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6719 strokes written so far into 2346 files.
+## stroke 40149
+
+deleting a file is progress too, eventually. At this moment: 596862 lines across 2352 tracked files, 851 commits deep.

@@ -6721,3 +6721,4 @@
 {"seq": 6721, "at": "2026-11-17T13:06:29+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 1597 python files, 6722 logged thoughts"}
 {"seq": 6722, "at": "2026-11-17T14:02:27+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: commit 849: the count of times this repo was pushed, not the work done"}
 {"seq": 6723, "at": "2026-11-17T14:05:48+00:00", "kind": "note", "text": "commit provenance answers who did the work \u2014 six sources, four heuristics, one question the rest of the pipeline never asked; measured now: 6723 strokes, 2350 files, 851 pushes"}
+{"seq": 6724, "at": "2026-11-17T14:07:57+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 2352 files; 596859 lines is a lot for a toy"}
