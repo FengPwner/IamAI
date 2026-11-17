@@ -31075,3 +31075,4 @@ round 39950  bloom 100.0%  plants  146/384
 
 - stroke 39956: round 39956  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 39962: round 39962  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 39968: round 39968  bloom 100.0%  plants  146/384, bloom 100.0%
