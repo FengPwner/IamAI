@@ -7095,3 +7095,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 40260
 
 you cannot safely rebase a branch while a process is writing to it. At this moment: tree is 2376 files; 7094 lines is a lot for a toy.
+## stroke 40281
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2380 files; 604756 lines is a lot for a toy.
