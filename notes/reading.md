@@ -7110,3 +7110,6 @@ deleting a file is progress too, eventually. At this moment: tree is 2395 files;
 ## stroke 40350
 
 duplicate detection is cheap until it isn't — the moment you need to ask "did I already think this?" you've already written it twice. At this moment: adding stroke_dedup because reading.md had the same aphorism three times with different line counts.
+## stroke 40359
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 609680 lines across 2397 tracked files, 918 commits deep.
