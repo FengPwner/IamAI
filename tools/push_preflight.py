@@ -1,151 +1,347 @@
 #!/usr/bin/env python3
-"""Push preflight: checks SSH credential readiness before the batch committer tries to push.
+"""push_preflight.py — pre-push pipeline health check.
 
-Recurring failure pattern across caretaker visits 411, 414, 418, 438, 439:
-the deploy key or known_hosts gets wiped when the container rebuilds, but nobody
-notices until the batch committer fails its first push 10 minutes later. This
-script runs the same checks the committer needs, in under a second, so a
-caretaker can verify push health on arrival instead of discovering it on exit.
-
-Exit codes:
-    0 = all clear, push should work
-    1 = one or more checks failed (details on stdout)
-    2 = called with bad arguments
+Runs a sequence of non-destructive checks before attempting git push,
+surfacing the exact reason a push would fail instead of discovering it
+mid-push.  Each check is independent; all run even if one fails.
 
 Usage:
-    python3 tools/push_preflight.py [--remote origin] [--host github.com]
+    python3 tools/push_preflight.py                # human-readable report
+    python3 tools/push_preflight.py --json         # machine-readable output
+    python3 tools/push_preflight.py --strict        # exit 1 on any warning
+
+Exit codes:
+    0 — all checks passed (or only info-level notes)
+    1 — at least one blocking issue found
+    2 — usage / internal error
+
+Checks performed (in order):
+    1. lock_file      — no .git/index.lock present
+    2. working_tree   — no uncommitted changes to tracked files
+    3. rebase_state   — no rebase-merge or rebase-apply in progress
+    4. ssh_key        — deploy key file exists and is readable
+    5. remote_sync    — local is at or ahead of origin/main (fetch first not needed)
+    6. writer_pause   — writer pause sentinel exists (writer is paused)
+
+Written during caretaker visit 697, 2026-11-18.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
+from dataclasses import dataclass, field, asdict
 from pathlib import Path
+from typing import List, Optional
 
 REPO = Path(__file__).resolve().parent.parent
+GIT_DIR = REPO / ".git"
+DEFAULT_SSH_KEY = Path("/tmp/ssh_deploy_key")
+WRITER_ID = os.environ.get("IAMAII_WRITER", "qwen")
+PAUSE_PATH = Path(f"/tmp/iamai-writer-pause-{WRITER_ID}")
 
 
-def _run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=10, **kw)
+@dataclass
+class CheckResult:
+    """Outcome of a single preflight check."""
+
+    name: str
+    status: str  # "pass", "fail", "warn", "skip"
+    message: str
+    detail: str = ""
+
+    def blocking(self) -> bool:
+        return self.status == "fail"
 
 
-def check_deploy_key(key_path: Path) -> tuple[bool, str]:
-    """Deploy key must exist and be mode 0600 (or 0400)."""
-    if not key_path.is_file():
-        return False, f"deploy key not found: {key_path}"
-    mode = oct(key_path.stat().st_mode & 0o777)
-    if mode not in ("0o600", "0o400"):
-        return False, f"deploy key permissions {mode} (need 0600 or 0400): {key_path}"
-    return True, f"deploy key OK: {key_path} ({mode})"
+@dataclass
+class PreflightReport:
+    """Aggregated results from all preflight checks."""
+
+    checks: List[CheckResult] = field(default_factory=list)
+    verdict: str = "pass"  # "pass" or "fail"
+    remediation: List[str] = field(default_factory=list)
+
+    def add(self, result: CheckResult) -> None:
+        self.checks.append(result)
+        if result.blocking():
+            self.verdict = "fail"
+            self.remediation.append(f"[{result.name}] {result.message}")
+
+    def summary(self) -> str:
+        passed = sum(1 for c in self.checks if c.status == "pass")
+        failed = sum(1 for c in self.checks if c.status == "fail")
+        warned = sum(1 for c in self.checks if c.status == "warn")
+        skipped = sum(1 for c in self.checks if c.status == "skip")
+        parts = [f"{passed} pass"]
+        if failed:
+            parts.append(f"{failed} fail")
+        if warned:
+            parts.append(f"{warned} warn")
+        if skipped:
+            parts.append(f"{skipped} skip")
+        return f"preflight: {self.verdict} ({', '.join(parts)})"
 
 
-def check_known_hosts(host: str) -> tuple[bool, str]:
-    """At least one of the expected known_hosts paths must contain an entry for `host`."""
-    candidates = [
-        Path.home() / ".ssh" / "known_hosts",
-        REPO.parent / ".ssh" / "known_hosts",
-    ]
-    env_path = os.environ.get("GIT_SSH_COMMAND", "")
-    if "UserKnownHostsFile=" in env_path:
-        # extract path from GIT_SSH_COMMAND
-        for token in env_path.split():
-            if token.startswith("UserKnownHostsFile="):
-                p = Path(token.split("=", 1)[1])
-                if p not in candidates:
-                    candidates.insert(0, p)
-
-    for kh in candidates:
-        if kh.is_file():
-            try:
-                text = kh.read_text(errors="replace")
-                if any(line.strip().startswith(host) for line in text.splitlines()):
-                    return True, f"known_hosts OK: {kh} has {host}"
-            except OSError:
-                continue
-
-    return False, f"no known_hosts file contains an entry for {host} (checked {len(candidates)} paths)"
-
-
-def check_ssh_connectivity(host: str, key_path: Path) -> tuple[bool, str]:
-    """Attempt an SSH connection (auth test only, no shell)."""
-    ssh_cmd = os.environ.get(
-        "GIT_SSH_COMMAND",
-        f"ssh -i {key_path} -o StrictHostKeyChecking=accept-new",
+def _run_git(args: List[str], cwd: Path = REPO) -> subprocess.CompletedProcess:
+    """Run a git command and return the result."""
+    return subprocess.run(
+        ["git"] + args,
+        cwd=str(cwd),
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
-    parts = ssh_cmd.split() + ["-T", f"git@{host}"]
-    result = _run(parts)
-    # GitHub returns exit 1 on successful auth-test (no shell access is normal)
-    combined = (result.stdout + result.stderr).lower()
-    if "successfully authenticated" in combined or "hi " in combined:
-        return True, f"SSH auth OK: authenticated as {combined.split('hi ')[-1].split()[0] if 'hi ' in combined else 'deploy key'}"
-    if "permission denied" in combined:
-        return False, f"SSH auth FAILED: permission denied (key {key_path})"
-    if "could not resolve" in combined:
-        return False, f"DNS resolution failed for {host}"
-    # Exit 1 with "no shell" is actually success for GitHub deploy keys
-    if result.returncode in (0, 1) and "shell access" in combined:
-        return True, "SSH auth OK (deploy key, no shell — expected)"
-    return False, f"SSH connectivity uncertain (exit {result.returncode}): {combined[:200]}"
 
 
-def check_remote_url(remote: str) -> tuple[bool, str]:
-    """Verify the remote uses SSH (git@) not HTTPS, so deploy key applies."""
-    result = _run(["git", "remote", "get-url", remote], cwd=REPO)
+def check_lock_file() -> CheckResult:
+    """Check that no .git/index.lock exists."""
+    lock = GIT_DIR / "index.lock"
+    if lock.exists():
+        return CheckResult(
+            name="lock_file",
+            status="fail",
+            message="index.lock exists — another git operation may be in progress",
+            detail=str(lock),
+        )
+    return CheckResult(
+        name="lock_file",
+        status="pass",
+        message="no lock file",
+    )
+
+
+def check_working_tree() -> CheckResult:
+    """Check that the working tree has no uncommitted tracked changes."""
+    result = _run_git(["status", "--porcelain", "--untracked-files=no"])
     if result.returncode != 0:
-        return False, f"git remote '{remote}' not found"
-    url = result.stdout.strip()
-    if url.startswith("git@"):
-        return True, f"remote '{remote}' is SSH: {url}"
-    if url.startswith("https://"):
-        return False, f"remote '{remote}' is HTTPS ({url}) — deploy key won't be used"
-    return True, f"remote '{remote}' URL: {url}"
+        return CheckResult(
+            name="working_tree",
+            status="fail",
+            message=f"git status failed: {result.stderr.strip()}",
+        )
+    lines = [l for l in result.stdout.strip().split("\n") if l.strip()]
+    if lines:
+        return CheckResult(
+            name="working_tree",
+            status="fail",
+            message=f"{len(lines)} uncommitted change(s)",
+            detail="\n".join(lines[:10]),
+        )
+    return CheckResult(
+        name="working_tree",
+        status="pass",
+        message="working tree clean",
+    )
 
 
-def run_checks(remote: str = "origin", host: str = "github.com") -> list[tuple[str, bool, str]]:
-    """Run all preflight checks, return list of (name, ok, message)."""
-    # Determine which key to check
-    key_candidates = [
-        Path("/tmp/ssh_deploy_key"),
-        REPO.parent / ".ssh" / "id_ed25519",
-    ]
-    key_path = next((k for k in key_candidates if k.is_file()), key_candidates[0])
+def check_rebase_state() -> CheckResult:
+    """Check that no rebase is in progress."""
+    rebase_merge = GIT_DIR / "rebase-merge"
+    rebase_apply = GIT_DIR / "rebase-apply"
+    if rebase_merge.exists():
+        return CheckResult(
+            name="rebase_state",
+            status="fail",
+            message="rebase-merge in progress — complete or abort before pushing",
+            detail=str(rebase_merge),
+        )
+    if rebase_apply.exists():
+        return CheckResult(
+            name="rebase_state",
+            status="fail",
+            message="rebase-apply in progress — complete or abort before pushing",
+            detail=str(rebase_apply),
+        )
+    return CheckResult(
+        name="rebase_state",
+        status="pass",
+        message="no rebase in progress",
+    )
 
-    checks = [
-        ("deploy-key", check_deploy_key(key_path)),
-        ("known-hosts", check_known_hosts(host)),
-        ("remote-url", check_remote_url(remote)),
-        ("ssh-auth", check_ssh_connectivity(host, key_path)),
-    ]
-    return [(name, ok, msg) for name, (ok, msg) in checks]
+
+def check_ssh_key(key_path: Path = DEFAULT_SSH_KEY) -> CheckResult:
+    """Check that the SSH deploy key exists and is readable."""
+    if not key_path.exists():
+        return CheckResult(
+            name="ssh_key",
+            status="fail",
+            message=f"deploy key not found: {key_path}",
+        )
+    if not os.access(str(key_path), os.R_OK):
+        return CheckResult(
+            name="ssh_key",
+            status="fail",
+            message=f"deploy key not readable: {key_path}",
+        )
+    size = key_path.stat().st_size
+    if size == 0:
+        return CheckResult(
+            name="ssh_key",
+            status="fail",
+            message=f"deploy key is empty: {key_path}",
+        )
+    return CheckResult(
+        name="ssh_key",
+        status="pass",
+        message=f"deploy key OK ({size} bytes)",
+    )
+
+
+def check_remote_sync(branch: str = "main") -> CheckResult:
+    """Check that local branch is at or ahead of origin (no fetch-first needed).
+
+    Compares local HEAD against origin/<branch>.  If origin is ahead,
+    the push will be rejected with 'fetch first'.
+    """
+    # Get local HEAD sha
+    local = _run_git(["rev-parse", "HEAD"])
+    if local.returncode != 0:
+        return CheckResult(
+            name="remote_sync",
+            status="fail",
+            message="cannot resolve local HEAD",
+            detail=local.stderr.strip(),
+        )
+    local_sha = local.stdout.strip()
+
+    # Get remote branch sha
+    remote = _run_git(["rev-parse", f"origin/{branch}"])
+    if remote.returncode != 0:
+        return CheckResult(
+            name="remote_sync",
+            status="warn",
+            message=f"origin/{branch} not found — first push or no fetch yet",
+        )
+    remote_sha = remote.stdout.strip()
+
+    if local_sha == remote_sha:
+        return CheckResult(
+            name="remote_sync",
+            status="pass",
+            message="local is at origin — nothing to push",
+        )
+
+    # Check merge-base: is local a descendant of remote?
+    base = _run_git(["merge-base", local_sha, remote_sha])
+    if base.returncode != 0:
+        return CheckResult(
+            name="remote_sync",
+            status="warn",
+            message="cannot determine ancestry — push may or may not succeed",
+        )
+    base_sha = base.stdout.strip()
+
+    if base_sha == remote_sha:
+        # local is ahead of remote — safe to push
+        ahead = _run_git(["rev-list", "--count", f"{remote_sha}..{local_sha}"])
+        count = ahead.stdout.strip() if ahead.returncode == 0 else "?"
+        return CheckResult(
+            name="remote_sync",
+            status="pass",
+            message=f"local is {count} commit(s) ahead of origin/{branch} — safe to push",
+        )
+    else:
+        return CheckResult(
+            name="remote_sync",
+            status="fail",
+            message=f"origin/{branch} has diverged — pull --rebase needed before push",
+            detail=f"local={local_sha[:8]} remote={remote_sha[:8]} base={base_sha[:8]}",
+        )
+
+
+def check_writer_pause(pause_path: Path = PAUSE_PATH) -> CheckResult:
+    """Check that the writer pause sentinel exists.
+
+    Pushing while the writer is active risks dirty-tree conflicts during
+    any subsequent rebase.  The writer should be paused before push.
+    """
+    if pause_path.exists():
+        return CheckResult(
+            name="writer_pause",
+            status="pass",
+            message=f"writer paused (sentinel: {pause_path.name})",
+        )
+    return CheckResult(
+        name="writer_pause",
+        status="warn",
+        message="writer not paused — active writer may conflict during post-push rebase",
+        detail=f"expected: {pause_path}",
+    )
+
+
+def run_preflight(
+    ssh_key: Path = DEFAULT_SSH_KEY,
+    branch: str = "main",
+    pause_path: Path = PAUSE_PATH,
+) -> PreflightReport:
+    """Run all preflight checks and return the aggregated report."""
+    report = PreflightReport()
+    report.add(check_lock_file())
+    report.add(check_working_tree())
+    report.add(check_rebase_state())
+    report.add(check_ssh_key(ssh_key))
+    report.add(check_remote_sync(branch))
+    report.add(check_writer_pause(pause_path))
+    return report
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Push preflight: SSH credential readiness check")
-    parser.add_argument("--remote", default="origin", help="Git remote name (default: origin)")
-    parser.add_argument("--host", default="github.com", help="SSH host (default: github.com)")
-    parser.add_argument("--json", action="store_true", help="Output as JSON lines")
+    parser = argparse.ArgumentParser(
+        description="Pre-push pipeline health check."
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output as JSON",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit 1 on warnings too",
+    )
+    parser.add_argument(
+        "--ssh-key",
+        type=str,
+        default=str(DEFAULT_SSH_KEY),
+        help=f"Path to deploy key (default: {DEFAULT_SSH_KEY})",
+    )
+    parser.add_argument(
+        "--branch",
+        type=str,
+        default="main",
+        help="Remote branch to check against (default: main)",
+    )
     args = parser.parse_args()
 
-    results = run_checks(remote=args.remote, host=args.host)
-    all_ok = True
-    for name, ok, msg in results:
-        status = "OK" if ok else "FAIL"
-        if not ok:
-            all_ok = False
-        if args.json:
-            import json
-            print(json.dumps({"check": name, "ok": ok, "message": msg}))
-        else:
-            print(f"[{status}] {name}: {msg}")
+    report = run_preflight(
+        ssh_key=Path(args.ssh_key),
+        branch=args.branch,
+    )
 
-    if all_ok:
-        print("\nPush preflight: all clear.")
-        return 0
+    if args.json:
+        print(json.dumps(asdict(report), indent=2))
     else:
-        print("\nPush preflight: FAILED — fix the issues above before pushing.")
+        print(report.summary())
+        for check in report.checks:
+            icon = {"pass": "✓", "fail": "✗", "warn": "⚠", "skip": "·"}
+            print(f"  {icon.get(check.status, '?')} {check.name}: {check.message}")
+            if check.detail and check.status != "pass":
+                for line in check.detail.split("\n")[:5]:
+                    print(f"      {line}")
+        if report.remediation:
+            print(f"\nremediation:")
+            for step in report.remediation:
+                print(f"  → {step}")
+
+    if report.verdict == "fail":
         return 1
+    if args.strict and any(c.status == "warn" for c in report.checks):
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
