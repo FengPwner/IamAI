@@ -1,249 +1,247 @@
-"""stroke_dedup — detect and flag repetitive strokes in the writer output.
+"""stroke_dedup — detect near-duplicate strokes in writer output.
 
-The writer occasionally enters a degenerate loop, emitting near-identical
-strokes in rapid succession (e.g. "retry.py is already in the pool of
-9 modules, nothing new to add there" repeated dozens of times).  Existing
-cadence and backlog modules measure *timing* and *volume* but not
-*content redundancy*.
+The automated writer appends a short aphorism or observation to one
+of six note files every ~15 seconds.  Because the pool of aphorisms
+is finite and the writer occasionally re-selects a recent one, the
+notes accumulate near-duplicates: the same sentence with a different
+stroke number or line count tacked on.
 
-This module fills that gap:
+This module provides lightweight, token-set based duplicate detection
+that can run inline during the write loop:
 
-- ``fingerprint(stroke)`` — normalise a stroke's text to a comparable hash
-- ``is_duplicate(prev, curr, threshold)`` — decide if two consecutive
-  strokes are "the same" by fingerprint distance
-- ``scan_window(strokes, window, threshold)`` — slide a window over a
-  sequence and return indices of strokes that are duplicates of their
-  predecessor
-- ``dedup_report(strokes, window, threshold)`` — produce a summary dict
-  with duplicate count, ratio, and the longest consecutive run
+  - ``tokenize(text)``: whitespace + punctuation split, lowercased,
+    with stopwords and bare numbers stripped.
+  - ``jaccard(a, b)``: set-intersection over set-union of two token
+    sets.  Returns 0.0 for two empty sets.
+  - ``StrokeFingerprint``: immutable record of a stroke's token set
+    and its source text hash, suitable for ring-buffer storage.
+  - ``DedupResult``: outcome of a duplicate check — is_duplicate flag,
+    similarity score, index of the best match (or -1), and a short
+    human-readable reason.
+  - ``StrokeDedup``: stateful detector with a sliding window.
+    ``check(text)`` returns a DedupResult; ``record(text)`` adds a
+    fingerprint to the window without checking.
 
-Design choices
---------------
+Design decisions:
+  - Token-set (not token-bag): word frequency doesn't matter for
+    short aphorisms; presence/absence is sufficient and faster.
+  - Numbers stripped: "tree is 2380 files" and "tree is 2395 files"
+    should match despite different counts.
+  - Ring buffer (fixed max size): memory-bounded even in long runs.
+  - No external dependencies: pure stdlib so the writer loop never
+    blocks on a missing package.
 
-- Fingerprints use lowercased, whitespace-collapsed text hashed with
-  SHA-256 (first 16 hex chars).  Cheap, collision-resistant for this
-  use case, and deterministic across runs.
-- "Duplicate" means the fingerprint of the current stroke matches the
-  fingerprint of its immediate predecessor.  No fuzzy matching — the
-  degenerate loops we care about produce *exact* repeats.
-- ``window`` is a look-back limit so ``scan_window`` can run on
-  arbitrarily long streams without unbounded memory.
+Usage::
 
-Zero dependencies beyond stdlib.
+    from iamai.stroke_dedup import StrokeDedup
 
->>> strokes = [
-...     "retry.py is already in the pool of 9 modules, nothing new to add there",
-...     "retry.py is already in the pool of 9 modules, nothing new to add there",
-...     "a genuinely new thought about the project's direction",
-...     "retry.py is already in the pool of 9 modules, nothing new to add there",
-... ]
->>> r = dedup_report(strokes)
->>> r["duplicate_count"]
-2
->>> r["duplicate_ratio"] == 2 / 4
-True
->>> r["longest_run"]
-2
+    dedup = StrokeDedup(window=100, threshold=0.7)
+    result = dedup.check("automation fails quietly, so the log …")
+    if result.is_duplicate:
+        skip_this_stroke()
+    else:
+        dedup.record("automation fails quietly, so the log …")
 """
 
 from __future__ import annotations
 
-import hashlib
 import re
+import hashlib
+from collections import deque
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence
+from typing import FrozenSet, Optional
+
+# ── constants ────────────────────────────────────────────────────────
+
+#: Words stripped during tokenization — articles, copulas, and other
+#: function words that add noise to similarity scoring.
+STOPWORDS: FrozenSet[str] = frozenset({
+    "a", "an", "the", "is", "are", "was", "were", "be", "been",
+    "am", "it", "its", "this", "that", "and", "or", "not", "no",
+    "so", "if", "in", "on", "at", "to", "of", "by", "for", "as",
+})
+
+#: Default Jaccard similarity threshold above which two strokes are
+#: considered near-duplicates.
+DEFAULT_THRESHOLD: float = 0.7
+
+#: Default sliding window size (number of fingerprints kept).
+DEFAULT_WINDOW: int = 200
+
+# ── tokenization ────────────────────────────────────────────────────
+
+_TOKEN_RE = re.compile(r"[a-z']+")
 
 
-# ---------------------------------------------------------------------------
-# Fingerprint
-# ---------------------------------------------------------------------------
+def tokenize(text: str) -> FrozenSet[str]:
+    """Return the set of meaningful lower-case tokens in *text*.
 
-_WS_COLLAPSE = re.compile(r"\s+")
-
-
-def fingerprint(text: str) -> str:
-    """Return a 16-char hex fingerprint for *text*.
-
-    Whitespace is collapsed, case is lowered, and the result is the
-    first 16 hex characters of the SHA-256 digest.
-
-    >>> len(fingerprint("hello world"))
-    16
-    >>> fingerprint("Hello  World") == fingerprint("hello world")
-    True
-    >>> fingerprint("") == fingerprint("  ")
-    True
+    - Splits on non-alpha boundaries.
+    - Lowercases everything.
+    - Strips stopwords.
+    - Strips bare-number tokens (e.g. "2380", "608917").
+    - Strips tokens shorter than 2 characters.
     """
-    normalised = _WS_COLLAPSE.sub(" ", text.strip().lower())
-    digest = hashlib.sha256(normalised.encode("utf-8")).hexdigest()
-    return digest[:16]
+    raw = _TOKEN_RE.findall(text.lower())
+    return frozenset(
+        t for t in raw
+        if t not in STOPWORDS
+        and not t.isdigit()
+        and len(t) >= 2
+    )
 
 
-# ---------------------------------------------------------------------------
-# Duplicate detection
-# ---------------------------------------------------------------------------
+# ── similarity ──────────────────────────────────────────────────────
 
 
-def is_duplicate(prev_text: str, curr_text: str) -> bool:
-    """Return True if *curr_text* is a fingerprint match for *prev_text*.
+def jaccard(a: FrozenSet[str], b: FrozenSet[str]) -> float:
+    """Jaccard similarity of two sets.
 
-    >>> is_duplicate("hello", "hello")
-    True
-    >>> is_duplicate("hello", "world")
-    False
-    >>> is_duplicate("  Hello  ", "hello")
-    True
+    Returns 0.0 when both sets are empty (avoids ZeroDivisionError).
     """
-    return fingerprint(prev_text) == fingerprint(curr_text)
+    if not a and not b:
+        return 0.0
+    intersection = len(a & b)
+    union = len(a | b)
+    return intersection / union
 
 
-# ---------------------------------------------------------------------------
-# Window scan
-# ---------------------------------------------------------------------------
+# ── data classes ────────────────────────────────────────────────────
 
 
-def scan_window(
-    strokes: Sequence[str],
-    window: int = 1,
-) -> List[int]:
-    """Return indices of strokes that duplicate their predecessor.
+@dataclass(frozen=True)
+class StrokeFingerprint:
+    """Immutable fingerprint of a single stroke."""
 
-    Only ``window`` look-back is supported (default 1 = immediate
-    predecessor).  The first stroke (index 0) is never flagged.
+    tokens: FrozenSet[str]
+    text_hash: str  # sha256 hex-digest of the original text
 
-    >>> scan_window(["a", "b", "b", "c", "c", "c"])
-    [2, 4, 5]
-    >>> scan_window(["unique", "thoughts", "only"])
-    []
-    >>> scan_window([])
-    []
-    >>> scan_window(["solo"])
-    []
-    """
-    if len(strokes) < 2:
-        return []
-
-    dupes: List[int] = []
-    for i in range(1, len(strokes)):
-        look_back = min(i, window)
-        for j in range(i - look_back, i):
-            if is_duplicate(strokes[j], strokes[i]):
-                dupes.append(i)
-                break
-    return dupes
+    @classmethod
+    def from_text(cls, text: str) -> "StrokeFingerprint":
+        return cls(
+            tokens=tokenize(text),
+            text_hash=hashlib.sha256(text.encode("utf-8")).hexdigest()[:16],
+        )
 
 
-# ---------------------------------------------------------------------------
-# Consecutive-run tracker
-# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class DedupResult:
+    """Outcome of a duplicate check."""
+
+    is_duplicate: bool
+    similarity: float
+    match_index: int          # index in the window, -1 if no match
+    reason: str
+
+    def __str__(self) -> str:
+        if self.is_duplicate:
+            return f"DUPLICATE (sim={self.similarity:.2f}, match@{self.match_index}): {self.reason}"
+        return f"unique (sim={self.similarity:.2f}): {self.reason}"
 
 
-def _longest_consecutive_run(strokes: Sequence[str]) -> int:
-    """Return the length of the longest run of identical consecutive strokes.
-
-    A single stroke counts as a run of 1.
-
-    >>> _longest_consecutive_run(["a", "a", "a", "b", "b"])
-    3
-    >>> _longest_consecutive_run(["x"])
-    1
-    >>> _longest_consecutive_run([])
-    0
-    >>> _longest_consecutive_run(["a", "b", "c"])
-    1
-    """
-    if not strokes:
-        return 0
-    best = 1
-    run = 1
-    for i in range(1, len(strokes)):
-        if is_duplicate(strokes[i - 1], strokes[i]):
-            run += 1
-            if run > best:
-                best = run
-        else:
-            run = 1
-    return best
+# ── stateful detector ──────────────────────────────────────────────
 
 
-# ---------------------------------------------------------------------------
-# Summary report
-# ---------------------------------------------------------------------------
+class StrokeDedup:
+    """Sliding-window near-duplicate detector for writer strokes.
 
-
-@dataclass
-class DedupReport:
-    """Structured deduplication report.
-
-    Attributes
+    Parameters
     ----------
-    total : int
-        Total strokes examined.
-    duplicate_count : int
-        Number of strokes flagged as duplicates.
-    duplicate_ratio : float
-        Fraction of strokes that are duplicates (0.0–1.0).
-    longest_run : int
-        Longest consecutive run of identical strokes.
-    flagged_indices : list[int]
-        Indices of all flagged strokes.
+    window:
+        Maximum number of fingerprints to keep.  Older entries are
+        evicted FIFO.
+    threshold:
+        Jaccard similarity at or above which a stroke is flagged as
+        a near-duplicate.
     """
 
-    total: int
-    duplicate_count: int
-    duplicate_ratio: float
-    longest_run: int
-    flagged_indices: List[int] = field(default_factory=list)
+    def __init__(
+        self,
+        window: int = DEFAULT_WINDOW,
+        threshold: float = DEFAULT_THRESHOLD,
+    ) -> None:
+        self._window = max(1, window)
+        self._threshold = threshold
+        self._buffer: deque[StrokeFingerprint] = deque(maxlen=self._window)
+
+    # ── public API ──────────────────────────────────────────────────
+
+    def check(self, text: str) -> DedupResult:
+        """Check *text* against the window **without** recording it.
+
+        Returns a :class:`DedupResult` describing whether *text* is a
+        near-duplicate of any stroke currently in the window.
+        """
+        fp = StrokeFingerprint.from_text(text)
+        return self._compare(fp)
+
+    def record(self, text: str) -> None:
+        """Add *text* to the window without checking for duplicates."""
+        self._buffer.append(StrokeFingerprint.from_text(text))
+
+    def check_and_record(self, text: str) -> DedupResult:
+        """Check *text* and, if **not** a duplicate, record it.
+
+        If the text *is* a duplicate it is **not** recorded (to avoid
+        polluting the window with repeated content).
+        """
+        result = self.check(text)
+        if not result.is_duplicate:
+            self.record(text)
+        return result
+
+    def clear(self) -> None:
+        """Drop all fingerprints from the window."""
+        self._buffer.clear()
+
+    # ── introspection ───────────────────────────────────────────────
 
     @property
-    def is_degenerate(self) -> bool:
-        """True when duplicate_ratio exceeds 50 % — writer is looping."""
-        return self.duplicate_ratio > 0.5
+    def size(self) -> int:
+        """Number of fingerprints currently in the window."""
+        return len(self._buffer)
 
-    def to_dict(self) -> dict:
-        return {
-            "total": self.total,
-            "duplicate_count": self.duplicate_count,
-            "duplicate_ratio": self.duplicate_ratio,
-            "longest_run": self.longest_run,
-            "flagged_indices": self.flagged_indices,
-            "is_degenerate": self.is_degenerate,
-        }
+    @property
+    def threshold(self) -> float:
+        return self._threshold
 
+    @property
+    def window_max(self) -> int:
+        return self._window
 
-def dedup_report(
-    strokes: Sequence[str],
-    window: int = 1,
-) -> DedupReport:
-    """Produce a :class:`DedupReport` for *strokes*.
+    # ── internals ───────────────────────────────────────────────────
 
-    >>> r = dedup_report(["a", "a", "b", "a", "a", "a"])
-    >>> r.total
-    6
-    >>> r.duplicate_count
-    3
-    >>> r.longest_run
-    3
-    >>> r.is_degenerate
-    False
+    def _compare(self, fp: StrokeFingerprint) -> DedupResult:
+        # Exact-hash fast path: identical text → always duplicate.
+        for idx, existing in enumerate(self._buffer):
+            if existing.text_hash == fp.text_hash:
+                return DedupResult(
+                    is_duplicate=True,
+                    similarity=1.0,
+                    match_index=idx,
+                    reason="exact text match",
+                )
 
-    Empty input is safe:
+        # Token-set similarity scan.
+        best_sim = 0.0
+        best_idx = -1
+        for idx, existing in enumerate(self._buffer):
+            sim = jaccard(fp.tokens, existing.tokens)
+            if sim > best_sim:
+                best_sim = sim
+                best_idx = idx
 
-    >>> r = dedup_report([])
-    >>> r.total
-    0
-    >>> r.duplicate_ratio
-    0.0
-    """
-    flagged = scan_window(strokes, window)
-    total = len(strokes)
-    count = len(flagged)
-    ratio = count / total if total else 0.0
-    run = _longest_consecutive_run(strokes)
-    return DedupReport(
-        total=total,
-        duplicate_count=count,
-        duplicate_ratio=ratio,
-        longest_run=run,
-        flagged_indices=flagged,
-    )
+        if best_sim >= self._threshold and best_idx >= 0:
+            return DedupResult(
+                is_duplicate=True,
+                similarity=best_sim,
+                match_index=best_idx,
+                reason="token-set similarity above threshold",
+            )
+
+        return DedupResult(
+            is_duplicate=False,
+            similarity=best_sim,
+            match_index=best_idx,
+            reason="below threshold" if self._buffer else "empty window",
+        )

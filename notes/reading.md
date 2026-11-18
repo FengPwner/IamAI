@@ -7107,3 +7107,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 40335
 
 deleting a file is progress too, eventually. At this moment: tree is 2395 files; 608917 lines is a lot for a toy.
+## stroke 40350
+
+duplicate detection is cheap until it isn't — the moment you need to ask "did I already think this?" you've already written it twice. At this moment: adding stroke_dedup because reading.md had the same aphorism three times with different line counts.
