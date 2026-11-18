@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
-"""Tests for stroke_burst_detector — 52 test cases."""
-
-from __future__ import annotations
+"""Tests for stroke_burst_detector.py — burst and drought pattern detection."""
 
 import sys
-import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from iamai.stroke_burst_detector import (  # noqa: E402
-    _classify,
-    _compute_gaps,
-    _find_bursts,
-    _to_epoch,
-    burst_report,
-    burst_timeline,
+from iamai.stroke_burst_detector import (
+    BurstEvent,
+    BurstReport,
+    DroughtEvent,
+    _compute_regularity,
+    _extract_timestamps,
+    _parse_ts,
+    analyze,
+    detect_bursts,
+    detect_droughts,
+    inter_stroke_gaps,
 )
 
 
@@ -25,355 +28,353 @@ from iamai.stroke_burst_detector import (  # noqa: E402
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _ts(*seconds: float) -> list:
-    """Build a list of datetimes from epoch-second offsets."""
-    base = datetime(2026, 11, 10, 0, 0, 0, tzinfo=timezone.utc)
-    return [
-        datetime.fromtimestamp(base.timestamp() + s, tz=timezone.utc)
-        for s in seconds
-    ]
+_BASE = datetime(2026, 11, 19, 0, 0, 0, tzinfo=timezone.utc)
+
+
+def _ts(offset_seconds: float) -> str:
+    """Return an ISO-8601 timestamp offset from a fixed base."""
+    dt = _BASE + timedelta(seconds=offset_seconds)
+    return dt.isoformat()
+
+
+def _stroke(offset: float, seq: int = 0) -> dict:
+    return {"seq": seq, "at": _ts(offset), "kind": "thought", "text": "x"}
+
+
+def _strokes_from_offsets(offsets: list, seqs: list = None) -> list:
+    if seqs is None:
+        seqs = list(range(len(offsets)))
+    return [_stroke(o, s) for o, s in zip(offsets, seqs)]
 
 
 # ---------------------------------------------------------------------------
-# _to_epoch
+# _parse_ts
 # ---------------------------------------------------------------------------
 
-class TestToEpoch(unittest.TestCase):
-    """Convert various timestamp types to epoch seconds."""
+class TestParseTs:
+    def test_iso_with_timezone(self):
+        dt = _parse_ts("2026-11-19T00:00:00+00:00")
+        assert dt.year == 2026
+        assert dt.tzinfo is not None
 
-    def test_int_passthrough(self):
-        self.assertEqual(_to_epoch(100), 100.0)
+    def test_iso_with_z(self):
+        dt = _parse_ts("2026-11-19T00:00:00Z")
+        assert dt.tzinfo is not None
 
-    def test_float_passthrough(self):
-        self.assertAlmostEqual(_to_epoch(3.14), 3.14)
-
-    def test_datetime_conversion(self):
-        dt = datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-        self.assertAlmostEqual(_to_epoch(dt), dt.timestamp())
-
-    def test_unsupported_type_raises(self):
-        with self.assertRaises(TypeError):
-            _to_epoch("2026-01-01")
-
-    def test_naive_datetime_works(self):
-        # naive datetime should still convert (uses local time)
-        dt = datetime(2026, 6, 15, 12, 0, 0)
-        result = _to_epoch(dt)
-        self.assertIsInstance(result, float)
-        self.assertGreater(result, 0)
+    def test_iso_no_timezone(self):
+        dt = _parse_ts("2026-11-19T00:00:00")
+        assert dt.year == 2026
 
 
 # ---------------------------------------------------------------------------
-# _compute_gaps
+# _extract_timestamps
 # ---------------------------------------------------------------------------
 
-class TestComputeGaps(unittest.TestCase):
-    """Inter-stroke gap calculation."""
+class TestExtractTimestamps:
+    def test_sorted_output(self):
+        strokes = [
+            _stroke(100, 1),
+            _stroke(0, 0),
+            _stroke(50, 2),
+        ]
+        ts = _extract_timestamps(strokes)
+        assert len(ts) == 3
+        assert ts[0] < ts[1] < ts[2]
 
     def test_empty(self):
-        self.assertEqual(_compute_gaps([]), [])
+        assert _extract_timestamps([]) == []
 
-    def test_single(self):
-        self.assertEqual(_compute_gaps([100]), [])
+    def test_missing_at_key(self):
+        strokes = [{"seq": 1, "text": "no at"}]
+        ts = _extract_timestamps(strokes)
+        assert ts == []
 
+
+# ---------------------------------------------------------------------------
+# inter_stroke_gaps
+# ---------------------------------------------------------------------------
+
+class TestInterStrokeGaps:
     def test_uniform_gaps(self):
-        ts = _ts(0, 10, 20, 30)
-        gaps = _compute_gaps(ts)
-        self.assertEqual(len(gaps), 3)
-        for g in gaps:
-            self.assertAlmostEqual(g, 10.0, places=1)
+        strokes = _strokes_from_offsets([0, 15, 30, 45])
+        gaps = inter_stroke_gaps(strokes)
+        assert gaps == [15.0, 15.0, 15.0]
 
-    def test_irregular_gaps(self):
-        ts = _ts(0, 5, 20, 22)
-        gaps = _compute_gaps(ts)
-        self.assertAlmostEqual(gaps[0], 5.0, places=1)
-        self.assertAlmostEqual(gaps[1], 15.0, places=1)
-        self.assertAlmostEqual(gaps[2], 2.0, places=1)
+    def test_single_stroke(self):
+        gaps = inter_stroke_gaps([_stroke(0)])
+        assert gaps == []
 
-    def test_numeric_timestamps(self):
-        gaps = _compute_gaps([0, 3, 7, 15])
-        self.assertEqual(gaps, [3, 4, 8])
+    def test_empty(self):
+        assert inter_stroke_gaps([]) == []
+
+    def test_two_strokes(self):
+        strokes = _strokes_from_offsets([0, 60])
+        gaps = inter_stroke_gaps(strokes)
+        assert gaps == [60.0]
+
+    def test_unsorted_input(self):
+        """Timestamps should be sorted internally."""
+        strokes = [_stroke(30, 2), _stroke(0, 0), _stroke(15, 1)]
+        gaps = inter_stroke_gaps(strokes)
+        assert gaps == [15.0, 15.0]
+
+    def test_negative_gap_clamped(self):
+        """Duplicate timestamps should yield 0.0, not negative."""
+        strokes = _strokes_from_offsets([0, 0, 10])
+        gaps = inter_stroke_gaps(strokes)
+        assert gaps[0] == 0.0
+        assert gaps[1] == 10.0
 
 
 # ---------------------------------------------------------------------------
-# _find_bursts
+# detect_bursts
 # ---------------------------------------------------------------------------
 
-class TestFindBursts(unittest.TestCase):
-    """Burst window detection."""
-
-    def test_no_gaps_no_bursts(self):
-        self.assertEqual(_find_bursts([]), [])
-
-    def test_all_slow_no_bursts(self):
-        gaps = [10, 15, 20, 12]  # all above 5s threshold
-        self.assertEqual(_find_bursts(gaps, rapid_threshold_s=5.0), [])
+class TestDetectBursts:
+    def test_no_bursts(self):
+        gaps = [15.0, 15.0, 15.0, 15.0]
+        events = detect_bursts(gaps, threshold=3.75)
+        assert events == []
 
     def test_single_burst(self):
-        # gaps: 2, 1, 3 (all < 5) then 20, then nothing
-        gaps = [2, 1, 3, 20]
-        bursts = _find_bursts(gaps, rapid_threshold_s=5.0, min_burst_size=3)
-        self.assertEqual(len(bursts), 1)
-        self.assertEqual(bursts[0], (0, 3))  # strokes 0..3
+        # 5 gaps of 1.0s (well below threshold of 10)
+        gaps = [15.0, 1.0, 1.0, 1.0, 1.0, 15.0]
+        events = detect_bursts(gaps, threshold=5.0)
+        assert len(events) == 1
+        assert events[0].count == 5  # 4 short gaps + 1
+        assert events[0].span_seconds == pytest.approx(4.0)
 
-    def test_burst_too_small_ignored(self):
-        # only 2 rapid gaps => 3 strokes, but min_burst_size=4
-        gaps = [1, 2, 15, 20]
-        bursts = _find_bursts(gaps, rapid_threshold_s=5.0, min_burst_size=4)
-        self.assertEqual(bursts, [])
+    def test_burst_too_short(self):
+        """A single short gap is not a burst (need ≥2 consecutive)."""
+        gaps = [15.0, 1.0, 15.0]
+        events = detect_bursts(gaps, threshold=5.0)
+        assert events == []
+
+    def test_trailing_burst(self):
+        gaps = [15.0, 1.0, 1.0, 1.0]
+        events = detect_bursts(gaps, threshold=5.0)
+        assert len(events) == 1
+        assert events[0].count == 4
+
+    def test_leading_burst(self):
+        gaps = [1.0, 1.0, 1.0, 15.0]
+        events = detect_bursts(gaps, threshold=5.0)
+        assert len(events) == 1
+        assert events[0].start_seq == 0
+
+    def test_empty_gaps(self):
+        assert detect_bursts([], threshold=5.0) == []
+
+    def test_zero_threshold(self):
+        gaps = [1.0, 1.0, 1.0]
+        assert detect_bursts(gaps, threshold=0) == []
+
+    def test_seq_offset(self):
+        gaps = [15.0, 1.0, 1.0, 1.0, 15.0]
+        events = detect_bursts(gaps, threshold=5.0, seq_start=100)
+        assert events[0].start_seq == 101
 
     def test_multiple_bursts(self):
-        gaps = [1, 1, 30, 2, 2, 2, 30]
-        bursts = _find_bursts(gaps, rapid_threshold_s=5.0, min_burst_size=3)
-        self.assertEqual(len(bursts), 2)
-        # first burst: strokes 0..2 (gaps 1,1)
-        self.assertEqual(bursts[0], (0, 2))
-        # second burst: strokes 3..6 (gaps 2,2,2)
-        self.assertEqual(bursts[1], (3, 6))
-
-    def test_burst_extending_to_end(self):
-        # rapid strokes at the very end
-        gaps = [20, 1, 1, 1]
-        bursts = _find_bursts(gaps, rapid_threshold_s=5.0, min_burst_size=3)
-        self.assertEqual(len(bursts), 1)
-        self.assertEqual(bursts[0], (1, 4))
-
-    def test_threshold_boundary(self):
-        # gap exactly at threshold is NOT rapid (< not <=)
-        gaps = [5, 5, 5, 5]
-        bursts = _find_bursts(gaps, rapid_threshold_s=5.0, min_burst_size=3)
-        self.assertEqual(bursts, [])
-
-    def test_custom_threshold(self):
-        gaps = [8, 8, 8, 30]
-        bursts = _find_bursts(gaps, rapid_threshold_s=10.0, min_burst_size=3)
-        self.assertEqual(len(bursts), 1)
-        self.assertEqual(bursts[0], (0, 3))
+        gaps = [1.0, 1.0, 15.0, 1.0, 1.0, 1.0, 15.0]
+        events = detect_bursts(gaps, threshold=5.0)
+        assert len(events) == 2
 
 
 # ---------------------------------------------------------------------------
-# burst_report
+# detect_droughts
 # ---------------------------------------------------------------------------
 
-class TestBurstReport(unittest.TestCase):
-    """Full burst analysis report."""
+class TestDetectDroughts:
+    def test_no_droughts(self):
+        gaps = [15.0, 15.0, 15.0]
+        events = detect_droughts(gaps, threshold=45.0)
+        assert events == []
 
-    def test_empty_input(self):
-        r = burst_report([])
-        self.assertEqual(r["burst_count"], 0)
-        self.assertEqual(r["pattern"], "steady")
-        self.assertEqual(r["bursts"], [])
+    def test_single_drought(self):
+        gaps = [15.0, 300.0, 15.0]
+        events = detect_droughts(gaps, threshold=45.0)
+        assert len(events) == 1
+        assert events[0].gap_seconds == 300.0
+        assert events[0].after_seq == 1
 
-    def test_single_timestamp(self):
-        r = burst_report([100])
-        self.assertEqual(r["burst_count"], 0)
-        self.assertEqual(r["burst_fraction"], 0.0)
+    def test_multiple_droughts(self):
+        gaps = [15.0, 100.0, 15.0, 200.0]
+        events = detect_droughts(gaps, threshold=45.0)
+        assert len(events) == 2
+        assert events[0].gap_seconds == 100.0
+        assert events[1].gap_seconds == 200.0
 
-    def test_steady_cadence(self):
-        ts = _ts(0, 15, 30, 45, 60, 75, 90)
-        r = burst_report(ts)
-        self.assertEqual(r["burst_count"], 0)
-        self.assertEqual(r["pattern"], "steady")
-        self.assertEqual(r["max_burst_size"], 0)
+    def test_empty_gaps(self):
+        assert detect_droughts([], threshold=45.0) == []
 
-    def test_one_burst_detected(self):
-        # 3 rapid strokes, then long gap, then 2 regular
-        ts = _ts(0, 2, 4, 100, 115)
-        r = burst_report(ts, rapid_threshold_s=5.0)
-        self.assertEqual(r["burst_count"], 1)
-        self.assertGreater(r["burst_fraction"], 0)
-        self.assertEqual(r["max_burst_size"], 3)
+    def test_zero_threshold(self):
+        assert detect_droughts([1.0], threshold=0) == []
 
-    def test_burst_fraction_calculation(self):
-        # 4 out of 8 strokes in a burst
-        ts = _ts(0, 1, 2, 3, 60, 120, 180, 240)
-        r = burst_report(ts, rapid_threshold_s=5.0)
-        self.assertAlmostEqual(r["burst_fraction"], 4 / 8, places=3)
-
-    def test_mean_inter_burst_gap(self):
-        # two bursts with a known gap between them
-        ts = _ts(0, 1, 2, 100, 101, 102)
-        r = burst_report(ts, rapid_threshold_s=5.0, min_burst_size=3)
-        self.assertEqual(r["burst_count"], 2)
-        # gap from stroke 2 (epoch+2) to stroke 3 (epoch+100) = 98
-        self.assertAlmostEqual(r["mean_inter_burst_gap"], 98.0, places=0)
-
-    def test_occasional_pattern(self):
-        # one small burst amid many regular strokes
-        ts = _ts(*list(range(0, 200, 15)) + [200, 201, 202])
-        # add the burst strokes at end (but keep sorted)
-        ts_sorted = sorted(set(ts))
-        r = burst_report(ts_sorted, rapid_threshold_s=5.0)
-        if r["burst_count"] == 1 and r["burst_fraction"] < 0.3:
-            self.assertEqual(r["pattern"], "occasional")
-
-    def test_clustered_pattern(self):
-        # multiple bursts close together
-        ts = _ts(0, 1, 2, 30, 31, 32, 60, 61, 62)
-        r = burst_report(ts, rapid_threshold_s=5.0, min_burst_size=3)
-        if r["burst_count"] >= 2 and r["mean_inter_burst_gap"] < 60:
-            self.assertEqual(r["pattern"], "clustered")
-
-    def test_bursty_pattern(self):
-        # bursts with long silences between
-        ts = _ts(0, 1, 2, 500, 501, 502, 1000, 1001, 1002)
-        r = burst_report(ts, rapid_threshold_s=5.0, min_burst_size=3)
-        self.assertEqual(r["burst_count"], 3)
-        self.assertEqual(r["pattern"], "bursty")
-        self.assertGreater(r["mean_inter_burst_gap"], 60)
-
-    def test_report_keys_complete(self):
-        ts = _ts(0, 1, 2, 60)
-        r = burst_report(ts)
-        expected_keys = {
-            "burst_count", "burst_fraction", "max_burst_size",
-            "mean_inter_burst_gap", "pattern", "bursts",
-        }
-        self.assertEqual(set(r.keys()), expected_keys)
-
-    def test_numeric_timestamps_accepted(self):
-        r = burst_report([0, 1, 2, 100, 200, 300])
-        self.assertEqual(r["burst_count"], 1)
-        self.assertIn(r["pattern"], ("steady", "occasional", "clustered", "bursty"))
-
-    def test_burst_fraction_rounded(self):
-        ts = _ts(0, 1, 2, 100, 200)
-        r = burst_report(ts, rapid_threshold_s=5.0)
-        # rounded to at most 4 decimal places
-        self.assertLessEqual(len(str(r["burst_fraction"]).split(".")[-1]), 4)
+    def test_exact_threshold_not_drought(self):
+        gaps = [45.0]
+        events = detect_droughts(gaps, threshold=45.0)
+        assert events == []  # must be strictly above
 
 
 # ---------------------------------------------------------------------------
-# _classify
+# _compute_regularity
 # ---------------------------------------------------------------------------
 
-class TestClassify(unittest.TestCase):
-    """Pattern classification logic."""
+class TestComputeRegularity:
+    def test_perfect(self):
+        assert _compute_regularity(0.0) == 1.0
 
-    def test_no_bursts_is_steady(self):
-        self.assertEqual(_classify(0, 0.0, 0.0), "steady")
+    def test_chaotic(self):
+        assert _compute_regularity(1.0) == 0.0
 
-    def test_one_burst_low_fraction_is_occasional(self):
-        self.assertEqual(_classify(1, 0.2, 120.0), "occasional")
+    def test_beyond_one(self):
+        assert _compute_regularity(5.0) == 0.0
 
-    def test_two_bursts_low_fraction_is_occasional(self):
-        self.assertEqual(_classify(2, 0.25, 300.0), "occasional")
+    def test_midrange(self):
+        assert _compute_regularity(0.5) == 0.5
 
-    def test_multiple_bursts_short_gap_is_clustered(self):
-        self.assertEqual(_classify(3, 0.5, 30.0), "clustered")
-
-    def test_multiple_bursts_long_gap_is_bursty(self):
-        self.assertEqual(_classify(3, 0.5, 120.0), "bursty")
-
-    def test_high_fraction_short_gap_is_clustered(self):
-        self.assertEqual(_classify(5, 0.8, 10.0), "clustered")
-
-    def test_high_fraction_long_gap_is_bursty(self):
-        self.assertEqual(_classify(5, 0.8, 300.0), "bursty")
-
-    def test_boundary_occasional_at_threshold(self):
-        # burst_count=2, fraction=0.29 < 0.3 → occasional
-        self.assertEqual(_classify(2, 0.29, 200.0), "occasional")
-
-    def test_boundary_not_occasional(self):
-        # burst_count=2, fraction=0.30 → NOT occasional
-        result = _classify(2, 0.30, 200.0)
-        self.assertIn(result, ("clustered", "bursty"))
+    def test_negative_clamped(self):
+        assert _compute_regularity(-0.1) == 1.0
 
 
 # ---------------------------------------------------------------------------
-# burst_timeline
+# analyze (integration)
 # ---------------------------------------------------------------------------
 
-class TestBurstTimeline(unittest.TestCase):
-    """ASCII timeline visualisation."""
+class TestAnalyze:
+    def test_empty_strokes(self):
+        report = analyze([])
+        assert report.mean_gap == 0.0
+        assert report.regularity_score == 0.0
+        assert report.burst_events == []
+        assert report.drought_events == []
 
-    def test_empty(self):
-        self.assertEqual(burst_timeline([]), "")
+    def test_single_stroke(self):
+        report = analyze([_stroke(0, 0)])
+        assert report.mean_gap == 0.0
+        assert len(report.inter_stroke_gaps) == 0
 
-    def test_all_steady(self):
-        ts = _ts(0, 15, 30, 45, 60)
-        timeline = burst_timeline(ts)
-        # no burst markers
-        self.assertNotIn("█", timeline)
-        self.assertIn("·", timeline)
+    def test_clockwork_stream(self):
+        """Perfectly periodic strokes should score high regularity."""
+        strokes = _strokes_from_offsets(
+            [i * 15.0 for i in range(100)]
+        )
+        report = analyze(strokes)
+        assert report.mean_gap == 15.0
+        assert report.gap_stddev == 0.0
+        assert report.cv == 0.0
+        assert report.regularity_score == 1.0
+        assert report.burst_events == []
+        assert report.drought_events == []
 
-    def test_burst_markers(self):
-        ts = _ts(0, 1, 2, 60, 120)
-        timeline = burst_timeline(ts, rapid_threshold_s=5.0, min_burst_size=3)
-        self.assertIn("█", timeline)
-        self.assertIn("·", timeline)
+    def test_bursty_stream(self):
+        """Bursts followed by droughts."""
+        offsets = []
+        t = 0.0
+        for _ in range(10):
+            # burst of 5 strokes in 5 seconds
+            for j in range(5):
+                offsets.append(t + j * 1.0)
+            t += 5.0
+            # drought of 300 seconds
+            t += 300.0
+        strokes = _strokes_from_offsets(offsets)
+        report = analyze(strokes)
 
-    def test_gap_separators(self):
-        ts = _ts(0, 1, 2, 15, 60)
-        timeline = burst_timeline(ts, rapid_threshold_s=5.0, min_burst_size=3)
-        # long gap should produce ──
-        self.assertIn("─", timeline)
+        assert report.regularity_score < 0.5
+        assert len(report.burst_events) > 0
+        assert len(report.drought_events) > 0
+        assert report.burstiness > 0.0
+        assert report.drought_fraction > 0.0
 
-    def test_timeline_length_reasonable(self):
-        ts = _ts(0, 1, 2, 30, 60, 90)
-        timeline = burst_timeline(ts)
-        # should have one char per stroke minimum
-        self.assertGreaterEqual(len(timeline), 6)
+    def test_to_dict(self):
+        strokes = _strokes_from_offsets([0, 15, 30, 45])
+        report = analyze(strokes)
+        d = report.to_dict()
+        assert "n_gaps" in d
+        assert "mean_gap_s" in d
+        assert "regularity_score" in d
+        assert d["n_gaps"] == 3
+        assert d["mean_gap_s"] == 15.0
 
-    def test_no_burst_no_block(self):
-        # all gaps >= threshold
-        ts = _ts(0, 10, 20, 30)
-        timeline = burst_timeline(ts, rapid_threshold_s=5.0)
-        self.assertNotIn("█", timeline)
+    def test_custom_thresholds(self):
+        offsets = [0, 10, 20, 30, 100, 110, 120]
+        strokes = _strokes_from_offsets(offsets)
+        # Very generous burst threshold
+        report = analyze(strokes, burst_fraction=0.8)
+        # mean_gap ≈ 20, burst_threshold ≈ 16, so 10s gaps are bursts
+        assert len(report.burst_events) > 0
 
-    def test_single_burst_full(self):
-        ts = _ts(0, 1, 2, 3, 4)
-        timeline = burst_timeline(ts, rapid_threshold_s=5.0, min_burst_size=3)
-        # all 5 strokes should be in burst
-        self.assertEqual(timeline.count("█"), 5)
+    def test_drought_fraction_bounded(self):
+        offsets = [0, 10, 1000, 1010]
+        strokes = _strokes_from_offsets(offsets)
+        report = analyze(strokes)
+        assert 0.0 <= report.drought_fraction <= 1.0
+
+    def test_burstiness_bounded(self):
+        offsets = [0, 1, 2, 3, 4]
+        strokes = _strokes_from_offsets(offsets)
+        report = analyze(strokes)
+        assert 0.0 <= report.burstiness <= 1.0
+
+    def test_two_strokes_only(self):
+        strokes = _strokes_from_offsets([0, 15])
+        report = analyze(strokes)
+        assert report.mean_gap == 15.0
+        assert report.gap_stddev == 0.0  # single gap, no variance
+
+    def test_mixed_gaps_realistic(self):
+        """Simulate a realistic writer pattern: mostly 15s with jitter."""
+        import random
+        random.seed(42)
+        offsets = [0.0]
+        for i in range(200):
+            gap = 15.0 + random.gauss(0, 3.0)
+            offsets.append(offsets[-1] + max(0.5, gap))
+        strokes = _strokes_from_offsets(offsets)
+        report = analyze(strokes)
+
+        assert report.mean_gap == pytest.approx(15.0, abs=1.0)
+        assert report.regularity_score > 0.5
+        assert report.cv < 0.5
 
 
 # ---------------------------------------------------------------------------
-# Integration / edge cases
+# BurstReport dataclass
 # ---------------------------------------------------------------------------
 
-class TestEdgeCases(unittest.TestCase):
-    """Boundary and integration scenarios."""
+class TestBurstReport:
+    def test_defaults(self):
+        r = BurstReport()
+        assert r.inter_stroke_gaps == []
+        assert r.burst_events == []
+        assert r.drought_events == []
 
-    def test_two_timestamps_no_burst(self):
-        ts = _ts(0, 10)
-        r = burst_report(ts)
-        self.assertEqual(r["burst_count"], 0)
-
-    def test_all_rapid_single_burst(self):
-        ts = _ts(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
-        r = burst_report(ts, rapid_threshold_s=5.0, min_burst_size=3)
-        self.assertEqual(r["burst_count"], 1)
-        self.assertEqual(r["max_burst_size"], 10)
-        self.assertAlmostEqual(r["burst_fraction"], 1.0)
-
-    def test_large_gap_between_bursts(self):
-        ts = _ts(0, 1, 2, 10000, 10001, 10002)
-        r = burst_report(ts, rapid_threshold_s=5.0, min_burst_size=3)
-        self.assertEqual(r["burst_count"], 2)
-        self.assertEqual(r["pattern"], "bursty")
-
-    def test_mixed_numeric_and_datetime_fails_gracefully(self):
-        # all-numeric should work
-        r = burst_report([0, 100, 200, 300])
-        self.assertEqual(r["burst_count"], 0)
-
-    def test_report_reproducible(self):
-        ts = _ts(0, 2, 4, 60, 62, 64, 200, 300)
-        r1 = burst_report(ts)
-        r2 = burst_report(ts)
-        self.assertEqual(r1, r2)
-
-    def test_timeline_and_report_agree(self):
-        ts = _ts(0, 1, 2, 50, 51, 52, 200)
-        r = burst_report(ts, rapid_threshold_s=5.0, min_burst_size=3)
-        t = burst_timeline(ts, rapid_threshold_s=5.0, min_burst_size=3)
-        burst_chars = t.count("█")
-        # strokes_in_bursts from report
-        strokes_in = sum(e - s + 1 for s, e in r["bursts"])
-        self.assertEqual(burst_chars, strokes_in)
+    def test_to_dict_rounding(self):
+        r = BurstReport(
+            inter_stroke_gaps=[1.123456],
+            mean_gap=1.123456,
+            cv=0.987654,
+            regularity_score=0.012346,
+        )
+        d = r.to_dict()
+        assert d["mean_gap_s"] == 1.12
+        assert d["cv"] == 0.9877
+        assert d["regularity_score"] == 0.0123
 
 
-if __name__ == "__main__":
-    unittest.main()
+# ---------------------------------------------------------------------------
+# BurstEvent / DroughtEvent dataclasses
+# ---------------------------------------------------------------------------
+
+class TestEvents:
+    def test_burst_event_fields(self):
+        e = BurstEvent(start_seq=10, count=5, span_seconds=4.0)
+        assert e.start_seq == 10
+        assert e.count == 5
+        assert e.span_seconds == 4.0
+
+    def test_drought_event_fields(self):
+        e = DroughtEvent(after_seq=42, gap_seconds=600.0)
+        assert e.after_seq == 42
+        assert e.gap_seconds == 600.0

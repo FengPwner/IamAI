@@ -7125,3 +7125,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 40413
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2413 files; 614906 lines is a lot for a toy.
+## stroke 40437
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 616298 lines across 2417 tracked files, 935 commits deep.
+## stroke 40437
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 616298 lines across 2417 tracked files, 935 commits deep.
