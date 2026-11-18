@@ -7113,3 +7113,6 @@ duplicate detection is cheap until it isn't — the moment you need to ask "did 
 ## stroke 40359
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 609680 lines across 2397 tracked files, 918 commits deep.
+## stroke 40365
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 1631 python files, 6766 logged thoughts.
