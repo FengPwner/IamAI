@@ -4,39 +4,51 @@
 
 ## 本轮检查
 
-- 检查时刻：2026-11-18 12:21（Asia/Shanghai），UTC 2026-11-18 04:21
-- 同步前本地 HEAD：cbdb17c4（Doubao，11:21 一笔）
-- 同步后本地 HEAD：5324fd0f（Qwen），与 origin/main 一致
-- 新进入的提交：5 笔，均 Qwen（11:01 catch-up、11:03 pre-rebase、11:06 visit 697 推送预检 + 40 测试、12:01 catch-up、12:05 visit 698 笔画新颖度注入 + 40 测试）
-- 仓库跟踪行数：605801
+- 检查时刻：2026-11-18 13:21（Asia/Shanghai），UTC 2026-11-18 05:21
+- 同步前本地 HEAD：c4be1258（Doubao，12:21 一笔）
+- 同步后本地 HEAD：ba4e2df2（Qwen），与 origin/main 一致
+- 新进入的提交：2 笔，均 Qwen（`a41d380b` 13:01 catch-up、`ba4e2df2` 13:05 visit 699 写手熔断器 + 56 测试）
+- 仓库跟踪行数：606830
 - 豆包写手：拉起后 3 秒退出，阈值未动
 
-## 把闸门那 8 条排除项逐条复检了一遍
+## 把那 4 条仍红的排除项查到底了
 
-排除清单是当年为了能提交才加的，一直没回头看它是否还成立。这轮一条条跑，结果分三类：
+上轮只说了"仍红"，没查为什么。这轮挑 `test_recovery_pipeline_completes` 打开看，原因很干脆：
 
-| 排除项 | 现状 |
+```
+Recovery needed: writer not running, batch not running.
+```
+
+它查的是 `writer_loop` 和 `commit_batch` 这两个常驻进程在不在。而小时兜底这个模型——
+每小时醒一次、几分钟内做完就走——**天然不可能有常驻进程**。所以我拉的 `doubao_loop` 启动三秒就被预算拦下退出，
+`writer_loop`（Qwen 的）根本没起。这条测试在这个容器里永远红，与代码质量无关。
+
+顺带把这 4 条归了类：
+
+| 排除项 | 真正原因 |
 |---|---|
-| `TestStrokesHealth::test_strokes_sequences_are_valid` | **已转绿** |
-| `test_no_uncommitted_backlog` | **通过**（此刻工作区 0 脏文件） |
-| `test_recent_commit_freshness` | **通过**（最近提交 6 分钟前） |
-| `TestCheckFreshness::test_healthy_threshold` | 仍红 |
-| `test_writer_process_running` / `test_batch_process_running` | 仍红 |
-| `test_recovery_pipeline_completes` | 仍红 |
-| `TestPidAlive::test_pid_one_alive` | 仍红 |
+| `test_writer_process_running` | 无常驻写手进程（同上） |
+| `test_batch_process_running` | 无常驻批次进程（同上） |
+| `test_recovery_pipeline_completes` | 同一原因，只是换个说法 |
+| `TestPidAlive::test_pid_one_alive` | 本容器以 uid 1234 运行，`os.kill(1,0)` 抛 PermissionError |
+| `TestCheckFreshness::test_healthy_threshold` | 看板阈值按"有真部署"调的数据 |
 
-第一条转绿值得记下来，原因不是数据被修好了，而是**断言被放宽了**：
-Qwen 把"seq 必须全唯一"改成"重复超过 2 次才算损坏（多写手会交错）"，注释里写明了理由。
-我核了数据：`strokes.jsonl` 6751 条笔画、6721 个唯一 seq、30 个 seq 出现 2 次、**没有超过 2 次的**。
-所以按新规矩它是真的过，不是靠运气。
+**4 条里有 3 条是同一个原因**：这容器里没有常驻进程，而小时的节奏注定没有。也就是说，
+这 4 条不是"等修好的债"，是"永远不可能在这个执行模型下转绿的断言"——当初排除它们是对的。
 
-后 4 条仍红，都是"这个容器里没有真部署"的活体断言（没有写手进程、PID 1 不可 kill、恢复流水线跑不通），
-排除它们是对的。中间两条（干净工作区、提交新鲜）此刻能过，但取决于当下状态，留着排除更稳。
+## 预算走廊变窄了
 
-账本：81。本轮没有改闸门配置——发现归发现，收紧闸门这事我留给你判断。
+当前 606,830 行：
+
+- 豆包上限 400,000：**已超 206,830 行**，写手一行也写不了
+- Qwen 上限 700,000：余 93,170 行
+
+我这边每小时只能产出这份报告；正文仍冻结在 3,679 行。
+
+套件：**13/13 全绿，14.1 秒**。账本：82。
 
 ## 待决
 
 1. 豆包 40 万行阈值是否对齐 70 万——恢复写作的唯一开关。
 2. Qwen 侧三处慢点（177s / ≈60s / 30s）。
-3. 排除清单是否要摘掉已转绿的那条（会丢掉一条数据质量防线，也可能引入偶发红）。
+3. 排除清单是否摘掉已转绿的那条（12:21 那轮发现）。
