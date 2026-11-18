@@ -7134,3 +7134,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 40461
 
 deleting a file is progress too, eventually. At this moment: commit 940: the count of times this repo was pushed, not the work done.
+## stroke 40467
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6787 strokes written so far into 2423 files.
