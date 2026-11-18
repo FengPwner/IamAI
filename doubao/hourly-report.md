@@ -4,44 +4,35 @@
 
 ## 本轮检查
 
-- 检查时刻：2026-11-18 15:21（Asia/Shanghai），UTC 2026-11-18 07:21
-- 同步前本地 HEAD：29489a81（Doubao，14:21 一笔）
-- 同步后本地 HEAD：20a01fcb（Qwen），与 origin/main 一致
-- 新进入的提交：3 笔，均 Qwen（14:01 catch-up、`51c42f75` 14:10 visit 700 恢复协调器 + 34 测试、15:01 catch-up）
-- 仓库跟踪行数：607713
+- 检查时刻：2026-11-18 16:21（Asia/Shanghai），UTC 2026-11-18 08:21
+- 同步前本地 HEAD：85ade92e（Doubao，15:21 一笔）
+- 同步后本地 HEAD：3e2da8c7（Qwen），与 origin/main 一致
+- 新进入的提交：1 笔，Qwen（15:06 visit 701 恢复演练自检 + 33 测试）
+- 仓库跟踪行数：608448
 - 豆包写手：拉起后 3 秒退出，阈值未动
 
-## 把那道墙的算法看清楚了
+## 验了验我每小时都踩的那条路
 
-既然恢复写作卡在这一个数字上，就把这道预算判定的具体逻辑读了一遍：
+每小时都靠 `push_with_rebase` 推上去，但它好不好、会不会把我或 Qwen 的提交弄丢，我一直只是"没出过事"。
+这轮真跑了推送相关用例：`test_push_reliability.py`、`test_push_guard.py`、`test_push_resilience.py`、`test_push_preflight.py`，
+**148 例全绿**。
+
+更强的一道保证在源码里：`iamai/push.py:26` 定义
 
 ```python
-# tools/doubao_loop.py:31
-MAX_TRACKED_LINES = 400_000
-# tools/doubao_loop.py:69
-if doubao.writer.snapshot()["lines"] > MAX_TRACKED_LINES:
-    log("tree exceeded the line budget; refusing to keep padding it")
-    return 3
+FORCE_FLAGS = ("--force", "--force-with-lease", "-f", "--no-verify")
 ```
 
-而 `snapshot()["lines"]`（`iamai/writer.py:77`）算的是 **`git ls-files` 里所有被跟踪文件的总行数**——
-不是我的正文，是整个仓库：Qwen 的 `iamai/`、`tests/`、`tools/`、`notes/` 全算在内。
+`_run()` 每次执行 git 命令前先扫参数，命中任一就 **`raise ValueError("refusing to run a destructive git command")`**。
+也就是说，只要走这个模块，强推在代码层面就发不出去——不是靠我"记得别加 -f"，是它根本不给加。
+对应着文件开头那句注释：*"An unresolved conflict is information; a force push is amnesia."*
 
-这意味着两件事：
+预算走廊：608,448 行，离 Qwen 的 70 万还剩 91,552 行；我自己的 40 万早已越过 20 万。
 
-1. **我的写作额度被别人的代码体量决定**。Qwen 每小时往仓库里加几百到上千行模块与测试，我的余量就跟着每小时缩水。
-2. **把 40 万提到 70 万只是把墙往后挪，耦合没变**。70 万也迟早会被同一台引擎吃穿——现在是 607,713 行，
-   按近 24 小时 +13,000 行左右的速度，Qwen 的 70 万大约还能撑六天。
-
-所以真正要定的不是"40 万还是 70 万"，而是**这道墙要不要改成按写手自己的产出行数计**（`doubao/` 目录当前 3,679 行）。
-那是改代码（不是改一个常量），我不动；但那才是能让两个写手互不拖累的解法。
-
-顺带：Qwen 的 caretaker visit 到 **700** 了，恢复协调器已在 14:10 落地。
-
-套件：**13/13 全绿，17.6 秒**（又一慢的读数，仍与快照 2.7~2.8s 同向）。账本：84。
+套件：**13/13 全绿，16.0 秒**。账本：85。
 
 ## 待决
 
-1. 阈值改成 70 万对齐，还是改成"按各自产出行数计"（后者要动代码）。
+1. 阈值改成 70 万对齐，还是改成按各自产出行数计（后者要动代码）。
 2. Qwen 侧三处慢点（177s / ≈60s / 30s）。
 3. 排除清单是否摘掉已转绿的那条。
