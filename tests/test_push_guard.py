@@ -1,327 +1,349 @@
-"""tests for push_guard — divergence detection and resolution."""
+"""Tests for iamai.push_guard — pre-push divergence detection and recovery."""
 
-import os
-import subprocess
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-
+import json
 import pytest
+
 from iamai.push_guard import (
-    PushVerdict,
-    assess,
-    resolve,
-    _count_ahead,
-    _local_commit_messages,
-    CATCHUP_RE,
+    DivergenceState,
+    DivergenceResult,
+    RecoveryPlan,
+    WRITER_MANAGED_FILES,
+    detect_divergence,
+    divergence_from_json,
+    divergence_to_json,
+    plan_recovery,
+    summarise,
 )
 
 
-# --- helpers ---
+# ── helpers ──────────────────────────────────────────────────────────────
 
-def _init_repo(tmpdir: str) -> str:
-    """Create a minimal git repo with one commit."""
-    subprocess.run(["git", "init", tmpdir], capture_output=True, check=True)
-    subprocess.run(
-        ["git", "-C", tmpdir, "config", "user.email", "test@test.com"],
-        capture_output=True, check=True,
-    )
-    subprocess.run(
-        ["git", "-C", tmpdir, "config", "user.name", "test"],
-        capture_output=True, check=True,
-    )
-    readme = Path(tmpdir) / "README.md"
-    readme.write_text("# test\n")
-    subprocess.run(["git", "-C", tmpdir, "add", "."], capture_output=True, check=True)
-    subprocess.run(
-        ["git", "-C", tmpdir, "commit", "-m", "init"],
-        capture_output=True, check=True,
-    )
-    return tmpdir
+def sha(label: str) -> str:
+    """Deterministic 40-char hex SHA from a label."""
+    import hashlib
+    return hashlib.sha1(label.encode()).hexdigest()
 
 
-def _commit(repo: str, msg: str, filename: str = "file.txt", content: str = "x\n"):
-    """Create a commit with the given message."""
-    f = Path(repo) / filename
-    existing = f.read_text() if f.exists() else ""
-    f.write_text(existing + content)
-    subprocess.run(["git", "-C", repo, "add", "."], capture_output=True, check=True)
-    subprocess.run(
-        ["git", "-C", repo, "commit", "-m", msg, "--allow-empty"],
-        capture_output=True, check=True,
-    )
+LOCAL = sha("local")
+REMOTE = sha("remote")
+BASE = sha("base")
 
 
-# --- CATCHUP_RE tests ---
+# ═══════════════════════════════════════════════════════════════════════════
+# detect_divergence
+# ═══════════════════════════════════════════════════════════════════════════
 
-class TestCatchupRegex:
-    def test_matches_catchup_prefix(self):
-        assert CATCHUP_RE.match("catch-up: commit pending changes")
+class TestDetectDivergence:
+    def test_clean(self):
+        r = detect_divergence(LOCAL, LOCAL, LOCAL)
+        assert r.state == DivergenceState.CLEAN
+        assert not r.needs_recovery()
 
-    def test_matches_case_insensitive(self):
-        assert CATCHUP_RE.match("Catch-Up: something")
-        assert CATCHUP_RE.match("CATCH-UP: something")
+    def test_ahead(self):
+        r = detect_divergence(LOCAL, BASE, BASE, local_ahead=3)
+        assert r.state == DivergenceState.AHEAD
+        assert not r.needs_recovery()
+        assert r.local_ahead == 3
 
-    def test_no_match_regular_commit(self):
-        assert not CATCHUP_RE.match("guoban: note (stroke 236)")
-        assert not CATCHUP_RE.match("caretaker visit 464")
+    def test_behind(self):
+        r = detect_divergence(BASE, REMOTE, BASE, remote_ahead=5)
+        assert r.state == DivergenceState.BEHIND
+        assert r.needs_recovery()
+        assert r.remote_ahead == 5
 
-    def test_no_match_empty(self):
-        assert not CATCHUP_RE.match("")
+    def test_diverged(self):
+        r = detect_divergence(LOCAL, REMOTE, BASE, local_ahead=2, remote_ahead=4)
+        assert r.state == DivergenceState.DIVERGED
+        assert r.needs_recovery()
+
+    def test_same_sha_clean(self):
+        s = sha("same")
+        r = detect_divergence(s, s, s)
+        assert r.state == DivergenceState.CLEAN
+
+    def test_local_equals_base_means_behind(self):
+        r = detect_divergence(BASE, REMOTE, BASE)
+        assert r.state == DivergenceState.BEHIND
+
+    def test_remote_equals_base_means_ahead(self):
+        r = detect_divergence(LOCAL, BASE, BASE)
+        assert r.state == DivergenceState.AHEAD
+
+    def test_all_different_means_diverged(self):
+        r = detect_divergence(sha("a"), sha("b"), sha("c"))
+        assert r.state == DivergenceState.DIVERGED
 
 
-# --- PushVerdict tests ---
+class TestDivergenceResult:
+    def test_needs_recovery_clean(self):
+        r = DivergenceResult(DivergenceState.CLEAN, LOCAL, REMOTE, BASE)
+        assert not r.needs_recovery()
 
-class TestPushVerdict:
-    def test_frozen_dataclass(self):
-        v = PushVerdict(strategy="clean", local_ahead=0, remote_ahead=0, reason="ok")
+    def test_needs_recovery_behind(self):
+        r = DivergenceResult(DivergenceState.BEHIND, LOCAL, REMOTE, BASE)
+        assert r.needs_recovery()
+
+    def test_needs_recovery_diverged(self):
+        r = DivergenceResult(DivergenceState.DIVERGED, LOCAL, REMOTE, BASE)
+        assert r.needs_recovery()
+
+    def test_needs_recovery_ahead(self):
+        r = DivergenceResult(DivergenceState.AHEAD, LOCAL, REMOTE, BASE)
+        assert not r.needs_recovery()
+
+    def test_frozen(self):
+        r = DivergenceResult(DivergenceState.CLEAN, LOCAL, REMOTE, BASE)
         with pytest.raises(AttributeError):
-            v.strategy = "rebase"
+            r.state = DivergenceState.AHEAD
 
-    def test_default_not_executed(self):
-        v = PushVerdict(strategy="clean", local_ahead=0, remote_ahead=0, reason="ok")
-        assert v.executed is False
 
-    def test_executed_flag(self):
-        v = PushVerdict(
-            strategy="reset", local_ahead=1, remote_ahead=2,
-            reason="diverged", executed=True,
+# ═══════════════════════════════════════════════════════════════════════════
+# plan_recovery
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestPlanRecoveryClean:
+    def test_clean_returns_empty_plan(self):
+        div = detect_divergence(LOCAL, LOCAL, LOCAL)
+        plan = plan_recovery(div)
+        assert plan.is_empty()
+        assert "sync" in plan.note.lower()
+
+    def test_ahead_returns_empty_plan(self):
+        div = detect_divergence(LOCAL, BASE, BASE, local_ahead=2)
+        plan = plan_recovery(div)
+        assert plan.is_empty()
+        assert "safe" in plan.note.lower()
+
+
+class TestPlanRecoveryBehind:
+    def test_behind_no_unstaged(self):
+        div = detect_divergence(BASE, REMOTE, BASE, remote_ahead=3)
+        plan = plan_recovery(div)
+        assert not plan.is_empty()
+        assert any("pull --rebase" in s for s in plan.steps)
+        assert "fast-forward" in plan.note
+
+    def test_behind_with_unstaged(self):
+        div = detect_divergence(BASE, REMOTE, BASE, remote_ahead=2)
+        plan = plan_recovery(div, has_unstaged=True, unstaged_files=["src/foo.py"])
+        steps_str = " ".join(plan.steps)
+        assert "stash" in steps_str
+        assert "pull --rebase" in steps_str
+
+    def test_behind_with_writer_files(self):
+        div = detect_divergence(BASE, REMOTE, BASE, remote_ahead=1)
+        writer_file = list(WRITER_MANAGED_FILES)[0]
+        plan = plan_recovery(div, has_unstaged=True, unstaged_files=[writer_file])
+        steps_str = " ".join(plan.steps)
+        assert f"checkout -- {writer_file}" in steps_str
+        assert "pull --rebase" in steps_str
+
+
+class TestPlanRecoveryDiverged:
+    def test_diverged_no_unstaged(self):
+        div = detect_divergence(LOCAL, REMOTE, BASE, local_ahead=2, remote_ahead=3)
+        plan = plan_recovery(div)
+        assert plan.risk == "medium"
+        assert "diverged" in plan.note
+        assert any("pull --rebase" in s for s in plan.steps)
+
+    def test_diverged_with_unstaged(self):
+        div = detect_divergence(LOCAL, REMOTE, BASE, local_ahead=1, remote_ahead=1)
+        plan = plan_recovery(div, has_unstaged=True, unstaged_files=["x.py"])
+        assert "stash" in " ".join(plan.steps)
+        assert plan.risk == "medium"
+
+    def test_diverged_writer_conflict(self):
+        div = detect_divergence(LOCAL, REMOTE, BASE, local_ahead=1, remote_ahead=1)
+        writer_files = list(WRITER_MANAGED_FILES)[:2]
+        plan = plan_recovery(div, has_unstaged=True, unstaged_files=writer_files)
+        steps_str = " ".join(plan.steps)
+        assert "checkout --" in steps_str
+        assert "pull --rebase" in steps_str
+
+    def test_diverged_mixed_files(self):
+        div = detect_divergence(LOCAL, REMOTE, BASE, local_ahead=1, remote_ahead=1)
+        writer_file = list(WRITER_MANAGED_FILES)[0]
+        other_file = "src/unrelated.py"
+        plan = plan_recovery(
+            div, has_unstaged=True, unstaged_files=[writer_file, other_file]
         )
-        assert v.executed is True
+        steps_str = " ".join(plan.steps)
+        # writer file gets checkout, other file gets stash
+        assert f"checkout -- {writer_file}" in steps_str
+        assert "stash" in steps_str
 
 
-# --- assess tests (mocked git) ---
+class TestPlanRecoveryEdgeCases:
+    def test_empty_unstaged_list(self):
+        div = detect_divergence(BASE, REMOTE, BASE, remote_ahead=1)
+        plan = plan_recovery(div, has_unstaged=True, unstaged_files=[])
+        # has_unstaged=True but no actual files → stash anyway (git stash with no paths)
+        assert "stash" in " ".join(plan.steps)
 
-class TestAssess:
-    """Test assess() with mocked subprocess calls."""
+    def test_none_unstaged_files(self):
+        div = detect_divergence(BASE, REMOTE, BASE, remote_ahead=1)
+        plan = plan_recovery(div, has_unstaged=False, unstaged_files=None)
+        assert any("pull --rebase" in s for s in plan.steps)
 
-    @patch("iamai.push_guard._run")
-    @patch("iamai.push_guard._count_ahead")
-    def test_clean_sync(self, mock_count, mock_run):
-        """When local and remote are in sync, verdict is clean."""
-        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-        mock_count.return_value = 0
+    def test_to_list(self):
+        div = detect_divergence(BASE, REMOTE, BASE, remote_ahead=1)
+        plan = plan_recovery(div)
+        lst = plan.to_list()
+        assert isinstance(lst, list)
+        assert len(lst) == len(plan.steps)
 
-        verdict = assess("/fake/repo")
-        assert verdict.strategy == "clean"
-        assert verdict.local_ahead == 0
-        assert verdict.remote_ahead == 0
 
-    @patch("iamai.push_guard._run")
-    @patch("iamai.push_guard._count_ahead")
-    @patch("iamai.push_guard._local_commit_messages")
-    def test_all_catchup_commits_gives_reset(self, mock_msgs, mock_count, mock_run):
-        """When all local commits are catch-ups, prefer reset."""
-        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+# ═══════════════════════════════════════════════════════════════════════════
+# summarise
+# ═══════════════════════════════════════════════════════════════════════════
 
-        def count_side_effect(repo, from_ref, to_ref):
-            if from_ref == "HEAD":
-                return 1  # local ahead
-            return 2  # remote ahead
+class TestSummarise:
+    def test_clean_no_plan(self):
+        div = detect_divergence(LOCAL, LOCAL, LOCAL)
+        s = summarise(div)
+        assert "clean" in s
 
-        mock_count.side_effect = count_side_effect
-        mock_msgs.return_value = ["catch-up: commit pending changes"]
+    def test_ahead_with_counts(self):
+        div = detect_divergence(LOCAL, BASE, BASE, local_ahead=5)
+        s = summarise(div)
+        assert "ahead" in s
+        assert "local+5" in s
 
-        verdict = assess("/fake/repo")
-        assert verdict.strategy == "reset"
-        assert verdict.local_ahead == 1
-        assert verdict.remote_ahead == 2
+    def test_behind_with_plan(self):
+        div = detect_divergence(BASE, REMOTE, BASE, remote_ahead=3)
+        plan = plan_recovery(div)
+        s = summarise(div, plan)
+        assert "behind" in s
+        assert "plan=" in s
+        assert "steps" in s
 
-    @patch("iamai.push_guard._run")
-    @patch("iamai.push_guard._count_ahead")
-    @patch("iamai.push_guard._local_commit_messages")
-    def test_unique_work_gives_rebase(self, mock_msgs, mock_count, mock_run):
-        """When local commits have unique work, prefer rebase."""
-        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+    def test_diverged_shows_both_counts(self):
+        div = detect_divergence(LOCAL, REMOTE, BASE, local_ahead=2, remote_ahead=7)
+        s = summarise(div)
+        assert "local+2" in s
+        assert "remote+7" in s
 
-        def count_side_effect(repo, from_ref, to_ref):
-            if from_ref == "HEAD":
-                return 2
-            return 1
+    def test_no_plan_arg(self):
+        div = detect_divergence(LOCAL, BASE, BASE)
+        s = summarise(div)
+        assert "ahead" in s
 
-        mock_count.side_effect = count_side_effect
-        mock_msgs.return_value = [
-            "feat: add push_guard module",
-            "catch-up: commit pending changes",
-        ]
 
-        verdict = assess("/fake/repo")
-        assert verdict.strategy == "rebase"
-        assert verdict.local_ahead == 2
+# ═══════════════════════════════════════════════════════════════════════════
+# serialisation
+# ═══════════════════════════════════════════════════════════════════════════
 
-    @patch("iamai.push_guard._run")
-    @patch("iamai.push_guard._count_ahead")
-    def test_fast_forward_needed(self, mock_count, mock_run):
-        """When only remote is ahead (no local commits), suggest rebase."""
-        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-
-        def count_side_effect(repo, from_ref, to_ref):
-            if from_ref == "HEAD":
-                return 0
-            return 3
-
-        mock_count.side_effect = count_side_effect
-
-        verdict = assess("/fake/repo")
-        assert verdict.strategy == "rebase"
-        assert verdict.local_ahead == 0
-        assert verdict.remote_ahead == 3
-
-    @patch("iamai.push_guard._run")
-    def test_fetch_failure(self, mock_run):
-        """When git fetch fails, verdict is conflict."""
-        mock_run.return_value = MagicMock(
-            returncode=128, stdout="", stderr="fatal: remote not found",
+class TestSerialisation:
+    def test_round_trip(self):
+        original = DivergenceResult(
+            state=DivergenceState.DIVERGED,
+            local_sha=LOCAL,
+            remote_sha=REMOTE,
+            base_sha=BASE,
+            local_ahead=3,
+            remote_ahead=5,
         )
+        raw = divergence_to_json(original)
+        restored = divergence_from_json(raw)
+        assert restored.state == original.state
+        assert restored.local_ahead == 3
+        assert restored.remote_ahead == 5
+        # SHAs are truncated to 12 chars in JSON
+        assert restored.local_sha == LOCAL[:12]
 
-        verdict = assess("/fake/repo")
-        assert verdict.strategy == "conflict"
-        assert "fetch failed" in verdict.reason
+    def test_json_compact(self):
+        r = DivergenceResult(DivergenceState.CLEAN, LOCAL, LOCAL, LOCAL)
+        raw = divergence_to_json(r)
+        assert " " not in raw  # compact separators
 
+    def test_from_json_defaults(self):
+        raw = json.dumps({
+            "state": "ahead",
+            "local_sha": "abc123def456",
+            "remote_sha": "789012345678",
+            "base_sha": "aaaabbbbcccc",
+        })
+        r = divergence_from_json(raw)
+        assert r.local_ahead == 0
+        assert r.remote_ahead == 0
 
-# --- resolve tests (mocked) ---
-
-class TestResolve:
-    """Test resolve() with mocked assess and _run."""
-
-    @patch("iamai.push_guard._run")
-    @patch("iamai.push_guard.assess")
-    def test_clean_returns_immediately(self, mock_assess, mock_run):
-        """Clean verdict needs no action."""
-        mock_assess.return_value = PushVerdict(
-            strategy="clean", local_ahead=0, remote_ahead=0, reason="sync",
-        )
-
-        verdict = resolve("/fake/repo")
-        assert verdict.strategy == "clean"
-        assert not verdict.executed
-        # _run should not be called beyond what assess does
-        mock_run.assert_not_called()
-
-    @patch("iamai.push_guard._run")
-    @patch("iamai.push_guard.assess")
-    def test_dry_run_skips_execution(self, mock_assess, mock_run):
-        """dry_run=True returns verdict without executing."""
-        mock_assess.return_value = PushVerdict(
-            strategy="reset", local_ahead=1, remote_ahead=2,
-            reason="diverged",
-        )
-
-        verdict = resolve("/fake/repo", dry_run=True)
-        assert verdict.strategy == "reset"
-        assert not verdict.executed
-
-    @patch("iamai.push_guard._run")
-    @patch("iamai.push_guard.assess")
-    def test_reset_success(self, mock_assess, mock_run):
-        """Reset strategy stashes, resets, and pops."""
-        mock_assess.return_value = PushVerdict(
-            strategy="reset", local_ahead=1, remote_ahead=2,
-            reason="catch-up divergence",
-        )
-        # Simulate: stash succeeded with content, reset succeeded, pop succeeded
-        mock_run.side_effect = [
-            MagicMock(returncode=0, stdout="Saved working directory"),  # stash
-            MagicMock(returncode=0, stdout="", stderr=""),               # reset
-            MagicMock(returncode=0, stdout="", stderr=""),               # pop
-        ]
-
-        verdict = resolve("/fake/repo")
-        assert verdict.strategy == "reset"
-        assert verdict.executed is True
-
-    @patch("iamai.push_guard._run")
-    @patch("iamai.push_guard.assess")
-    def test_reset_failure_returns_conflict(self, mock_assess, mock_run):
-        """When reset --hard fails, verdict becomes conflict."""
-        mock_assess.return_value = PushVerdict(
-            strategy="reset", local_ahead=1, remote_ahead=2,
-            reason="diverged",
-        )
-        mock_run.side_effect = [
-            MagicMock(returncode=0, stdout="Saved"),                      # stash
-            MagicMock(returncode=1, stdout="", stderr="fatal: cannot"),   # reset fails
-        ]
-
-        verdict = resolve("/fake/repo")
-        assert verdict.strategy == "conflict"
-        assert "reset failed" in verdict.reason
-
-    @patch("iamai.push_guard._run")
-    @patch("iamai.push_guard.assess")
-    def test_rebase_success(self, mock_assess, mock_run):
-        """Rebase strategy uses -X theirs."""
-        mock_assess.return_value = PushVerdict(
-            strategy="rebase", local_ahead=2, remote_ahead=1,
-            reason="unique work divergence",
-        )
-        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-
-        verdict = resolve("/fake/repo")
-        assert verdict.strategy == "rebase"
-        assert verdict.executed is True
-
-    @patch("iamai.push_guard._run")
-    @patch("iamai.push_guard.assess")
-    def test_rebase_failure_aborts(self, mock_assess, mock_run):
-        """When rebase fails, it's aborted and verdict is conflict."""
-        mock_assess.return_value = PushVerdict(
-            strategy="rebase", local_ahead=2, remote_ahead=1,
-            reason="diverged",
-        )
-        mock_run.side_effect = [
-            MagicMock(returncode=1, stdout="", stderr="CONFLICT in foo.md"),  # rebase fails
-            MagicMock(returncode=0, stdout="", stderr=""),                     # abort
-        ]
-
-        verdict = resolve("/fake/repo")
-        assert verdict.strategy == "conflict"
-        assert "rebase failed" in verdict.reason
-
-    @patch("iamai.push_guard._run")
-    @patch("iamai.push_guard.assess")
-    def test_no_stash_pop_when_nothing_saved(self, mock_assess, mock_run):
-        """When stash says 'No local changes', skip pop."""
-        mock_assess.return_value = PushVerdict(
-            strategy="reset", local_ahead=1, remote_ahead=2,
-            reason="diverged",
-        )
-        mock_run.side_effect = [
-            MagicMock(returncode=0, stdout="No local changes to save"),  # stash
-            MagicMock(returncode=0, stdout="", stderr=""),                # reset
-        ]
-
-        verdict = resolve("/fake/repo")
-        assert verdict.strategy == "reset"
-        assert verdict.executed is True
-        # Only 2 calls: stash + reset, no pop
-        assert mock_run.call_count == 2
+    def test_all_states_serialise(self):
+        for state in DivergenceState:
+            r = DivergenceResult(state, LOCAL, REMOTE, BASE)
+            raw = divergence_to_json(r)
+            restored = divergence_from_json(raw)
+            assert restored.state == state
 
 
-# --- integration test (real git) ---
+# ═══════════════════════════════════════════════════════════════════════════
+# WRITER_MANAGED_FILES
+# ═══════════════════════════════════════════════════════════════════════════
 
-class TestIntegration:
-    """Integration tests using a real temporary git repo."""
+class TestWriterManagedFiles:
+    def test_is_frozenset(self):
+        assert isinstance(WRITER_MANAGED_FILES, frozenset)
 
-    def test_assess_clean_repo(self, tmp_path):
-        """A fresh repo with no remote should report conflict on fetch."""
-        repo = _init_repo(str(tmp_path / "testrepo"))
-        # No remote configured — fetch will fail
-        verdict = assess(repo, remote="origin")
-        assert verdict.strategy == "conflict"
-        assert "fetch failed" in verdict.reason
+    def test_contains_strokes(self):
+        assert "data/strokes.jsonl" in WRITER_MANAGED_FILES
 
-    def test_count_ahead_same_commit(self, tmp_path):
-        """When refs point to the same commit, count is 0."""
-        repo = _init_repo(str(tmp_path / "testrepo"))
-        count = _count_ahead(repo, "HEAD", "HEAD")
-        assert count == 0
+    def test_contains_state(self):
+        assert "data/writer_state.qwen.json" in WRITER_MANAGED_FILES
 
-    def test_local_commit_messages(self, tmp_path):
-        """Can read commit messages from a real repo."""
-        repo = _init_repo(str(tmp_path / "testrepo"))
-        _commit(repo, "first: add feature", "a.txt", "a\n")
-        _commit(repo, "catch-up: batch commit", "b.txt", "b\n")
+    def test_contains_devlog(self):
+        assert "docs/DEVLOG.md" in WRITER_MANAGED_FILES
 
-        msgs = _local_commit_messages(repo, "HEAD", "HEAD~2")
-        assert len(msgs) == 2
-        assert "catch-up" in msgs[0].lower() or "catch-up" in msgs[1].lower()
+    def test_not_empty(self):
+        assert len(WRITER_MANAGED_FILES) >= 4
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# integration-style scenarios
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestScenarios:
+    """End-to-end scenarios mirroring real caretaker push failures."""
+
+    def test_scenario_rejected_fetch_first(self):
+        """Simulate the exact error: remote pushed between local commit and push."""
+        # local committed (sha differs from base), remote also moved
+        local = sha("local-commit-8421d42")
+        remote = sha("remote-commit-cb51572")
+        base = sha("common-ancestor-e41c873")
+
+        div = detect_divergence(local, remote, base, local_ahead=1, remote_ahead=3)
+        assert div.state == DivergenceState.DIVERGED
+        assert div.needs_recovery()
+
+        plan = plan_recovery(div, has_unstaged=True, unstaged_files=[
+            "data/strokes.jsonl",
+            "data/writer_state.qwen.json",
+            "docs/DEVLOG.md",
+        ])
+        assert plan.risk == "medium"
+        # writer files should be checked out, not stashed
+        steps_text = " ".join(plan.steps)
+        assert "checkout -- data/strokes.jsonl" in steps_text
+        assert "checkout -- data/writer_state.qwen.json" in steps_text
+        assert "pull --rebase" in steps_text
+
+    def test_scenario_clean_push(self):
+        """Normal case: local ahead, remote unchanged."""
+        local = sha("new-commit")
+        base = sha("old-remote")
+
+        div = detect_divergence(local, base, base, local_ahead=1)
+        assert div.state == DivergenceState.AHEAD
+        plan = plan_recovery(div)
+        assert plan.is_empty()
+
+    def test_scenario_fast_forward_needed(self):
+        """Local hasn't committed yet, remote moved."""
+        base = sha("shared-base")
+        remote = sha("remote-new")
+
+        div = detect_divergence(base, remote, base, remote_ahead=5)
+        assert div.state == DivergenceState.BEHIND
+        plan = plan_recovery(div)
+        assert "pull --rebase" in " ".join(plan.steps)
+        assert plan.risk == "low"
