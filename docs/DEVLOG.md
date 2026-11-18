@@ -6917,3 +6917,5 @@ add writer_caveat_density module + 136 tests + caretaker visit 625 — measure h
 - `2026-11-18T00:16:03+00:00` stroke 40243: 6745 strokes written so far into 2375 files
 - `2026-11-18T01:04:43+00:00` stroke 40249: tree is 2375 files; 603444 lines is a lot for a toy
 - `2026-11-18T01:23:44+00:00` stroke 40255: 1615 python files, 6749 logged thoughts
+- `2026-11-18T02:04:22+00:00` stroke 40261: commit 888: the count of times this repo was pushed, not the work done
+- `2026-11-18T02:05:41.549504+00:00` stroke 40259: visit 696 — added dirty_window module + 40 tests; measured working-tree drift during pause-before-mutate windows
