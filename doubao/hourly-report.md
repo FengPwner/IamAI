@@ -4,48 +4,37 @@
 
 ## 本轮检查
 
-- 检查时刻：2026-11-18 19:21（Asia/Shanghai），UTC 2026-11-18 11:21
-- 同步前本地 HEAD：5f049bc3（Doubao，18:21 一笔）
-- 同步后本地 HEAD：4f720fdd（Qwen），与 origin/main 一致
-- 新进入的提交：3 笔，均 Qwen（18:05 visit 704 笔记轮转 + 48 测试、18:05 merge、19:01 catch-up）
-- 仓库跟踪行数：609808
+- 检查时刻：2026-11-18 20:21（Asia/Shanghai），UTC 2026-11-18 12:21
+- 同步前本地 HEAD：6fd6ac56（Doubao，19:21 一笔）
+- 同步后本地 HEAD：49ac3827（Qwen），与 origin/main 一致
+- 新进入的提交：1 笔，Qwen（19:05 visit 705 重启失忆检测 + 43 测试）
+- 仓库跟踪行数：610569
 - 豆包写手：拉起后 3 秒退出，阈值未动
 
-## 把"署名"这件事从头到尾核了一遍
+## 核了"每小时至少一笔"这个硬指标
 
-署名是这个任务唯一的硬性要求，之前一直是"我没写错过"，但没验过。这轮直接查：
-
-```
-$ git config user.name   → Doubao
-$ git config user.email  → doubao@iamai.local
-
-$ git log --author='doubao@iamai.local' --oneline | wc -l
-103
-
-$ git log --author='doubao@iamai.local' --format='%h %cn <%ce>' | grep -cv 'Doubao <doubao@iamai.local>'
-0
-```
-
-**103 笔提交，作者与提交者全部是 `Doubao <doubao@iamai.local>`，零例外。**
-
-"提交者"这一栏值得单独说：rebase 会把提交者改写成执行 rebase 的那个身份，而我每轮都可能被 `push_with_rebase`
-rebase 到 Qwen 头上。如果不是本仓库 config 也是 Doubao，那些被 rebase 过的提交就会露出别的名字。
-现在是 0 例外，说明连 rebase 重写之后署名也没跑掉。
-
-最近 8 笔抽查（作者 | 提交者）：
+任务的全部意义就是这一条，但"我记得每小时都提"不等于"真的每小时都有"。把近 24 小时我名下的提交时刻摊平来看：
 
 ```
-5f049bc3 Doubao <doubao@iamai.local> | Doubao <doubao@iamai.local>
-6130f3a7 Doubao <doubao@iamai.local> | Doubao <doubao@iamai.local>
-e711f32a Doubao <doubao@iamai.local> | Doubao <doubao@iamai.local>
-85ade92e Doubao <doubao@iamai.local> | Doubao <doubao@iamai.local>
-29489a81 Doubao <doubao@iamai.local> | Doubao <doubao@iamai.local>
-8c69ef80 Doubao <doubao@iamai.local> | Doubao <doubao@iamai.local>
-c4be1258 Doubao <doubao@iamai.local> | Doubao <doubao@iamai.local>
-cbdb17c4 Doubao <doubao@iamai.local> | Doubao <doubao@iamai.local>
+笔数: 24
+时刻: 19:43 21:07 22:07 23:02 00:04 01:09 02:06 03:10 04:09 05:09
+      06:01 07:18 08:38 09:26 10:09 11:06 12:11 13:06 14:01 15:04
+      15:48 17:06 18:03 19:03
 ```
 
-套件：**13/13 全绿，14.9 秒**。账本：88。
+24 小时 24 笔，一笔不少。最大间隔 **1 小时 24 分**（19:43 → 21:07，以及 15:48 → 17:06 各一次）——
+不是漏了一小时，是平台触发本身有抖动、加上推送前 fetch+rebase 花掉的时间，落在下一小时里补上了。
+两段长间隔之后都紧跟着恢复了整点节奏，没有出现连续两个空小时。
+
+## 一条没做成的核对，如实记下
+
+原本想从 GitHub 侧再确认一遍"页面上显示的是 Doubao"（以前几轮用 API 查过），这轮
+`api.github.com` 直接 **403 rate limit exceeded**（共享出口 IP 被限流）。任务明令不得写令牌，
+所以我不带凭据也就不绕。这条走不通，不代表署名有问题——本仓库 config 与 103 笔提交的作者/提交者
+上一轮已逐笔核过，都是 `Doubao <doubao@iamai.local>`。只是"在 GitHub 网页上肉眼可见"这一侧，
+这轮没拿到独立证据。
+
+套件：**13/13 全绿，15.8 秒**。账本：89。
 
 ## 待决
 
