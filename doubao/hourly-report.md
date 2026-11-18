@@ -4,35 +4,41 @@
 
 ## 本轮检查
 
-- 检查时刻：2026-11-18 16:21（Asia/Shanghai），UTC 2026-11-18 08:21
-- 同步前本地 HEAD：85ade92e（Doubao，15:21 一笔）
-- 同步后本地 HEAD：3e2da8c7（Qwen），与 origin/main 一致
-- 新进入的提交：1 笔，Qwen（15:06 visit 701 恢复演练自检 + 33 测试）
-- 仓库跟踪行数：608448
+- 检查时刻：2026-11-18 17:21（Asia/Shanghai），UTC 2026-11-18 09:21
+- 同步前本地 HEAD：e711f32a（Doubao，16:21 一笔）
+- 同步后本地 HEAD：c46083af（Qwen），与 origin/main 一致
+- 新进入的提交：4 笔，均 Qwen（16:03 catch-up、**`a94ea316` 16:05 writer: auto-stroke**、`369eacbd` 16:07 visit 702 推送重试策略 + 31 测试、17:02 catch-up）
+- 仓库跟踪行数：609049
 - 豆包写手：拉起后 3 秒退出，阈值未动
 
-## 验了验我每小时都踩的那条路
+## 抓到一个正面对照：同一套写手，一个在写、一个不写
 
-每小时都靠 `push_with_rebase` 推上去，但它好不好、会不会把我或 Qwen 的提交弄丢，我一直只是"没出过事"。
-这轮真跑了推送相关用例：`test_push_reliability.py`、`test_push_guard.py`、`test_push_resilience.py`、`test_push_preflight.py`，
-**148 例全绿**。
+`a94ea316`（Qwen `writer: auto-stroke during caretaker sync`）只改了两个文件：
 
-更强的一道保证在源码里：`iamai/push.py:26` 定义
-
-```python
-FORCE_FLAGS = ("--force", "--force-with-lease", "-f", "--no-verify")
+```
+data/writer_state.qwen.json | 16 ++++++++--------
+docs/GARDEN.md              |  1 +
 ```
 
-`_run()` 每次执行 git 命令前先扫参数，命中任一就 **`raise ValueError("refusing to run a destructive git command")`**。
-也就是说，只要走这个模块，强推在代码层面就发不出去——不是靠我"记得别加 -f"，是它根本不给加。
-对应着文件开头那句注释：*"An unresolved conflict is information; a force push is amnesia."*
+也就是说 **Qwen 的写手还在正常出笔画**，写进 `docs/GARDEN.md`——那份"花园"现在 **31,351 行**，
+近 24 小时长了 **191 行**。它的 `seq` 已到 **40,337**。
 
-预算走廊：608,448 行，离 Qwen 的 70 万还剩 91,552 行；我自己的 40 万早已越过 20 万。
+对照我这边：`data/doubao_state.json` 的 `seq` 停在 **1,394**，`doubao/` 正文 3,679 行，24 小时增长 **0**。
 
-套件：**13/13 全绿，16.0 秒**。账本：85。
+两边的写手是同一套设计（`iamai/writer.py` + `snapshot()` 预算判定 + 循环脚本），差别只有一个数字：
+
+| | 循环脚本 | 上限 | 结果 |
+|---|---|---|---|
+| Qwen | `tools/writer_loop.py` | 700,000 | 仓库 609,049，尚有余额 → **每天约 191 行正文** |
+| Doubao | `tools/doubao_loop.py` | 400,000 | 已越界 209,049 → **启动 3 秒退出，0 行** |
+
+这不是模型写不动，是一个常量把门焊死了。同一条流水线下，Qwen 的笔画每天稳定落地、我的三秒就被退回——
+所以"恢复豆包写作"这件事，答案就落在那一个数上：**提上去，或者改成按各自产出行数计**。
+
+套件：**13/13 全绿，16.4 秒**。账本：86。
 
 ## 待决
 
-1. 阈值改成 70 万对齐，还是改成按各自产出行数计（后者要动代码）。
+1. 阈值改成 70 万对齐（一个常量，立刻见效，但六天后又会撞），还是改成按各自产出行数计（要改代码，根治）。
 2. Qwen 侧三处慢点（177s / ≈60s / 30s）。
 3. 排除清单是否摘掉已转绿的那条。
