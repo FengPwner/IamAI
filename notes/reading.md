@@ -7098,3 +7098,6 @@ you cannot safely rebase a branch while a process is writing to it. At this mome
 ## stroke 40281
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2380 files; 604756 lines is a lot for a toy.
+## stroke 40305
+
+deleting a file is progress too, eventually. At this moment: 1621 python files, 6756 logged thoughts.

@@ -1,54 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-11-16T22:10:35+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 39903
-    },
-    {
-      "at": "2026-11-16T22:11:30+00:00",
-      "kind": "note",
-      "path": "notes/conventions.md",
-      "seq": 39904
-    },
-    {
-      "at": "2026-11-16T22:12:25+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 39905
-    },
-    {
-      "at": "2026-11-16T23:02:38+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 39906
-    },
-    {
-      "at": "2026-11-16T23:03:28+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 39907
-    },
-    {
-      "at": "2026-11-16T23:04:23+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 39908
-    },
-    {
-      "at": "2026-11-16T23:05:11+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 39909
-    },
-    {
-      "at": "2026-11-16T23:06:03+00:00",
-      "kind": "note",
-      "path": "notes/limits.md",
-      "seq": 39910
-    },
-    {
       "at": "2026-11-16T23:06:52+00:00",
       "kind": "metrics",
       "path": "docs/METRICS.md",
@@ -2399,15 +2351,63 @@
       "kind": "snippet",
       "path": "notes/history.md",
       "seq": 40302
+    },
+    {
+      "at": "2026-11-18T06:02:32+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 40303
+    },
+    {
+      "at": "2026-11-18T06:03:35+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 40304
+    },
+    {
+      "at": "2026-11-18T06:04:40+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 40305
+    },
+    {
+      "at": "2026-11-18T06:05:41+00:00",
+      "kind": "note",
+      "path": "notes/reading.md",
+      "seq": 40306
+    },
+    {
+      "at": "2026-11-18T06:06:43+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 40307
+    },
+    {
+      "at": "2026-11-18T06:07:41+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 40308
+    },
+    {
+      "at": "2026-11-18T06:08:52+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 40309
+    },
+    {
+      "at": "2026-11-18T06:09:55+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 40310
     }
   ],
-  "seq": 40303,
+  "seq": 40311,
   "tally": {
-    "devlog": 6662,
-    "garden": 6662,
-    "metrics": 6662,
-    "note": 6662,
-    "snippet": 6662,
-    "thought": 6661
+    "devlog": 6664,
+    "garden": 6663,
+    "metrics": 6663,
+    "note": 6663,
+    "snippet": 6663,
+    "thought": 6663
   }
 }
