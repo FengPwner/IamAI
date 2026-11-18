@@ -1,452 +1,338 @@
-"""Tests for iamai.rebase_safety — rebase safety assessment.
+"""Tests for iamai.rebase_safety — pre-rebase environment checks.
 
-Covers:
-  - RepoSnapshot dataclass (frozen, defaults)
-  - RebaseSafetyReport (verdicts, reasons, risk_score, recommended_action, summary)
-  - assess_rebase_safety: safe / caution / blocked verdicts
-  - Edge cases: zero-state, max-risk, threshold boundaries
-  - quick_check convenience function
+Covers all four individual checks plus the aggregate assess() function,
+edge cases around stale PID files, missing sentinels, and the
+remediation-plan generator.
+
+Written by Qwen during caretaker visit 695, 2026-11-18.
 """
+
+from __future__ import annotations
+
+import os
+import tempfile
+import textwrap
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from iamai.rebase_safety import (
-    CAUTION,
-    BLOCKED,
-    SAFE,
-    RepoSnapshot,
-    RebaseSafetyReport,
-    assess_rebase_safety,
-    quick_check,
+    RebaseReadiness,
+    SafetyCheck,
+    Verdict,
+    assess,
+    check_batch_liveness,
+    check_dirty_state,
+    check_pause_signal,
+    check_process_liveness,
+    verdict_to_dict,
+    WRITER_MANAGED_FILES,
+    PAUSE_PATTERN,
+    WRITER_PID_PATTERN,
+    BATCH_PID_PATTERN,
 )
 
 
 # ---------------------------------------------------------------------------
-# RepoSnapshot
+# Fixtures
 # ---------------------------------------------------------------------------
 
-class TestRepoSnapshot:
-    """RepoSnapshot dataclass basics."""
+@pytest.fixture
+def tmp_repo(tmp_path):
+    """Create a minimal repo layout with writer-managed files."""
+    for rel in WRITER_MANAGED_FILES:
+        fp = tmp_path / rel
+        fp.parent.mkdir(parents=True, exist_ok=True)
+        fp.write_text("# stub\n")
+    return tmp_path
 
-    def test_defaults(self):
-        s = RepoSnapshot()
-        assert s.uncommitted_files == 0
-        assert s.stash_count == 0
-        assert s.local_only_commits == 0
-        assert s.remote_only_commits == 0
-        assert s.writer_running is False
-        assert s.batch_running is False
-        assert s.merge_conflict is False
-        assert s.rebase_in_progress is False
 
-    def test_frozen(self):
-        s = RepoSnapshot()
-        with pytest.raises(AttributeError):
-            s.uncommitted_files = 5
+@pytest.fixture
+def fake_pid_file(tmp_path):
+    """Helper that writes a PID file and returns (path, pid)."""
+    def _write(pid: int, kind: str = "writer", writer: str = "qwen"):
+        if kind == "writer":
+            pattern = WRITER_PID_PATTERN
+        else:
+            pattern = BATCH_PID_PATTERN
+        pid_path = Path(pattern.format(writer=writer))
+        pid_path.parent.mkdir(parents=True, exist_ok=True)
+        pid_path.write_text(str(pid))
+        return pid_path
+    return _write
 
-    def test_custom_values(self):
-        s = RepoSnapshot(
-            uncommitted_files=3,
-            stash_count=15,
-            local_only_commits=2,
-            remote_only_commits=4,
-            writer_running=True,
-            batch_running=False,
-            merge_conflict=False,
-            rebase_in_progress=True,
+
+# ---------------------------------------------------------------------------
+# check_pause_signal
+# ---------------------------------------------------------------------------
+
+class TestCheckPauseSignal:
+    def test_missing_pause_is_blocking(self):
+        pause = Path(PAUSE_PATTERN.format(writer="test_nopause"))
+        pause.unlink(missing_ok=True)
+        result = check_pause_signal("/nonexistent", writer="test_nopause")
+        assert not result.passed
+        assert result.severity == "blocking"
+        assert "missing" in result.detail
+
+    def test_present_pause_passes(self, tmp_path):
+        pause = Path(PAUSE_PATTERN.format(writer="test_haspause"))
+        pause.parent.mkdir(parents=True, exist_ok=True)
+        pause.touch()
+        try:
+            result = check_pause_signal(str(tmp_path), writer="test_haspause")
+            assert result.passed
+            assert "exists" in result.detail
+        finally:
+            pause.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# check_dirty_state
+# ---------------------------------------------------------------------------
+
+class TestCheckDirtyState:
+    def test_clean_tree_passes(self, tmp_repo):
+        result = check_dirty_state(str(tmp_repo))
+        assert result.passed
+
+    def test_empty_tree_passes(self, tmp_path):
+        result = check_dirty_state(str(tmp_path))
+        assert result.passed
+
+    def test_custom_managed_list(self, tmp_path):
+        fp = tmp_path / "custom.txt"
+        fp.write_text("data")
+        result = check_dirty_state(str(tmp_path), writer_managed=["custom.txt"])
+        assert result.passed  # presence alone is not dirty
+
+    def test_nonexistent_managed_files(self, tmp_path):
+        result = check_dirty_state(
+            str(tmp_path),
+            writer_managed=["does/not/exist.txt"],
         )
-        assert s.uncommitted_files == 3
-        assert s.stash_count == 15
-        assert s.rebase_in_progress is True
+        assert result.passed
 
 
 # ---------------------------------------------------------------------------
-# RebaseSafetyReport
+# check_process_liveness
 # ---------------------------------------------------------------------------
 
-class TestRebaseSafetyReport:
-    """Report dataclass and its helper methods."""
+class TestCheckProcessLiveness:
+    def test_no_pid_file_passes(self):
+        # Ensure PID file does not exist.
+        pid_path = Path(WRITER_PID_PATTERN.format(writer="test_nopid"))
+        pid_path.unlink(missing_ok=True)
+        result = check_process_liveness(writer="test_nopid")
+        assert result.passed
+        assert "not running" in result.detail
 
-    def test_frozen(self):
-        r = RebaseSafetyReport(verdict=SAFE)
-        with pytest.raises(AttributeError):
-            r.verdict = BLOCKED
+    def test_stale_pid_passes(self):
+        # Use PID 99999999 — extremely unlikely to exist.
+        pid_path = Path(WRITER_PID_PATTERN.format(writer="test_stale"))
+        pid_path.parent.mkdir(parents=True, exist_ok=True)
+        pid_path.write_text("99999999")
+        try:
+            result = check_process_liveness(writer="test_stale")
+            assert result.passed
+            assert "stale" in result.detail
+        finally:
+            pid_path.unlink(missing_ok=True)
 
-    def test_summary_safe(self):
-        r = RebaseSafetyReport(verdict=SAFE, reasons=["no issues found"])
-        assert r.summary == "safe: no issues found"
+    def test_corrupt_pid_file(self):
+        pid_path = Path(WRITER_PID_PATTERN.format(writer="test_corrupt"))
+        pid_path.parent.mkdir(parents=True, exist_ok=True)
+        pid_path.write_text("not_a_number\n")
+        try:
+            result = check_process_liveness(writer="test_corrupt")
+            assert not result.passed
+            assert result.severity == "warning"
+        finally:
+            pid_path.unlink(missing_ok=True)
 
-    def test_summary_empty_reasons(self):
-        r = RebaseSafetyReport(verdict=SAFE)
-        assert r.summary == "safe: no issues found"
+    def test_alive_pid_blocks(self):
+        # Current process is guaranteed alive.
+        my_pid = os.getpid()
+        pid_path = Path(WRITER_PID_PATTERN.format(writer="test_alive"))
+        pid_path.parent.mkdir(parents=True, exist_ok=True)
+        pid_path.write_text(str(my_pid))
+        try:
+            result = check_process_liveness(writer="test_alive")
+            assert not result.passed
+            assert result.severity == "blocking"
+            assert "alive" in result.detail
+        finally:
+            pid_path.unlink(missing_ok=True)
 
-    def test_recommended_action_safe(self):
-        r = RebaseSafetyReport(verdict=SAFE)
-        assert r.recommended_action() == "proceed with rebase"
 
-    def test_recommended_action_blocked_conflict(self):
-        r = RebaseSafetyReport(
-            verdict=BLOCKED,
-            reasons=["repo is in a merge/rebase conflict state"],
+# ---------------------------------------------------------------------------
+# check_batch_liveness
+# ---------------------------------------------------------------------------
+
+class TestCheckBatchLiveness:
+    def test_no_pid_file_passes(self):
+        pid_path = Path(BATCH_PID_PATTERN.format(writer="test_nobatch"))
+        pid_path.unlink(missing_ok=True)
+        result = check_batch_liveness(writer="test_nobatch")
+        assert result.passed
+
+    def test_alive_batch_blocks(self):
+        my_pid = os.getpid()
+        pid_path = Path(BATCH_PID_PATTERN.format(writer="test_batchalive"))
+        pid_path.parent.mkdir(parents=True, exist_ok=True)
+        pid_path.write_text(str(my_pid))
+        try:
+            result = check_batch_liveness(writer="test_batchalive")
+            assert not result.passed
+            assert result.severity == "blocking"
+        finally:
+            pid_path.unlink(missing_ok=True)
+
+    def test_stale_batch_passes(self):
+        pid_path = Path(BATCH_PID_PATTERN.format(writer="test_batchstale"))
+        pid_path.parent.mkdir(parents=True, exist_ok=True)
+        pid_path.write_text("99999998")
+        try:
+            result = check_batch_liveness(writer="test_batchstale")
+            assert result.passed
+        finally:
+            pid_path.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# assess() — aggregate
+# ---------------------------------------------------------------------------
+
+class TestAssess:
+    def test_all_clear_is_safe(self, tmp_repo):
+        """When no writer is running and pause exists, rebase is safe."""
+        w = "test_clear"
+        pause = Path(PAUSE_PATTERN.format(writer=w))
+        pause.parent.mkdir(parents=True, exist_ok=True)
+        pause.touch()
+        for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN]:
+            Path(pattern.format(writer=w)).unlink(missing_ok=True)
+        try:
+            v = assess(repo_root=str(tmp_repo), writer=w)
+            assert v.ready
+            assert v.status == RebaseReadiness.SAFE
+            assert "✓" in v.summary
+        finally:
+            pause.unlink(missing_ok=True)
+
+    def test_alive_writer_is_unsafe(self, tmp_repo):
+        """Live writer without pause signal blocks the rebase."""
+        w = "test_alive_w"
+        my_pid = os.getpid()
+        Path(PAUSE_PATTERN.format(writer=w)).unlink(missing_ok=True)
+        for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN]:
+            p = Path(pattern.format(writer=w))
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(str(my_pid))
+        try:
+            v = assess(repo_root=str(tmp_repo), writer=w)
+            assert not v.ready
+            assert v.status == RebaseReadiness.UNSAFE
+            assert len(v.remediation) > 0
+        finally:
+            for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN]:
+                Path(pattern.format(writer=w)).unlink(missing_ok=True)
+
+    def test_remediation_includes_kill_steps(self, tmp_repo):
+        w = "test_kill"
+        my_pid = os.getpid()
+        Path(PAUSE_PATTERN.format(writer=w)).unlink(missing_ok=True)
+        for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN]:
+            p = Path(pattern.format(writer=w))
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(str(my_pid))
+        try:
+            v = assess(repo_root=str(tmp_repo), writer=w)
+            text = "\n".join(v.remediation)
+            assert "kill" in text or "pause" in text.lower()
+            assert "rebase" in text
+        finally:
+            for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN]:
+                Path(pattern.format(writer=w)).unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# verdict_to_dict
+# ---------------------------------------------------------------------------
+
+class TestVerdictSerialisation:
+    def test_round_trip(self):
+        v = Verdict(
+            ready=True,
+            status=RebaseReadiness.SAFE,
+            checks=[
+                SafetyCheck("test", True, "all good"),
+            ],
+            remediation=["step 1"],
         )
-        assert "conflict" in r.recommended_action()
+        d = verdict_to_dict(v)
+        assert d["ready"] is True
+        assert d["status"] == "safe"
+        assert len(d["checks"]) == 1
+        assert d["checks"][0]["name"] == "test"
+        assert d["remediation"] == ["step 1"]
 
-    def test_recommended_action_blocked_rebase_in_progress(self):
-        r = RebaseSafetyReport(
-            verdict=BLOCKED,
-            reasons=["a rebase is already in progress"],
+    def test_unsafe_dict(self):
+        v = Verdict(
+            ready=False,
+            status=RebaseReadiness.UNSAFE,
+            checks=[
+                SafetyCheck("proc", False, "alive", "blocking"),
+            ],
+            remediation=["kill it"],
         )
-        assert "rebase" in r.recommended_action().lower()
+        d = verdict_to_dict(v)
+        assert d["ready"] is False
+        assert d["status"] == "unsafe"
+        assert d["checks"][0]["severity"] == "blocking"
 
-    def test_recommended_action_blocked_uncommitted(self):
-        r = RebaseSafetyReport(
-            verdict=BLOCKED,
-            reasons=["7 uncommitted files — working tree is very dirty"],
+    def test_json_serialisable(self):
+        import json
+        v = Verdict(
+            ready=True,
+            status=RebaseReadiness.SAFE,
+            checks=[],
+            remediation=[],
         )
-        assert "commit" in r.recommended_action() or "stash" in r.recommended_action()
+        s = json.dumps(verdict_to_dict(v))
+        assert '"safe"' in s
 
-    def test_recommended_action_blocked_writer(self):
-        r = RebaseSafetyReport(
-            verdict=BLOCKED,
-            reasons=["writer is running with uncommitted changes"],
+
+# ---------------------------------------------------------------------------
+# Edge cases
+# ---------------------------------------------------------------------------
+
+class TestEdgeCases:
+    def test_verdict_summary_counts(self):
+        v = Verdict(
+            ready=False,
+            status=RebaseReadiness.UNSAFE,
+            checks=[
+                SafetyCheck("a", True, "ok"),
+                SafetyCheck("b", False, "fail", "blocking"),
+                SafetyCheck("c", True, "ok"),
+            ],
         )
-        assert "writer" in r.recommended_action() or "stop" in r.recommended_action()
-
-    def test_recommended_action_blocked_stash(self):
-        r = RebaseSafetyReport(
-            verdict=BLOCKED,
-            reasons=["55 stashes accumulated — stash pile is dangerously deep"],
-        )
-        assert "stash" in r.recommended_action()
-
-    def test_recommended_action_caution_writer(self):
-        r = RebaseSafetyReport(
-            verdict=CAUTION,
-            reasons=["writer is running — it may produce changes during rebase"],
-        )
-        assert "writer" in r.recommended_action() or "pause" in r.recommended_action()
-
-    def test_recommended_action_caution_stash(self):
-        r = RebaseSafetyReport(
-            verdict=CAUTION,
-            reasons=["12 stashes — consider cleaning up before adding more"],
-        )
-        assert "stash" in r.recommended_action()
-
-    def test_recommended_action_caution_generic(self):
-        r = RebaseSafetyReport(
-            verdict=CAUTION,
-            reasons=["something vague"],
-        )
-        assert "caution" in r.recommended_action()
-
-
-# ---------------------------------------------------------------------------
-# assess_rebase_safety — safe scenarios
-# ---------------------------------------------------------------------------
-
-class TestSafe:
-    """Scenarios that should yield SAFE."""
-
-    def test_clean_repo(self):
-        snap = RepoSnapshot()
-        r = assess_rebase_safety(snap)
-        assert r.verdict == SAFE
-        assert r.risk_score == 0
-
-    def test_remote_only_no_local(self):
-        snap = RepoSnapshot(remote_only_commits=3)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == SAFE
-        assert r.risk_score == 0
-
-    def test_few_stashes(self):
-        snap = RepoSnapshot(stash_count=5)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == SAFE
-        assert r.risk_score == 0
-
-    def test_local_ahead_only(self):
-        snap = RepoSnapshot(local_only_commits=3)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == SAFE
-        assert r.risk_score == 0
-
-
-# ---------------------------------------------------------------------------
-# assess_rebase_safety — caution scenarios
-# ---------------------------------------------------------------------------
-
-class TestCaution:
-    """Scenarios that should yield CAUTION."""
-
-    def test_writer_running_clean(self):
-        """Writer running with clean tree is caution, not blocked."""
-        snap = RepoSnapshot(writer_running=True)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == CAUTION
-        assert any("writer" in x for x in r.reasons)
-
-    def test_stash_warning_threshold(self):
-        snap = RepoSnapshot(stash_count=10)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == CAUTION
-        assert any("stash" in x for x in r.reasons)
-
-    def test_stash_just_below_warning(self):
-        snap = RepoSnapshot(stash_count=9)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == SAFE  # below threshold
-
-    def test_divergence_warning(self):
-        snap = RepoSnapshot(local_only_commits=5)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == CAUTION
-        assert any("local-only" in x for x in r.reasons)
-
-    def test_batch_running_alone(self):
-        snap = RepoSnapshot(batch_running=True)
-        r = assess_rebase_safety(snap)
-        # batch_running alone adds risk=1, not enough for caution
-        # but let's check
-        assert r.risk_score >= 1
-
-    def test_writer_and_batch_running(self):
-        snap = RepoSnapshot(writer_running=True, batch_running=True)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == CAUTION
-        assert r.risk_score >= 2
-
-    def test_remote_many_commits(self):
-        snap = RepoSnapshot(remote_only_commits=15)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == CAUTION
-        assert any("remote-only" in x for x in r.reasons)
-
-
-# ---------------------------------------------------------------------------
-# assess_rebase_safety — blocked scenarios
-# ---------------------------------------------------------------------------
-
-class TestBlocked:
-    """Scenarios that should yield BLOCKED."""
-
-    def test_rebase_in_progress(self):
-        snap = RepoSnapshot(rebase_in_progress=True)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == BLOCKED
-        assert r.risk_score >= 5
-
-    def test_merge_conflict(self):
-        snap = RepoSnapshot(merge_conflict=True)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == BLOCKED
-        assert r.risk_score >= 5
-
-    def test_uncommitted_with_writer(self):
-        snap = RepoSnapshot(uncommitted_files=3, writer_running=True)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == BLOCKED
-        assert any("writer" in x and "uncommitted" in x for x in r.reasons)
-
-    def test_many_uncommitted_files(self):
-        snap = RepoSnapshot(uncommitted_files=10)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == BLOCKED
-        assert any("uncommitted" in x for x in r.reasons)
-
-    def test_few_uncommitted_no_writer(self):
-        snap = RepoSnapshot(uncommitted_files=3)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == BLOCKED
-        assert r.risk_score >= 3
-
-    def test_stash_danger(self):
-        snap = RepoSnapshot(stash_count=50)
-        r = assess_rebase_safety(snap)
-        # stash=50 gives risk=3, which is caution not blocked
-        # but combined with something else it can be blocked
-        assert r.risk_score >= 3
-
-    def test_stash_danger_plus_writer(self):
-        snap = RepoSnapshot(stash_count=50, writer_running=True)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == CAUTION or r.verdict == BLOCKED
-
-    def test_everything_on_fire(self):
-        snap = RepoSnapshot(
-            uncommitted_files=8,
-            stash_count=100,
-            local_only_commits=10,
-            remote_only_commits=20,
-            writer_running=True,
-            batch_running=True,
-            merge_conflict=True,
-            rebase_in_progress=True,
-        )
-        r = assess_rebase_safety(snap)
-        assert r.verdict == BLOCKED
-        assert r.risk_score == 10  # capped at 10
-        assert len(r.reasons) >= 5
-
-    def test_rebase_and_conflict_together(self):
-        snap = RepoSnapshot(rebase_in_progress=True, merge_conflict=True)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == BLOCKED
-        assert r.risk_score == 10  # both hard blockers
-
-
-# ---------------------------------------------------------------------------
-# Risk score boundary tests
-# ---------------------------------------------------------------------------
-
-class TestRiskScore:
-    """Verify risk_score is bounded 0--10."""
-
-    def test_min_risk(self):
-        snap = RepoSnapshot()
-        r = assess_rebase_safety(snap)
-        assert r.risk_score == 0
-
-    def test_max_risk(self):
-        snap = RepoSnapshot(
-            uncommitted_files=10,
-            stash_count=100,
-            local_only_commits=20,
-            remote_only_commits=20,
-            writer_running=True,
-            batch_running=True,
-            merge_conflict=True,
-            rebase_in_progress=True,
-        )
-        r = assess_rebase_safety(snap)
-        assert r.risk_score == 10
-
-    def test_risk_never_negative(self):
-        snap = RepoSnapshot()
-        r = assess_rebase_safety(snap)
-        assert r.risk_score >= 0
-
-
-# ---------------------------------------------------------------------------
-# Threshold boundary tests
-# ---------------------------------------------------------------------------
-
-class TestThresholds:
-    """Exact boundary values for thresholds."""
-
-    def test_stash_9_is_safe(self):
-        snap = RepoSnapshot(stash_count=9)
-        assert assess_rebase_safety(snap).verdict == SAFE
-
-    def test_stash_10_is_caution(self):
-        snap = RepoSnapshot(stash_count=10)
-        assert assess_rebase_safety(snap).verdict == CAUTION
-
-    def test_stash_49_is_caution(self):
-        snap = RepoSnapshot(stash_count=49)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == CAUTION  # risk 1 from stash alone
-
-    def test_stash_50_is_caution(self):
-        snap = RepoSnapshot(stash_count=50)
-        r = assess_rebase_safety(snap)
-        assert r.risk_score >= 3  # higher risk but still caution alone
-
-    def test_local_4_is_safe(self):
-        snap = RepoSnapshot(local_only_commits=4)
-        assert assess_rebase_safety(snap).verdict == SAFE
-
-    def test_local_5_is_caution(self):
-        snap = RepoSnapshot(local_only_commits=5)
-        assert assess_rebase_safety(snap).verdict == CAUTION
-
-    def test_uncommitted_1_is_blocked(self):
-        snap = RepoSnapshot(uncommitted_files=1)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == BLOCKED
-
-    def test_remote_10_is_safe(self):
-        snap = RepoSnapshot(remote_only_commits=10)
-        r = assess_rebase_safety(snap)
-        # remote_only=10 is at the boundary (threshold is > 10), so SAFE
-        assert r.verdict == SAFE
-
-    def test_remote_11_is_caution(self):
-        snap = RepoSnapshot(remote_only_commits=11)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == CAUTION
-
-    def test_remote_9_is_safe(self):
-        snap = RepoSnapshot(remote_only_commits=9)
-        r = assess_rebase_safety(snap)
-        assert r.verdict == SAFE
-
-
-# ---------------------------------------------------------------------------
-# quick_check
-# ---------------------------------------------------------------------------
-
-class TestQuickCheck:
-    """Quick-check convenience function."""
-
-    def test_clean(self):
-        result = quick_check()
-        assert result.startswith("safe:")
-
-    def test_dirty_with_writer(self):
-        result = quick_check(uncommitted=3, writer_up=True)
-        assert "blocked" in result
-
-    def test_stash_pile(self):
-        result = quick_check(stashes=15)
-        assert "caution" in result or "stash" in result
-
-    def test_all_args(self):
-        result = quick_check(
-            uncommitted=5,
-            stashes=20,
-            ahead=3,
-            behind=8,
-            writer_up=True,
-            batch_up=True,
-        )
-        assert "blocked" in result
-
-
-# ---------------------------------------------------------------------------
-# Reason text quality
-# ---------------------------------------------------------------------------
-
-class TestReasonText:
-    """Verify reasons are human-readable and actionable."""
-
-    def test_all_reasons_are_strings(self):
-        snap = RepoSnapshot(
-            uncommitted_files=5,
-            stash_count=60,
-            local_only_commits=10,
-            remote_only_commits=15,
-            writer_running=True,
-            batch_running=True,
-            merge_conflict=True,
-            rebase_in_progress=True,
-        )
-        r = assess_rebase_safety(snap)
-        for reason in r.reasons:
-            assert isinstance(reason, str)
-            assert len(reason) > 5  # not trivially short
-
-    def test_no_duplicate_reasons(self):
-        snap = RepoSnapshot(
-            uncommitted_files=3,
-            stash_count=20,
-            writer_running=True,
-        )
-        r = assess_rebase_safety(snap)
-        assert len(r.reasons) == len(set(r.reasons))
-
-    def test_reasons_empty_when_clean(self):
-        snap = RepoSnapshot()
-        r = assess_rebase_safety(snap)
-        assert r.reasons == []
+        assert "2/3" in v.summary
+        assert "✗" in v.summary
+
+    def test_empty_checks_is_safe(self):
+        v = Verdict(ready=True, status=RebaseReadiness.SAFE)
+        assert "0/0" in v.summary
+
+    def test_different_writer_id(self, tmp_repo):
+        """Using a non-default writer ID changes PID file paths."""
+        w = "test_other_writer"
+        for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN, PAUSE_PATTERN]:
+            Path(pattern.format(writer=w)).unlink(missing_ok=True)
+        v = assess(repo_root=str(tmp_repo), writer=w)
+        # With no PID files and no pause, process checks pass
+        # but pause check fails.
+        pause_check = next(c for c in v.checks if c.name == "pause_signal")
+        assert not pause_check.passed

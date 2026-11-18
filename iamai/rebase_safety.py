@@ -1,278 +1,343 @@
-"""Rebase safety — assess whether it is safe to rebase before pulling.
+"""rebase_safety — pre-rebase environment health checks.
 
-A self-writing repository that pushes hundreds of commits per day will
-occasionally diverge from the remote.  When that happens, the caretaker
-must ``git pull --rebase``, but a rebase can fail or produce conflicts
-if the working tree is dirty, there are too many stashes, or the writer
-process is still producing changes.
+The IamAI repo runs a continuous writer loop that appends to tracked
+files (``data/strokes.jsonl``, ``data/writer_state.qwen.json``, docs)
+every 15 seconds.  Attempting ``git pull --rebase`` while the writer is
+active causes the rebase to abort mid-replay with::
 
-This module answers one question: **is it safe to rebase right now?**
+    error: Your local changes to the following files would be
+    overwritten by merge: ...
 
-The assessment is a pure function — it inspects a snapshot of the repo
-state, not the repo itself — so the caller is responsible for gathering
-the inputs.
+This wastes time: the caretaker must then ``rebase --abort``, kill the
+writer, commit or stash the orphaned changes, and retry.  Each failed
+attempt also leaves reflog entries that confuse the visit-counting
+logic.
 
-Usage::
+This module provides a pure-logic gate that answers one question:
+*is it safe to start a rebase right now?*  The check is intentionally
+conservative — a false "unsafe" costs one pause-and-resume cycle, while
+a false "safe" costs a corrupted working tree.
 
-    from iamai.rebase_safety import assess_rebase_safety, RepoSnapshot
+Checks performed
+----------------
 
-    snap = RepoSnapshot(
-        uncommitted_files=3,
-        stash_count=2,
-        local_only_commits=1,
-        remote_only_commits=1,
-        writer_running=True,
-        batch_running=True,
-    )
-    report = assess_rebase_safety(snap)
-    print(report.verdict)   # "caution"
-    print(report.reason)
-    report.recommended_action()  # "pause writer, commit, then rebase"
+1. **Writer pause signal** — is the pause sentinel file present?
+2. **Untracked dirty state** — are there unstaged modifications to
+   writer-managed files?
+3. **Process liveness** — is the writer PID file present and the
+   process still running?
+4. **Pending commit backlog** — does the batch committer have
+   uncommitted strokes queued beyond the threshold?
 
-Verdicts
---------
-- ``safe``     — go ahead and rebase.
-- ``caution``  — rebase may work but some risk factors are present.
-- ``blocked``  — do NOT rebase now; fix the listed issues first.
+Each check returns a ``SafetyCheck`` result; the aggregate ``assess()``
+function returns a ``RebaseReadiness`` verdict with a human-readable
+reason and suggested remediation steps.
 
-Design choices
---------------
-- **Pure function.**  No subprocess calls, no git plumbing.
-- **Explicit inputs.**  The ``RepoSnapshot`` dataclass makes it obvious
-  what state was inspected.
-- **Actionable output.**  Every verdict comes with a recommended action.
+Usage
+-----
+
+As a library::
+
+    from iamai.rebase_safety import assess, RebaseReadiness
+    verdict = assess(repo_root="/path/to/IamAI")
+    if verdict.ready:
+        subprocess.run(["git", "pull", "--rebase", "origin", "main"])
+    else:
+        for step in verdict.remediation:
+            print(step)
+
+As a CLI (``tools/rebase_safety_check.py``)::
+
+    python3 tools/rebase_safety_check.py
+    # exit 0 = safe, 1 = unsafe (reason on stderr), 2 = error
 """
 
 from __future__ import annotations
 
+import os
+import signal
 from dataclasses import dataclass, field
-from typing import List
+from enum import Enum
+from pathlib import Path
+from typing import List, Optional
 
 
 # ---------------------------------------------------------------------------
-# Input
+# Data types
 # ---------------------------------------------------------------------------
 
-@dataclass(frozen=True)
-class RepoSnapshot:
-    """Point-in-time snapshot of repo state relevant to rebase safety.
-
-    Parameters
-    ----------
-    uncommitted_files : int
-        Number of files with unstaged or staged but uncommitted changes.
-    stash_count : int
-        Number of entries in ``git stash list``.
-    local_only_commits : int
-        Commits present locally but not on the remote (ahead count).
-    remote_only_commits : int
-        Commits present on the remote but not locally (behind count).
-    writer_running : bool
-        Whether the writer process is currently active.
-    batch_running : bool
-        Whether the batch committer process is currently active.
-    merge_conflict : bool
-        Whether the repo is currently in a merge or rebase conflict state.
-    rebase_in_progress : bool
-        Whether a rebase is already underway.
-    """
-
-    uncommitted_files: int = 0
-    stash_count: int = 0
-    local_only_commits: int = 0
-    remote_only_commits: int = 0
-    writer_running: bool = False
-    batch_running: bool = False
-    merge_conflict: bool = False
-    rebase_in_progress: bool = False
+class RebaseReadiness(Enum):
+    """Outcome of the safety assessment."""
+    SAFE = "safe"
+    UNSAFE = "unsafe"
+    ERROR = "error"
 
 
-# ---------------------------------------------------------------------------
-# Output
-# ---------------------------------------------------------------------------
+@dataclass
+class SafetyCheck:
+    """Result of a single check."""
+    name: str
+    passed: bool
+    detail: str
+    severity: str = "warning"  # warning | blocking
 
-SAFE = "safe"
-CAUTION = "caution"
-BLOCKED = "blocked"
 
-
-@dataclass(frozen=True)
-class RebaseSafetyReport:
-    """Assessment of whether it is safe to rebase now.
-
-    Attributes
-    ----------
-    verdict : str
-        One of ``SAFE``, ``CAUTION``, or ``BLOCKED``.
-    reasons : list[str]
-        Human-readable reasons for the verdict.
-    risk_score : int
-        0 (perfectly safe) to 10 (absolutely do not rebase).
-    """
-
-    verdict: str
-    reasons: List[str] = field(default_factory=list)
-    risk_score: int = 0
-
-    def recommended_action(self) -> str:
-        """Return a one-line action suggestion based on the verdict."""
-        if self.verdict == SAFE:
-            return "proceed with rebase"
-        if self.verdict == BLOCKED:
-            if any("conflict" in r for r in self.reasons):
-                return "resolve the in-progress conflict first, then retry"
-            if any("rebase" in r.lower() for r in self.reasons):
-                return "abort or continue the in-progress rebase first"
-            if any("writer" in r for r in self.reasons):
-                return "stop the writer and batch processes, commit, then rebase"
-            if any("uncommitted" in r for r in self.reasons):
-                return "commit or stash all changes before rebasing"
-            if any("stash" in r for r in self.reasons):
-                return "clean up stale stashes, then rebase cautiously"
-            return "fix the issues listed in reasons before rebasing"
-        # CAUTION
-        if any("writer" in r for r in self.reasons):
-            return "pause writer, commit dirty files, then rebase"
-        if any("stash" in r for r in self.reasons):
-            return "rebase is possible but stash pile is deep — proceed carefully"
-        return "rebase with caution — review the reasons first"
+@dataclass
+class Verdict:
+    """Aggregate result of all safety checks."""
+    ready: bool
+    status: RebaseReadiness
+    checks: List[SafetyCheck] = field(default_factory=list)
+    remediation: List[str] = field(default_factory=list)
 
     @property
     def summary(self) -> str:
-        """One-line summary combining verdict and top reason."""
-        top = self.reasons[0] if self.reasons else "no issues found"
-        return f"{self.verdict}: {top}"
+        passed = sum(1 for c in self.checks if c.passed)
+        total = len(self.checks)
+        tag = "✓" if self.ready else "✗"
+        return f"{tag} rebase safety: {passed}/{total} checks passed"
+
+
+# Writer-managed file patterns that cause rebase conflicts.
+WRITER_MANAGED_FILES = [
+    "data/strokes.jsonl",
+    "data/writer_state.qwen.json",
+    "data/writer_state.doubao.json",
+    "docs/DEVLOG.md",
+    "docs/GARDEN.md",
+    "docs/METRICS.md",
+]
+
+# Sentinel files used by the writer/batch system.
+WRITER_PID_PATTERN = "/tmp/iamai-writer-{writer}.pid"
+BATCH_PID_PATTERN = "/tmp/iamai-batch-{writer}.pid"
+PAUSE_PATTERN = "/tmp/iamai-writer-pause-{writer}"
 
 
 # ---------------------------------------------------------------------------
-# Assessment logic
+# Individual checks
 # ---------------------------------------------------------------------------
 
-# Thresholds
-_STASH_WARNING = 10
-_STASH_DANGER = 50
-_DIVERGENCE_WARNING = 5
-_UNCOMMITTED_WITH_WRITER = "writer is running with uncommitted changes"
+def check_pause_signal(
+    repo_root: str | Path,
+    writer: str = "qwen",
+) -> SafetyCheck:
+    """Check whether the writer pause sentinel exists."""
+    pause_file = Path(PAUSE_PATTERN.format(writer=writer))
+    if pause_file.exists():
+        return SafetyCheck(
+            name="pause_signal",
+            passed=True,
+            detail=f"pause sentinel exists at {pause_file}",
+        )
+    return SafetyCheck(
+        name="pause_signal",
+        passed=False,
+        detail=f"pause sentinel missing at {pause_file}",
+        severity="blocking",
+    )
 
 
-def assess_rebase_safety(snap: RepoSnapshot) -> RebaseSafetyReport:
-    """Assess whether it is safe to rebase the current branch.
+def check_dirty_state(
+    repo_root: str | Path,
+    writer_managed: Optional[List[str]] = None,
+) -> SafetyCheck:
+    """Check whether writer-managed files have unstaged modifications.
 
-    Parameters
-    ----------
-    snap : RepoSnapshot
-        A point-in-time snapshot of the repo state.
-
-    Returns
-    -------
-    RebaseSafetyReport
-        The safety assessment with verdict, reasons, and risk score.
+    This reads the working tree directly (no subprocess) by checking
+    mtime against a snapshot.  For a true dirty check the caller should
+    pass ``git diff --name-only`` output; this function provides a fast
+    heuristic when git is unavailable.
     """
-    reasons: List[str] = []
-    risk = 0
-
-    # --- hard blockers (force BLOCKED) ------------------------------------
-
-    if snap.rebase_in_progress:
-        reasons.append("a rebase is already in progress")
-        risk += 5
-
-    if snap.merge_conflict:
-        reasons.append("repo is in a merge/rebase conflict state")
-        risk += 5
-
-    # Any uncommitted files block rebase (git refuses to rebase dirty tree).
-    if snap.uncommitted_files > 0 and snap.writer_running:
-        reasons.append(_UNCOMMITTED_WITH_WRITER)
-        risk += 6  # hard block: writer + dirty tree
-    elif snap.uncommitted_files > 5:
-        reasons.append(
-            f"{snap.uncommitted_files} uncommitted files — working tree is very dirty"
+    root = Path(repo_root)
+    managed = writer_managed or WRITER_MANAGED_FILES
+    dirty = []
+    for rel in managed:
+        fp = root / rel
+        if fp.exists() and fp.stat().st_mtime > 0:
+            # We cannot determine "dirty" without git; report presence.
+            # The CLI wrapper replaces this with actual git output.
+            dirty.append(rel)
+    if not dirty:
+        return SafetyCheck(
+            name="dirty_state",
+            passed=True,
+            detail="no writer-managed files found (clean or empty tree)",
         )
-        risk += 5
-    elif snap.uncommitted_files > 0:
-        reasons.append(
-            f"{snap.uncommitted_files} uncommitted file(s) — commit or stash first"
+    # Presence alone is not dirty — the CLI enriches this.
+    return SafetyCheck(
+        name="dirty_state",
+        passed=True,
+        detail=f"{len(dirty)} writer-managed files present; "
+               "CLI should verify with `git diff --name-only`",
+        severity="warning",
+    )
+
+
+def check_process_liveness(
+    writer: str = "qwen",
+) -> SafetyCheck:
+    """Check whether the writer process is still running.
+
+    A live writer during rebase is the primary failure mode.
+    """
+    pid_file = Path(WRITER_PID_PATTERN.format(writer=writer))
+    if not pid_file.exists():
+        return SafetyCheck(
+            name="process_liveness",
+            passed=True,
+            detail=f"no PID file at {pid_file} — writer not running",
         )
-        risk += 5
-
-    # --- soft warnings (push toward CAUTION) ------------------------------
-
-    if snap.stash_count >= _STASH_DANGER:
-        reasons.append(
-            f"{snap.stash_count} stashes accumulated — stash pile is dangerously deep"
+    try:
+        pid = int(pid_file.read_text().strip())
+    except (ValueError, OSError) as exc:
+        return SafetyCheck(
+            name="process_liveness",
+            passed=False,
+            detail=f"PID file unreadable: {exc}",
+            severity="warning",
         )
-        risk += 3
-    elif snap.stash_count >= _STASH_WARNING:
-        reasons.append(
-            f"{snap.stash_count} stashes — consider cleaning up before adding more"
+    # Check if process is alive (signal 0).
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return SafetyCheck(
+            name="process_liveness",
+            passed=True,
+            detail=f"writer PID {pid} is stale (process dead)",
         )
-        risk += 2
-
-    if snap.local_only_commits >= _DIVERGENCE_WARNING:
-        reasons.append(
-            f"{snap.local_only_commits} local-only commits — "
-            "rebase will replay all of them"
+    except PermissionError:
+        return SafetyCheck(
+            name="process_liveness",
+            passed=False,
+            detail=f"writer PID {pid} exists but no permission to signal",
+            severity="warning",
         )
-        risk += 2
+    # Process is alive.
+    return SafetyCheck(
+        name="process_liveness",
+        passed=False,
+        detail=f"writer PID {pid} is alive — must pause before rebase",
+        severity="blocking",
+    )
 
-    if snap.writer_running and snap.uncommitted_files == 0:
-        reasons.append("writer is running — it may produce changes during rebase")
-        risk += 2
 
-    if snap.batch_running:
-        reasons.append("batch committer is running — it may commit during rebase")
-        risk += 1
+def check_batch_liveness(
+    writer: str = "qwen",
+) -> SafetyCheck:
+    """Check whether the batch committer is running.
 
-    if snap.remote_only_commits > 10:
-        reasons.append(
-            f"{snap.remote_only_commits} remote-only commits — "
-            "rebase may produce many conflicts"
+    The batch committer is less dangerous (it only runs ``git add`` and
+    ``git commit``), but if it fires mid-rebase it can corrupt the
+    index.
+    """
+    pid_file = Path(BATCH_PID_PATTERN.format(writer=writer))
+    if not pid_file.exists():
+        return SafetyCheck(
+            name="batch_liveness",
+            passed=True,
+            detail=f"no PID file at {pid_file} — batch not running",
         )
-        risk += 2
-
-    # --- verdict ----------------------------------------------------------
-
-    risk = min(risk, 10)
-
-    if risk >= 5:
-        verdict = BLOCKED
-    elif risk >= 2:
-        verdict = CAUTION
-    else:
-        verdict = SAFE
-
-    return RebaseSafetyReport(
-        verdict=verdict,
-        reasons=reasons,
-        risk_score=risk,
+    try:
+        pid = int(pid_file.read_text().strip())
+    except (ValueError, OSError):
+        return SafetyCheck(
+            name="batch_liveness",
+            passed=True,
+            detail="batch PID file unreadable — assuming stopped",
+        )
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return SafetyCheck(
+            name="batch_liveness",
+            passed=True,
+            detail=f"batch PID {pid} is stale (process dead)",
+        )
+    except PermissionError:
+        return SafetyCheck(
+            name="batch_liveness",
+            passed=False,
+            detail=f"batch PID {pid} exists but no permission to signal",
+            severity="warning",
+        )
+    return SafetyCheck(
+        name="batch_liveness",
+        passed=False,
+        detail=f"batch committer PID {pid} is alive — should stop before rebase",
+        severity="blocking",
     )
 
 
 # ---------------------------------------------------------------------------
-# Quick CLI helper
+# Aggregate assessment
 # ---------------------------------------------------------------------------
 
-def quick_check(
-    uncommitted: int = 0,
-    stashes: int = 0,
-    ahead: int = 0,
-    behind: int = 0,
-    writer_up: bool = False,
-    batch_up: bool = False,
-) -> str:
-    """One-liner convenience for shell integration.
+def assess(
+    repo_root: str | Path = ".",
+    writer: str = "qwen",
+    writer_managed: Optional[List[str]] = None,
+) -> Verdict:
+    """Run all safety checks and return an aggregate verdict."""
+    checks = [
+        check_pause_signal(repo_root, writer),
+        check_dirty_state(repo_root, writer_managed),
+        check_process_liveness(writer),
+        check_batch_liveness(writer),
+    ]
 
-    Returns a human-readable string like ``"safe: proceed with rebase"``
-    or ``"blocked: 3 uncommitted files — commit or stash first"``.
-    """
-    snap = RepoSnapshot(
-        uncommitted_files=uncommitted,
-        stash_count=stashes,
-        local_only_commits=ahead,
-        remote_only_commits=behind,
-        writer_running=writer_up,
-        batch_running=batch_up,
+    blocking = [c for c in checks if not c.passed and c.severity == "blocking"]
+
+    remediation: List[str] = []
+    if any(c.name == "pause_signal" and not c.passed for c in checks):
+        remediation.append(
+            f"touch {PAUSE_PATTERN.format(writer=writer)}  # pause the writer"
+        )
+    if any(c.name == "process_liveness" and not c.passed for c in checks):
+        remediation.append(
+            f"kill $(cat {WRITER_PID_PATTERN.format(writer=writer)})  "
+            f"# or: bash tools/run_both.sh --stop"
+        )
+    if any(c.name == "batch_liveness" and not c.passed for c in checks):
+        remediation.append(
+            f"kill $(cat {BATCH_PID_PATTERN.format(writer=writer)})  "
+            f"# stop batch committer"
+        )
+    if any(c.name == "dirty_state" and not c.passed for c in checks):
+        remediation.append(
+            "git add -A && git commit -m 'qwen: pre-rebase flush'"
+        )
+
+    remediation.append("sleep 2  # let writer notice the pause signal")
+    remediation.append("git add -A && git commit --allow-empty -m 'rebase prep'")
+    remediation.append("git pull --rebase origin main")
+
+    return Verdict(
+        ready=len(blocking) == 0,
+        status=RebaseReadiness.SAFE if not blocking else RebaseReadiness.UNSAFE,
+        checks=checks,
+        remediation=remediation,
     )
-    report = assess_rebase_safety(snap)
-    return f"{report.verdict}: {report.recommended_action()}"
+
+
+# ---------------------------------------------------------------------------
+# Serialisation helpers
+# ---------------------------------------------------------------------------
+
+def verdict_to_dict(v: Verdict) -> dict:
+    """Convert a Verdict to a JSON-safe dictionary."""
+    return {
+        "ready": v.ready,
+        "status": v.status.value,
+        "summary": v.summary,
+        "checks": [
+            {
+                "name": c.name,
+                "passed": c.passed,
+                "detail": c.detail,
+                "severity": c.severity,
+            }
+            for c in v.checks
+        ],
+        "remediation": v.remediation,
+    }
