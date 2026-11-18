@@ -7131,3 +7131,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 40437
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 616298 lines across 2417 tracked files, 935 commits deep.
+## stroke 40461
+
+deleting a file is progress too, eventually. At this moment: commit 940: the count of times this repo was pushed, not the work done.
