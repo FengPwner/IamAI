@@ -6813,3 +6813,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 40299
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2386 files; 606705 lines is a lot for a toy.
+## stroke 40323
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 608322 lines across 2392 tracked files, 906 commits deep.

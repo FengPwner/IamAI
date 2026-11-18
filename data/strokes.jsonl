@@ -6754,3 +6754,5 @@
 {"seq": 6754, "at": "2026-11-18T05:06:40+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 6753 strokes written so far into 2386 files"}
 {"seq": 6755, "at": "2026-11-18T06:08:52+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1621 python files, 6756 logged thoughts"}
 {"seq": 6756, "at": "2026-11-18T06:15:18+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 6755 strokes written so far into 2389 files"}
+{"seq": 6757, "at": "2026-11-18T07:07:03+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 608314 lines across 2392 tracked files, 905 commits deep"}
+{"seq": 6758, "at": "2026-11-18T07:13:42+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 1625 python files, 6759 logged thoughts"}
