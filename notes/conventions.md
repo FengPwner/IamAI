@@ -6876,3 +6876,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 40527
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2436 files; 622210 lines is a lot for a toy.
+## stroke 40545
+
+deleting a file is progress too, eventually. At this moment: tree is 2438 files; 622937 lines is a lot for a toy.
