@@ -1,357 +1,453 @@
-"""Tests for iamai.stroke_persistence — continuous stroke uptime tracking."""
+"""Tests for stroke_persistence — idea lifecycle tracking across strokes.
 
-import json
-import time
-from datetime import datetime, timezone
-from pathlib import Path
-from unittest.mock import patch
+Written by Qwen during caretaker visit 737, 2026-11-20.
+"""
+
+from __future__ import annotations
 
 import pytest
 
 from iamai.stroke_persistence import (
-    StrokePersistence,
-    Streak,
-    streak_report,
-    DEFAULT_THRESHOLD,
+    extract_concepts,
+    gap_trend,
+    persistence_health,
+    persistence_report,
+    _classify_lifecycle,
+    _compute_trace,
 )
 
 
-# ---------------------------------------------------------------------------
-# helpers
-# ---------------------------------------------------------------------------
-
-def _write_strokes(tmp_path: Path, strokes: list[dict]) -> Path:
-    """Write stroke records to a temporary strokes.jsonl file."""
-    p = tmp_path / "data" / "strokes.jsonl"
-    p.parent.mkdir(parents=True, exist_ok=True)
-    lines = [json.dumps(s) for s in strokes]
-    p.write_text("\n".join(lines) + "\n")
-    return p
+# =========================================================================
+# extract_concepts
+# =========================================================================
 
 
-def _epoch_to_iso(epoch: float) -> str:
-    """Convert epoch seconds to a proper ISO timestamp string."""
-    return datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat()
+class TestExtractConcepts:
+    """Tests for concept token extraction."""
+
+    def test_basic_extraction(self):
+        result = extract_concepts("the quick brown fox jumps")
+        assert "quick" in result
+        assert "brown" in result
+
+    def test_filters_short_words(self):
+        result = extract_concepts("a big cat sat on the mat")
+        # "big", "cat", "sat", "mat" are all < 4 chars
+        assert result == set()
+
+    def test_filters_stopwords(self):
+        result = extract_concepts("this very much more than that")
+        # All stopwords
+        assert result == set()
+
+    def test_handles_empty_string(self):
+        assert extract_concepts("") == set()
+
+    def test_handles_punctuation(self):
+        result = extract_concepts("quick, brown! fox? — jumping")
+        assert "quick" in result
+        assert "brown" in result
+        assert "jumping" in result
+
+    def test_case_insensitive(self):
+        result = extract_concepts("Quick QUICK quick")
+        assert "quick" in result
+        assert len(result) == 1
+
+    def test_longer_text(self):
+        text = "The architecture of distributed systems requires careful consideration of network partitions"
+        result = extract_concepts(text)
+        assert "architecture" in result
+        assert "distributed" in result
+        assert "systems" in result
+        assert "requires" in result
+        assert "careful" in result
+        assert "consideration" in result
+        assert "network" in result
+        assert "partitions" in result
 
 
-def _make_strokes(n: int, start_epoch: float, gap: float) -> list[dict]:
-    """Generate n strokes with uniform gap, starting at start_epoch."""
-    return [
-        {
-            "seq": i,
-            "at": _epoch_to_iso(start_epoch + i * gap),
-            "ts": start_epoch + i * gap,
-            "kind": "thought",
-            "text": f"stroke {i}",
+# =========================================================================
+# gap_trend
+# =========================================================================
+
+
+class TestGapTrend:
+    """Tests for gap trend classification."""
+
+    def test_increasing(self):
+        assert gap_trend([1, 2, 4, 7]) == "increasing"
+
+    def test_decreasing(self):
+        assert gap_trend([7, 4, 2, 1]) == "decreasing"
+
+    def test_stable(self):
+        assert gap_trend([2, 2, 2]) == "stable"
+
+    def test_empty(self):
+        assert gap_trend([]) == "stable"
+
+    def test_single_gap(self):
+        assert gap_trend([5]) == "stable"
+
+    def test_mostly_increasing(self):
+        assert gap_trend([1, 2, 3, 5, 8]) == "increasing"
+
+    def test_mostly_decreasing(self):
+        assert gap_trend([10, 7, 4, 2, 1]) == "decreasing"
+
+    def test_mixed_trend(self):
+        # Balanced oscillation — equal up and down diffs
+        assert gap_trend([3, 5, 3, 5, 3]) == "stable"
+
+
+# =========================================================================
+# _classify_lifecycle
+# =========================================================================
+
+
+class TestClassifyLifecycle:
+    """Tests for concept lifecycle classification."""
+
+    def test_anchored(self):
+        # High frequency, no recurrences, span >= 2
+        assert _classify_lifecycle(5, 0.9, 0, [1, 1, 1, 1, 1]) == "anchored"
+
+    def test_persistent(self):
+        # Wide span, decent frequency
+        assert _classify_lifecycle(6, 0.65, 0, [1, 2, 1, 1, 1, 1]) == "persistent"
+
+    def test_recurring(self):
+        # Multiple recurrences (gaps > threshold)
+        assert _classify_lifecycle(10, 0.3, 3, [1, 4, 1, 5]) == "recurring"
+
+    def test_decaying(self):
+        # Gaps are increasing
+        assert _classify_lifecycle(10, 0.4, 1, [1, 2, 4, 7]) == "decaying"
+
+    def test_fleeting_short_span(self):
+        # Short span
+        assert _classify_lifecycle(1, 0.5, 0, [1]) == "fleeting"
+
+    def test_fleeting_single_gap(self):
+        # Only one gap, nothing definitive
+        assert _classify_lifecycle(2, 0.33, 0, [2]) == "fleeting"
+
+    def test_anchored_beats_persistent(self):
+        # Both conditions met, anchored should win
+        result = _classify_lifecycle(5, 0.85, 0, [1, 1, 1, 1, 1])
+        assert result == "anchored"
+
+
+# =========================================================================
+# _compute_trace
+# =========================================================================
+
+
+class TestComputeTrace:
+    """Tests for individual concept trace computation."""
+
+    def test_single_appearance(self):
+        trace = _compute_trace("alpha", [3])
+        assert trace["span"] == 0
+        assert trace["lifecycle"] == "fleeting"
+        assert trace["recurrences"] == 0
+        assert trace["fade_curve"] == []
+
+    def test_consecutive_appearances(self):
+        trace = _compute_trace("beta", [0, 1, 2, 3, 4])
+        assert trace["span"] == 4
+        assert trace["frequency"] == 1.0
+        assert trace["lifecycle"] == "anchored"
+
+    def test_spread_appearances(self):
+        trace = _compute_trace("gamma", [0, 3, 6, 9])
+        assert trace["span"] == 9
+        assert trace["recurrences"] >= 1
+        assert trace["fade_curve"] == [3, 3, 3]
+
+    def test_recurring_concept(self):
+        trace = _compute_trace("delta", [0, 1, 5, 6, 10, 11])
+        assert trace["recurrences"] >= 2
+        assert trace["lifecycle"] == "recurring"
+
+    def test_frequency_calculation(self):
+        # 3 appearances over span 6 → 3/7 ≈ 0.4286
+        trace = _compute_trace("epsilon", [0, 3, 6])
+        assert abs(trace["frequency"] - 3 / 7) < 0.001
+
+
+# =========================================================================
+# persistence_report
+# =========================================================================
+
+
+class TestPersistenceReport:
+    """Tests for the full stream persistence report."""
+
+    def test_empty_stream(self):
+        report = persistence_report([])
+        assert report["total_concepts"] == 0
+        assert report["tracked_concepts"] == 0
+        assert report["persistence_score"] == 0.0
+        assert report["stream_pattern"] == "scattershot"
+
+    def test_single_stroke(self):
+        report = persistence_report(["quick brown fox jumps high"])
+        assert report["total_concepts"] >= 1
+        assert report["tracked_concepts"] == 0  # nothing appears twice
+        assert report["persistence_score"] == 0.0
+
+    def test_identical_strokes(self):
+        texts = ["alpha beta gamma delta"] * 6
+        report = persistence_report(texts)
+        assert report["persistence_score"] == 1.0
+        assert report["stream_pattern"] == "focused-sprint"
+        assert report["tracked_concepts"] >= 4
+
+    def test_boomerang_pattern(self):
+        # Concepts that appear, vanish, reappear
+        texts = [
+            "alpha beta gamma",
+            "alpha beta gamma",
+            "delta epsilon zeta",
+            "delta epsilon zeta",
+            "alpha beta gamma",
+            "alpha beta gamma",
+            "delta epsilon zeta",
+            "delta epsilon zeta",
+            "alpha beta gamma",
+            "alpha beta gamma",
+        ]
+        report = persistence_report(texts)
+        assert report["recurrence_rate"] > 0.0
+        assert report["stream_pattern"] == "boomerang"
+
+    def test_deep_dive_pattern(self):
+        # Concepts that persist across many consecutive strokes
+        base = "architecture distributed systems network partition"
+        texts = []
+        for i in range(10):
+            texts.append(f"{base} consideration stroke number {i}")
+        report = persistence_report(texts)
+        # High persistence score expected
+        assert report["persistence_score"] > 0.3
+
+    def test_scattershot_pattern(self):
+        # Each stroke has unique concepts, no overlap
+        texts = [
+            "alpha bravo charlie",
+            "delta echo foxtrot",
+            "golf hotel india",
+            "juliet kilo lima",
+            "mike november oscar",
+        ]
+        report = persistence_report(texts)
+        assert report["tracked_concepts"] == 0
+        assert report["stream_pattern"] == "scattershot"
+
+    def test_report_keys(self):
+        report = persistence_report(["hello world testing things"])
+        expected_keys = {
+            "total_concepts", "tracked_concepts", "traces",
+            "persistence_score", "recurrence_rate", "anchor_ratio",
+            "fade_ratio", "lifecycle_counts", "stream_pattern",
+            "top_persistent", "top_recurring",
         }
-        for i in range(n)
-    ]
+        assert set(report.keys()) == expected_keys
 
-
-# ---------------------------------------------------------------------------
-# StrokePersistence — initialization
-# ---------------------------------------------------------------------------
-
-class TestInit:
-    def test_accepts_path(self, tmp_path: Path):
-        sp = StrokePersistence(tmp_path / "strokes.jsonl")
-        assert sp.strokes_path == tmp_path / "strokes.jsonl"
-
-    def test_missing_file_returns_empty(self, tmp_path: Path):
-        sp = StrokePersistence(tmp_path / "nonexistent.jsonl")
-        streak = sp.current_streak(now=time.time())
-        assert streak.status == "dormant"
-        assert streak.stroke_count == 0
-
-
-# ---------------------------------------------------------------------------
-# current_streak — active
-# ---------------------------------------------------------------------------
-
-class TestCurrentStreakActive:
-    def test_single_stroke_within_threshold(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        strokes = [{"ts": now - 10, "at": _epoch_to_iso(now - 10), "kind": "thought", "text": "x"}]
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(threshold_seconds=120, now=now)
-        assert streak.status == "active"
-        assert streak.stroke_count == 1
-
-    def test_continuous_strokes(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        # 10 strokes, 15s apart, last one 10s ago
-        strokes = _make_strokes(10, now - 145, 15)
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(threshold_seconds=120, now=now)
-        assert streak.status == "active"
-        assert streak.stroke_count == 10
-        assert streak.duration == pytest.approx(135, abs=1)
-
-    def test_long_active_streak(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        # 240 strokes, 15s apart = ~1 hour of activity
-        strokes = _make_strokes(240, now - 3600, 15)
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(threshold_seconds=120, now=now)
-        assert streak.status == "active"
-        assert streak.stroke_count == 240
-        assert streak.duration == pytest.approx(3585, abs=5)
-
-    def test_avg_gap_calculated(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        strokes = _make_strokes(5, now - 60, 15)
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(threshold_seconds=120, now=now)
-        assert streak.avg_gap == pytest.approx(15, abs=1)
-
-
-# ---------------------------------------------------------------------------
-# current_streak — broken
-# ---------------------------------------------------------------------------
-
-class TestCurrentStreakBroken:
-    def test_gap_exceeds_threshold(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        # Last stroke was 200s ago, threshold is 120s
-        strokes = [{"ts": now - 200, "at": _epoch_to_iso(now - 200), "kind": "thought", "text": "x"}]
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(threshold_seconds=120, now=now)
-        assert streak.status == "broken"
-
-    def test_mid_sequence_gap(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        # 5 strokes at 15s, then a 300s gap, then 3 strokes at 15s
-        base = now - 500
-        early = _make_strokes(5, base, 15)
-        late_start = base + 4 * 15 + 300  # 300s gap after last early stroke
-        late = _make_strokes(3, late_start, 15)
-        strokes = early + late
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(threshold_seconds=120, now=now + 10)
-        # The late 3 strokes should form the active streak
-        assert streak.status == "active" or streak.status == "broken"
-        assert streak.stroke_count >= 1
-
-    def test_broken_streak_records_duration(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        # Two strokes 15s apart, but last was 500s ago
-        strokes = [
-            {"ts": now - 515, "at": _epoch_to_iso(now - 515), "kind": "thought", "text": "a"},
-            {"ts": now - 500, "at": _epoch_to_iso(now - 500), "kind": "thought", "text": "b"},
+    def test_min_appearances_parameter(self):
+        texts = [
+            "alpha beta",
+            "alpha beta",
+            "alpha beta",
         ]
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(threshold_seconds=120, now=now)
-        assert streak.status == "broken"
-        assert streak.duration == pytest.approx(15, abs=1)
-        assert streak.stroke_count == 2
+        # With min_appearances=2, should track
+        r2 = persistence_report(texts, min_appearances=2)
+        assert r2["tracked_concepts"] >= 2
 
+        # With min_appearances=5, should not track
+        r5 = persistence_report(texts, min_appearances=5)
+        assert r5["tracked_concepts"] == 0
 
-# ---------------------------------------------------------------------------
-# current_streak — dormant
-# ---------------------------------------------------------------------------
-
-class TestCurrentStreakDormant:
-    def test_no_file(self, tmp_path: Path):
-        sp = StrokePersistence(tmp_path / "missing.jsonl")
-        streak = sp.current_streak(now=time.time())
-        assert streak.status == "dormant"
-
-    def test_empty_file(self, tmp_path: Path):
-        p = tmp_path / "data" / "strokes.jsonl"
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text("")
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(now=time.time())
-        assert streak.status == "dormant"
-
-    def test_all_invalid_json(self, tmp_path: Path):
-        p = tmp_path / "data" / "strokes.jsonl"
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text("not json\ngarbage\n")
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(now=time.time())
-        assert streak.status == "dormant"
-
-
-# ---------------------------------------------------------------------------
-# all_streaks
-# ---------------------------------------------------------------------------
-
-class TestAllStreaks:
-    def test_empty(self, tmp_path: Path):
-        sp = StrokePersistence(tmp_path / "missing.jsonl")
-        assert sp.all_streaks() == []
-
-    def test_single_streak(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        strokes = _make_strokes(5, now - 60, 15)
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streaks = sp.all_streaks(threshold_seconds=120)
-        assert len(streaks) == 1
-        assert streaks[0].stroke_count == 5
-
-    def test_two_streaks_separated_by_gap(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        # First streak: 3 strokes at 15s
-        early = _make_strokes(3, now - 600, 15)
-        # 300s gap (exceeds 120s threshold)
-        # Second streak: 4 strokes at 15s
-        late = _make_strokes(4, now - 60, 15)
-        strokes = early + late
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streaks = sp.all_streaks(threshold_seconds=120)
-        assert len(streaks) == 2
-        # Most recent first
-        assert streaks[0].stroke_count == 4
-        assert streaks[1].stroke_count == 3
-
-    def test_multiple_streaks(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        s1 = _make_strokes(3, now - 1200, 15)
-        s2 = _make_strokes(5, now - 800, 15)
-        s3 = _make_strokes(2, now - 30, 15)
-        strokes = s1 + s2 + s3
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streaks = sp.all_streaks(threshold_seconds=120)
-        assert len(streaks) == 3
-        assert streaks[0].stroke_count == 2   # most recent
-        assert streaks[1].stroke_count == 5
-        assert streaks[2].stroke_count == 3
-
-
-# ---------------------------------------------------------------------------
-# classify
-# ---------------------------------------------------------------------------
-
-class TestClassify:
-    def test_active(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        strokes = [{"ts": now - 10, "at": _epoch_to_iso(now - 10), "kind": "thought", "text": "x"}]
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        # Use a patched time to match test epoch
-        with patch("iamai.stroke_persistence.time") as mock_time:
-            mock_time.time.return_value = now
-            assert sp.classify(threshold_seconds=120) == "active"
-
-    def test_broken(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        strokes = [{"ts": now - 500, "at": _epoch_to_iso(now - 500), "kind": "thought", "text": "x"}]
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        with patch("iamai.stroke_persistence.time") as mock_time:
-            mock_time.time.return_value = now
-            assert sp.classify(threshold_seconds=120) == "broken"
-
-    def test_dormant(self, tmp_path: Path):
-        sp = StrokePersistence(tmp_path / "missing.jsonl")
-        assert sp.classify() == "dormant"
-
-
-# ---------------------------------------------------------------------------
-# streak_report
-# ---------------------------------------------------------------------------
-
-class TestStreakReport:
-    def test_active_report(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        strokes = _make_strokes(240, now - 3600, 15)
-        p = _write_strokes(tmp_path, strokes)
-        report = streak_report(p, threshold_seconds=120, now=now)
-        assert "active streak" in report
-        assert "240 strokes" in report
-
-    def test_dormant_report(self, tmp_path: Path):
-        p = tmp_path / "data" / "strokes.jsonl"
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text("")
-        report = streak_report(p)
-        assert "dormant" in report
-
-    def test_broken_report(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        strokes = [
-            {"ts": now - 500, "at": _epoch_to_iso(now - 500), "kind": "thought", "text": "a"},
-            {"ts": now - 485, "at": _epoch_to_iso(now - 485), "kind": "thought", "text": "b"},
+    def test_top_persistent_sorted_by_span(self):
+        texts = [
+            "alpha beta gamma delta epsilon",
+            "alpha beta gamma",
+            "alpha beta gamma",
+            "alpha beta gamma",
+            "alpha beta gamma delta",
+            "alpha beta gamma delta epsilon",
+            "alpha beta gamma delta epsilon",
+            "alpha beta gamma",
         ]
-        p = _write_strokes(tmp_path, strokes)
-        report = streak_report(p, threshold_seconds=120, now=now)
-        assert "last streak" in report
+        report = persistence_report(texts)
+        if len(report["top_persistent"]) >= 2:
+            spans = [t["span"] for t in report["top_persistent"]]
+            assert spans == sorted(spans, reverse=True)
+
+    def test_top_recurring_sorted_by_recurrences(self):
+        texts = [
+            "alpha beta",
+            "alpha beta",
+            "gamma delta",
+            "gamma delta",
+            "alpha beta",
+            "alpha beta",
+            "gamma delta",
+            "gamma delta",
+            "alpha beta",
+            "gamma delta",
+        ]
+        report = persistence_report(texts)
+        if len(report["top_recurring"]) >= 2:
+            recs = [t["recurrences"] for t in report["top_recurring"]]
+            assert recs == sorted(recs, reverse=True)
+
+    def test_persistence_score_bounded(self):
+        texts = ["alpha beta gamma delta"] * 20
+        report = persistence_report(texts)
+        assert 0.0 <= report["persistence_score"] <= 1.0
+
+    def test_recurrence_rate_bounded(self):
+        texts = [
+            "alpha beta",
+            "gamma delta",
+            "alpha beta",
+            "gamma delta",
+        ] * 5
+        report = persistence_report(texts)
+        assert 0.0 <= report["recurrence_rate"] <= 1.0
+
+    def test_anchor_ratio_bounded(self):
+        texts = ["alpha beta gamma"] * 10
+        report = persistence_report(texts)
+        assert 0.0 <= report["anchor_ratio"] <= 1.0
+
+    def test_fade_ratio_bounded(self):
+        texts = [
+            "alpha beta gamma",
+            "alpha beta gamma",
+            "alpha",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]
+        report = persistence_report(texts)
+        assert 0.0 <= report["fade_ratio"] <= 1.0
 
 
-# ---------------------------------------------------------------------------
-# edge cases
-# ---------------------------------------------------------------------------
+# =========================================================================
+# persistence_health
+# =========================================================================
+
+
+class TestPersistenceHealth:
+    """Tests for the quick health check function."""
+
+    def test_healthy_deep_dive(self):
+        report = {"stream_pattern": "deep-dive", "persistence_score": 0.7}
+        assert persistence_health(report) == "healthy"
+
+    def test_shallow_scattershot(self):
+        report = {"stream_pattern": "scattershot", "persistence_score": 0.1}
+        assert persistence_health(report) == "shallow"
+
+    def test_mixed_boomerang(self):
+        report = {"stream_pattern": "boomerang", "persistence_score": 0.3}
+        assert persistence_health(report) == "mixed"
+
+    def test_healthy_focused_sprint(self):
+        report = {"stream_pattern": "focused-sprint", "persistence_score": 0.4}
+        assert persistence_health(report) == "healthy"
+
+    def test_mixed_default(self):
+        report = {"stream_pattern": "unknown", "persistence_score": 0.5}
+        assert persistence_health(report) == "mixed"
+
+    def test_missing_keys(self):
+        report = {}
+        assert persistence_health(report) == "shallow"
+
+
+# =========================================================================
+# Edge cases and robustness
+# =========================================================================
+
 
 class TestEdgeCases:
-    def test_iso_timestamp_parsing(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        ts1 = now - 30
-        ts2 = now - 15
-        strokes = [
-            {"at": _epoch_to_iso(ts1), "kind": "thought", "text": "x"},
-            {"at": _epoch_to_iso(ts2), "kind": "thought", "text": "y"},
+    """Edge cases and robustness tests."""
+
+    def test_all_empty_strokes(self):
+        texts = ["", "", "", ""]
+        report = persistence_report(texts)
+        assert report["total_concepts"] == 0
+        assert report["stream_pattern"] == "scattershot"
+
+    def test_one_concept_throughout(self):
+        texts = ["alpha"] * 10
+        # "alpha" is only 5 chars but let's check it's tracked
+        report = persistence_report(texts)
+        assert report["tracked_concepts"] >= 1
+        assert report["persistence_score"] == 1.0
+
+    def test_very_long_stream(self):
+        texts = [f"concept_{i % 5} stroke_{i}" for i in range(100)]
+        report = persistence_report(texts)
+        assert report["tracked_concepts"] > 0
+        assert 0.0 <= report["persistence_score"] <= 1.0
+
+    def test_concepts_with_hyphens(self):
+        result = extract_concepts("well-known self-driving state-of-the-art")
+        # hyphenated words should be extracted if long enough
+        assert len(result) > 0
+
+    def test_unicode_handling(self):
+        # Non-ASCII characters in text shouldn't break extraction
+        result = extract_concepts("café résumé naïve über algorithm")
+        # Only ASCII words matching the regex will be found
+        assert "algorithm" in result
+
+    def test_traces_contain_required_fields(self):
+        texts = ["alpha beta gamma"] * 5
+        report = persistence_report(texts)
+        for trace in report["traces"]:
+            assert "concept" in trace
+            assert "appearances" in trace
+            assert "first_seen" in trace
+            assert "last_seen" in trace
+            assert "span" in trace
+            assert "frequency" in trace
+            assert "recurrences" in trace
+            assert "fade_curve" in trace
+            assert "lifecycle" in trace
+
+    def test_lifecycle_counts_sum_to_tracked(self):
+        texts = [
+            "alpha beta gamma delta",
+            "alpha beta gamma",
+            "alpha beta",
+            "alpha beta gamma delta",
+            "alpha beta gamma",
+            "alpha",
+            "alpha beta gamma delta",
         ]
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(threshold_seconds=120, now=now)
-        assert streak.stroke_count == 2
+        report = persistence_report(texts)
+        total_from_counts = sum(report["lifecycle_counts"].values())
+        assert total_from_counts == report["tracked_concepts"]
 
-    def test_mixed_valid_invalid_lines(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        p = tmp_path / "data" / "strokes.jsonl"
-        p.parent.mkdir(parents=True, exist_ok=True)
-        lines = [
-            json.dumps({"ts": now - 30, "at": _epoch_to_iso(now - 30), "kind": "thought", "text": "good"}),
-            "not valid json",
-            json.dumps({"ts": now - 15, "at": _epoch_to_iso(now - 15), "kind": "thought", "text": "also good"}),
-            "",
-            json.dumps({"ts": now - 5, "at": _epoch_to_iso(now - 5), "kind": "thought", "text": "third"}),
+    def test_gap_threshold_parameter(self):
+        texts = [
+            "alpha beta",
+            "alpha beta",
+            "gamma delta",
+            "alpha beta",
+            "alpha beta",
         ]
-        p.write_text("\n".join(lines) + "\n")
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(threshold_seconds=120, now=now)
-        assert streak.status == "active"
-        assert streak.stroke_count == 3
-
-    def test_custom_threshold(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        # 3 strokes with 50s gaps
-        strokes = _make_strokes(3, now - 100, 50)
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-
-        # With 120s threshold: all gaps fit → active
-        streak_loose = sp.current_streak(threshold_seconds=120, now=now)
-        assert streak_loose.status == "active"
-        assert streak_loose.stroke_count == 3
-
-        # With 30s threshold: 50s gaps break it → only last stroke in streak
-        sp2 = StrokePersistence(p)
-        streak_strict = sp2.current_streak(threshold_seconds=30, now=now)
-        assert streak_strict.stroke_count == 1
-
-    def test_max_gap_tracking(self, tmp_path: Path):
-        now = 1_700_000_000.0
-        strokes = [
-            {"ts": now - 100, "at": _epoch_to_iso(now - 100), "kind": "thought", "text": "a"},
-            {"ts": now - 90, "at": _epoch_to_iso(now - 90), "kind": "thought", "text": "b"},   # gap 10
-            {"ts": now - 50, "at": _epoch_to_iso(now - 50), "kind": "thought", "text": "c"},   # gap 40
-            {"ts": now - 45, "at": _epoch_to_iso(now - 45), "kind": "thought", "text": "d"},   # gap 5
-            {"ts": now - 10, "at": _epoch_to_iso(now - 10), "kind": "thought", "text": "e"},   # gap 35
-        ]
-        p = _write_strokes(tmp_path, strokes)
-        sp = StrokePersistence(p)
-        streak = sp.current_streak(threshold_seconds=120, now=now)
-        assert streak.max_gap == pytest.approx(40, abs=1)
-        assert streak.avg_gap == pytest.approx(22.5, abs=1)
+        # With default gap_threshold=2, gap of 2 is not a recurrence
+        r_default = persistence_report(texts)
+        # With gap_threshold=1, gap of 2 IS a recurrence
+        r_strict = persistence_report(texts, gap_threshold=1)
+        assert r_strict["recurrence_rate"] >= r_default["recurrence_rate"]

@@ -1,452 +1,525 @@
-"""stroke_persistence — measure continuous stroke production uptime.
+"""Stroke persistence tracker — measure how ideas persist, recur, and fade.
 
-While cadence monitors check *rate* and stall detectors give a binary
-healthy/stalled verdict, this module answers a different question:
-*how long has the writer been running continuously without a gap
-exceeding threshold?*
+``stroke_diversity`` captures how *varied* the output mix is.
+``stroke_transition_tracker`` captures how ideas *connect* between
+consecutive strokes.  Neither captures a subtler temporal dimension:
+**how long do ideas stay alive, and do they come back?**
 
-This is analogous to "uptime" for a server — it tells you how long
-the current streak of productive output has lasted.
+Persistence is not repetition — a persistent idea may be explored from
+different angles across many strokes, while a repetitive one just copies
+the same phrase.  Tracking persistence reveals the *lifecycle of
+concepts* in the writer's stream:
 
-Public API::
+* **Persistent** concepts appear across many consecutive strokes — the
+  writer is deeply engaged with one thread.
+* **Fleeting** concepts appear once or twice then vanish — the writer
+  samples broadly but doesn't dwell.
+* **Recurring** concepts appear, disappear, then reappear — the writer
+  circles back to unfinished threads.
+* **Decaying** concepts appear frequently at first then taper off — the
+  writer is moving past a topic.
 
-    from iamai.stroke_persistence import (
-        StrokePersistence,
-        current_streak,
-        streak_report,
-    )
+Data model
+----------
 
-    sp = StrokePersistence(strokes_path)
-    streak = sp.current_streak(threshold_seconds=120)
-    # {"duration": 3600, "strokes": 240, "started_at": "2026-11-05T04:01:00+00:00",
-    #  "status": "active"}
+A **ConceptTrace** records one concept's journey through the stream:
 
-    print(streak_report(strokes_path, threshold_seconds=120))
-    # "active streak: 1h 0m (240 strokes since 04:01 UTC)"
+================  =====================================================
+field             meaning
+================  =====================================================
+``concept``       the keyword or phrase being tracked
+``appearances``   list of stroke indices where the concept appears
+``first_seen``    earliest stroke index
+``last_seen``     latest stroke index
+``span``          last_seen − first_seen (0 for single-appearance)
+``frequency``     len(appearances) / (span + 1) — density within span
+``recurrences``   number of gaps > 1 stroke between consecutive appearances
+``fade_curve``    list of gap lengths between consecutive appearances
+================  =====================================================
 
-Threshold model:
+Algorithm
+---------
+1. For each stroke, extract a set of **concept tokens** — significant
+   words (length >= 4, not in a stoplist) from the stroke text.
+2. Build a mapping: concept → sorted list of stroke indices.
+3. For each concept with >= 2 appearances, compute:
 
-==============  ===========================================================
-threshold       meaning
-==============  ===========================================================
-< 2x cadence    strict — any minor pause breaks the streak
-2–10x cadence   moderate — tolerates brief hiccups
-> 10x cadence   loose — only major stalls break the streak
-==============  ===========================================================
+   - ``span`` = last index − first index
+   - ``frequency`` = count / (span + 1)
+   - ``recurrences`` = number of gaps > ``gap_threshold`` between
+     consecutive appearances
+   - ``fade_curve`` = list of inter-appearance gaps
 
-Default threshold is 120s (8x the 15s cadence) — balances sensitivity
-against noise from transient pauses.
+4. Classify each concept's lifecycle:
 
-Status values:
+=============  ========================================================
+lifecycle      description
+=============  ========================================================
+**persistent** span >= 5 and frequency >= 0.6 — present throughout
+**recurring**  recurrences >= 2 — appears, vanishes, returns
+**decaying**   gap lengths are increasing (positive trend in fade_curve)
+**fleeting**   span <= 2 or only 1 appearance — here and gone
+**anchored**   frequency >= 0.8 and recurrences == 0 — in nearly every
+               stroke of its span, never missing a beat
+=============  ========================================================
 
-===========  ===========================================================
-status       meaning
-===========  ===========================================================
-active       streak is ongoing (last stroke within threshold)
-broken       streak ended — gap exceeded threshold
-dormant      no strokes yet or insufficient data
-===========  ===========================================================
+5. Aggregate into stream-level metrics:
+
+   - ``persistence_score`` — mean span of all multi-appearance concepts,
+     normalized by stream length.  Range [0, 1].
+   - ``recurrence_rate`` — fraction of concepts that recur (>= 2 gaps).
+   - ``anchor_ratio`` — fraction of concepts classified as anchored.
+   - ``fade_ratio`` — fraction classified as decaying.
+
+6. Classify the overall writing pattern:
+
+===================  =================================================
+pattern              description
+===================  =================================================
+**deep-dive**        persistence_score > 0.5, low recurrence_rate —
+                     the writer sticks with topics
+**scattershot**      persistence_score < 0.2, mostly fleeting —
+                     the writer samples widely
+**boomerang**        recurrence_rate > 0.3 — ideas keep coming back
+**focused-sprint**   high anchor_ratio, short spans — intense but brief
+                     engagement with each topic
+===================  =================================================
+
+Zero dependencies.  stdlib only.
+
+>>> texts = [
+...     "alpha beta gamma delta",
+...     "alpha beta gamma delta",
+...     "something completely different here now",
+...     "another passage with no overlap whatsoever",
+...     "alpha beta gamma delta",
+...     "alpha beta gamma delta",
+...     "nothing shared with earlier passages here",
+...     "fresh topics only in this final stroke",
+...     "alpha beta gamma delta",
+...     "alpha beta gamma delta",
+... ]
+>>> report = persistence_report(texts)
+>>> report["stream_pattern"]
+'boomerang'
+>>> report["total_concepts"] >= 4
+True
+>>> report["recurrence_rate"] > 0.0
+True
 """
 
 from __future__ import annotations
 
-import json
-import time
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, List, Optional
+import math
+import re
+from collections import Counter, defaultdict
+from typing import Any, Dict, List, Sequence, Tuple
 
 
-DEFAULT_THRESHOLD: float = 120.0  # seconds
+# ---------------------------------------------------------------------------
+# Stopwords — common words that carry little conceptual weight
+# ---------------------------------------------------------------------------
+
+_STOPWORDS: frozenset[str] = frozenset({
+    "able", "also", "been", "both", "come", "could", "each", "even",
+    "every", "find", "found", "from", "give", "given", "going", "have",
+    "here", "into", "just", "keep", "kind", "know", "known", "last",
+    "like", "long", "look", "made", "make", "many", "more", "most",
+    "much", "must", "need", "next", "only", "other", "over", "part",
+    "same", "said", "seen", "seem", "show", "side", "some", "such",
+    "sure", "take", "tell", "than", "that", "their", "them", "then",
+    "there", "these", "they", "thing", "think", "this", "those",
+    "through", "time", "turn", "upon", "used", "very", "want", "well",
+    "what", "when", "where", "which", "while", "will", "with", "word",
+    "work", "would", "year",
+})
+
+_MIN_WORD_LEN = 4
+_GAP_THRESHOLD = 2  # gaps larger than this count as recurrences
 
 
-@dataclass
-class Streak:
-    """A continuous run of strokes without a gap exceeding threshold."""
-    duration: float          # seconds from first to last stroke in streak
-    stroke_count: int        # number of strokes in this streak
-    started_at: Optional[str]  # ISO timestamp of first stroke
-    ended_at: Optional[str]    # ISO timestamp of last stroke (None if active)
-    status: str              # "active", "broken", "dormant"
-    max_gap: float           # largest gap within the streak
-    avg_gap: float           # average gap within the streak
+# ---------------------------------------------------------------------------
+# Concept extraction
+# ---------------------------------------------------------------------------
+
+_WORD_RE = re.compile(r"[a-z][a-z'_-]{3,}", re.IGNORECASE)
 
 
-class StrokePersistence:
-    """Measure continuous stroke production uptime."""
-
-    def __init__(self, strokes_path: Path):
-        """Initialize with path to strokes.jsonl.
-
-        Args:
-            strokes_path: Path to the strokes JSONL file.
-        """
-        self.strokes_path = strokes_path
-        self._strokes: Optional[List[dict]] = None
-
-    def _load_strokes(self) -> List[dict]:
-        """Load and parse strokes from JSONL file."""
-        if self._strokes is not None:
-            return self._strokes
-
-        if not self.strokes_path.exists():
-            self._strokes = []
-            return self._strokes
-
-        strokes = []
-        for line in self.strokes_path.read_text().strip().splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                stroke = json.loads(line)
-                # Normalize timestamp to epoch seconds
-                ts = self._parse_ts(stroke)
-                if ts is not None:
-                    stroke["_epoch"] = ts
-                    strokes.append(stroke)
-            except (json.JSONDecodeError, KeyError):
-                continue
-
-        self._strokes = strokes
-        return self._strokes
-
-    @staticmethod
-    def _parse_ts(stroke: dict) -> Optional[float]:
-        """Extract epoch timestamp from a stroke record."""
-        # Try "at" field (ISO format)
-        at = stroke.get("at")
-        if at and isinstance(at, str):
-            try:
-                dt = datetime.fromisoformat(at.replace("Z", "+00:00"))
-                return dt.timestamp()
-            except (ValueError, TypeError):
-                pass
-
-        # Try "ts" field (epoch seconds)
-        ts = stroke.get("ts")
-        if ts and isinstance(ts, (int, float)):
-            return float(ts)
-
-        return None
-
-    def current_streak(
-        self,
-        threshold_seconds: float = DEFAULT_THRESHOLD,
-        now: Optional[float] = None,
-    ) -> Streak:
-        """Calculate the current (most recent) streak.
-
-        A streak is a sequence of consecutive strokes where no gap
-        between adjacent strokes exceeds threshold_seconds.
-
-        Args:
-            threshold_seconds: Maximum gap (seconds) before a streak
-                is considered broken. Default 120s.
-            now: Override current time (epoch seconds). Defaults to
-                time.time().
-
-        Returns:
-            Streak dataclass with duration, count, status, etc.
-        """
-        strokes = self._load_strokes()
-        current_time = now if now is not None else time.time()
-
-        if not strokes:
-            return Streak(
-                duration=0.0,
-                stroke_count=0,
-                started_at=None,
-                ended_at=None,
-                status="dormant",
-                max_gap=0.0,
-                avg_gap=0.0,
-            )
-
-        # Walk backwards from the most recent stroke to find streak start
-        epochs = [s["_epoch"] for s in strokes]
-
-        # Check if the most recent stroke is within threshold of now
-        last_epoch = epochs[-1]
-        gap_to_now = current_time - last_epoch
-
-        if gap_to_now > threshold_seconds:
-            # The current streak is broken — find the last active streak
-            return self._find_last_streak(epochs, strokes, threshold_seconds)
-
-        # Active streak: walk backwards to find where it started
-        streak_start_idx = len(epochs) - 1
-        for i in range(len(epochs) - 1, 0, -1):
-            gap = epochs[i] - epochs[i - 1]
-            if gap > threshold_seconds:
-                break
-            streak_start_idx = i - 1
-
-        streak_epochs = epochs[streak_start_idx:]
-        streak_strokes = strokes[streak_start_idx:]
-
-        duration = streak_epochs[-1] - streak_epochs[0]
-        gaps = [
-            streak_epochs[i + 1] - streak_epochs[i]
-            for i in range(len(streak_epochs) - 1)
-        ]
-
-        started_at = streak_strokes[0].get("at", streak_strokes[0].get("ts"))
-        ended_at = streak_strokes[-1].get("at", streak_strokes[-1].get("ts"))
-
-        return Streak(
-            duration=duration,
-            stroke_count=len(streak_strokes),
-            started_at=str(started_at) if started_at else None,
-            ended_at=str(ended_at) if ended_at else None,
-            status="active",
-            max_gap=max(gaps) if gaps else 0.0,
-            avg_gap=sum(gaps) / len(gaps) if gaps else 0.0,
-        )
-
-    def _find_last_streak(
-        self,
-        epochs: List[float],
-        strokes: List[dict],
-        threshold_seconds: float,
-    ) -> Streak:
-        """Find the last completed streak (before the current gap)."""
-        if len(epochs) < 2:
-            return Streak(
-                duration=0.0,
-                stroke_count=len(epochs),
-                started_at=str(strokes[0].get("at", strokes[0].get("ts"))) if strokes else None,
-                ended_at=str(strokes[-1].get("at", strokes[-1].get("ts"))) if strokes else None,
-                status="dormant" if len(epochs) < 1 else "broken",
-                max_gap=0.0,
-                avg_gap=0.0,
-            )
-
-        # Find the end of the last streak before the current gap
-        # Walk backwards to find where a gap > threshold exists
-        streak_end_idx = len(epochs) - 1
-        streak_start_idx = streak_end_idx
-
-        for i in range(len(epochs) - 1, 0, -1):
-            gap = epochs[i] - epochs[i - 1]
-            if gap > threshold_seconds:
-                # This gap breaks the streak
-                # The streak we want is BEFORE this gap
-                streak_end_idx = i - 1
-                streak_start_idx = i - 1
-                break
-
-        # Now walk backwards from streak_end_idx to find streak start
-        for i in range(streak_end_idx, 0, -1):
-            gap = epochs[i] - epochs[i - 1]
-            if gap > threshold_seconds:
-                break
-            streak_start_idx = i - 1
-
-        streak_epochs = epochs[streak_start_idx:streak_end_idx + 1]
-        streak_strokes = strokes[streak_start_idx:streak_end_idx + 1]
-
-        if len(streak_epochs) == 0:
-            return Streak(
-                duration=0.0,
-                stroke_count=0,
-                started_at=None,
-                ended_at=None,
-                status="broken",
-                max_gap=0.0,
-                avg_gap=0.0,
-            )
-
-        duration = streak_epochs[-1] - streak_epochs[0]
-        gaps = [
-            streak_epochs[i + 1] - streak_epochs[i]
-            for i in range(len(streak_epochs) - 1)
-        ]
-
-        started_at = streak_strokes[0].get("at", streak_strokes[0].get("ts"))
-        ended_at = streak_strokes[-1].get("at", streak_strokes[-1].get("ts"))
-
-        return Streak(
-            duration=duration,
-            stroke_count=len(streak_strokes),
-            started_at=str(started_at) if started_at else None,
-            ended_at=str(ended_at) if ended_at else None,
-            status="broken",
-            max_gap=max(gaps) if gaps else 0.0,
-            avg_gap=sum(gaps) / len(gaps) if gaps else 0.0,
-        )
-
-    def all_streaks(
-        self,
-        threshold_seconds: float = DEFAULT_THRESHOLD,
-    ) -> List[Streak]:
-        """Find all streaks in the stroke history.
-
-        Returns a list of Streak objects, most recent first.
-        """
-        strokes = self._load_strokes()
-        if not strokes:
-            return []
-
-        epochs = [s["_epoch"] for s in strokes]
-
-        # Split into streaks by finding gaps > threshold
-        streaks: List[Streak] = []
-        start_idx = 0
-
-        for i in range(1, len(epochs)):
-            gap = epochs[i] - epochs[i - 1]
-            if gap > threshold_seconds:
-                # End current streak, start new one
-                streak_epochs = epochs[start_idx:i]
-                streak_strokes = strokes[start_idx:i]
-                gaps = [
-                    streak_epochs[j + 1] - streak_epochs[j]
-                    for j in range(len(streak_epochs) - 1)
-                ]
-                started_at = streak_strokes[0].get("at", streak_strokes[0].get("ts"))
-                ended_at = streak_strokes[-1].get("at", streak_strokes[-1].get("ts"))
-
-                streaks.append(Streak(
-                    duration=streak_epochs[-1] - streak_epochs[0],
-                    stroke_count=len(streak_strokes),
-                    started_at=str(started_at) if started_at else None,
-                    ended_at=str(ended_at) if ended_at else None,
-                    status="broken",
-                    max_gap=max(gaps) if gaps else 0.0,
-                    avg_gap=sum(gaps) / len(gaps) if gaps else 0.0,
-                ))
-                start_idx = i
-
-        # Final streak (may be active)
-        streak_epochs = epochs[start_idx:]
-        streak_strokes = strokes[start_idx:]
-        gaps = [
-            streak_epochs[j + 1] - streak_epochs[j]
-            for j in range(len(streak_epochs) - 1)
-        ]
-        started_at = streak_strokes[0].get("at", streak_strokes[0].get("ts"))
-        ended_at = streak_strokes[-1].get("at", streak_strokes[-1].get("ts"))
-
-        streaks.append(Streak(
-            duration=streak_epochs[-1] - streak_epochs[0],
-            stroke_count=len(streak_strokes),
-            started_at=str(started_at) if started_at else None,
-            ended_at=str(ended_at) if ended_at else None,
-            status="active",
-            max_gap=max(gaps) if gaps else 0.0,
-            avg_gap=sum(gaps) / len(gaps) if gaps else 0.0,
-        ))
-
-        # Return most recent first
-        streaks.reverse()
-        return streaks
-
-    def classify(self, threshold_seconds: float = DEFAULT_THRESHOLD) -> str:
-        """Quick classification of current persistence state.
-
-        Returns one of: "active", "broken", "dormant".
-        """
-        return self.current_streak(threshold_seconds).status
-
-
-def streak_report(
-    strokes_path: Path,
-    threshold_seconds: float = DEFAULT_THRESHOLD,
-    now: Optional[float] = None,
-) -> str:
-    """Human-readable streak report.
+def extract_concepts(text: str) -> set[str]:
+    """Extract significant concept tokens from a text string.
 
     Args:
-        strokes_path: Path to strokes.jsonl
-        threshold_seconds: Gap threshold in seconds
-        now: Override current time
+        text: free-form text from a stroke.
 
     Returns:
-        Formatted string like "active streak: 1h 0m (240 strokes since 04:01 UTC)"
+        Set of lowercase concept words, filtered by length and stoplist.
+
+    >>> sorted(extract_concepts("The quick brown fox is very quick"))
+    ['brown', 'quick']
+    >>> extract_concepts("a b c")
+    set()
+    >>> extract_concepts("")
+    set()
     """
-    sp = StrokePersistence(strokes_path)
-    streak = sp.current_streak(threshold_seconds, now=now)
+    words = _WORD_RE.findall(text.lower())
+    return {
+        w for w in words
+        if len(w) >= _MIN_WORD_LEN and w not in _STOPWORDS
+    }
 
-    if streak.status == "dormant":
-        return "dormant: no strokes recorded"
 
-    hours = int(streak.duration // 3600)
-    minutes = int((streak.duration % 3600) // 60)
+# ---------------------------------------------------------------------------
+# Concept trace computation
+# ---------------------------------------------------------------------------
 
-    if streak.status == "active":
-        since = streak.started_at or "unknown"
-        return (
-            f"active streak: {hours}h {minutes}m "
-            f"({streak.stroke_count} strokes since {since})"
+def _compute_trace(concept: str, appearances: list[int]) -> dict[str, Any]:
+    """Compute the full trace for one concept.
+
+    Args:
+        concept: the concept keyword.
+        appearances: sorted list of stroke indices where it appears.
+
+    Returns:
+        Dict with all ConceptTrace fields.
+    """
+    count = len(appearances)
+    first = appearances[0]
+    last = appearances[-1]
+    span = last - first
+
+    if count < 2:
+        return {
+            "concept": concept,
+            "appearances": appearances,
+            "first_seen": first,
+            "last_seen": last,
+            "span": 0,
+            "frequency": 1.0,
+            "recurrences": 0,
+            "fade_curve": [],
+            "lifecycle": "fleeting",
+        }
+
+    gaps = [
+        appearances[i + 1] - appearances[i]
+        for i in range(count - 1)
+    ]
+    frequency = count / (span + 1)
+    recurrences = sum(1 for g in gaps if g > _GAP_THRESHOLD)
+
+    # Classify lifecycle
+    lifecycle = _classify_lifecycle(span, frequency, recurrences, gaps)
+
+    return {
+        "concept": concept,
+        "appearances": appearances,
+        "first_seen": first,
+        "last_seen": last,
+        "span": span,
+        "frequency": round(frequency, 4),
+        "recurrences": recurrences,
+        "fade_curve": gaps,
+        "lifecycle": lifecycle,
+    }
+
+
+def _classify_lifecycle(
+    span: int,
+    frequency: float,
+    recurrences: int,
+    gaps: list[int],
+) -> str:
+    """Classify a concept's lifecycle pattern.
+
+    Args:
+        span: index range (last − first).
+        frequency: appearances / (span + 1).
+        recurrences: number of gaps exceeding threshold.
+        gaps: list of inter-appearance gap lengths.
+
+    Returns:
+        One of: 'persistent', 'recurring', 'decaying', 'fleeting', 'anchored'.
+    """
+    # Anchored: nearly every stroke in span, no recurrences
+    if frequency >= 0.8 and recurrences == 0 and span >= 2:
+        return "anchored"
+
+    # Recurring: appears, vanishes, comes back (checked before persistent
+    # because recurrence is a stronger signal than mere span coverage)
+    if recurrences >= 2:
+        return "recurring"
+
+    # Persistent: present throughout a wide span without major gaps
+    if span >= 5 and frequency >= 0.6:
+        return "persistent"
+
+    # Decaying: gaps are getting longer over time
+    if len(gaps) >= 3:
+        increasing = sum(
+            1 for i in range(1, len(gaps)) if gaps[i] > gaps[i - 1]
         )
-    else:
-        ended = streak.ended_at or "unknown"
-        return (
-            f"last streak: {hours}h {minutes}m "
-            f"({streak.stroke_count} strokes, ended {ended})"
-        )
+        if increasing >= len(gaps) - 1:
+            return "decaying"
+
+    # Fleeting: short span or few appearances
+    return "fleeting"
 
 
-def main() -> int:
-    """CLI entry point."""
-    import argparse
-    import sys
+# ---------------------------------------------------------------------------
+# Trend detection for gap sequences
+# ---------------------------------------------------------------------------
 
-    ap = argparse.ArgumentParser(
-        description="Measure continuous stroke production uptime"
-    )
-    ap.add_argument(
-        "--json", action="store_true",
-        help="JSON output instead of human-readable"
-    )
-    ap.add_argument(
-        "--threshold", type=float, default=DEFAULT_THRESHOLD,
-        help=f"Gap threshold in seconds (default {DEFAULT_THRESHOLD})"
-    )
-    ap.add_argument(
-        "--repo", type=Path, default=Path(__file__).resolve().parent.parent,
-        help="Repository root path"
-    )
-    ap.add_argument(
-        "--all", action="store_true",
-        help="Show all historical streaks"
-    )
-    args = ap.parse_args()
+def gap_trend(gaps: list[int]) -> str:
+    """Determine whether gaps are increasing, decreasing, or stable.
 
-    strokes_path = args.repo / "data" / "strokes.jsonl"
+    Args:
+        gaps: list of inter-appearance gap lengths.
 
-    if args.all:
-        sp = StrokePersistence(strokes_path)
-        streaks = sp.all_streaks(args.threshold)
+    Returns:
+        'increasing', 'decreasing', or 'stable'.
 
-        if args.json:
-            import dataclasses
-            print(json.dumps([dataclasses.asdict(s) for s in streaks[:20]], indent=2))
-        else:
-            if not streaks:
-                print("No streaks found.")
-                return 0
-            print(f"{'Status':<10} {'Duration':>12} {'Strokes':>8} {'Max Gap':>10} {'Started':>24}")
-            print("-" * 70)
-            for s in streaks[:20]:
-                dur = f"{int(s.duration // 3600)}h{int((s.duration % 3600) // 60)}m"
-                print(
-                    f"{s.status:<10} {dur:>12} {s.stroke_count:>8} "
-                    f"{s.max_gap:>9.0f}s {s.started_at or 'N/A':>24}"
+    >>> gap_trend([1, 2, 4, 7])
+    'increasing'
+    >>> gap_trend([5, 3, 2, 1])
+    'decreasing'
+    >>> gap_trend([2, 2, 2])
+    'stable'
+    >>> gap_trend([])
+    'stable'
+    >>> gap_trend([3])
+    'stable'
+    """
+    if len(gaps) < 2:
+        return "stable"
+
+    diffs = [gaps[i + 1] - gaps[i] for i in range(len(gaps) - 1)]
+    positive = sum(1 for d in diffs if d > 0)
+    negative = sum(1 for d in diffs if d < 0)
+    threshold = len(diffs) * 0.5
+
+    if positive > threshold:
+        return "increasing"
+    if negative > threshold:
+        return "decreasing"
+    return "stable"
+
+
+# ---------------------------------------------------------------------------
+# Stream-level classification
+# ---------------------------------------------------------------------------
+
+def _classify_stream(
+    persistence_score: float,
+    recurrence_rate: float,
+    anchor_ratio: float,
+    lifecycle_counts: Counter,
+    total_concepts: int,
+) -> str:
+    """Classify the overall writing pattern from stream metrics.
+
+    Args:
+        persistence_score: normalized mean span.
+        recurrence_rate: fraction of concepts that recur.
+        anchor_ratio: fraction classified as anchored.
+        lifecycle_counts: Counter of lifecycle labels.
+        total_concepts: total number of tracked concepts.
+
+    Returns:
+        One of: 'deep-dive', 'scattershot', 'boomerang', 'focused-sprint'.
+    """
+    if total_concepts == 0:
+        return "scattershot"
+
+    # Boomerang: ideas keep coming back
+    if recurrence_rate > 0.3:
+        return "boomerang"
+
+    # Focused sprint: anchored concepts with short spans
+    if anchor_ratio > 0.3:
+        return "focused-sprint"
+
+    # Deep dive: persistent concepts
+    if persistence_score > 0.5:
+        return "deep-dive"
+
+    # Default: scattershot
+    return "scattershot"
+
+
+# ---------------------------------------------------------------------------
+# Main report function
+# ---------------------------------------------------------------------------
+
+def persistence_report(
+    stroke_texts: Sequence[str],
+    *,
+    min_appearances: int = 2,
+    gap_threshold: int = _GAP_THRESHOLD,
+) -> dict[str, Any]:
+    """Generate a persistence report for a stream of strokes.
+
+    Args:
+        stroke_texts: ordered sequence of stroke text strings.
+        min_appearances: minimum appearances to track a concept (default 2).
+        gap_threshold: gap size above which a recurrence is counted.
+
+    Returns:
+        Dict with keys:
+
+        - ``total_concepts``: number of unique concepts found.
+        - ``tracked_concepts``: number meeting min_appearances threshold.
+        - ``traces``: list of ConceptTrace dicts for tracked concepts.
+        - ``persistence_score``: mean normalized span, range [0, 1].
+        - ``recurrence_rate``: fraction of tracked concepts that recur.
+        - ``anchor_ratio``: fraction classified as anchored.
+        - ``fade_ratio``: fraction classified as decaying.
+        - ``lifecycle_counts``: Counter of lifecycle labels.
+        - ``stream_pattern``: overall writing pattern classification.
+        - ``top_persistent``: top 5 concepts by span.
+        - ``top_recurring``: top 5 concepts by recurrence count.
+
+    >>> texts = ["alpha beta gamma delta"] * 6
+    >>> r = persistence_report(texts)
+    >>> r["stream_pattern"]
+    'focused-sprint'
+    >>> r["persistence_score"]
+    1.0
+    """
+    stream_len = len(stroke_texts)
+    if stream_len == 0:
+        return {
+            "total_concepts": 0,
+            "tracked_concepts": 0,
+            "traces": [],
+            "persistence_score": 0.0,
+            "recurrence_rate": 0.0,
+            "anchor_ratio": 0.0,
+            "fade_ratio": 0.0,
+            "lifecycle_counts": Counter(),
+            "stream_pattern": "scattershot",
+            "top_persistent": [],
+            "top_recurring": [],
+        }
+
+    # Step 1: extract concepts per stroke
+    concept_map: dict[str, list[int]] = defaultdict(list)
+    all_concepts: set[str] = set()
+
+    for idx, text in enumerate(stroke_texts):
+        concepts = extract_concepts(text)
+        all_concepts.update(concepts)
+        for c in concepts:
+            concept_map[c].append(idx)
+
+    # Step 2: build traces for concepts meeting threshold
+    traces: list[dict[str, Any]] = []
+    for concept, appearances in concept_map.items():
+        if len(appearances) >= min_appearances:
+            trace = _compute_trace(concept, appearances)
+            # Override gap_threshold if caller changed it
+            if gap_threshold != _GAP_THRESHOLD:
+                trace["recurrences"] = sum(
+                    1 for g in trace["fade_curve"] if g > gap_threshold
                 )
-    else:
-        if args.json:
-            import dataclasses
-            sp = StrokePersistence(strokes_path)
-            streak = sp.current_streak(args.threshold)
-            print(json.dumps(dataclasses.asdict(streak), indent=2))
-        else:
-            print(streak_report(strokes_path, args.threshold))
+                trace["lifecycle"] = _classify_lifecycle(
+                    trace["span"],
+                    trace["frequency"],
+                    trace["recurrences"],
+                    trace["fade_curve"],
+                )
+            traces.append(trace)
 
-    return 0
+    # Step 3: compute stream metrics
+    tracked = len(traces)
+    lifecycle_counts: Counter = Counter(t["lifecycle"] for t in traces)
+
+    if tracked > 0 and stream_len > 1:
+        spans = [t["span"] for t in traces]
+        persistence_score = sum(spans) / (len(spans) * (stream_len - 1))
+        persistence_score = min(persistence_score, 1.0)
+        recurrence_rate = lifecycle_counts.get("recurring", 0) / tracked
+        anchor_ratio = lifecycle_counts.get("anchored", 0) / tracked
+        fade_ratio = lifecycle_counts.get("decaying", 0) / tracked
+    else:
+        persistence_score = 0.0
+        recurrence_rate = 0.0
+        anchor_ratio = 0.0
+        fade_ratio = 0.0
+
+    # Step 4: classify stream pattern
+    stream_pattern = _classify_stream(
+        persistence_score,
+        recurrence_rate,
+        anchor_ratio,
+        lifecycle_counts,
+        len(all_concepts),
+    )
+
+    # Step 5: top concepts
+    top_persistent = sorted(traces, key=lambda t: t["span"], reverse=True)[:5]
+    top_recurring = sorted(
+        traces, key=lambda t: t["recurrences"], reverse=True
+    )[:5]
+
+    return {
+        "total_concepts": len(all_concepts),
+        "tracked_concepts": tracked,
+        "traces": traces,
+        "persistence_score": round(persistence_score, 4),
+        "recurrence_rate": round(recurrence_rate, 4),
+        "anchor_ratio": round(anchor_ratio, 4),
+        "fade_ratio": round(fade_ratio, 4),
+        "lifecycle_counts": dict(lifecycle_counts),
+        "stream_pattern": stream_pattern,
+        "top_persistent": [
+            {"concept": t["concept"], "span": t["span"], "lifecycle": t["lifecycle"]}
+            for t in top_persistent
+        ],
+        "top_recurring": [
+            {
+                "concept": t["concept"],
+                "recurrences": t["recurrences"],
+                "lifecycle": t["lifecycle"],
+            }
+            for t in top_recurring
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Convenience: quick health check
+# ---------------------------------------------------------------------------
+
+def persistence_health(report: dict[str, Any]) -> str:
+    """Return a one-word health assessment from a persistence report.
+
+    Args:
+        report: output of :func:`persistence_report`.
+
+    Returns:
+        One of: 'healthy', 'shallow', 'stale', 'mixed'.
+
+    >>> persistence_health({"stream_pattern": "deep-dive", "persistence_score": 0.7})
+    'healthy'
+    >>> persistence_health({"stream_pattern": "scattershot", "persistence_score": 0.1})
+    'shallow'
+    >>> persistence_health({"stream_pattern": "boomerang", "persistence_score": 0.3})
+    'mixed'
+    """
+    pattern = report.get("stream_pattern", "scattershot")
+    score = report.get("persistence_score", 0.0)
+
+    if pattern == "deep-dive" and score > 0.5:
+        return "healthy"
+    if pattern == "scattershot" and score < 0.2:
+        return "shallow"
+    if pattern == "boomerang":
+        return "mixed"
+    if pattern == "focused-sprint":
+        return "healthy"
+    return "mixed"
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import doctest
+    doctest.testmod()

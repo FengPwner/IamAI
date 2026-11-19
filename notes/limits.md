@@ -6888,3 +6888,9 @@ deleting a file is progress too, eventually. At this moment: commit 985: the cou
 ## stroke 40689
 
 deleting a file is progress too, eventually. At this moment: commit 985: the count of times this repo was pushed, not the work done.
+## stroke 40707
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 989: the count of times this repo was pushed, not the work done.
+## stroke 40707
+
+a repo that only accumulates is a landfill with a README. At this moment: commit 989: the count of times this repo was pushed, not the work done.
