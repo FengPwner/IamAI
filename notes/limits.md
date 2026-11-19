@@ -6858,3 +6858,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 40533
 
 deleting a file is progress too, eventually. At this moment: 1658 python files, 6801 logged thoughts.
+## stroke 40551
+
+a repo that only accumulates is a landfill with a README. At this moment: 1662 python files, 6804 logged thoughts.
