@@ -6882,3 +6882,6 @@ deleting a file is progress too, eventually. At this moment: tree is 2438 files;
 ## stroke 40575
 
 deleting a file is progress too, eventually. At this moment: commit 962: the count of times this repo was pushed, not the work done.
+## stroke 40581
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 6807 strokes written so far into 2443 files.
