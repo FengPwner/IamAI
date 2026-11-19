@@ -6852,3 +6852,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 40503
 
 deleting a file is progress too, eventually. At this moment: 6794 strokes written so far into 2432 files.
+## stroke 40509
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2432 files; 620925 lines is a lot for a toy.
