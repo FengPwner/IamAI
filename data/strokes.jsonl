@@ -6827,3 +6827,5 @@
 {"seq": 6827, "at": "2026-11-19T18:03:47+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 2469 files; 636926 lines is a lot for a toy"}
 {"seq": 6828, "at": "2026-11-19T19:02:35+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 1689 python files, 6829 logged thoughts"}
 {"seq": 6829, "at": "2026-11-19T19:02:36+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 1689 python files, 6829 logged thoughts"}
+{"seq": 6830, "at": "2026-11-19T19:08:34+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 990: the count of times this repo was pushed, not the work done"}
+{"seq": 6831, "at": "2026-11-19T19:08:34+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 990: the count of times this repo was pushed, not the work done"}
