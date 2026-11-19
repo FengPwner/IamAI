@@ -6882,3 +6882,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 40659
 
 deleting a file is progress too, eventually. At this moment: tree is 2460 files; 632102 lines is a lot for a toy.
+## stroke 40689
+
+deleting a file is progress too, eventually. At this moment: commit 985: the count of times this repo was pushed, not the work done.
+## stroke 40689
+
+deleting a file is progress too, eventually. At this moment: commit 985: the count of times this repo was pushed, not the work done.
