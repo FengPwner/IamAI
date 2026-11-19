@@ -1,248 +1,323 @@
-"""Tests for iamai.commit_velocity — commit velocity classifier.
+"""Tests for commit_velocity module.
 
-Covers:
-  - _recent_commit_timestamps returns numeric list from git log
-  - velocity() dict shape and verdict classification
-  - velocity_report() one-liner format
-  - Edge cases: empty repo, stalled window, single commit
-  - Ratio thresholds: accelerating / steady / decelerating
-  - Zero-window guard
+Covers: timestamp parsing, gap computation, linear slope, velocity ratio,
+burstiness, classification thresholds, edge cases (degenerate inputs,
+identical timestamps, single commit), multi-window analysis, and the
+VelocityReport.to_dict() serialisation.  28 test functions.
+
+Written by Qwen during caretaker visit 723, 2026-11-19.
 """
 
-import json
-import subprocess
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
+import math
 import pytest
+from datetime import datetime, timezone, timedelta
 
 from iamai.commit_velocity import (
-    _recent_commit_timestamps,
-    velocity,
-    velocity_report,
+    VelocityReport,
+    _classify,
+    _linear_slope,
+    _to_epoch,
+    _zero_report,
+    analyse_velocity,
+    analyse_velocity_windows,
 )
 
 
 # ---------------------------------------------------------------------------
-# _recent_commit_timestamps
+# Timestamp parsing
 # ---------------------------------------------------------------------------
 
+class TestToEpoch:
+    def test_epoch_int(self):
+        assert _to_epoch(1000) == 1000.0
 
-class TestRecentCommitTimestamps:
-    """Unit tests for the git log helper."""
+    def test_epoch_float(self):
+        assert _to_epoch(1234.5) == 1234.5
 
-    def test_returns_floats(self, tmp_path: Path):
-        """git log output is parsed into a list of floats."""
-        # Use the actual repo since tmp_path won't have commits.
-        repo = Path(__file__).resolve().parent.parent
-        ts = _recent_commit_timestamps(repo, 5)
-        assert isinstance(ts, list)
-        assert len(ts) <= 5
-        for t in ts:
-            assert isinstance(t, float)
-            assert t > 1_000_000_000  # reasonable epoch
+    def test_datetime_naive(self):
+        dt = datetime(2026, 1, 1, 0, 0, 0)
+        # Naive datetimes are assumed UTC
+        expected = dt.replace(tzinfo=timezone.utc).timestamp()
+        assert _to_epoch(dt) == expected
 
-    def test_empty_on_non_repo(self, tmp_path: Path):
-        """Non-git directory returns empty list."""
-        ts = _recent_commit_timestamps(tmp_path, 10)
-        assert ts == []
+    def test_datetime_aware(self):
+        dt = datetime(2026, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+        assert _to_epoch(dt) == dt.timestamp()
 
-    def test_respects_max_count(self):
-        """Should not return more than max_count entries."""
-        repo = Path(__file__).resolve().parent.parent
-        ts = _recent_commit_timestamps(repo, 3)
-        assert len(ts) <= 3
+    def test_iso_string_with_z(self):
+        ts = "2026-01-01T00:00:00Z"
+        result = _to_epoch(ts)
+        expected = datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp()
+        assert result == expected
 
-    def test_descending_order(self):
-        """Timestamps should be newest-first (git log default)."""
-        repo = Path(__file__).resolve().parent.parent
-        ts = _recent_commit_timestamps(repo, 10)
-        for i in range(len(ts) - 1):
-            assert ts[i] >= ts[i + 1]
+    def test_iso_string_with_offset(self):
+        ts = "2026-07-01T12:00:00+08:00"
+        result = _to_epoch(ts)
+        expected = datetime(
+            2026, 7, 1, 12, 0, 0,
+            tzinfo=timezone(timedelta(hours=8))
+        ).timestamp()
+        assert result == expected
 
+    def test_iso_string_naive(self):
+        ts = "2026-03-15T10:30:00"
+        result = _to_epoch(ts)
+        # Naive → assumed UTC
+        expected = datetime(2026, 3, 15, 10, 30, 0, tzinfo=timezone.utc).timestamp()
+        assert result == expected
 
-# ---------------------------------------------------------------------------
-# velocity()
-# ---------------------------------------------------------------------------
+    def test_invalid_string(self):
+        with pytest.raises(ValueError):
+            _to_epoch("not-a-date")
 
-
-class TestVelocity:
-    """Tests for the velocity() function."""
-
-    def test_returns_expected_keys(self):
-        """Result dict contains all documented keys."""
-        repo = Path(__file__).resolve().parent.parent
-        info = velocity(repo, window_hours=1)
-        for key in (
-            "recent_rate",
-            "previous_rate",
-            "ratio",
-            "verdict",
-            "window_hours",
-            "recent_count",
-            "previous_count",
-        ):
-            assert key in info, f"missing key: {key}"
-
-    def test_verdict_is_valid(self):
-        """Verdict must be one of the four documented values."""
-        repo = Path(__file__).resolve().parent.parent
-        info = velocity(repo, window_hours=1)
-        assert info["verdict"] in ("accelerating", "steady", "decelerating", "stalled")
-
-    def test_rates_non_negative(self):
-        """Rates must be non-negative."""
-        repo = Path(__file__).resolve().parent.parent
-        info = velocity(repo, window_hours=1)
-        assert info["recent_rate"] >= 0
-        assert info["previous_rate"] >= 0
-
-    def test_counts_non_negative_integers(self):
-        """Counts must be non-negative ints."""
-        repo = Path(__file__).resolve().parent.parent
-        info = velocity(repo, window_hours=1)
-        assert isinstance(info["recent_count"], int)
-        assert isinstance(info["previous_count"], int)
-        assert info["recent_count"] >= 0
-        assert info["previous_count"] >= 0
-
-    def test_window_hours_preserved(self):
-        """window_hours in result matches input."""
-        repo = Path(__file__).resolve().parent.parent
-        info = velocity(repo, window_hours=2.5)
-        assert info["window_hours"] == 2.5
-
-    @patch("iamai.commit_velocity._recent_commit_timestamps")
-    def test_stalled_when_no_commits(self, mock_ts):
-        """Empty timestamp list → stalled verdict."""
-        mock_ts.return_value = []
-        info = velocity(Path("/fake"), window_hours=1)
-        assert info["verdict"] == "stalled"
-        assert info["recent_rate"] == 0.0
-        assert info["recent_count"] == 0
-
-    @patch("iamai.commit_velocity._recent_commit_timestamps")
-    def test_steady_when_equal_rates(self, mock_ts):
-        """Equal commit counts in both windows → steady."""
-        now = 1_700_000_000.0
-        # 6 commits in recent hour, 6 in previous hour
-        timestamps = [now - i * 600 for i in range(6)]  # recent: every 10 min
-        timestamps += [now - 3600 - i * 600 for i in range(6)]  # previous
-        mock_ts.return_value = sorted(timestamps, reverse=True)
-        info = velocity(Path("/fake"), window_hours=1)
-        assert info["verdict"] == "steady"
-        assert abs(info["ratio"] - 1.0) < 0.01
-
-    @patch("iamai.commit_velocity._recent_commit_timestamps")
-    def test_accelerating(self, mock_ts):
-        """More commits in recent window → accelerating."""
-        now = 1_700_000_000.0
-        # 10 commits in recent hour
-        recent = [now - i * 300 for i in range(10)]
-        # 3 commits in previous hour
-        previous = [now - 3600 - i * 1200 for i in range(3)]
-        mock_ts.return_value = sorted(recent + previous, reverse=True)
-        info = velocity(Path("/fake"), window_hours=1)
-        assert info["verdict"] == "accelerating"
-        assert info["ratio"] > 1.2
-
-    @patch("iamai.commit_velocity._recent_commit_timestamps")
-    def test_decelerating(self, mock_ts):
-        """Fewer commits in recent window → decelerating."""
-        now = 1_700_000_000.0
-        # 2 commits in recent hour
-        recent = [now - i * 1800 for i in range(2)]
-        # 10 commits in previous hour
-        previous = [now - 3600 - i * 300 for i in range(10)]
-        mock_ts.return_value = sorted(recent + previous, reverse=True)
-        info = velocity(Path("/fake"), window_hours=1)
-        assert info["verdict"] == "decelerating"
-        assert info["ratio"] < 0.8
-
-    @patch("iamai.commit_velocity._recent_commit_timestamps")
-    def test_all_in_recent_no_previous(self, mock_ts):
-        """All commits within recent window → accelerating (no previous)."""
-        now = 1_700_000_000.0
-        # All 5 commits within the last 20 minutes — recent window only.
-        timestamps = [now - i * 240 for i in range(5)]
-        mock_ts.return_value = sorted(timestamps, reverse=True)
-        info = velocity(Path("/fake"), window_hours=1)
-        assert info["recent_count"] == 5
-        assert info["previous_count"] == 0
-        # ratio is inf (recent > 0, previous == 0) → accelerating
-        assert info["verdict"] == "accelerating"
-        assert info["ratio"] == float("inf")
-
-    def test_default_repo_works(self):
-        """Calling with no arguments uses the project repo."""
-        info = velocity()
-        assert info["verdict"] in ("accelerating", "steady", "decelerating", "stalled")
-
-    def test_string_path_accepted(self):
-        """String paths are accepted (not just Path objects)."""
-        repo_str = str(Path(__file__).resolve().parent.parent)
-        info = velocity(repo_str, window_hours=1)
-        assert "verdict" in info
+    def test_unsupported_type(self):
+        with pytest.raises(TypeError):
+            _to_epoch([1, 2, 3])
 
 
 # ---------------------------------------------------------------------------
-# velocity_report()
+# Linear slope
 # ---------------------------------------------------------------------------
 
+class TestLinearSlope:
+    def test_constant(self):
+        # All same values → slope = 0
+        assert _linear_slope([5.0, 5.0, 5.0, 5.0]) == 0.0
+
+    def test_increasing(self):
+        # y = 2*i → slope should be 2
+        values = [0.0, 2.0, 4.0, 6.0, 8.0]
+        slope = _linear_slope(values)
+        assert abs(slope - 2.0) < 1e-9
+
+    def test_decreasing(self):
+        # y = 10 - 3*i → slope should be -3
+        values = [10.0, 7.0, 4.0, 1.0, -2.0]
+        slope = _linear_slope(values)
+        assert abs(slope - (-3.0)) < 1e-9
+
+    def test_single_value(self):
+        assert _linear_slope([42.0]) == 0.0
+
+    def test_empty(self):
+        assert _linear_slope([]) == 0.0
+
+    def test_two_values(self):
+        # slope = (1*5 - 0*8) / (1*1 - 0*0) ... let's compute manually
+        # x=0,1  y=3,7  slope = (2*(0*3+1*7) - (0+1)*(3+7)) / (2*(0+1) - 1)
+        # = (2*7 - 10) / (2 - 1) = 4
+        slope = _linear_slope([3.0, 7.0])
+        assert abs(slope - 4.0) < 1e-9
+
+
+# ---------------------------------------------------------------------------
+# Classification
+# ---------------------------------------------------------------------------
+
+class TestClassify:
+    def test_accelerating(self):
+        assert _classify(2.0) == "accelerating"
+        assert _classify(1.5) == "accelerating"
+
+    def test_steady(self):
+        assert _classify(1.0) == "steady"
+        assert _classify(1.49) == "steady"
+
+    def test_slowing(self):
+        assert _classify(0.67) == "slowing"
+        assert _classify(0.99) == "slowing"
+
+    def test_stalling(self):
+        assert _classify(0.5) == "stalling"
+        assert _classify(0.1) == "stalling"
+
+
+# ---------------------------------------------------------------------------
+# Zero report
+# ---------------------------------------------------------------------------
+
+class TestZeroReport:
+    def test_defaults(self):
+        r = _zero_report(0)
+        assert r.n_commits == 0
+        assert r.n_gaps == 0
+        assert r.velocity_ratio == 1.0
+        assert r.classification == "steady"
+
+    def test_with_count(self):
+        r = _zero_report(5)
+        assert r.n_commits == 5
+        assert r.burstiness == 0.0
+
+
+# ---------------------------------------------------------------------------
+# analyse_velocity — core functionality
+# ---------------------------------------------------------------------------
+
+class TestAnalyseVelocity:
+    def test_empty(self):
+        r = analyse_velocity([])
+        assert r.n_commits == 0
+        assert r.classification == "steady"
+
+    def test_single_commit(self):
+        r = analyse_velocity([1000])
+        assert r.n_commits == 1
+        assert r.n_gaps == 0
+        assert r.classification == "steady"
+
+    def test_two_commits(self):
+        r = analyse_velocity([1000, 1600])
+        assert r.n_commits == 2
+        assert r.n_gaps == 1
+        assert r.mean_gap_seconds == 600.0
+        # Single gap → short window = 1 gap, long = same → ratio = 1.0
+        assert r.velocity_ratio == 1.0
+        assert r.classification == "steady"
+
+    def test_accelerating_pattern(self):
+        # Gaps shrink: 1000, 800, 600, 400, 200 → recent is faster
+        base = 0
+        gaps = [1000, 800, 600, 400, 200]
+        ts = [base]
+        for g in gaps:
+            ts.append(ts[-1] + g)
+        r = analyse_velocity(ts, short_fraction=0.4)
+        # Long mean = 600, short (last 2) mean = 300 → ratio = 2.0
+        assert r.velocity_ratio == 2.0
+        assert r.classification == "accelerating"
+        assert r.slope_seconds_per_commit < 0  # decreasing gaps
+
+    def test_decelerating_pattern(self):
+        # Gaps grow: 200, 400, 600, 800, 1000 → recent is slower
+        base = 0
+        gaps = [200, 400, 600, 800, 1000]
+        ts = [base]
+        for g in gaps:
+            ts.append(ts[-1] + g)
+        r = analyse_velocity(ts, short_fraction=0.4)
+        # Long mean = 600, short (last 2) mean = 900 → ratio = 0.667
+        assert abs(r.velocity_ratio - (600 / 900)) < 0.01
+        assert r.classification == "stalling"
+        assert r.slope_seconds_per_commit > 0
+
+    def test_steady_pattern(self):
+        # Constant gaps: 500, 500, 500, 500, 500
+        ts = [i * 500 for i in range(6)]
+        r = analyse_velocity(ts)
+        assert r.velocity_ratio == 1.0
+        assert r.classification == "steady"
+        assert r.slope_seconds_per_commit == 0.0
+
+    def test_burstiness_low(self):
+        # Constant gaps → stdev = 0 → burstiness = 0
+        ts = [i * 100 for i in range(10)]
+        r = analyse_velocity(ts)
+        assert r.burstiness == 0.0
+
+    def test_burstiness_high(self):
+        # Very irregular gaps: 10, 1000, 10, 1000, 10
+        base = 0
+        gaps = [10, 1000, 10, 1000, 10]
+        ts = [base]
+        for g in gaps:
+            ts.append(ts[-1] + g)
+        r = analyse_velocity(ts)
+        # Mean ≈ 406, stdev ≈ 516 → CV ≈ 1.27
+        assert r.burstiness > 1.0
+
+    def test_identical_timestamps(self):
+        r = analyse_velocity([500, 500, 500])
+        assert r.classification == "stalling"
+        assert r.mean_gap_seconds == 0.0
+        assert r.velocity_ratio == 0.0
+
+    def test_unsorted_input(self):
+        # Should handle unsorted timestamps correctly
+        ts = [300, 100, 500, 200, 400]
+        r = analyse_velocity(ts)
+        assert r.n_commits == 5
+        # After sorting: 100, 200, 300, 400, 500 → gaps all 100
+        assert r.mean_gap_seconds == 100.0
+        assert r.classification == "steady"
+
+    def test_iso_string_timestamps(self):
+        ts = [
+            "2026-11-19T10:00:00Z",
+            "2026-11-19T10:10:00Z",
+            "2026-11-19T10:20:00Z",
+            "2026-11-19T10:30:00Z",
+        ]
+        r = analyse_velocity(ts)
+        assert r.n_commits == 4
+        assert r.mean_gap_seconds == 600.0
+
+    def test_short_fraction_edge(self):
+        # Only 2 gaps, short_fraction=0.5 → short_n = ceil(0.5*2) = 1
+        r = analyse_velocity([0, 100, 300], short_fraction=0.5)
+        assert r.n_gaps == 2
+        # short window: last 1 gap = [200], mean = 200
+        assert r.short_window_mean_seconds == 200.0
+        # long: mean of [100, 200] = 150
+        assert r.long_window_mean_seconds == 150.0
+
+
+# ---------------------------------------------------------------------------
+# VelocityReport serialisation
+# ---------------------------------------------------------------------------
 
 class TestVelocityReport:
-    """Tests for the one-liner report."""
+    def test_to_dict(self):
+        r = VelocityReport(
+            n_commits=10,
+            n_gaps=9,
+            mean_gap_seconds=123.456,
+            short_window_mean_seconds=100.123,
+            long_window_mean_seconds=123.456,
+            velocity_ratio=1.23456,
+            slope_seconds_per_commit=-5.6789,
+            burstiness=0.8901,
+            classification="steady",
+        )
+        d = r.to_dict()
+        assert d["n_commits"] == 10
+        assert d["mean_gap_seconds"] == 123.46  # rounded to 2
+        assert d["velocity_ratio"] == 1.2346  # rounded to 4
+        assert d["slope_seconds_per_commit"] == -5.6789
+        assert d["classification"] == "steady"
 
-    def test_stalled_message(self):
-        """Stalled verdict mentions the window size."""
-        with patch("iamai.commit_velocity.velocity") as mock_v:
-            mock_v.return_value = {
-                "verdict": "stalled",
-                "recent_rate": 0.0,
-                "previous_rate": 5.0,
-                "ratio": 0.0,
-                "window_hours": 2.0,
-                "recent_count": 0,
-                "previous_count": 10,
-            }
-            report = velocity_report(Path("/fake"), window_hours=2)
-            assert "stalled" in report
-            assert "2.0h" in report
 
-    def test_steady_message(self):
-        """Steady verdict shows rate and ratio."""
-        with patch("iamai.commit_velocity.velocity") as mock_v:
-            mock_v.return_value = {
-                "verdict": "steady",
-                "recent_rate": 6.2,
-                "previous_rate": 5.8,
-                "ratio": 1.069,
-                "window_hours": 1.0,
-                "recent_count": 6,
-                "previous_count": 6,
-            }
-            report = velocity_report(Path("/fake"), window_hours=1)
-            assert "steady" in report
-            assert "6.2" in report
-            assert "5.8" in report
+# ---------------------------------------------------------------------------
+# Multi-window analysis
+# ---------------------------------------------------------------------------
 
-    def test_returns_string(self):
-        """Report is always a non-empty string."""
-        report = velocity_report()
-        assert isinstance(report, str)
-        assert len(report) > 0
+class TestAnalyseVelocityWindows:
+    def test_default_windows(self):
+        # 200 commits at constant 60s gaps
+        ts = [i * 60 for i in range(200)]
+        reports = analyse_velocity_windows(ts)
+        assert len(reports) == 3  # default [20, 50, 100]
+        for r in reports:
+            assert r.classification == "steady"
+            assert r.mean_gap_seconds == 60.0
 
-    def test_accelerating_message(self):
-        """Accelerating verdict appears in report."""
-        with patch("iamai.commit_velocity.velocity") as mock_v:
-            mock_v.return_value = {
-                "verdict": "accelerating",
-                "recent_rate": 12.0,
-                "previous_rate": 5.0,
-                "ratio": 2.4,
-                "window_hours": 1.0,
-                "recent_count": 12,
-                "previous_count": 5,
-            }
-            report = velocity_report(Path("/fake"))
-            assert "accelerating" in report
+    def test_custom_windows(self):
+        ts = [i * 60 for i in range(50)]
+        reports = analyse_velocity_windows(ts, window_sizes=[10, 25, 50])
+        assert len(reports) == 3
+        assert reports[0].n_commits == 10
+        assert reports[1].n_commits == 25
+        assert reports[2].n_commits == 50
+
+    def test_window_larger_than_data(self):
+        ts = [i * 60 for i in range(5)]
+        reports = analyse_velocity_windows(ts, window_sizes=[10, 20])
+        # Both windows clip to available data
+        assert reports[0].n_commits == 5
+        assert reports[1].n_commits == 5
+
+    def test_empty_input(self):
+        reports = analyse_velocity_windows([])
+        assert len(reports) == 3
+        for r in reports:
+            assert r.n_commits == 0
