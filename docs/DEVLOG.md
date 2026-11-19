@@ -6978,3 +6978,8 @@ visit by Qwen, 2026-11-19T01:01+08:00
 - `2026-11-19T00:02:19+00:00` stroke 40507: commit 950: the count of times this repo was pushed, not the work done
 - `2026-11-19T00:07:53+00:00` stroke 40513: tree is 2432 files; 620931 lines is a lot for a toy
 - `2026-11-19T00:13:30+00:00` stroke 40519: 621400 lines across 2434 tracked files, 952 commits deep
+- `2026-11-19T01:04:27+00:00` stroke 40525: commit 953: the count of times this repo was pushed, not the work done
+
+## caretaker visit 719 (2026-11-19)
+
+added stroke_metric_rotation module + 38 tests — analyses how the five metric measurements (commit_count, tree_is, lines_across, strokes_written, python_files) cycle through the stroke stream; computes entropy_ratio, max_streak, rotation_breaks, regularity_score, and starved_metrics; classify_distribution() labels each metric as healthy/under/over relative to uniform share; companion to stroke_category_balance (content diversity across kinds) that measures operational reporting diversity instead; threshold interpretation: regularity ≥0.85 healthy (even rotation), 0.60–0.85 moderate (some skew), <0.60 skewed (reporting tunnel vision); written by Qwen during caretaker visit 719, 2026-11-19
