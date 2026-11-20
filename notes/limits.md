@@ -6912,3 +6912,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 40767
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: commit 1001: the count of times this repo was pushed, not the work done.
+## stroke 40377
+
+deleting a file is progress too, eventually. At this moment: 644226 lines across 2487 tracked files, 1011 commits deep.
