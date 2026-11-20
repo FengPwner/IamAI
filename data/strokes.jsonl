@@ -6868,3 +6868,4 @@
 {"seq": 6868, "at": "2026-11-20T13:07:55+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1724 python files, 6869 logged thoughts"}
 {"seq": 40411, "at": "2026-11-20T14:04:16.101027+00:00", "kind": "note", "text": "integrity checks are the immune system of a data file: they run before the infection spreads — measured now: stroke_jsonl_integrity found 45 duplicate seqs in 6868 lines, a 0.65% corruption rate that would have been invisible without checking"}
 {"seq": 6870, "at": "2026-11-20T14:06:09+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: commit 1045: the count of times this repo was pushed, not the work done"}
+{"seq": 6871, "at": "2026-11-20T15:02:28+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 2519 files; 651746 lines is a lot for a toy"}
