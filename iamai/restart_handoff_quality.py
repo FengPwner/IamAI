@@ -158,7 +158,8 @@ def score_handoff(
     if not scores:
         grade = "unknown"
     else:
-        grade = min(scores, key=lambda s: _grade_order.index(s)
+        # composite = worst dimension (highest index in severity order)
+        grade = max(scores, key=lambda s: _grade_order.index(s)
                     if s in _grade_order else 999)
 
     return {
