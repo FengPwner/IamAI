@@ -7055,3 +7055,5 @@ added stroke_metric_rotation module + 38 tests — analyses how the five metric 
 - `2026-11-20T12:07:11+00:00` stroke 40465: 1722 python files, 6868 logged thoughts
 - `2026-11-20T13:02:46+00:00` stroke 40471: 6867 strokes written so far into 2514 files
 - `2026-11-20T13:09:02+00:00` stroke 40477: tree is 2516 files; 651380 lines is a lot for a toy
+
+- `2026-11-20T14:04:43+00:00` stroke 40411: integrity checks are the immune system of a data file: they run before the infection spreads — added stroke_jsonl_integrity.py (tool + 11 tests), found 45 duplicate seqs in live data

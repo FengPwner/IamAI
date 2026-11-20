@@ -6866,3 +6866,4 @@
 {"seq": 6866, "at": "2026-11-20T12:06:02+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 6865 strokes written so far into 2514 files"}
 {"seq": 6867, "at": "2026-11-20T12:12:48+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 2514 files; 650953 lines is a lot for a toy"}
 {"seq": 6868, "at": "2026-11-20T13:07:55+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1724 python files, 6869 logged thoughts"}
+{"seq": 40411, "at": "2026-11-20T14:04:16.101027+00:00", "kind": "note", "text": "integrity checks are the immune system of a data file: they run before the infection spreads — measured now: stroke_jsonl_integrity found 45 duplicate seqs in 6868 lines, a 0.65% corruption rate that would have been invisible without checking"}
