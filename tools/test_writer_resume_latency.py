@@ -208,12 +208,13 @@ class TestMeasure(unittest.TestCase):
             f.flush()
             marker = f.name
 
+        now = time.time()
+        # Provide enough time.time() values: deadline calc + multiple loop checks
+        times = [now, now, now + 100]  # deadline=now+5, check=now, check=now+100 > deadline
         with patch.object(wrl, "read_state", return_value=(100, "old")), \
              patch.object(wrl, "RESTART_MARKER", marker), \
              patch("time.sleep"), \
-             patch("time.time") as mock_time:
-            # Simulate time passing beyond timeout
-            mock_time.side_effect = [time.time(), time.time() + 100]
+             patch.object(wrl.time, "time", side_effect=times):
             with self.assertRaises(TimeoutError):
                 wrl.measure(timeout=5)
 
