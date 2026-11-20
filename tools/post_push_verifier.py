@@ -30,12 +30,19 @@ from datetime import datetime, timezone
 
 
 def run_git(*args, cwd=None):
-    """Run a git command and return (stdout, stderr, returncode)."""
-    result = subprocess.run(
-        ["git"] + list(args),
-        capture_output=True, text=True, cwd=cwd or ".",
-        timeout=30,
-    )
+    """Run a git command and return (stdout, stderr, returncode).
+
+    A network storm (timeout) counts as rc != 0: the caller's
+    "or None" contracts already handle that branch.
+    """
+    try:
+        result = subprocess.run(
+            ["git"] + list(args),
+            capture_output=True, text=True, cwd=cwd or ".",
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        return "", "timeout", 124
     return result.stdout.strip(), result.stderr.strip(), result.returncode
 
 

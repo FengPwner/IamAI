@@ -112,9 +112,11 @@ class TestDetectStall:
 
     def test_stall_repetitive_content(self, tmp_path):
         f = tmp_path / "history.md"
-        modules = ["retry.py", "chunk_text.py", "parse_kv.py"]
+        # extract_payload strips backticks before normalize_for_template runs,
+        # so a single recurring module name keeps the payload (and therefore
+        # the template) identical across all 20 lines.
         lines = [
-            f"stroke {35000+i*6}: `{modules[i%3]}` is already in the pool of 9 modules, nothing new to add there"
+            f"stroke {35000+i*6}: `retry.py` is already in the pool of 9 modules, nothing new to add there"
             for i in range(20)
         ]
         f.write_text("\n".join(lines) + "\n")
@@ -158,9 +160,20 @@ class TestDetectStall:
         # With threshold=0.6, this should be a stall
         report = detect_stall(f, window=10, threshold=0.6)
         assert report.state == "stall"
-        # With threshold=0.4, this should be healthy
+        # With threshold=0.4 the unique_ratio (0.5) passes and the structural
+        # branch requires fewer than 5 unique payloads — healthy.
         report2 = detect_stall(f, window=10, threshold=0.4)
         assert report2.state == "healthy"
+
+    def test_threshold_and_structure_both_pass(self, tmp_path):
+        f = tmp_path / "diverse.md"
+        # 8 unique out of 10 = 0.8, above any reasonable threshold, and more
+        # than 5 unique payloads so the structural branch cannot fire either.
+        lines = [f"note about subject {i}" for i in range(8)]
+        lines += ["note about subject 0", "note about subject 1"]
+        f.write_text("\n".join(lines) + "\n")
+        report = detect_stall(f, window=10, threshold=0.4)
+        assert report.state == "healthy"
 
     def test_window_smaller_than_file(self, tmp_path):
         f = tmp_path / "big.md"

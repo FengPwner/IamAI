@@ -12,6 +12,13 @@ from unittest.mock import patch
 
 import pytest
 
+pytest.skip(
+    "divergence_summary was removed from push_guard by visit 465 (assess/"
+    "resolve rewrite); its successor push_divergence_monitor (visit 539) "
+    "has its own 25 tests in tests/test_push_divergence_monitor.py",
+    allow_module_level=True,
+)
+
 
 # ---------------------------------------------------------------------------
 # helpers

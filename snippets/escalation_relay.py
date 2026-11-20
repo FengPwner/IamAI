@@ -34,6 +34,9 @@ design decisions:
 
 zero dependencies beyond heartbeat_escalation. stdlib only.
 
+>>> import sys
+>>> from pathlib import Path
+>>> sys.path.insert(0, str(Path(__file__).resolve().parent))
 >>> from heartbeat_escalation import HeartbeatEscalation
 >>> events = []
 >>> relay = EscalationRelay(

@@ -1,4 +1,11 @@
-"""Tests for iamai.push_guard.push_readiness_report."""
+"""Tests for iamai.push_guard.push_readiness_report.
+
+The push_readiness_report API was retired by caretaker visit 465
+(commit 2be29337), which rewrote push_guard.py around assess()/resolve();
+the successor API is covered by tests/test_push_guard.py. These tests
+are kept but skipped, pending either a compatibility alias or a rewrite
+onto the new API.
+"""
 
 import json
 import subprocess
@@ -8,8 +15,17 @@ from pathlib import Path
 
 import pytest
 
+pytest.skip(
+    "push_readiness_report was retired by visit 465 (assess/resolve took "
+    "over; see tests/test_push_guard.py); kept for possible alias/rewrite",
+    allow_module_level=True,
+)
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from iamai.push_guard import push_readiness_report
+try:
+    from iamai.push_guard import push_readiness_report
+except ImportError:  # retired API — module-level skip above handles this
+    push_readiness_report = None
 
 
 def _run(cmd, cwd=None, check=True):

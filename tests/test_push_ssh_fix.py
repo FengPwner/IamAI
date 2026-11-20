@@ -167,18 +167,22 @@ class TestMainFlow:
         monkeypatch.setattr(sys, "argv", ["push_ssh_fix"])
 
     def test_no_key_found(self):
-        with patch.object(psf, "KNOWN_KEY_LOCATIONS", [Path("/nonexistent")]):
-            assert psf.main() == 1
+        # main() parses sys.argv via argparse; under pytest that argv holds
+        # pytest's own flags — pin it to a bare tool invocation.
+        with patch.object(sys, "argv", ["push_ssh_fix"]):
+            with patch.object(psf, "KNOWN_KEY_LOCATIONS", [Path("/nonexistent")]):
+                assert psf.main() == 1
 
     def test_key_already_healthy(self, tmp_path):
         key = tmp_path / "key"
         key.write_text("ok")
         os.chmod(key, 0o600)
 
-        with patch.object(psf, "KNOWN_KEY_LOCATIONS", [key]):
-            with patch.object(psf, "configure_git_ssh", return_value=True) as mock_cfg:
-                assert psf.main() == 0
-                mock_cfg.assert_called_once()
+        with patch.object(sys, "argv", ["push_ssh_fix"]):
+            with patch.object(psf, "KNOWN_KEY_LOCATIONS", [key]):
+                with patch.object(psf, "configure_git_ssh", return_value=True) as mock_cfg:
+                    assert psf.main() == 0
+                    mock_cfg.assert_called_once()
 
     def test_overlay_rescue_path(self, tmp_path):
         """Full flow: key at 0777, chmod fails, rescue to /tmp succeeds."""
@@ -188,12 +192,13 @@ class TestMainFlow:
 
         rescued = tmp_path / "tmp_key"
 
-        with patch.object(psf, "KNOWN_KEY_LOCATIONS", [key]):
-            with patch.object(psf, "chmod_strict", return_value=False):
-                with patch.object(psf, "TMP_KEY", rescued):
-                    with patch.object(psf, "configure_git_ssh", return_value=True):
-                        with patch.object(psf, "verify_push", return_value=True):
-                            assert psf.main() == 0
+        with patch.object(sys, "argv", ["push_ssh_fix"]):
+            with patch.object(psf, "KNOWN_KEY_LOCATIONS", [key]):
+                with patch.object(psf, "chmod_strict", return_value=False):
+                    with patch.object(psf, "TMP_KEY", rescued):
+                        with patch.object(psf, "configure_git_ssh", return_value=True):
+                            with patch.object(psf, "verify_push", return_value=True):
+                                assert psf.main() == 0
 
         assert rescued.exists()
         assert (rescued.stat().st_mode & 0o777) == 0o600
