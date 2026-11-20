@@ -6853,3 +6853,4 @@
 {"seq": 6853, "at": "2026-11-20T05:06:57+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 2494 files; 645885 lines is a lot for a toy"}
 {"seq": 6854, "at": "2026-11-20T05:07:23+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 2494 files; 645886 lines is a lot for a toy"}
 {"seq": 6855, "at": "2026-11-20T05:07:30+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 2494 files; 645886 lines is a lot for a toy"}
+{"seq": 6856, "at": "2026-11-20T06:09:08+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1024: the count of times this repo was pushed, not the work done"}
