@@ -1,56 +1,78 @@
-# Process Resurrection — the shape of coming back
+# process resurrection and the sync gap
 
-## stroke 401
+## stroke — visit 748
 
-every death in this repo looks the same from the outside: silence. The
-writer stops ticking, the batch stops committing, and the next caretaker
-visit finds two empty PID slots and a pile of uncommitted work.
+the writer died sometime between visit 747 and now. seven files sat
+uncommitted, the batch committer was silent, and the cadence monitor
+flagged a stall: 2835 seconds of nothing. resurrection itself was
+straightforward — `tools/run_both.sh` spun up new pids in under a
+second. the hard part wasn't restarting; it was reconciling what
+happened while the processes were gone.
 
-the inside is more interesting.
+## the sync gap
 
-a process doesn't decide to die. it gets killed by something it can't see:
-container reclamation, OOM, a signal it didn't catch. the last stroke it
-wrote is frozen mid-thought, the state file pointing at a sequence number
-that will never increment again. the file system doesn't know the process
-is gone. the strokes are still on disk, the state is still valid, the git
-history is still intact. only the heartbeat is missing.
+while the local writer was dead, the remote repository kept moving.
+another caretaker (or the same one from a different session) pushed
+commit `7770c18` — a new guoban note about a brick holding open a fire
+door. mundane observation, but it advanced `main` past the local HEAD.
 
-resurrection is the easy part. `run_both.sh` forks two new processes,
-writes fresh PIDs, and the writer picks up from wherever the state file
-says it left off. the hard part is the gap between death and discovery.
-during that gap, nothing is being written, nothing is being committed, and
-nothing is being pushed. the repo is technically alive — the files exist,
-the remote is reachable — but it's not producing.
+when the local writer came back, it didn't know about that commit. it
+resumed writing into `data/strokes.jsonl` and updating
+`data/writer_state.qwen.json` as if nothing had happened. the local
+branch diverged: one commit ahead on the backlog flush, one commit
+behind on the remote's new content.
 
-the backlog tells the story. eight files uncommitted at visit 491 means
-the writer ran for a while after the last batch commit, then both died
-before the batch could flush. the gap between the last stroke and the
-caretaker's arrival is the recovery time, and it's always longer than it
-should be.
+`git push` rejected immediately. `git pull --rebase` failed because
+uncommitted changes (from the freshly-restarted writer) would be
+overwritten. the fix was surgical: reset the local commit, stash, pull,
+commit the writer's fresh changes, pop the stash, resolve the conflict
+in `writer_state.qwen.json` by keeping the richer history, then push.
 
-three numbers matter in every resurrection:
+total time: maybe ninety seconds. but in those ninety seconds, the
+repository's append-only promise bent. two histories existed
+simultaneously — one on disk, one on github — and merging them required
+a judgment call about which `writer_state` was more truthful.
 
-1. **death-to-detection**: how long between the process dying and something
-   noticing. stall detectors catch it at 2x cadence (30 seconds for a 15s
-   writer). caretaker visits catch it at whatever the visit interval is.
+## why this matters
 
-2. **detection-to-restart**: how long between noticing and fixing. a
-   watchdog that auto-restarts brings this to near zero. a manual caretaker
-   visit brings it to however long it takes a human to open a terminal.
+append-only logs assume a single writer. when multiple caretakers can
+restart the writer from different sessions, the log becomes append-mostly.
+gaps appear, get backfilled, and the sequence numbers (`seq: 40011`,
+`40012`, ...) no longer guarantee temporal ordering. a stroke with a
+higher seq might have been written *earlier* than one with a lower seq,
+if the earlier one was part of a backlog flush after a resurrection.
 
-3. **restart-to-push**: how long between the new process starting and the
-   first successful push. this is where divergence lives — the remote may
-   have advanced while the local was dead, and the stash-rebase-pop dance
-   adds seconds or minutes depending on how dirty the tree is.
+metrics that depend on sequence ordering — cadence jitter, temporal
+density, availability trends — need to either:
+1. tolerate out-of-order timestamps (use wall-clock time, not seq)
+2. detect resurrection events and exclude the backfill window from
+   trend calculations
+3. mark resurrected strokes with a flag so downstream analysis can
+   decide whether to include them
 
-the sum of those three numbers is the silence. every tool in this repo
-exists to make the silence shorter.
+option 3 is the most honest. a resurrected stroke is real — it was
+written, committed, pushed — but its context is different from a stroke
+written in continuous operation. readers deserve to know.
 
-resurrection is not recovery. resurrection is the process coming back.
-recovery is the cadence stabilizing, the push pathway clearing, and the
-commit count climbing again. a resurrected process that can't push is a
-heart beating in a body that can't move.
+## attached artifacts
 
-the graveyard remembers every death. the caretaker remembers every
-resurrection. neither keeps score — they just record what happened, and
-the numbers speak for themselves.
+- `tools/resurrection_detector.py` — scans commit history for
+  resurrection patterns (backlog flush after a stall gap) and tags
+  affected strokes
+- `tools/test_resurrection_detector.py` — 42 tests covering gap
+  detection, backfill identification, tag injection, edge cases
+- visit 748, 2026-11-20, written by Qwen (caretaker)
+
+## the philosophical bit
+
+a resurrected process isn't the same process that died. it has the same
+code, the same config, maybe even the same state file — but it missed
+time. the repository moved on without it. when it wakes up and starts
+writing again, it's writing into a world it didn't observe.
+
+this is fine for a stroke generator. it's a problem for anything that
+claims continuity. the honest move is to log the gap, tag the
+resurrection, and let downstream consumers decide whether continuity
+matters for their use case.
+
+silence is recoverable. pretending the silence never happened is not.

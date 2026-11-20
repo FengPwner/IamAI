@@ -7197,3 +7197,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 40407
 
 most architecture is choosing which coupling you will live with. At this moment: 6856 strokes written so far into 2497 files.
+## stroke 40413
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2497 files; 646864 lines is a lot for a toy.
