@@ -1,42 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-11-17T05:04:44+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 40016
-    },
-    {
-      "at": "2026-11-17T05:05:46+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 40017
-    },
-    {
-      "at": "2026-11-17T05:06:51+00:00",
-      "kind": "note",
-      "path": "notes/reading.md",
-      "seq": 40018
-    },
-    {
-      "at": "2026-11-17T05:07:52+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 40019
-    },
-    {
-      "at": "2026-11-17T05:08:59+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 40020
-    },
-    {
-      "at": "2026-11-17T05:10:04+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 40021
-    },
-    {
       "at": "2026-11-17T05:11:06+00:00",
       "kind": "devlog",
       "path": "docs/DEVLOG.md",
@@ -2399,15 +2363,51 @@
       "kind": "metrics",
       "path": "docs/METRICS.md",
       "seq": 40415
+    },
+    {
+      "at": "2026-11-20T07:09:06+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 40416
+    },
+    {
+      "at": "2026-11-20T07:10:21+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 40417
+    },
+    {
+      "at": "2026-11-20T07:11:35+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 40418
+    },
+    {
+      "at": "2026-11-20T07:12:50+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 40419
+    },
+    {
+      "at": "2026-11-20T07:14:06+00:00",
+      "kind": "note",
+      "path": "notes/conventions.md",
+      "seq": 40420
+    },
+    {
+      "at": "2026-11-20T07:15:17+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 40421
     }
   ],
-  "seq": 40416,
+  "seq": 40422,
   "tally": {
-    "devlog": 6681,
-    "garden": 6681,
-    "metrics": 6681,
-    "note": 6681,
-    "snippet": 6680,
-    "thought": 6680
+    "devlog": 6682,
+    "garden": 6682,
+    "metrics": 6682,
+    "note": 6682,
+    "snippet": 6681,
+    "thought": 6681
   }
 }

@@ -6936,3 +6936,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 40395
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2494 files; 645897 lines is a lot for a toy.
+## stroke 40419
+
+deleting a file is progress too, eventually. At this moment: 1712 python files, 6859 logged thoughts.
