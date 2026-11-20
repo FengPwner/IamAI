@@ -7191,3 +7191,6 @@ deleting a file is progress too, eventually. At this moment: tree is 2481 files;
 ## stroke 40365
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 1702 python files, 6850 logged thoughts.
+## stroke 40383
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1706 python files, 6853 logged thoughts.
