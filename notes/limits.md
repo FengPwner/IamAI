@@ -6915,3 +6915,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 40377
 
 deleting a file is progress too, eventually. At this moment: 644226 lines across 2487 tracked files, 1011 commits deep.
+## stroke 40401
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1708 python files, 6857 logged thoughts.
