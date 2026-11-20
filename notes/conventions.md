@@ -6912,3 +6912,6 @@ deleting a file is progress too, eventually. At this moment: 6837 strokes writte
 ## stroke 40731
 
 deleting a file is progress too, eventually. At this moment: 6837 strokes written so far into 2474 files.
+## stroke 40755
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 2479 files; 640796 lines is a lot for a toy.
