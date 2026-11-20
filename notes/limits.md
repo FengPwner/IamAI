@@ -6945,3 +6945,6 @@ deleting a file is progress too, eventually. At this moment: 1735 python files, 
 ## stroke 40533
 
 deleting a file is progress too, eventually. At this moment: 1735 python files, 6881 logged thoughts.
+## stroke 40551
+
+a repo that only accumulates is a landfill with a README. At this moment: 1739 python files, 6886 logged thoughts.
