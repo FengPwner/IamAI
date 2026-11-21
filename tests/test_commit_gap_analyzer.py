@@ -1,468 +1,362 @@
-"""Tests for iamai.commit_gap_analyzer — commit timing rhythm analysis.
+"""Tests for iamai.commit_gap_analyzer — commit gap health classification."""
 
-Covers: classify_gap, analyze_single_gap, analyze_gaps (aggregate),
-GapProfile properties (health, score, ratios), recent_trend,
-gap_summary_text, and edge cases.
-"""
+from __future__ import annotations
 
 import math
+
 import pytest
 
 from iamai.commit_gap_analyzer import (
-    GapProfile,
-    GapReport,
-    analyze_gaps,
-    analyze_single_gap,
+    NOMINAL,
+    JITTER,
+    STALL,
+    OUTAGE,
+    GapClass,
+    GapDiagnostics,
     classify_gap,
-    gap_summary_text,
-    recent_trend,
-    DEFAULT_BATCH_INTERVAL,
-    DEFAULT_TOLERANCE,
-    DEFAULT_DEAD_THRESHOLD,
+    classify_gaps,
+    gaps_from_timestamps,
+    diagnose,
+    _shannon_entropy,
+    _count_recoveries,
+    NOMINAL_UPPER,
+    JITTER_UPPER,
+    STALL_UPPER,
 )
 
 
 # ---------------------------------------------------------------------------
-# helpers
+# single gap classification
 # ---------------------------------------------------------------------------
 
-def _make_ts(base: str, offsets_seconds: list[int]) -> list[str]:
-    """Generate a list of ISO-8601 timestamps from a base + offsets."""
-    from datetime import datetime, timedelta, timezone
-    base_dt = datetime.fromisoformat(base).replace(tzinfo=timezone.utc)
-    return [
-        (base_dt + timedelta(seconds=s)).isoformat()
-        for s in offsets_seconds
-    ]
-
-
-# ===========================================================================
-# classify_gap
-# ===========================================================================
 
 class TestClassifyGap:
-    """Tests for the classify_gap function."""
+    def test_nominal_exact_cadence(self):
+        gc = classify_gap(600.0, 600.0)
+        assert gc.band == NOMINAL
+        assert gc.ratio == pytest.approx(1.0)
 
-    def test_regular_at_exact_interval(self):
-        assert classify_gap(600.0) == "regular"
+    def test_nominal_within_tolerance(self):
+        gc = classify_gap(770.0, 600.0)  # ratio ≈ 1.283
+        assert gc.band == NOMINAL
+        assert gc.ratio == pytest.approx(770.0 / 600.0)
 
-    def test_regular_within_tolerance_low(self):
-        # 600 * 0.70 = 420 is the lower bound
-        assert classify_gap(420.0) == "regular"
+    def test_nominal_upper_boundary(self):
+        gc = classify_gap(600.0 * NOMINAL_UPPER, 600.0)
+        assert gc.band == NOMINAL
 
-    def test_regular_within_tolerance_high(self):
-        # 600 * 1.30 = 780 is the upper bound
-        assert classify_gap(780.0) == "regular"
+    def test_jitter_just_above_nominal(self):
+        gc = classify_gap(600.0 * NOMINAL_UPPER + 1, 600.0)
+        assert gc.band == JITTER
 
-    def test_regular_mid_range(self):
-        assert classify_gap(550.0) == "regular"
-        assert classify_gap(650.0) == "regular"
+    def test_jitter_mid_range(self):
+        gc = classify_gap(1200.0, 600.0)  # ratio = 2.0
+        assert gc.band == JITTER
 
-    def test_accelerated_below_lower(self):
-        assert classify_gap(300.0) == "accelerated"
-        assert classify_gap(100.0) == "accelerated"
-        assert classify_gap(419.0) == "accelerated"
+    def test_jitter_upper_boundary(self):
+        gc = classify_gap(600.0 * JITTER_UPPER, 600.0)
+        assert gc.band == JITTER
 
-    def test_stalled_above_upper(self):
-        assert classify_gap(781.0) == "stalled"
-        assert classify_gap(1200.0) == "stalled"
+    def test_stall_just_above_jitter(self):
+        gc = classify_gap(600.0 * JITTER_UPPER + 1, 600.0)
+        assert gc.band == STALL
 
-    def test_dead_at_threshold(self):
-        assert classify_gap(1800.0) == "dead"
+    def test_stall_mid_range(self):
+        gc = classify_gap(4200.0, 600.0)  # ratio = 7.0
+        assert gc.band == STALL
 
-    def test_dead_above_threshold(self):
-        assert classify_gap(3600.0) == "dead"
-        assert classify_gap(7200.0) == "dead"
+    def test_stall_upper_boundary(self):
+        gc = classify_gap(600.0 * STALL_UPPER, 600.0)
+        assert gc.band == STALL
 
-    def test_dead_takes_priority_over_stalled(self):
-        # A gap of 2000s is both stalled and dead; dead wins
-        assert classify_gap(2000.0) == "dead"
+    def test_outage_above_stall(self):
+        gc = classify_gap(600.0 * STALL_UPPER + 1, 600.0)
+        assert gc.band == OUTAGE
 
-    def test_zero_gap_is_regular(self):
-        assert classify_gap(0.0) == "regular"
+    def test_outage_extreme(self):
+        gc = classify_gap(86400.0, 600.0)  # 24 hours
+        assert gc.band == OUTAGE
+        assert gc.ratio == pytest.approx(144.0)
 
-    def test_negative_gap_is_regular(self):
-        assert classify_gap(-10.0) == "regular"
+    def test_zero_gap(self):
+        gc = classify_gap(0.0, 600.0)
+        assert gc.band == NOMINAL
+        assert gc.ratio == 0.0
 
-    def test_custom_batch_interval(self):
-        # With batch_interval=120 and tolerance=0.25:
-        # regular range = [90, 150]
-        assert classify_gap(100.0, batch_interval=120.0, tolerance=0.25) == "regular"
-        assert classify_gap(80.0, batch_interval=120.0, tolerance=0.25) == "accelerated"
-        assert classify_gap(160.0, batch_interval=120.0, tolerance=0.25) == "stalled"
-
-    def test_custom_dead_threshold(self):
-        assert classify_gap(500.0, dead_threshold=400.0) == "dead"
-        assert classify_gap(500.0, dead_threshold=600.0) == "regular"
-
-    def test_boundary_just_below_regular(self):
-        # 419.99 is just below the lower bound of 420
-        assert classify_gap(419.99) == "accelerated"
-
-    def test_boundary_just_above_regular(self):
-        # 780.01 is just above the upper bound of 780
-        assert classify_gap(780.01) == "stalled"
+    def test_gap_seconds_stored(self):
+        gc = classify_gap(1234.5, 600.0)
+        assert gc.gap_seconds == pytest.approx(1234.5)
 
 
-# ===========================================================================
-# analyze_single_gap
-# ===========================================================================
+class TestClassifyGapValidation:
+    def test_negative_gap_raises(self):
+        with pytest.raises(ValueError, match="non-negative"):
+            classify_gap(-1.0, 600.0)
 
-class TestAnalyzeSingleGap:
-    """Tests for the analyze_single_gap function."""
+    def test_zero_cadence_raises(self):
+        with pytest.raises(ValueError, match="positive"):
+            classify_gap(600.0, 0.0)
 
-    def test_returns_gap_report(self):
-        report = analyze_single_gap(600.0)
-        assert isinstance(report, GapReport)
-
-    def test_gap_seconds_preserved(self):
-        report = analyze_single_gap(456.7)
-        assert report.gap_seconds == 456.7
-
-    def test_gap_type_matches_classify(self):
-        for gap_s in [100, 500, 600, 800, 1500, 2000]:
-            report = analyze_single_gap(float(gap_s))
-            assert report.gap_type == classify_gap(float(gap_s))
-
-    def test_deviation_zero_at_exact_interval(self):
-        report = analyze_single_gap(600.0)
-        assert report.deviation == pytest.approx(0.0)
-
-    def test_deviation_negative_when_fast(self):
-        report = analyze_single_gap(300.0)
-        assert report.deviation < 0.0
-        assert report.deviation == pytest.approx(-0.5)
-
-    def test_deviation_positive_when_slow(self):
-        report = analyze_single_gap(900.0)
-        assert report.deviation > 0.0
-        assert report.deviation == pytest.approx(0.5)
-
-    def test_z_score_none_without_population(self):
-        report = analyze_single_gap(600.0)
-        assert report.z_score is None
-
-    def test_z_score_computed_with_population(self):
-        report = analyze_single_gap(700.0, mean_gap=600.0, std_gap=100.0)
-        assert report.z_score == pytest.approx(1.0)
-
-    def test_z_score_zero_at_mean(self):
-        report = analyze_single_gap(600.0, mean_gap=600.0, std_gap=100.0)
-        assert report.z_score == pytest.approx(0.0)
-
-    def test_z_score_none_when_std_zero(self):
-        report = analyze_single_gap(600.0, mean_gap=600.0, std_gap=0.0)
-        assert report.z_score is None
+    def test_negative_cadence_raises(self):
+        with pytest.raises(ValueError, match="positive"):
+            classify_gap(600.0, -100.0)
 
 
-# ===========================================================================
-# analyze_gaps (aggregate)
-# ===========================================================================
+class TestClassifyGapCustomCadence:
+    def test_five_minute_cadence(self):
+        gc = classify_gap(300.0, 300.0)
+        assert gc.band == NOMINAL
 
-class TestAnalyzeGaps:
-    """Tests for the analyze_gaps function."""
+    def test_fifteen_minute_cadence_stall(self):
+        gc = classify_gap(900.0 * 5, 900.0)  # ratio = 5.0
+        assert gc.band == STALL
 
-    def test_empty_timestamps(self):
-        profile = analyze_gaps([])
-        assert profile.total_gaps == 0
-        assert profile.health == "unknown"
+    def test_one_hour_cadence_outage(self):
+        gc = classify_gap(3600.0 * 20, 3600.0)  # ratio = 20
+        assert gc.band == OUTAGE
+
+
+# ---------------------------------------------------------------------------
+# batch classification
+# ---------------------------------------------------------------------------
+
+
+class TestClassifyGaps:
+    def test_empty_list(self):
+        assert classify_gaps([]) == []
+
+    def test_single_gap(self):
+        result = classify_gaps([600.0], 600.0)
+        assert len(result) == 1
+        assert result[0].band == NOMINAL
+
+    def test_mixed_bands(self):
+        gaps = [600.0, 1500.0, 4200.0, 86400.0]
+        result = classify_gaps(gaps, 600.0)
+        assert len(result) == 4
+        assert result[0].band == NOMINAL
+        assert result[1].band == JITTER
+        assert result[2].band == STALL
+        assert result[3].band == OUTAGE
+
+    def test_all_nominal(self):
+        gaps = [600.0, 610.0, 590.0, 605.0]
+        result = classify_gaps(gaps, 600.0)
+        assert all(gc.band == NOMINAL for gc in result)
+
+
+# ---------------------------------------------------------------------------
+# timestamp → gap conversion
+# ---------------------------------------------------------------------------
+
+
+class TestGapsFromTimestamps:
+    def test_empty(self):
+        assert gaps_from_timestamps([]) == []
 
     def test_single_timestamp(self):
-        profile = analyze_gaps(["2026-10-22T10:00:00+00:00"])
-        assert profile.total_gaps == 0
+        assert gaps_from_timestamps([1000.0]) == []
 
-    def test_two_regular_timestamps(self):
-        ts = _make_ts("2026-10-22T10:00:00", [0, 600])
-        profile = analyze_gaps(ts)
-        assert profile.total_gaps == 1
-        assert profile.regular_count == 1
-        assert profile.health == "rhythmic"
+    def test_two_timestamps(self):
+        assert gaps_from_timestamps([1000.0, 1600.0]) == [600.0]
 
-    def test_all_regular(self):
-        ts = _make_ts("2026-10-22T10:00:00", [0, 600, 1200, 1800, 2400])
-        profile = analyze_gaps(ts)
-        assert profile.total_gaps == 4
-        assert profile.regular_count == 4
-        assert profile.health == "rhythmic"
-        assert profile.regular_ratio == 1.0
+    def test_three_timestamps(self):
+        result = gaps_from_timestamps([0.0, 600.0, 1200.0])
+        assert result == [600.0, 600.0]
 
-    def test_mixed_gaps(self):
-        # regular(600), accelerated(200), stalled(900), dead(2000)
-        ts = _make_ts("2026-10-22T10:00:00", [0, 600, 800, 1700, 3700])
-        profile = analyze_gaps(ts)
-        assert profile.total_gaps == 4
-        assert profile.regular_count == 1
-        assert profile.accelerated_count == 1
-        assert profile.stalled_count == 1
-        assert profile.dead_count == 1
+    def test_irregular_intervals(self):
+        ts = [0.0, 600.0, 2400.0, 2400.0, 9000.0]
+        result = gaps_from_timestamps(ts)
+        assert result == [600.0, 1800.0, 0.0, 6600.0]
 
-    def test_statistics_computed(self):
-        ts = _make_ts("2026-10-22T10:00:00", [0, 600, 1200, 1800])
-        profile = analyze_gaps(ts)
-        assert profile.mean_gap == pytest.approx(600.0)
-        assert profile.median_gap == pytest.approx(600.0)
-        assert profile.std_gap == pytest.approx(0.0, abs=0.01)
-        assert profile.min_gap == pytest.approx(600.0)
-        assert profile.max_gap == pytest.approx(600.0)
-
-    def test_z_scores_populated(self):
-        # With varied gaps, z-scores should be computed
-        ts = _make_ts("2026-10-22T10:00:00", [0, 400, 1000, 1600])
-        profile = analyze_gaps(ts)
-        for gap in profile.gaps:
-            assert gap.z_score is not None
-
-    def test_unsorted_timestamps_get_sorted(self):
-        # Pass timestamps out of order — should still work
-        ts = [
-            "2026-10-22T10:10:00+00:00",
-            "2026-10-22T10:00:00+00:00",
-            "2026-10-22T10:20:00+00:00",
-        ]
-        profile = analyze_gaps(ts)
-        assert profile.total_gaps == 2
-        assert profile.mean_gap == pytest.approx(600.0)
-
-    def test_large_number_of_gaps(self):
-        offsets = [i * 600 for i in range(101)]
-        ts = _make_ts("2026-10-22T00:00:00", offsets)
-        profile = analyze_gaps(ts)
-        assert profile.total_gaps == 100
-        assert profile.regular_count == 100
+    def test_preserves_order(self):
+        ts = [100.0, 200.0, 500.0, 1000.0]
+        result = gaps_from_timestamps(ts)
+        assert result == [100.0, 300.0, 500.0]
 
 
-# ===========================================================================
-# GapProfile properties
-# ===========================================================================
-
-class TestGapProfileProperties:
-    """Tests for GapProfile computed properties."""
-
-    def test_regular_ratio_empty(self):
-        p = GapProfile()
-        assert p.regular_ratio == 0.0
-
-    def test_regular_ratio_all_regular(self):
-        p = GapProfile(total_gaps=10, regular_count=10)
-        assert p.regular_ratio == 1.0
-
-    def test_regular_ratio_mixed(self):
-        p = GapProfile(total_gaps=10, regular_count=7)
-        assert p.regular_ratio == pytest.approx(0.7)
-
-    def test_dead_ratio_empty(self):
-        p = GapProfile()
-        assert p.dead_ratio == 0.0
-
-    def test_dead_ratio_some_dead(self):
-        p = GapProfile(total_gaps=20, dead_count=4)
-        assert p.dead_ratio == pytest.approx(0.2)
-
-    def test_health_unknown_empty(self):
-        p = GapProfile()
-        assert p.health == "unknown"
-
-    def test_health_rhythmic(self):
-        # ≥80% regular, ≤1 dead
-        p = GapProfile(total_gaps=10, regular_count=9, dead_count=0)
-        assert p.health == "rhythmic"
-
-    def test_health_rhythmic_with_one_dead(self):
-        p = GapProfile(total_gaps=10, regular_count=8, dead_count=1)
-        assert p.health == "rhythmic"
-
-    def test_health_irregular(self):
-        # ≥50% regular but not enough for rhythmic
-        p = GapProfile(total_gaps=10, regular_count=6, dead_count=1)
-        assert p.health == "irregular"
-
-    def test_health_erratic_low_regular(self):
-        p = GapProfile(total_gaps=10, regular_count=3, dead_count=0)
-        assert p.health == "erratic"
-
-    def test_health_erratic_many_dead(self):
-        p = GapProfile(total_gaps=10, regular_count=7, dead_count=4)
-        assert p.health == "erratic"
-
-    def test_score_empty(self):
-        p = GapProfile()
-        assert p.score == 0.0
-
-    def test_score_perfect(self):
-        # All regular, no dead, zero variance
-        p = GapProfile(
-            total_gaps=10,
-            regular_count=10,
-            dead_count=0,
-            mean_gap=600.0,
-            std_gap=0.0,
-        )
-        assert p.score == pytest.approx(0.6)  # 1.0*0.6 - 0 + 0 (std=0 → no var bonus)
-
-    def test_score_good_with_variance(self):
-        p = GapProfile(
-            total_gaps=10,
-            regular_count=10,
-            dead_count=0,
-            mean_gap=600.0,
-            std_gap=60.0,  # CV = 0.1
-        )
-        # 1.0*0.6 - 0 + 0.2*(1-0.1) = 0.6 + 0.18 = 0.78
-        assert p.score == pytest.approx(0.78, abs=0.01)
-
-    def test_score_penalised_by_dead(self):
-        p = GapProfile(
-            total_gaps=10,
-            regular_count=8,
-            dead_count=2,
-            mean_gap=700.0,
-            std_gap=200.0,
-        )
-        # base = 0.8*0.6 = 0.48
-        # dead_penalty = min(2*0.05, 0.3) = 0.10
-        # cv = 200/700 ≈ 0.286, var_bonus = 0.2*(1-0.286) ≈ 0.143
-        # score = 0.48 - 0.10 + 0.143 ≈ 0.523
-        assert 0.4 < p.score < 0.7
-
-    def test_score_clamped_to_unit_interval(self):
-        # Even with extreme values, score stays in [0, 1]
-        p = GapProfile(
-            total_gaps=10,
-            regular_count=10,
-            dead_count=20,  # extreme dead penalty
-            mean_gap=600.0,
-            std_gap=60.0,
-        )
-        assert 0.0 <= p.score <= 1.0
+# ---------------------------------------------------------------------------
+# series-level diagnostics
+# ---------------------------------------------------------------------------
 
 
-# ===========================================================================
-# recent_trend
-# ===========================================================================
+class TestDiagnose:
+    def test_empty_gaps(self):
+        d = diagnose([])
+        assert d.total_gaps == 0
+        assert d.cadence_adherence == 0.0
+        assert d.mean_gap_ratio == 0.0
+        assert d.stall_rate == 0.0
+        assert d.gap_entropy == 0.0
+        assert d.recovery_count == 0
 
-class TestRecentTrend:
-    """Tests for the recent_trend function."""
+    def test_all_nominal(self):
+        gaps = [600.0] * 10
+        d = diagnose(gaps, 600.0)
+        assert d.total_gaps == 10
+        assert d.band_counts[NOMINAL] == 10
+        assert d.cadence_adherence == 1.0
+        assert d.stall_rate == 0.0
+        assert d.mean_gap_ratio == pytest.approx(1.0)
+        assert d.gap_entropy == pytest.approx(0.0)
+        assert d.recovery_count == 0
 
-    def test_insufficient_data_empty(self):
-        p = GapProfile()
-        assert recent_trend(p) == "insufficient_data"
+    def test_all_outage(self):
+        gaps = [10000.0] * 5
+        d = diagnose(gaps, 600.0)
+        assert d.total_gaps == 5
+        assert d.band_counts[OUTAGE] == 5
+        assert d.cadence_adherence == 0.0
+        assert d.stall_rate == 1.0
+        assert d.recovery_count == 0
 
-    def test_insufficient_data_too_few(self):
-        p = GapProfile(gaps=[GapReport(600, "regular", 0.0)] * 5, total_gaps=5)
-        assert recent_trend(p, recent_count=10) == "insufficient_data"
+    def test_perfect_recovery(self):
+        # outage → nominal → nominal → outage → nominal
+        gaps = [10000.0, 600.0, 600.0, 10000.0, 600.0]
+        d = diagnose(gaps, 600.0)
+        assert d.total_gaps == 5
+        assert d.recovery_count == 2
 
-    def test_stable_trend(self):
-        # All regular — should be stable
-        gaps = [GapReport(600, "regular", 0.0)] * 40
-        p = GapProfile(gaps=gaps, total_gaps=40)
-        assert recent_trend(p, recent_count=20) == "stable"
+    def test_no_recovery_in_streak(self):
+        # nominal → stall → stall → stall
+        gaps = [600.0, 4200.0, 4200.0, 4200.0]
+        d = diagnose(gaps, 600.0)
+        assert d.recovery_count == 0
 
-    def test_improving_trend(self):
-        # Earlier half: mostly non-regular. Recent half: all regular.
-        earlier = [GapReport(200, "accelerated", -0.67)] * 20
-        recent = [GapReport(600, "regular", 0.0)] * 20
-        p = GapProfile(gaps=earlier + recent, total_gaps=40)
-        assert recent_trend(p, recent_count=20) == "improving"
+    def test_mixed_diagnostics(self):
+        # 2 nominal, 1 jitter, 1 stall, 1 outage
+        gaps = [600.0, 700.0, 1500.0, 4200.0, 10000.0]
+        d = diagnose(gaps, 600.0)
+        assert d.total_gaps == 5
+        assert d.band_counts[NOMINAL] == 2
+        assert d.band_counts[JITTER] == 1
+        assert d.band_counts[STALL] == 1
+        assert d.band_counts[OUTAGE] == 1
+        assert d.cadence_adherence == pytest.approx(3.0 / 5)
+        assert d.stall_rate == pytest.approx(2.0 / 5)
+        assert d.worst_gap == 10000.0
+        assert d.worst_band == OUTAGE
+        # recovery: stall → outage is not recovery, outage→end is not recovery
+        assert d.recovery_count == 0
 
-    def test_deteriorating_trend(self):
-        # Earlier half: all regular. Recent half: mostly dead.
-        earlier = [GapReport(600, "regular", 0.0)] * 20
-        recent = [GapReport(2000, "dead", 2.33)] * 20
-        p = GapProfile(gaps=earlier + recent, total_gaps=40)
-        assert recent_trend(p, recent_count=20) == "deteriorating"
+    def test_entropy_max_uniform(self):
+        # 4 bands, roughly equal → entropy ≈ 2.0 bits
+        # 1 of each band
+        gaps = [600.0, 1500.0, 4200.0, 10000.0]
+        d = diagnose(gaps, 600.0)
+        assert d.gap_entropy == pytest.approx(2.0, abs=0.01)
 
+    def test_entropy_zero_single_band(self):
+        gaps = [600.0, 600.0, 600.0]
+        d = diagnose(gaps, 600.0)
+        assert d.gap_entropy == pytest.approx(0.0)
 
-# ===========================================================================
-# gap_summary_text
-# ===========================================================================
+    def test_worst_gap_outage(self):
+        gaps = [600.0, 600.0, 99999.0]
+        d = diagnose(gaps, 600.0)
+        assert d.worst_gap == 99999.0
+        assert d.worst_band == OUTAGE
 
-class TestGapSummaryText:
-    """Tests for the gap_summary_text function."""
-
-    def test_empty_profile(self):
-        p = GapProfile()
-        text = gap_summary_text(p)
-        assert "unknown" in text
-        assert "0/0" in text
-
-    def test_rhythmic_no_dead(self):
-        p = GapProfile(
-            total_gaps=20,
-            regular_count=18,
-            accelerated_count=2,
-        )
-        text = gap_summary_text(p)
-        assert "rhythmic" in text
-        assert "18/20" in text
-        assert "2 accelerated" in text
-        assert "dead" not in text
-
-    def test_erratic_with_dead(self):
-        p = GapProfile(
-            total_gaps=10,
-            regular_count=3,
-            dead_count=5,
-        )
-        text = gap_summary_text(p)
-        assert "erratic" in text
-        assert "5 dead" in text
-
-    def test_score_in_output(self):
-        p = GapProfile(
-            total_gaps=10,
-            regular_count=10,
-            mean_gap=600.0,
-            std_gap=60.0,
-        )
-        text = gap_summary_text(p)
-        assert "score" in text
+    def test_mean_gap_ratio_calculation(self):
+        gaps = [300.0, 600.0, 1200.0]
+        d = diagnose(gaps, 600.0)
+        expected = (0.5 + 1.0 + 2.0) / 3
+        assert d.mean_gap_ratio == pytest.approx(expected)
 
 
-# ===========================================================================
-# edge cases and integration
-# ===========================================================================
+# ---------------------------------------------------------------------------
+# shannon entropy helper
+# ---------------------------------------------------------------------------
 
-class TestEdgeCases:
-    """Edge cases and integration scenarios."""
 
-    def test_identical_timestamps(self):
-        ts = ["2026-10-22T10:00:00+00:00"] * 5
-        profile = analyze_gaps(ts)
-        assert profile.total_gaps == 4
-        # All zero gaps → regular
-        assert profile.regular_count == 4
+class TestShannonEntropy:
+    def test_empty(self):
+        assert _shannon_entropy({}) == 0.0
 
-    def test_single_large_gap_in_regular_sequence(self):
-        offsets = list(range(0, 6000, 600)) + [6000 + 3600] + list(range(9600, 12000, 600))
-        ts = _make_ts("2026-10-22T00:00:00", offsets)
-        profile = analyze_gaps(ts)
-        # Most gaps are regular, one is dead (3600s)
-        assert profile.dead_count == 1
-        assert profile.regular_count == profile.total_gaps - 1
+    def test_single_category(self):
+        assert _shannon_entropy({"a": 10}) == pytest.approx(0.0)
 
-    def test_timezone_handling(self):
-        # Mix of UTC and offset formats
-        ts = [
-            "2026-10-22T10:00:00Z",
-            "2026-10-22T10:10:00+00:00",
-            "2026-10-22T10:20:00Z",
-        ]
-        profile = analyze_gaps(ts)
-        assert profile.total_gaps == 2
-        assert profile.mean_gap == pytest.approx(600.0)
+    def test_two_equal(self):
+        assert _shannon_entropy({"a": 5, "b": 5}) == pytest.approx(1.0)
 
-    def test_full_pipeline(self):
-        """Integration test: generate timestamps, analyze, check all outputs."""
-        offsets = [0, 600, 1200, 1800, 2400, 3000, 3600, 4200, 7800, 8400]
-        ts = _make_ts("2026-10-22T00:00:00", offsets)
-        profile = analyze_gaps(ts)
+    def test_four_equal(self):
+        assert _shannon_entropy({"a": 1, "b": 1, "c": 1, "d": 1}) == pytest.approx(2.0)
 
-        assert profile.total_gaps == 9
-        assert profile.health in ("rhythmic", "irregular", "erratic")
-        assert 0.0 <= profile.score <= 1.0
-        assert len(profile.gaps) == 9
-        text = gap_summary_text(profile)
-        assert isinstance(text, str)
-        assert len(text) > 0
-        trend = recent_trend(profile, recent_count=4)
-        assert trend in ("improving", "stable", "deteriorating", "insufficient_data")
+    def test_skewed(self):
+        # 99:1 → low entropy
+        h = _shannon_entropy({"a": 99, "b": 1})
+        assert 0 < h < 1.0
+
+
+# ---------------------------------------------------------------------------
+# recovery counter
+# ---------------------------------------------------------------------------
+
+
+class TestCountRecoveries:
+    def test_empty(self):
+        assert _count_recoveries([]) == 0
+
+    def test_single(self):
+        assert _count_recoveries([NOMINAL]) == 0
+
+    def test_no_transitions(self):
+        assert _count_recoveries([NOMINAL, NOMINAL, JITTER]) == 0
+
+    def test_stall_to_nominal(self):
+        assert _count_recoveries([STALL, NOMINAL]) == 1
+
+    def test_outage_to_jitter(self):
+        assert _count_recoveries([OUTAGE, JITTER]) == 1
+
+    def test_nominal_to_stall_not_recovery(self):
+        assert _count_recoveries([NOMINAL, STALL]) == 0
+
+    def test_multiple_recoveries(self):
+        bands = [OUTAGE, NOMINAL, STALL, JITTER, NOMINAL]
+        assert _count_recoveries(bands) == 2
+
+    def test_consecutive_degraded_no_recovery(self):
+        bands = [STALL, STALL, OUTAGE, OUTAGE]
+        assert _count_recoveries(bands) == 0
+
+
+# ---------------------------------------------------------------------------
+# integration: timestamps → diagnostics
+# ---------------------------------------------------------------------------
+
+
+class TestIntegration:
+    def test_healthy_rhythm(self):
+        ts = [0, 600, 1200, 1800, 2400, 3000, 3600]
+        gaps = gaps_from_timestamps(ts)
+        d = diagnose(gaps, 600.0)
+        assert d.cadence_adherence == 1.0
+        assert d.stall_rate == 0.0
+        assert d.recovery_count == 0
+
+    def test_one_stall_recovery(self):
+        # normal, normal, stall (3600s gap), normal, normal
+        ts = [0, 600, 1200, 4800, 5400, 6000]
+        gaps = gaps_from_timestamps(ts)
+        d = diagnose(gaps, 600.0)
+        assert d.band_counts[STALL] == 1
+        assert d.recovery_count == 1
+
+    def test_long_outage_then_recovery(self):
+        # normal, 24h gap, normal, normal
+        ts = [0, 600, 87000, 87600, 88200]
+        gaps = gaps_from_timestamps(ts)
+        d = diagnose(gaps, 600.0)
+        assert d.band_counts[OUTAGE] == 1
+        assert d.recovery_count == 1
+        assert d.worst_gap == 86400.0
+
+    def test_cascading_degradation(self):
+        # normal → jitter → stall → outage (no recovery)
+        ts = [0, 600, 1800, 5400, 20000]
+        gaps = gaps_from_timestamps(ts)
+        d = diagnose(gaps, 600.0)
+        assert d.recovery_count == 0
+        assert d.stall_rate > 0
+        assert d.worst_band == OUTAGE
