@@ -1,444 +1,353 @@
-"""Tests for stroke_vocabulary_growth module.
+"""Tests for iamai.stroke_vocabulary_growth — vocabulary growth tracking."""
 
-Covers: tokenisation, log-log fitting, Heap's Law analysis, growth
-classification, sliding windows, edge cases, serialisation, and
-forecasting helpers.  52 test functions.
+from __future__ import annotations
 
-Written by Qwen during caretaker visit 726, 2026-11-19.
-"""
-
-import math
 import pytest
 
 from iamai.stroke_vocabulary_growth import (
-    VocabularyGrowthReport,
-    _classify,
-    _log_log_fit,
-    _zero_report,
-    analyse_vocabulary_growth,
-    analyse_vocabulary_growth_batch,
-    analyse_vocabulary_growth_windows,
-    tokenize_stroke,
+    _split_words,
+    _tokenise,
+    classify_growth,
+    compute_ttr,
+    growth_summary,
+    moving_ttr,
+    novel_words,
+    vocabulary_growth,
 )
 
 
 # ---------------------------------------------------------------------------
-# Tokenisation
+# _tokenise
 # ---------------------------------------------------------------------------
 
-class TestTokenizeStroke:
-    def test_basic(self):
-        assert tokenize_stroke("Hello World") == ["hello", "world"]
 
-    def test_punctuation_stripped(self):
-        assert tokenize_stroke("a repo, that's it!") == ["a", "repo", "that", "s", "it"]
+class TestTokenise:
+    def test_basic_tokenisation(self):
+        tokens = _tokenise("Hello World from Python")
+        assert "hello" in tokens
+        assert "world" in tokens
+        assert "python" in tokens
 
-    def test_numbers_kept(self):
-        assert tokenize_stroke("visit 726 2026-11-19") == [
-            "visit", "726", "2026", "11", "19"
-        ]
+    def test_stop_words_removed(self):
+        tokens = _tokenise("the quick brown fox is a very fast animal")
+        assert "the" not in tokens
+        assert "is" not in tokens
+        assert "a" not in tokens
+        assert "very" not in tokens
+        assert "quick" in tokens
+        assert "brown" in tokens
+        assert "fox" in tokens
+
+    def test_single_char_removed(self):
+        tokens = _tokenise("I am a x y z developer")
+        assert "x" not in tokens
+        assert "y" not in tokens
+        assert "z" not in tokens
+        assert "developer" in tokens
 
     def test_empty_string(self):
-        assert tokenize_stroke("") == []
+        assert _tokenise("") == []
 
-    def test_only_punctuation(self):
-        assert tokenize_stroke("!!! ??? ...") == []
+    def test_punctuation_stripped(self):
+        tokens = _tokenise("hello, world! testing... done?")
+        assert "hello" in tokens
+        assert "world" in tokens
+        assert "testing" in tokens
+        assert "done" in tokens
 
-    def test_non_string_input(self):
-        assert tokenize_stroke(None) == []
-        assert tokenize_stroke(42) == []
+    def test_numbers_kept(self):
+        tokens = _tokenise("version 42 release 3")
+        assert "42" in tokens
+        assert "release" in tokens
 
-    def test_unicode_letters(self):
-        # \w would match unicode; our regex is [a-z0-9] only
-        result = tokenize_stroke("café résumé")
-        assert "caf" in result
-        assert "r" in result or "sum" in result
+    def test_contractions_handled(self):
+        tokens = _tokenise("don't won't can't")
+        # After stop-word removal, these may or may not remain
+        # but they should not crash
+        assert isinstance(tokens, list)
 
-    def test_whitespace_only(self):
-        assert tokenize_stroke("   \t\n  ") == []
-
-    def test_mixed_case(self):
-        assert tokenize_stroke("HeLLo wOrLd") == ["hello", "world"]
-
-    def test_repeated_tokens(self):
-        assert tokenize_stroke("the the the") == ["the", "the", "the"]
+    def test_case_insensitive(self):
+        tokens = _tokenise("PYTHON Python python")
+        # All should become "python"
+        assert tokens.count("python") == 3
 
 
 # ---------------------------------------------------------------------------
-# Log-log fitting
+# compute_ttr
 # ---------------------------------------------------------------------------
 
-class TestLogLogFit:
-    def test_perfect_power_law(self):
-        # V = 2 * n^0.5  =>  log(V) = log(2) + 0.5*log(n)
-        xs = [1, 4, 9, 16, 25, 36, 49, 64]
-        ys = [int(2 * (x ** 0.5)) for x in xs]
-        alpha, beta = _log_log_fit(xs, ys)
-        assert abs(beta - 0.5) < 0.05
-        assert abs(alpha - 2.0) < 0.5
 
-    def test_linear_growth(self):
-        # V = n  =>  beta = 1.0
-        xs = list(range(1, 21))
-        ys = list(range(1, 21))
-        alpha, beta = _log_log_fit(xs, ys)
-        assert abs(beta - 1.0) < 0.01
-        assert abs(alpha - 1.0) < 0.1
+class TestComputeTTR:
+    def test_all_unique(self):
+        assert compute_ttr(["alpha", "beta", "gamma"]) == pytest.approx(1.0)
 
-    def test_single_point(self):
-        alpha, beta = _log_log_fit([5], [3])
-        assert alpha == 0.0 and beta == 0.0
+    def test_all_same(self):
+        assert compute_ttr(["alpha"] * 10) == pytest.approx(0.1)
+
+    def test_half_unique(self):
+        words = ["alpha", "beta", "alpha", "beta"]
+        assert compute_ttr(words) == pytest.approx(0.5)
 
     def test_empty(self):
-        alpha, beta = _log_log_fit([], [])
-        assert alpha == 0.0 and beta == 0.0
+        assert compute_ttr([]) == 0.0
 
-    def test_zeros_filtered(self):
-        alpha, beta = _log_log_fit([0, 1, 2], [0, 1, 2])
-        # Only (1,1) and (2,2) survive — two points
-        assert beta > 0 or alpha >= 0
+    def test_single_word(self):
+        assert compute_ttr(["alpha"]) == pytest.approx(1.0)
 
-    def test_constant_y(self):
-        # All same y — beta should be ~0
-        xs = list(range(1, 11))
-        ys = [5] * 10
-        alpha, beta = _log_log_fit(xs, ys)
-        assert abs(beta) < 0.01
+    def test_two_different(self):
+        assert compute_ttr(["alpha", "beta"]) == pytest.approx(1.0)
 
-    def test_negative_beta_clamped(self):
-        # Decreasing y with increasing x (anti-Heap's)
-        xs = [1, 2, 3, 4, 5]
-        ys = [10, 8, 6, 4, 2]
-        alpha, beta = _log_log_fit(xs, ys)
-        assert beta >= 0  # clamped
+    def test_known_ratio(self):
+        # 3 unique out of 4 = 0.75
+        assert compute_ttr(["a1", "a2", "a3", "a1"]) == pytest.approx(0.75)
 
 
 # ---------------------------------------------------------------------------
-# Classification
+# moving_ttr
 # ---------------------------------------------------------------------------
 
-class TestClassify:
-    def test_exploring(self):
-        assert _classify(0.85) == "exploring"
-        assert _classify(0.70) == "exploring"
 
-    def test_growing(self):
-        assert _classify(0.69) == "growing"
-        assert _classify(0.40) == "growing"
+class TestMovingTTR:
+    def test_output_length(self):
+        strokes = [{"text": "alpha beta gamma delta"}] * 10
+        result = moving_ttr(strokes, window_size=3)
+        assert len(result) == 10
 
-    def test_consolidating(self):
-        assert _classify(0.39) == "consolidating"
-        assert _classify(0.20) == "consolidating"
-
-    def test_saturated(self):
-        assert _classify(0.19) == "saturated"
-        assert _classify(0.0) == "saturated"
-        assert _classify(-0.1) == "saturated"
-
-    def test_boundary_values(self):
-        assert _classify(0.70) == "exploring"
-        assert _classify(0.40) == "growing"
-        assert _classify(0.20) == "consolidating"
-
-
-# ---------------------------------------------------------------------------
-# Zero report
-# ---------------------------------------------------------------------------
-
-class TestZeroReport:
-    def test_defaults(self):
-        r = _zero_report()
-        assert r.alpha == 0.0
-        assert r.beta == 0.0
-        assert r.total_tokens == 0
-        assert r.unique_tokens == 0
-        assert r.growth_curve == []
-        assert r.regime == "saturated"
-        assert r.strokes_analysed == 0
-
-
-# ---------------------------------------------------------------------------
-# Core analysis
-# ---------------------------------------------------------------------------
-
-class TestAnalyseVocabularyGrowth:
     def test_empty_input(self):
-        r = analyse_vocabulary_growth([])
-        assert r.total_tokens == 0
-        assert r.regime == "saturated"
+        assert moving_ttr([]) == []
+
+    def test_uniform_content(self):
+        # Same content everywhere → interior TTR values should be consistent
+        strokes = [{"text": "alpha beta gamma"}] * 20
+        result = moving_ttr(strokes, window_size=5)
+        # Edge values differ due to smaller windows; interior should match
+        interior = result[3:-3]  # skip edges
+        assert len(interior) > 0
+        assert len(set(round(v, 4) for v in interior)) == 1
+
+    def test_diverse_content_higher_ttr(self):
+        uniform = [{"text": "alpha alpha alpha"}] * 10
+        diverse = [{"text": f"word{i} unique{i} special{i}"} for i in range(10)]
+        ttr_uniform = moving_ttr(uniform, window_size=3)
+        ttr_diverse = moving_ttr(diverse, window_size=3)
+        assert sum(ttr_diverse) / len(ttr_diverse) > sum(ttr_uniform) / len(ttr_uniform)
 
     def test_single_stroke(self):
-        r = analyse_vocabulary_growth([["hello", "world"]])
-        assert r.total_tokens == 2
-        assert r.unique_tokens == 2
-        assert r.beta == 0.0
-        assert r.strokes_analysed == 1
-
-    def test_identical_strokes(self):
-        # Same tokens repeated — no growth
-        tokens = ["the", "same", "thing"]
-        r = analyse_vocabulary_growth([tokens, tokens, tokens, tokens, tokens])
-        assert r.total_tokens == 15
-        assert r.unique_tokens == 3
-        assert r.beta < 0.1
-
-    def test_growing_vocabulary(self):
-        # Each stroke adds new words
-        strokes = [
-            ["alpha"],
-            ["alpha", "beta"],
-            ["alpha", "beta", "gamma"],
-            ["alpha", "beta", "gamma", "delta"],
-            ["alpha", "beta", "gamma", "delta", "epsilon"],
-            ["zeta", "eta", "theta", "iota", "kappa", "lambda"],
-            ["mu", "nu", "xi", "omicron", "pi", "rho", "sigma"],
-        ]
-        r = analyse_vocabulary_growth(strokes)
-        assert r.total_tokens > 0
-        assert r.unique_tokens > 10
-        assert r.beta > 0.3
-        assert r.strokes_analysed == 7
-
-    def test_exploring_regime(self):
-        # Every stroke is completely new tokens
-        strokes = [[f"word_{i}_{j}" for j in range(5)] for i in range(20)]
-        r = analyse_vocabulary_growth(strokes)
-        assert r.regime == "exploring"
-        assert r.beta >= 0.70
-
-    def test_saturated_regime(self):
-        # Highly repetitive
-        base = ["the", "quick", "brown", "fox", "jumps"]
-        strokes = [base[:] for _ in range(30)]
-        r = analyse_vocabulary_growth(strokes)
-        assert r.unique_tokens == 5
-        assert r.regime == "saturated"
-
-    def test_empty_token_lists_skipped(self):
-        r = analyse_vocabulary_growth([[], ["a", "b"], [], ["c", "d"]])
-        assert r.strokes_analysed == 2
-        assert r.total_tokens == 4
-        assert r.unique_tokens == 4
-
-    def test_growth_curve_populated(self):
-        strokes = [["a", "b"], ["c", "d"], ["e", "f"]]
-        r = analyse_vocabulary_growth(strokes)
-        assert len(r.growth_curve) == 3
-        # Each point should be (cumulative_total, cumulative_unique)
-        assert r.growth_curve[0] == (2, 2)
-        assert r.growth_curve[1] == (4, 4)
-        assert r.growth_curve[2] == (6, 6)
-
-    def test_partially_overlapping(self):
-        strokes = [
-            ["the", "cat", "sat"],
-            ["the", "dog", "sat"],
-            ["the", "bird", "flew"],
-            ["a", "fish", "swam"],
-            ["a", "snake", "slithered"],
-            ["every", "creature", "has", "a", "story"],
-        ]
-        r = analyse_vocabulary_growth(strokes)
-        assert r.unique_tokens > 5
-        assert r.unique_tokens < r.total_tokens
-        assert r.beta > 0.0
+        strokes = [{"text": "hello world testing"}]
+        result = moving_ttr(strokes, window_size=5)
+        assert len(result) == 1
+        assert result[0] > 0
 
 
 # ---------------------------------------------------------------------------
-# Batch analysis
+# novel_words
 # ---------------------------------------------------------------------------
 
-class TestAnalyseBatch:
-    def test_basic_batch(self):
-        texts = [
-            "hello world",
-            "foo bar baz",
-            "alpha beta gamma delta",
-        ]
-        r = analyse_vocabulary_growth_batch(texts)
-        assert r.total_tokens == 9
-        assert r.unique_tokens == 9
-        assert r.strokes_analysed == 3
 
-    def test_batch_with_overlap(self):
-        texts = [
-            "the quick brown fox",
-            "the lazy brown dog",
-            "the quick red cat",
-        ]
-        r = analyse_vocabulary_growth_batch(texts)
-        assert r.unique_tokens < r.total_tokens
-        # "the" appears 3 times, "quick" 2 times, "brown" 2 times
-        assert r.unique_tokens == 8  # the, quick, brown, fox, lazy, dog, red, cat
-        # the, quick, brown, fox, lazy, dog, red, cat = 8 unique out of 12 total
+class TestNovelWords:
+    def test_basic_novelty(self):
+        result = novel_words(["alpha", "beta", "gamma"], ["alpha", "delta"])
+        assert result == {"beta", "gamma"}
 
-    def test_batch_skips_non_strings(self):
-        texts = ["hello world", None, 42, "foo bar"]
-        r = analyse_vocabulary_growth_batch(texts)
-        assert r.strokes_analysed == 2
+    def test_no_novel_words(self):
+        result = novel_words(["alpha", "beta"], ["alpha", "beta", "gamma"])
+        assert result == set()
 
-    def test_batch_empty(self):
-        r = analyse_vocabulary_growth_batch([])
-        assert r.total_tokens == 0
+    def test_all_novel(self):
+        result = novel_words(["x", "y", "z"], ["a", "b", "c"])
+        assert result == {"x", "y", "z"}
 
-    def test_batch_all_empty_strings(self):
-        r = analyse_vocabulary_growth_batch(["", "", ""])
-        assert r.total_tokens == 0
+    def test_empty_recent(self):
+        result = novel_words([], ["alpha", "beta"])
+        assert result == set()
+
+    def test_empty_baseline(self):
+        result = novel_words(["alpha", "beta"], [])
+        assert result == {"alpha", "beta"}
+
+    def test_both_empty(self):
+        result = novel_words([], [])
+        assert result == set()
 
 
 # ---------------------------------------------------------------------------
-# Sliding windows
+# classify_growth
 # ---------------------------------------------------------------------------
 
-class TestAnalyseWindows:
-    def test_basic_windows(self):
-        texts = [f"word{i} unique{i} newterm{i}" for i in range(20)]
-        reports = analyse_vocabulary_growth_windows(texts, window_size=5, step=5)
-        assert len(reports) == 4
 
-    def test_window_overlap(self):
-        texts = [f"w{i}" for i in range(15)]
-        reports = analyse_vocabulary_growth_windows(texts, window_size=5, step=3)
-        assert len(reports) > 1
+class TestClassifyGrowth:
+    def test_expanding(self):
+        assert classify_growth(0.05, 0.2) == "expanding"
 
-    def test_window_too_large(self):
-        texts = ["a", "b", "c"]
-        reports = analyse_vocabulary_growth_windows(texts, window_size=10, step=5)
-        assert len(reports) == 0
+    def test_stable(self):
+        assert classify_growth(0.01, 0.2) == "stable"
 
-    def test_window_step_one(self):
-        texts = [f"stroke{i} word{i}" for i in range(8)]
-        reports = analyse_vocabulary_growth_windows(texts, window_size=3, step=1)
-        assert len(reports) == 6  # 8 - 3 + 1 = 6
+    def test_contracting(self):
+        assert classify_growth(-0.04, 0.2) == "contracting"
 
-    def test_invalid_window_size(self):
-        with pytest.raises(ValueError):
-            analyse_vocabulary_growth_windows(["a"], window_size=0, step=1)
+    def test_depleted(self):
+        assert classify_growth(0.01, 0.02) == "depleted"
 
-    def test_invalid_step(self):
-        with pytest.raises(ValueError):
-            analyse_vocabulary_growth_windows(["a"], window_size=1, step=0)
+    def test_depleted_overrides_expanding(self):
+        # Even with positive growth, if novel ratio is tiny → depleted
+        assert classify_growth(0.05, 0.03) == "depleted"
 
-    def test_regime_evolution(self):
-        # First half: diverse, second half: repetitive
-        diverse = [f"unique_term_{i} concept_{i} idea_{i}" for i in range(10)]
-        repetitive = ["the same old thing"] * 10
-        texts = diverse + repetitive
-        reports = analyse_vocabulary_growth_windows(texts, window_size=10, step=10)
-        assert len(reports) == 2
-        assert reports[0].beta > reports[1].beta
+    def test_boundary_expanding(self):
+        assert classify_growth(0.021, 0.1) == "expanding"
+
+    def test_boundary_contracting(self):
+        assert classify_growth(-0.021, 0.1) == "contracting"
+
+    def test_boundary_stable(self):
+        assert classify_growth(0.02, 0.1) == "stable"
+
+    def test_zero_growth(self):
+        assert classify_growth(0.0, 0.1) == "stable"
 
 
 # ---------------------------------------------------------------------------
-# Report helpers
+# vocabulary_growth
 # ---------------------------------------------------------------------------
 
-class TestReportHelpers:
-    def test_predicted_unique(self):
-        r = VocabularyGrowthReport(alpha=2.0, beta=0.5, total_tokens=100, unique_tokens=20)
-        pred = r.predicted_unique(400)
-        expected = 2.0 * (400 ** 0.5)  # 2 * 20 = 40
-        assert abs(pred - expected) < 0.01
 
-    def test_predicted_unique_zero_tokens(self):
-        r = VocabularyGrowthReport(alpha=2.0, beta=0.5, total_tokens=100, unique_tokens=20)
-        assert r.predicted_unique(0) == 0.0
-        assert r.predicted_unique(-1) == 0.0
+class TestVocabularyGrowth:
+    def _make_strokes(self, texts: list[str]) -> list[dict]:
+        return [{"seq": i + 1, "text": t} for i, t in enumerate(texts)]
 
-    def test_predicted_unique_zero_alpha(self):
-        r = VocabularyGrowthReport(alpha=0.0, beta=0.5)
-        assert r.predicted_unique(100) == 0.0
+    def test_expanding_vocabulary(self):
+        # First half: repetitive; second half: diverse
+        first = ["alpha beta alpha beta"] * 20
+        second = [f"novel{i} unique{i} special{i} fresh{i}" for i in range(20)]
+        strokes = self._make_strokes(first + second)
+        result = vocabulary_growth(strokes, window=40)
+        assert result["band"] in ("expanding", "stable")
+        assert result["novel_word_count"] > 0
+        assert result["stroke_count"] == 40
 
-    def test_tokens_for_new_words(self):
-        r = VocabularyGrowthReport(alpha=2.0, beta=0.5, total_tokens=100, unique_tokens=20)
-        result = r.tokens_for_new_words(100, 10)
-        # target_v = 30, needed = (30/2)^2 = 225, extra = 125
-        assert result == 125
+    def test_contracting_vocabulary(self):
+        # First half: diverse; second half: repetitive
+        first = [f"word{i} distinct{i} original{i}" for i in range(20)]
+        second = ["alpha beta alpha beta"] * 20
+        strokes = self._make_strokes(first + second)
+        result = vocabulary_growth(strokes, window=40)
+        assert result["growth_rate"] < 0
 
-    def test_tokens_for_new_words_unreachable(self):
-        r = VocabularyGrowthReport(alpha=0.0, beta=0.5, total_tokens=100, unique_tokens=20)
-        assert r.tokens_for_new_words(100, 10) is None
+    def test_empty_strokes(self):
+        result = vocabulary_growth([], window=100)
+        assert result["band"] == "stable"
+        assert result["total_words"] == 0
 
-    def test_tokens_for_new_words_zero_beta(self):
-        r = VocabularyGrowthReport(alpha=2.0, beta=0.0, total_tokens=100, unique_tokens=20)
-        assert r.tokens_for_new_words(100, 10) is None
+    def test_very_few_words(self):
+        strokes = self._make_strokes(["hi", "ok"])
+        result = vocabulary_growth(strokes, window=10)
+        assert result["band"] == "stable"
 
-    def test_tokens_for_new_words_negative_input(self):
-        r = VocabularyGrowthReport(alpha=2.0, beta=0.5, total_tokens=100, unique_tokens=20)
-        assert r.tokens_for_new_words(100, 0) is None
-        assert r.tokens_for_new_words(100, -5) is None
-
-    def test_tokens_for_new_words_already_exceeded(self):
-        r = VocabularyGrowthReport(alpha=2.0, beta=0.5, total_tokens=100, unique_tokens=20)
-        # If current_total is already past the needed total
-        result = r.tokens_for_new_words(1000, 1)
-        assert result == 0  # clamped to 0
-
-    def test_to_dict(self):
-        r = VocabularyGrowthReport(
-            alpha=1.23456, beta=0.56789, total_tokens=100,
-            unique_tokens=50, regime="growing", strokes_analysed=10,
-            growth_curve=[(1, 1), (2, 2)],
+    def test_window_truncation(self):
+        # 200 strokes but window=50
+        strokes = self._make_strokes(
+            [f"word{i} test{i} sample{i}" for i in range(200)]
         )
-        d = r.to_dict()
-        assert d["alpha"] == 1.2346  # rounded to 4
-        assert d["beta"] == 0.5679
-        assert d["total_tokens"] == 100
-        assert d["unique_tokens"] == 50
-        assert d["regime"] == "growing"
-        assert d["strokes_analysed"] == 10
-        assert d["growth_curve_length"] == 2
+        result = vocabulary_growth(strokes, window=50)
+        assert result["stroke_count"] == 50
+
+    def test_all_keys_present(self):
+        strokes = self._make_strokes(["hello world test"] * 10)
+        result = vocabulary_growth(strokes, window=10)
+        expected_keys = {
+            "band", "ttr_first_half", "ttr_second_half", "growth_rate",
+            "novel_word_count", "novel_word_ratio", "total_words",
+            "unique_words", "overall_ttr", "stroke_count",
+        }
+        assert set(result.keys()) == expected_keys
+
+    def test_custom_text_key(self):
+        strokes = [{"content": "alpha beta gamma"}] * 10
+        result = vocabulary_growth(strokes, window=10, text_key="content")
+        assert result["total_words"] > 0
+
+    def test_depleted_vocabulary(self):
+        # Use the same few words everywhere
+        strokes = self._make_strokes(["alpha beta"] * 100)
+        result = vocabulary_growth(strokes, window=100)
+        # With identical halves, growth_rate ≈ 0 and novel_ratio ≈ 0
+        assert result["novel_word_ratio"] < 0.05
+
+    def test_novel_word_ratio_range(self):
+        strokes = self._make_strokes(
+            [f"word{i} data{i}" for i in range(50)]
+        )
+        result = vocabulary_growth(strokes, window=50)
+        assert 0.0 <= result["novel_word_ratio"] <= 1.0
+
+    def test_ttr_values_bounded(self):
+        strokes = self._make_strokes(
+            [f"alpha beta gamma {i}" for i in range(40)]
+        )
+        result = vocabulary_growth(strokes, window=40)
+        assert 0.0 <= result["ttr_first_half"] <= 1.0
+        assert 0.0 <= result["ttr_second_half"] <= 1.0
+        assert 0.0 <= result["overall_ttr"] <= 1.0
+
+    def test_growth_rate_matches_difference(self):
+        strokes = self._make_strokes(
+            [f"word{i} test content" for i in range(30)]
+        )
+        result = vocabulary_growth(strokes, window=30)
+        expected = round(result["ttr_second_half"] - result["ttr_first_half"], 4)
+        assert result["growth_rate"] == expected
 
 
 # ---------------------------------------------------------------------------
-# Integration-style
+# growth_summary
 # ---------------------------------------------------------------------------
 
-class TestIntegration:
-    def test_realistic_strokes(self):
-        """Simulate a realistic stroke sequence with partial overlap."""
-        strokes = [
-            "a repo that only accumulates is a landfill with a readme",
-            "commit history is the only honest documentation",
-            "naming is hard because a bad name is cheap to type and expensive to keep",
-            "most architecture is choosing which coupling you will live with",
-            "deleting a file is progress too eventually",
-            "the push race is a clock not a bug",
-            "every ten minutes it rings someone answers it",
-            "a bug you fix once a clock you answer every time",
-            "the useful abstraction deletes a branch it does not add a class",
-            "commit history cannot be backdated",
-        ]
-        r = analyse_vocabulary_growth_batch(strokes)
-        assert r.strokes_analysed == 10
-        assert r.total_tokens > 40
-        assert r.unique_tokens > 20
-        assert r.beta > 0.2
-        assert r.regime in ("exploring", "growing", "consolidating")
 
-    def test_heap_law_holds_for_large_corpus(self):
-        """Verify beta is in plausible range for a larger corpus."""
-        import random
-        random.seed(42)
-        vocab = [f"word{i}" for i in range(200)]
-        strokes = []
-        for _ in range(50):
-            length = random.randint(5, 15)
-            stroke = random.choices(vocab, k=length)
-            strokes.append(stroke)
-        r = analyse_vocabulary_growth(strokes)
-        # For random sampling from a fixed vocabulary, beta should be
-        # between 0.3 and 0.8 typically
-        assert 0.1 < r.beta < 1.0
-        assert r.alpha > 0
-        assert r.strokes_analysed == 50
+class TestGrowthSummary:
+    def test_returns_string(self):
+        strokes = [{"text": f"hello world test{i}"} for i in range(20)]
+        text = growth_summary(strokes, window=20)
+        assert isinstance(text, str)
 
-    def test_windows_show_regime_shift(self):
-        """Early window exploring, late window saturated."""
-        exploring = [f"novel_{i} fresh_{i} original_{i} creative_{i}" for i in range(15)]
-        saturated = ["the same tired old phrase repeated again"] * 15
-        texts = exploring + saturated
+    def test_contains_band(self):
+        strokes = [{"text": f"hello world test{i}"} for i in range(20)]
+        text = growth_summary(strokes, window=20)
+        first_word = text.split(" ")[0]
+        assert first_word in ("expanding", "stable", "contracting", "depleted")
 
-        reports = analyse_vocabulary_growth_windows(texts, window_size=15, step=15)
-        assert len(reports) == 2
-        assert reports[0].beta > reports[1].beta
+    def test_contains_ttr_arrow(self):
+        strokes = [{"text": f"data sample unique{i}"} for i in range(30)]
+        text = growth_summary(strokes, window=30)
+        assert "→" in text or "->" in text or "TTR" in text
+
+    def test_contains_novel_count(self):
+        strokes = [{"text": f"alpha beta gamma{i}"} for i in range(30)]
+        text = growth_summary(strokes, window=30)
+        assert "novel words" in text
+
+    def test_empty_input(self):
+        text = growth_summary([], window=10)
+        assert isinstance(text, str)
+        assert "stable" in text
+
+
+# ---------------------------------------------------------------------------
+# _split_words
+# ---------------------------------------------------------------------------
+
+
+class TestSplitWords:
+    def test_equal_split(self):
+        strokes = [{"text": "alpha beta gamma delta"}]
+        baseline, recent = _split_words(strokes)
+        # "alpha beta gamma delta" → 4 tokens → split at 2
+        assert len(baseline) + len(recent) == 4
+
+    def test_empty(self):
+        baseline, recent = _split_words([])
+        assert baseline == []
+        assert recent == []
+
+    def test_custom_text_key(self):
+        strokes = [{"content": "hello world"}]
+        baseline, recent = _split_words(strokes, text_key="content")
+        assert len(baseline) + len(recent) == 2

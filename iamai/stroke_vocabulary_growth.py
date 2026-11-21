@@ -1,287 +1,299 @@
-"""stroke_vocabulary_growth — model vocabulary expansion via Heap's Law.
+"""Stroke vocabulary growth — is the writer's lexicon expanding or plateauing?
 
-While ``stroke_novelty`` scores each stroke against a sliding window and
-``stroke_thematic_coherence`` measures batch-level topical concentration,
-neither answers the macro question: *is the writer's vocabulary expanding
-or saturating?*
+``stroke_echo`` catches short-term repetition.  ``stroke_yield_analyzer``
+flags retreads at the stroke level.  ``stroke_diversity`` measures category
+balance.  None of these answer a longer-range question: **is the writer's
+vocabulary growing over time, or has it plateaued?**
 
-This module applies **Heap's Law** from information retrieval:
+A writer that keeps using the same words is not necessarily broken — it
+may be深耕 a narrow domain.  But a writer whose vocabulary *never*
+expands is likely in a rut: generating text that looks varied on the
+surface but says the same things in the same ways.
 
-    V(n) = alpha * n^beta
+This module tracks **type-token ratio (TTR)** and its moving variant
+over time windows, then classifies the growth trend.
 
-where *V(n)* is the unique vocabulary size after *n* total tokens, *alpha*
-controls the initial growth rate, and *beta* (0 < beta < 1) governs how
-fast new words are discovered.  In a self-writing repo this becomes a
-proxy for **creative exploration vs. repetitive recycling**.
+Concepts
+--------
 
-Algorithm
----------
-1. Tokenise each stroke (lowercase, strip punctuation/whitespace).
-2. Walk the sequence cumulatively; at each stroke record the running
-   total-token count and unique-vocabulary size.
-3. Fit log(V) = log(alpha) + beta*log(n) via ordinary least squares on
-   the log-log curve (no numpy required).
-4. Classify the growth regime:
+======================  ================================================
+term                    meaning
+======================  ================================================
+**type-token ratio**    unique words / total words in a text sample;
+                        higher = more diverse vocabulary
+**moving TTR**          TTR computed over a sliding window of N strokes;
+                        smooths out local variation
+**growth_rate**         change in moving TTR between the first and second
+                        half of the analysis window
+**novel_word_ratio**     fraction of words in recent strokes that do not
+                        appear in earlier strokes
+======================  ================================================
 
-   =================  ==================================================
-   beta range         regime
-   =================  ==================================================
-   beta >= 0.70       **exploring** — rapidly discovering new terms
-   0.40 <= beta < 0.70 **growing** — healthy logarithmic expansion
-   0.20 <= beta < 0.40 **consolidating** — reusing established terms
-   beta < 0.20        **saturated** — heavily recycling the same pool
-   =================  ==================================================
-
-5. Optionally estimate how many additional tokens are needed to add
-   a given number of new unique words (saturation forecasting).
-
-Edge cases
-----------
-* Empty input -> zeroed report.
-* Single stroke -> beta = 0, alpha = unique count (no curve to fit).
-* All strokes identical tokens -> beta = 0, alpha = 1.
-* Negative beta from a poor fit -> clamped to 0.
-
-Dependencies
+Growth bands
 ------------
-Pure Python — no numpy/scipy required.
 
-Written by Qwen during caretaker visit 726, 2026-11-19.
+==============  =====================================================
+band            meaning
+==============  =====================================================
+``expanding``   growth_rate > +0.02 — vocabulary is broadening
+``stable``      |growth_rate| <= 0.02 — vocabulary is steady
+``contracting`` growth_rate < -0.02 — vocabulary is narrowing
+``depleted``    novel_word_ratio < 0.05 in the most recent quarter —
+                the writer is almost entirely reusing old words
+==============  =====================================================
+
+Public API
+----------
+
+- ``vocabulary_growth(strokes, window=100) -> dict``
+- ``classify_growth(growth_rate, novel_word_ratio) -> str``
+- ``compute_ttr(words) -> float``
+- ``moving_ttr(strokes, window_size=20) -> list[float]``
+- ``novel_words(recent_words, baseline_words) -> set[str]``
+- ``growth_summary(strokes, window=100) -> str``
 """
 
 from __future__ import annotations
 
-import math
 import re
-from dataclasses import dataclass, field
-from typing import List, Optional, Sequence, Tuple
+from typing import Sequence
 
-__all__ = [
-    "VocabularyGrowthReport",
-    "analyse_vocabulary_growth",
-    "analyse_vocabulary_growth_batch",
-    "analyse_vocabulary_growth_windows",
-    "tokenize_stroke",
-]
 
 # ---------------------------------------------------------------------------
 # Tokenisation
 # ---------------------------------------------------------------------------
 
-_TOKEN_RE = re.compile(r"[a-z0-9]+")
+_WORD_RE = re.compile(r"[a-z0-9]+(?:'[a-z]+)?", re.IGNORECASE)
+
+# Common English stop words that add bulk without signal.
+_STOP_WORDS: frozenset[str] = frozenset({
+    "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "do", "does", "did", "will", "would", "could",
+    "should", "may", "might", "shall", "can", "need", "dare", "ought",
+    "used", "to", "of", "in", "for", "on", "with", "at", "by", "from",
+    "as", "into", "through", "during", "before", "after", "above",
+    "below", "between", "out", "off", "over", "under", "again",
+    "further", "then", "once", "here", "there", "when", "where", "why",
+    "how", "all", "both", "each", "few", "more", "most", "other",
+    "some", "such", "no", "not", "only", "own", "same", "so", "than",
+    "too", "very", "just", "because", "but", "and", "or", "if", "while",
+    "that", "this", "these", "those", "it", "its", "they", "them",
+    "their", "we", "our", "you", "your", "i", "me", "my", "he", "she",
+    "him", "her", "his", "what", "which", "who", "whom",
+})
 
 
-def tokenize_stroke(text: str) -> List[str]:
-    """Lowercase tokenise; keep alphanumerics, discard punctuation."""
-    if not isinstance(text, str):
+def _tokenise(text: str) -> list[str]:
+    """Lowercase tokenise, stripping stop words and short tokens."""
+    words = _WORD_RE.findall(text.lower())
+    return [w for w in words if len(w) > 1 and w not in _STOP_WORDS]
+
+
+# ---------------------------------------------------------------------------
+# Core metrics
+# ---------------------------------------------------------------------------
+
+
+def compute_ttr(words: Sequence[str]) -> float:
+    """Type-token ratio: unique words / total words.
+
+    Returns 0.0 for an empty sequence.
+
+    >>> compute_ttr(["alpha", "beta", "alpha", "gamma"])
+    0.75
+    >>> compute_ttr([])
+    0.0
+    """
+    if not words:
+        return 0.0
+    return len(set(words)) / len(words)
+
+
+def moving_ttr(
+    strokes: list[dict],
+    window_size: int = 20,
+    text_key: str = "text",
+) -> list[float]:
+    """Compute TTR over a sliding window of strokes.
+
+    Each stroke's text is tokenised; the TTR is computed over the
+    concatenated tokens in the window centred (as possible) on each
+    stroke.
+
+    Returns a list of TTR values, one per stroke (padded at edges so
+    the output length equals the input length).
+
+    >>> strokes = [{"text": "alpha beta gamma"}] * 5
+    >>> m = moving_ttr(strokes, window_size=3)
+    >>> len(m)
+    5
+    """
+    if not strokes:
         return []
-    return _TOKEN_RE.findall(text.lower())
+
+    all_tokens: list[list[str]] = []
+    for s in strokes:
+        all_tokens.append(_tokenise(s.get(text_key, "")))
+
+    half = window_size // 2
+    results: list[float] = []
+
+    for i in range(len(strokes)):
+        lo = max(0, i - half)
+        hi = min(len(strokes), i + half + 1)
+        window_words: list[str] = []
+        for j in range(lo, hi):
+            window_words.extend(all_tokens[j])
+        results.append(compute_ttr(window_words))
+
+    return results
+
+
+def novel_words(
+    recent_words: Sequence[str],
+    baseline_words: Sequence[str],
+) -> set[str]:
+    """Words appearing in *recent* but not in *baseline*.
+
+    >>> novel_words(["alpha", "beta", "gamma"], ["alpha", "delta"])
+    {'beta', 'gamma'}
+    """
+    baseline_set = set(baseline_words)
+    return set(recent_words) - baseline_set
+
+
+def _split_words(
+    strokes: list[dict],
+    text_key: str = "text",
+) -> tuple[list[str], list[str]]:
+    """Split stroke tokens into first-half (baseline) and second-half (recent)."""
+    all_words: list[str] = []
+    for s in strokes:
+        all_words.extend(_tokenise(s.get(text_key, "")))
+    mid = len(all_words) // 2
+    return all_words[:mid], all_words[mid:]
+
+
+def classify_growth(growth_rate: float, novel_word_ratio: float) -> str:
+    """Classify vocabulary growth trend.
+
+    Args:
+        growth_rate: change in TTR between halves (positive = expanding)
+        novel_word_ratio: fraction of recent words that are novel
+
+    Returns one of: ``expanding``, ``stable``, ``contracting``, ``depleted``.
+
+    >>> classify_growth(0.05, 0.3)
+    'expanding'
+    >>> classify_growth(0.01, 0.2)
+    'stable'
+    >>> classify_growth(-0.04, 0.1)
+    'contracting'
+    >>> classify_growth(-0.01, 0.02)
+    'depleted'
+    """
+    if novel_word_ratio < 0.05:
+        return "depleted"
+    if growth_rate > 0.02:
+        return "expanding"
+    if growth_rate < -0.02:
+        return "contracting"
+    return "stable"
 
 
 # ---------------------------------------------------------------------------
-# Report dataclass
+# Main analysis
 # ---------------------------------------------------------------------------
 
-@dataclass
-class VocabularyGrowthReport:
-    """Summary of vocabulary growth over a sequence of strokes."""
 
-    alpha: float = 0.0
-    beta: float = 0.0
-    total_tokens: int = 0
-    unique_tokens: int = 0
-    growth_curve: List[Tuple[int, int]] = field(default_factory=list)
-    regime: str = "saturated"
-    strokes_analysed: int = 0
+def vocabulary_growth(
+    strokes: list[dict],
+    window: int = 100,
+    text_key: str = "text",
+) -> dict:
+    """Analyse vocabulary growth over a window of strokes.
 
-    # ---- helpers ----------------------------------------------------------
+    Args:
+        strokes: list of stroke dicts, each with a ``text`` field
+        window: max number of recent strokes to analyse
+        text_key: key for the text field in each stroke dict
 
-    def predicted_unique(self, total_tokens: int) -> float:
-        """Predict unique vocabulary for a given total-token count."""
-        if total_tokens <= 0 or self.alpha <= 0:
-            return 0.0
-        return self.alpha * (total_tokens ** self.beta)
+    Returns:
+        dict with keys:
+            - ``band``: expanding / stable / contracting / depleted
+            - ``ttr_first_half``: TTR of the baseline half
+            - ``ttr_second_half``: TTR of the recent half
+            - ``growth_rate``: ttr_second_half - ttr_first_half
+            - ``novel_word_count``: number of words new to recent half
+            - ``novel_word_ratio``: novel words / total recent words
+            - ``total_words``: total content words analysed
+            - ``unique_words``: total unique content words
+            - ``overall_ttr``: TTR over the entire window
+            - ``stroke_count``: number of strokes analysed
+    """
+    recent_strokes = strokes[-window:] if len(strokes) > window else strokes
 
-    def tokens_for_new_words(self, current_total: int, new_words: int) -> Optional[int]:
-        """Estimate extra tokens needed to discover *new_words* more unique terms.
+    all_words: list[str] = []
+    for s in recent_strokes:
+        all_words.extend(_tokenise(s.get(text_key, "")))
 
-        Returns None if the target is unreachable (alpha = 0 or beta = 0).
-        """
-        if self.alpha <= 0 or self.beta <= 0 or new_words <= 0:
-            return None
-        target_v = self.unique_tokens + new_words
-        try:
-            needed_total = (target_v / self.alpha) ** (1.0 / self.beta)
-        except (ZeroDivisionError, OverflowError, ValueError):
-            return None
-        extra = needed_total - current_total
-        return max(0, int(math.ceil(extra)))
-
-    def to_dict(self) -> dict:
+    if len(all_words) < 4:
         return {
-            "alpha": round(self.alpha, 4),
-            "beta": round(self.beta, 4),
-            "total_tokens": self.total_tokens,
-            "unique_tokens": self.unique_tokens,
-            "regime": self.regime,
-            "strokes_analysed": self.strokes_analysed,
-            "growth_curve_length": len(self.growth_curve),
+            "band": "stable",
+            "ttr_first_half": 0.0,
+            "ttr_second_half": 0.0,
+            "growth_rate": 0.0,
+            "novel_word_count": 0,
+            "novel_word_ratio": 0.0,
+            "total_words": len(all_words),
+            "unique_words": len(set(all_words)),
+            "overall_ttr": compute_ttr(all_words),
+            "stroke_count": len(recent_strokes),
         }
 
+    mid = len(all_words) // 2
+    baseline_words = all_words[:mid]
+    recent_words = all_words[mid:]
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
+    ttr_baseline = compute_ttr(baseline_words)
+    ttr_recent = compute_ttr(recent_words)
+    growth_rate = ttr_recent - ttr_baseline
 
-def _log_log_fit(
-    xs: List[int], ys: List[int]
-) -> Tuple[float, float]:
-    """Ordinary least squares on log(x) vs log(y).
+    novel = novel_words(recent_words, baseline_words)
+    novel_ratio = len(novel) / len(recent_words) if recent_words else 0.0
 
-    Returns (alpha, beta) where V = alpha * n^beta.
-    If the fit is degenerate, returns (0.0, 0.0).
+    band = classify_growth(growth_rate, novel_ratio)
+
+    return {
+        "band": band,
+        "ttr_first_half": round(ttr_baseline, 4),
+        "ttr_second_half": round(ttr_recent, 4),
+        "growth_rate": round(growth_rate, 4),
+        "novel_word_count": len(novel),
+        "novel_word_ratio": round(novel_ratio, 4),
+        "total_words": len(all_words),
+        "unique_words": len(set(all_words)),
+        "overall_ttr": round(compute_ttr(all_words), 4),
+        "stroke_count": len(recent_strokes),
+    }
+
+
+def growth_summary(
+    strokes: list[dict],
+    window: int = 100,
+    text_key: str = "text",
+) -> str:
+    """One-line summary of vocabulary growth for caretaker logs.
+
+    Example::
+
+        "expanding — TTR 0.42→0.47 (+0.05), 38 novel words (18.2% of recent), 860 words total"
     """
-    valid: List[Tuple[float, float]] = []
-    for x, y in zip(xs, ys):
-        if x > 0 and y > 0:
-            valid.append((math.log(x), math.log(y)))
-
-    n = len(valid)
-    if n < 2:
-        return (0.0, 0.0)
-
-    sum_lx = sum(lx for lx, _ in valid)
-    sum_ly = sum(ly for _, ly in valid)
-    sum_lxly = sum(lx * ly for lx, ly in valid)
-    sum_lx2 = sum(lx * lx for lx, _ in valid)
-
-    denom = n * sum_lx2 - sum_lx * sum_lx
-    if abs(denom) < 1e-15:
-        return (0.0, 0.0)
-
-    beta = (n * sum_lxly - sum_lx * sum_ly) / denom
-    log_alpha = (sum_ly - beta * sum_lx) / n
-    alpha = math.exp(log_alpha)
-
-    # Clamp degenerate fits
-    if beta < 0:
-        beta = 0.0
-    if alpha < 0:
-        alpha = 0.0
-
-    return (alpha, beta)
-
-
-def _classify(beta: float) -> str:
-    """Map beta to a growth-regime label."""
-    if beta >= 0.70:
-        return "exploring"
-    if beta >= 0.40:
-        return "growing"
-    if beta >= 0.20:
-        return "consolidating"
-    return "saturated"
-
-
-def _zero_report() -> VocabularyGrowthReport:
-    return VocabularyGrowthReport()
-
-
-# ---------------------------------------------------------------------------
-# Core analysis
-# ---------------------------------------------------------------------------
-
-def analyse_vocabulary_growth(
-    token_lists: Sequence[Sequence[str]],
-) -> VocabularyGrowthReport:
-    """Analyse vocabulary growth over a sequence of tokenised strokes.
-
-    Parameters
-    ----------
-    token_lists : sequence of token sequences
-        Each element is a list of tokens for one stroke.
-
-    Returns
-    -------
-    VocabularyGrowthReport
-    """
-    curve_x: List[int] = []
-    curve_y: List[int] = []
-    seen: set = set()
-    running_total = 0
-    strokes_counted = 0
-
-    for tokens in token_lists:
-        if not tokens:
-            continue
-        strokes_counted += 1
-        for tok in tokens:
-            seen.add(tok)
-            running_total += 1
-        curve_x.append(running_total)
-        curve_y.append(len(seen))
-
-    if running_total == 0:
-        return _zero_report()
-
-    if len(curve_x) < 2:
-        # Single data point — no curve to fit
-        alpha = float(curve_y[0]) if curve_x[0] == 1 else curve_y[0] / max(curve_x[0], 1)
-        return VocabularyGrowthReport(
-            alpha=alpha,
-            beta=0.0,
-            total_tokens=running_total,
-            unique_tokens=len(seen),
-            growth_curve=list(zip(curve_x, curve_y)),
-            regime="saturated",
-            strokes_analysed=strokes_counted,
-        )
-
-    alpha, beta = _log_log_fit(curve_x, curve_y)
-
-    return VocabularyGrowthReport(
-        alpha=alpha,
-        beta=beta,
-        total_tokens=running_total,
-        unique_tokens=len(seen),
-        growth_curve=list(zip(curve_x, curve_y)),
-        regime=_classify(beta),
-        strokes_analysed=strokes_counted,
+    info = vocabulary_growth(strokes, window=window, text_key=text_key)
+    return (
+        f"{info['band']} — TTR {info['ttr_first_half']}→{info['ttr_second_half']} "
+        f"({info['growth_rate']:+.4f}), "
+        f"{info['novel_word_count']} novel words "
+        f"({info['novel_word_ratio']:.1%} of recent), "
+        f"{info['total_words']} words total"
     )
-
-
-def analyse_vocabulary_growth_batch(
-    texts: Sequence[str],
-) -> VocabularyGrowthReport:
-    """Convenience: tokenise raw texts then analyse."""
-    token_lists = [tokenize_stroke(t) for t in texts if isinstance(t, str)]
-    return analyse_vocabulary_growth(token_lists)
-
-
-def analyse_vocabulary_growth_windows(
-    texts: Sequence[str],
-    window_size: int = 10,
-    step: int = 5,
-) -> List[VocabularyGrowthReport]:
-    """Sliding-window analysis of vocabulary growth regime evolution.
-
-    Parameters
-    ----------
-    texts : sequence of raw stroke texts
-    window_size : int
-        Number of strokes per window.
-    step : int
-        Stride between consecutive windows.
-
-    Returns
-    -------
-    List of VocabularyGrowthReport, one per window.
-    """
-    if window_size < 1 or step < 1:
-        raise ValueError("window_size and step must be >= 1")
-
-    reports: List[VocabularyGrowthReport] = []
-    for start in range(0, len(texts) - window_size + 1, step):
-        window = texts[start : start + window_size]
-        reports.append(analyse_vocabulary_growth_batch(window))
-    return reports
