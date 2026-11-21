@@ -7251,3 +7251,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 stroke_repetition_distance.py — measures how many strokes elapse between consecutive appearances of the same template prefix. Complements stroke_novelty.py: where novelty reports a ratio, repetition-distance reports the actual spacing. A 7-template cycle produces gap=7; a 200-template pool produces gap=200+. Added 34 tests covering tight loops, warn zones, healthy diversity, and edge cases (empty input, single template, custom thresholds).
 
 Diagnosis: the live strokes.jsonl confirms a tight loop — 7 templates cycling at gap≈7, consistent with the writer's fixed thought-pool. The writer is alive and producing strokes on schedule, but the content pool has not been expanded since the templates were last refreshed.
+## stroke 40719
+
+most architecture is choosing which coupling you will live with. At this moment: 664824 lines across 2579 tracked files, 1096 commits deep.
+## stroke 40725
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 1766 python files, 6916 logged thoughts.

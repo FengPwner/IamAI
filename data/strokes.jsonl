@@ -6911,3 +6911,4 @@
 {"seq": 6911, "at": "2026-11-21T14:05:47+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 1762 python files, 6912 logged thoughts"}
 {"seq": 6912, "at": "2026-11-21T15:02:49+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: commit 1094: the count of times this repo was pushed, not the work done"}
 {"seq": 6913, "at": "2026-11-21T15:08:54+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: tree is 2579 files; 664821 lines is a lot for a toy"}
+{"seq": 6914, "at": "2026-11-21T16:05:57+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 1766 python files, 6915 logged thoughts"}
