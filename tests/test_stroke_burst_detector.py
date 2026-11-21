@@ -1,129 +1,89 @@
 #!/usr/bin/env python3
-"""Tests for stroke_burst_detector.py — burst and drought pattern detection."""
+"""Tests for stroke_burst_detector.py — 30 tests covering all paths."""
 
+import json
 import sys
-from datetime import datetime, timedelta, timezone
+import tempfile
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO))
-
-from iamai.stroke_burst_detector import (
-    BurstEvent,
-    BurstReport,
-    DroughtEvent,
-    _compute_regularity,
-    _extract_timestamps,
-    _parse_ts,
-    analyze,
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+from stroke_burst_detector import (
+    load_strokes,
     detect_bursts,
-    detect_droughts,
-    inter_stroke_gaps,
+    classify_verdict,
+    build_report,
+    Burst,
+    BurstReport,
 )
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# helpers
 # ---------------------------------------------------------------------------
 
-_BASE = datetime(2026, 11, 19, 0, 0, 0, tzinfo=timezone.utc)
+def _ts(iso: str) -> datetime:
+    return datetime.fromisoformat(iso)
 
 
-def _ts(offset_seconds: float) -> str:
-    """Return an ISO-8601 timestamp offset from a fixed base."""
-    dt = _BASE + timedelta(seconds=offset_seconds)
-    return dt.isoformat()
+def _make_strokes(times: list[datetime], path: Path) -> Path:
+    """Write a minimal strokes.jsonl from a list of timestamps."""
+    with open(path, "w") as f:
+        for i, t in enumerate(times):
+            record = {"seq": i, "at": t.isoformat(), "kind": "thought", "text": f"stroke {i}"}
+            f.write(json.dumps(record) + "\n")
+    return path
 
 
-def _stroke(offset: float, seq: int = 0) -> dict:
-    return {"seq": seq, "at": _ts(offset), "kind": "thought", "text": "x"}
+def _regular_times(base: datetime, count: int, interval_s: float) -> list[datetime]:
+    return [base + timedelta(seconds=i * interval_s) for i in range(count)]
 
 
-def _strokes_from_offsets(offsets: list, seqs: list = None) -> list:
-    if seqs is None:
-        seqs = list(range(len(offsets)))
-    return [_stroke(o, s) for o, s in zip(offsets, seqs)]
-
-
-# ---------------------------------------------------------------------------
-# _parse_ts
-# ---------------------------------------------------------------------------
-
-class TestParseTs:
-    def test_iso_with_timezone(self):
-        dt = _parse_ts("2026-11-19T00:00:00+00:00")
-        assert dt.year == 2026
-        assert dt.tzinfo is not None
-
-    def test_iso_with_z(self):
-        dt = _parse_ts("2026-11-19T00:00:00Z")
-        assert dt.tzinfo is not None
-
-    def test_iso_no_timezone(self):
-        dt = _parse_ts("2026-11-19T00:00:00")
-        assert dt.year == 2026
+def _burst_times(base: datetime, count: int, interval_s: float) -> list[datetime]:
+    return [base + timedelta(seconds=i * interval_s) for i in range(count)]
 
 
 # ---------------------------------------------------------------------------
-# _extract_timestamps
+# load_strokes
 # ---------------------------------------------------------------------------
 
-class TestExtractTimestamps:
-    def test_sorted_output(self):
-        strokes = [
-            _stroke(100, 1),
-            _stroke(0, 0),
-            _stroke(50, 2),
-        ]
-        ts = _extract_timestamps(strokes)
-        assert len(ts) == 3
-        assert ts[0] < ts[1] < ts[2]
+class TestLoadStrokes:
+    def test_empty_file(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        p.write_text("")
+        assert load_strokes(p) == []
 
-    def test_empty(self):
-        assert _extract_timestamps([]) == []
+    def test_missing_file(self, tmp_path):
+        p = tmp_path / "nonexistent.jsonl"
+        assert load_strokes(p) == []
 
-    def test_missing_at_key(self):
-        strokes = [{"seq": 1, "text": "no at"}]
-        ts = _extract_timestamps(strokes)
-        assert ts == []
+    def test_valid_strokes(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = _regular_times(base, 5, 15.0)
+        _make_strokes(times, p)
+        loaded = load_strokes(p)
+        assert len(loaded) == 5
 
+    def test_malformed_lines_skipped(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        with open(p, "w") as f:
+            f.write("not json\n")
+            f.write(json.dumps({"seq": 0, "at": base.isoformat(), "kind": "thought", "text": "ok"}) + "\n")
+            f.write("{bad json\n")
+        loaded = load_strokes(p)
+        assert len(loaded) == 1
 
-# ---------------------------------------------------------------------------
-# inter_stroke_gaps
-# ---------------------------------------------------------------------------
-
-class TestInterStrokeGaps:
-    def test_uniform_gaps(self):
-        strokes = _strokes_from_offsets([0, 15, 30, 45])
-        gaps = inter_stroke_gaps(strokes)
-        assert gaps == [15.0, 15.0, 15.0]
-
-    def test_single_stroke(self):
-        gaps = inter_stroke_gaps([_stroke(0)])
-        assert gaps == []
-
-    def test_empty(self):
-        assert inter_stroke_gaps([]) == []
-
-    def test_two_strokes(self):
-        strokes = _strokes_from_offsets([0, 60])
-        gaps = inter_stroke_gaps(strokes)
-        assert gaps == [60.0]
-
-    def test_unsorted_input(self):
-        """Timestamps should be sorted internally."""
-        strokes = [_stroke(30, 2), _stroke(0, 0), _stroke(15, 1)]
-        gaps = inter_stroke_gaps(strokes)
-        assert gaps == [15.0, 15.0]
-
-    def test_negative_gap_clamped(self):
-        """Duplicate timestamps should yield 0.0, not negative."""
-        strokes = _strokes_from_offsets([0, 0, 10])
-        gaps = inter_stroke_gaps(strokes)
-        assert gaps[0] == 0.0
-        assert gaps[1] == 10.0
+    def test_sorted_output(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = [base + timedelta(seconds=30), base, base + timedelta(seconds=15)]
+        _make_strokes(times, p)
+        loaded = load_strokes(p)
+        assert loaded[0] <= loaded[1] <= loaded[2]
 
 
 # ---------------------------------------------------------------------------
@@ -131,250 +91,211 @@ class TestInterStrokeGaps:
 # ---------------------------------------------------------------------------
 
 class TestDetectBursts:
-    def test_no_bursts(self):
-        gaps = [15.0, 15.0, 15.0, 15.0]
-        events = detect_bursts(gaps, threshold=3.75)
-        assert events == []
+    def test_no_bursts_regular_cadence(self):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = _regular_times(base, 20, 15.0)
+        bursts = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0)
+        assert bursts == []
 
-    def test_single_burst(self):
-        # 5 gaps of 1.0s (well below threshold of 10)
-        gaps = [15.0, 1.0, 1.0, 1.0, 1.0, 15.0]
-        events = detect_bursts(gaps, threshold=5.0)
-        assert len(events) == 1
-        assert events[0].count == 5  # 4 short gaps + 1
-        assert events[0].span_seconds == pytest.approx(4.0)
+    def test_single_burst_detected(self):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        regular = _regular_times(base, 5, 15.0)
+        # gap > threshold so the regular tail isn't absorbed into the burst
+        burst_start = regular[-1] + timedelta(seconds=15)
+        burst = _burst_times(burst_start, 5, 2.0)
+        times = regular + burst
+        bursts = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0)
+        assert len(bursts) == 1
+        assert bursts[0].stroke_count == 5
 
-    def test_burst_too_short(self):
-        """A single short gap is not a burst (need ≥2 consecutive)."""
-        gaps = [15.0, 1.0, 15.0]
-        events = detect_bursts(gaps, threshold=5.0)
-        assert events == []
+    def test_severe_burst_classification(self):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = _burst_times(base, 6, 1.0)
+        bursts = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0)
+        assert len(bursts) == 1
+        assert bursts[0].severity == "severe"
 
-    def test_trailing_burst(self):
-        gaps = [15.0, 1.0, 1.0, 1.0]
-        events = detect_bursts(gaps, threshold=5.0)
-        assert len(events) == 1
-        assert events[0].count == 4
+    def test_mild_burst_classification(self):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = _burst_times(base, 5, 6.0)
+        bursts = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0)
+        assert len(bursts) == 1
+        assert bursts[0].severity == "mild"
 
-    def test_leading_burst(self):
-        gaps = [1.0, 1.0, 1.0, 15.0]
-        events = detect_bursts(gaps, threshold=5.0)
-        assert len(events) == 1
-        assert events[0].start_seq == 0
+    def test_too_short_run_ignored(self):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        regular = _regular_times(base, 5, 15.0)
+        # gap > threshold so the regular tail isn't absorbed
+        burst = _burst_times(regular[-1] + timedelta(seconds=15), 2, 2.0)
+        times = regular + burst
+        bursts = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0, min_burst_size=3)
+        assert bursts == []
 
-    def test_empty_gaps(self):
-        assert detect_bursts([], threshold=5.0) == []
-
-    def test_zero_threshold(self):
-        gaps = [1.0, 1.0, 1.0]
-        assert detect_bursts(gaps, threshold=0) == []
-
-    def test_seq_offset(self):
-        gaps = [15.0, 1.0, 1.0, 1.0, 15.0]
-        events = detect_bursts(gaps, threshold=5.0, seq_start=100)
-        assert events[0].start_seq == 101
+    def test_custom_threshold(self):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = _burst_times(base, 5, 10.0)
+        bursts_50 = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0)
+        bursts_80 = detect_bursts(times, target_cadence_s=15, threshold_pct=80.0)
+        assert len(bursts_50) == 0
+        assert len(bursts_80) == 1
 
     def test_multiple_bursts(self):
-        gaps = [1.0, 1.0, 15.0, 1.0, 1.0, 1.0, 15.0]
-        events = detect_bursts(gaps, threshold=5.0)
-        assert len(events) == 2
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        seg1 = _regular_times(base, 5, 15.0)
+        burst1 = _burst_times(seg1[-1] + timedelta(seconds=15), 4, 2.0)
+        gap = _regular_times(burst1[-1] + timedelta(seconds=30), 5, 15.0)
+        burst2 = _burst_times(gap[-1] + timedelta(seconds=15), 4, 1.0)
+        times = seg1 + burst1 + gap + burst2
+        bursts = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0)
+        assert len(bursts) == 2
 
-
-# ---------------------------------------------------------------------------
-# detect_droughts
-# ---------------------------------------------------------------------------
-
-class TestDetectDroughts:
-    def test_no_droughts(self):
-        gaps = [15.0, 15.0, 15.0]
-        events = detect_droughts(gaps, threshold=45.0)
-        assert events == []
-
-    def test_single_drought(self):
-        gaps = [15.0, 300.0, 15.0]
-        events = detect_droughts(gaps, threshold=45.0)
-        assert len(events) == 1
-        assert events[0].gap_seconds == 300.0
-        assert events[0].after_seq == 1
-
-    def test_multiple_droughts(self):
-        gaps = [15.0, 100.0, 15.0, 200.0]
-        events = detect_droughts(gaps, threshold=45.0)
-        assert len(events) == 2
-        assert events[0].gap_seconds == 100.0
-        assert events[1].gap_seconds == 200.0
-
-    def test_empty_gaps(self):
-        assert detect_droughts([], threshold=45.0) == []
-
-    def test_zero_threshold(self):
-        assert detect_droughts([1.0], threshold=0) == []
-
-    def test_exact_threshold_not_drought(self):
-        gaps = [45.0]
-        events = detect_droughts(gaps, threshold=45.0)
-        assert events == []  # must be strictly above
-
-
-# ---------------------------------------------------------------------------
-# _compute_regularity
-# ---------------------------------------------------------------------------
-
-class TestComputeRegularity:
-    def test_perfect(self):
-        assert _compute_regularity(0.0) == 1.0
-
-    def test_chaotic(self):
-        assert _compute_regularity(1.0) == 0.0
-
-    def test_beyond_one(self):
-        assert _compute_regularity(5.0) == 0.0
-
-    def test_midrange(self):
-        assert _compute_regularity(0.5) == 0.5
-
-    def test_negative_clamped(self):
-        assert _compute_regularity(-0.1) == 1.0
-
-
-# ---------------------------------------------------------------------------
-# analyze (integration)
-# ---------------------------------------------------------------------------
-
-class TestAnalyze:
-    def test_empty_strokes(self):
-        report = analyze([])
-        assert report.mean_gap == 0.0
-        assert report.regularity_score == 0.0
-        assert report.burst_events == []
-        assert report.drought_events == []
+    def test_empty_input(self):
+        assert detect_bursts([]) == []
 
     def test_single_stroke(self):
-        report = analyze([_stroke(0, 0)])
-        assert report.mean_gap == 0.0
-        assert len(report.inter_stroke_gaps) == 0
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        assert detect_bursts([base]) == []
 
-    def test_clockwork_stream(self):
-        """Perfectly periodic strokes should score high regularity."""
-        strokes = _strokes_from_offsets(
-            [i * 15.0 for i in range(100)]
-        )
-        report = analyze(strokes)
-        assert report.mean_gap == 15.0
-        assert report.gap_stddev == 0.0
-        assert report.cv == 0.0
-        assert report.regularity_score == 1.0
-        assert report.burst_events == []
-        assert report.drought_events == []
+    def test_mean_interval_calculation(self):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = [base, base + timedelta(seconds=3), base + timedelta(seconds=6), base + timedelta(seconds=9)]
+        bursts = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0, min_burst_size=3)
+        assert len(bursts) == 1
+        assert bursts[0].mean_interval_s == 3.0
 
-    def test_bursty_stream(self):
-        """Bursts followed by droughts."""
-        offsets = []
-        t = 0.0
-        for _ in range(10):
-            # burst of 5 strokes in 5 seconds
-            for j in range(5):
-                offsets.append(t + j * 1.0)
-            t += 5.0
-            # drought of 300 seconds
-            t += 300.0
-        strokes = _strokes_from_offsets(offsets)
-        report = analyze(strokes)
-
-        assert report.regularity_score < 0.5
-        assert len(report.burst_events) > 0
-        assert len(report.drought_events) > 0
-        assert report.burstiness > 0.0
-        assert report.drought_fraction > 0.0
-
-    def test_to_dict(self):
-        strokes = _strokes_from_offsets([0, 15, 30, 45])
-        report = analyze(strokes)
-        d = report.to_dict()
-        assert "n_gaps" in d
-        assert "mean_gap_s" in d
-        assert "regularity_score" in d
-        assert d["n_gaps"] == 3
-        assert d["mean_gap_s"] == 15.0
-
-    def test_custom_thresholds(self):
-        offsets = [0, 10, 20, 30, 100, 110, 120]
-        strokes = _strokes_from_offsets(offsets)
-        # Very generous burst threshold
-        report = analyze(strokes, burst_fraction=0.8)
-        # mean_gap ≈ 20, burst_threshold ≈ 16, so 10s gaps are bursts
-        assert len(report.burst_events) > 0
-
-    def test_drought_fraction_bounded(self):
-        offsets = [0, 10, 1000, 1010]
-        strokes = _strokes_from_offsets(offsets)
-        report = analyze(strokes)
-        assert 0.0 <= report.drought_fraction <= 1.0
-
-    def test_burstiness_bounded(self):
-        offsets = [0, 1, 2, 3, 4]
-        strokes = _strokes_from_offsets(offsets)
-        report = analyze(strokes)
-        assert 0.0 <= report.burstiness <= 1.0
-
-    def test_two_strokes_only(self):
-        strokes = _strokes_from_offsets([0, 15])
-        report = analyze(strokes)
-        assert report.mean_gap == 15.0
-        assert report.gap_stddev == 0.0  # single gap, no variance
-
-    def test_mixed_gaps_realistic(self):
-        """Simulate a realistic writer pattern: mostly 15s with jitter."""
-        import random
-        random.seed(42)
-        offsets = [0.0]
-        for i in range(200):
-            gap = 15.0 + random.gauss(0, 3.0)
-            offsets.append(offsets[-1] + max(0.5, gap))
-        strokes = _strokes_from_offsets(offsets)
-        report = analyze(strokes)
-
-        assert report.mean_gap == pytest.approx(15.0, abs=1.0)
-        assert report.regularity_score > 0.5
-        assert report.cv < 0.5
+    def test_trailing_burst_captured(self):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        regular = _regular_times(base, 3, 15.0)
+        burst = _burst_times(regular[-1] + timedelta(seconds=15), 5, 2.0)
+        times = regular + burst
+        bursts = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0)
+        assert len(bursts) == 1
+        assert bursts[0].stroke_count == 5
 
 
 # ---------------------------------------------------------------------------
-# BurstReport dataclass
+# classify_verdict
 # ---------------------------------------------------------------------------
 
-class TestBurstReport:
-    def test_defaults(self):
-        r = BurstReport()
-        assert r.inter_stroke_gaps == []
-        assert r.burst_events == []
-        assert r.drought_events == []
+class TestClassifyVerdict:
+    def test_clean(self):
+        assert classify_verdict([]) == "clean"
 
-    def test_to_dict_rounding(self):
-        r = BurstReport(
-            inter_stroke_gaps=[1.123456],
-            mean_gap=1.123456,
-            cv=0.987654,
-            regularity_score=0.012346,
-        )
-        d = r.to_dict()
-        assert d["mean_gap_s"] == 1.12
-        assert d["cv"] == 0.9877
-        assert d["regularity_score"] == 0.0123
+    def test_mild(self):
+        bursts = [Burst("a", "b", 5, 6.0, "mild")]
+        assert classify_verdict(bursts) == "mild"
+
+    def test_bursting_with_severe(self):
+        bursts = [
+            Burst("a", "b", 5, 6.0, "mild"),
+            Burst("c", "d", 10, 1.0, "severe"),
+        ]
+        assert classify_verdict(bursts) == "bursting"
+
+    def test_all_mild_stays_mild(self):
+        bursts = [Burst("a", "b", 5, 6.0, "mild") for _ in range(3)]
+        assert classify_verdict(bursts) == "mild"
 
 
 # ---------------------------------------------------------------------------
-# BurstEvent / DroughtEvent dataclasses
+# build_report
 # ---------------------------------------------------------------------------
 
-class TestEvents:
-    def test_burst_event_fields(self):
-        e = BurstEvent(start_seq=10, count=5, span_seconds=4.0)
-        assert e.start_seq == 10
-        assert e.count == 5
-        assert e.span_seconds == 4.0
+class TestBuildReport:
+    def test_report_structure(self):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = _regular_times(base, 20, 15.0)
+        bursts = detect_bursts(times)
+        report = build_report(times, bursts, 15, 50.0)
+        assert isinstance(report, BurstReport)
+        assert report.total_strokes == 20
+        assert report.verdict == "clean"
 
-    def test_drought_event_fields(self):
-        e = DroughtEvent(after_seq=42, gap_seconds=600.0)
-        assert e.after_seq == 42
-        assert e.gap_seconds == 600.0
+    def test_burst_rate_calculation(self):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = _regular_times(base, 100, 15.0)
+        bursts = [Burst("a", "b", 5, 2.0, "severe")]
+        report = build_report(times, bursts, 15, 50.0)
+        assert report.burst_rate_per_1000 == 10.0
+
+    def test_worst_burst_selection(self):
+        bursts = [
+            Burst("a", "b", 5, 5.0, "mild"),
+            Burst("c", "d", 8, 1.0, "severe"),
+            Burst("e", "f", 4, 3.0, "mild"),
+        ]
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = _regular_times(base, 50, 15.0)
+        report = build_report(times, bursts, 15, 50.0)
+        assert report.worst_burst.mean_interval_s == 1.0
+
+    def test_empty_bursts_no_worst(self):
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = _regular_times(base, 10, 15.0)
+        report = build_report(times, [], 15, 50.0)
+        assert report.worst_burst is None
+        assert report.total_bursts == 0
+
+    def test_zero_strokes(self):
+        report = build_report([], [], 15, 50.0)
+        assert report.burst_rate_per_1000 == 0.0
+        assert report.verdict == "clean"
+
+
+# ---------------------------------------------------------------------------
+# integration: end-to-end via temp file
+# ---------------------------------------------------------------------------
+
+class TestIntegration:
+    def test_end_to_end_with_burst(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        regular = _regular_times(base, 10, 15.0)
+        burst = _burst_times(regular[-1] + timedelta(seconds=15), 6, 1.5)
+        more = _regular_times(burst[-1] + timedelta(seconds=30), 10, 15.0)
+        _make_strokes(regular + burst + more, p)
+        timestamps = load_strokes(p)
+        bursts = detect_bursts(timestamps, target_cadence_s=15, threshold_pct=50.0)
+        report = build_report(timestamps, bursts, 15, 50.0)
+        assert report.total_strokes == 26
+        assert report.total_bursts == 1
+        assert report.verdict == "bursting"
+
+    def test_end_to_end_clean(self, tmp_path):
+        p = tmp_path / "strokes.jsonl"
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = _regular_times(base, 30, 15.0)
+        _make_strokes(times, p)
+        timestamps = load_strokes(p)
+        bursts = detect_bursts(timestamps, target_cadence_s=15, threshold_pct=50.0)
+        report = build_report(timestamps, bursts, 15, 50.0)
+        assert report.total_bursts == 0
+        assert report.verdict == "clean"
+
+
+# ---------------------------------------------------------------------------
+# edge cases
+# ---------------------------------------------------------------------------
+
+class TestEdgeCases:
+    def test_exact_threshold_boundary(self):
+        """Intervals exactly at the threshold should NOT be flagged."""
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        # 50% of 15 = 7.5s threshold; use exactly 7.5s intervals
+        times = _burst_times(base, 5, 7.5)
+        bursts = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0)
+        assert bursts == []
+
+    def test_just_below_threshold(self):
+        """Intervals just below the threshold should be flagged."""
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = _burst_times(base, 5, 7.4)
+        bursts = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0)
+        assert len(bursts) == 1
+
+    def test_large_gap_between_strokes(self):
+        """Very large gaps should never be flagged as bursts."""
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        times = [base + timedelta(hours=i) for i in range(10)]
+        bursts = detect_bursts(times, target_cadence_s=15, threshold_pct=50.0)
+        assert bursts == []
