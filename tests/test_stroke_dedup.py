@@ -11,14 +11,20 @@ sys.path.insert(0, str(REPO))
 
 from iamai.stroke_dedup import (
     DupPair,
+    ExhaustionReport,
     _normalize,
     _tokenize,
+    _longest_consecutive_run,
+    _shannon_entropy_bits,
+    analyse_recent_strokes,
     dedup_ratio,
+    detect_exhaustion,
     fingerprint,
     find_consecutive_repeats,
     is_near_dup,
     jaccard_similarity,
     scan_duplicates,
+    structural_fingerprint,
 )
 
 
@@ -378,3 +384,266 @@ class TestIntegration:
         ]
         fps = [fingerprint(v) for v in variants]
         assert len(set(fps)) == 1
+
+
+# ---------------------------------------------------------------------------
+# structural_fingerprint (added visit 780)
+# ---------------------------------------------------------------------------
+
+
+class TestStructuralFingerprint:
+    def test_replaces_integers(self):
+        assert structural_fingerprint("tree is 2591 files") == "tree is N files"
+
+    def test_replaces_timestamps(self):
+        fp = structural_fingerprint("at 2026-11-21T19:08:02+00:00 something")
+        assert "T" in fp
+        assert "2026" not in fp
+
+    def test_replaces_hex_hashes(self):
+        fp = structural_fingerprint("commit cf98252 landed")
+        assert "H" in fp
+        assert "cf98252" not in fp
+
+    def test_lowercases(self):
+        assert structural_fingerprint("Hello World") == "hello world"
+
+    def test_collapses_whitespace(self):
+        assert structural_fingerprint("too   much   space") == "too much space"
+
+    def test_empty_string(self):
+        assert structural_fingerprint("") == ""
+
+    def test_template_instances_same_skeleton(self):
+        a = "tree is 2591 files; 667831 lines is a lot for a toy"
+        b = "tree is 2592 files; 667850 lines is a lot for a toy"
+        assert structural_fingerprint(a) == structural_fingerprint(b)
+
+    def test_different_templates_different_skeleton(self):
+        a = "tree is 2591 files; 667831 lines is a lot for a toy"
+        b = "ten minutes is long enough to be honest"
+        assert structural_fingerprint(a) != structural_fingerprint(b)
+
+    def test_pid_number_replaced(self):
+        fp = structural_fingerprint("writer pid 6703 restarted")
+        assert "N" in fp
+        assert "6703" not in fp
+
+    def test_iso_date_with_z(self):
+        fp = structural_fingerprint("logged at 2026-01-15T10:30:00Z done")
+        assert "T" in fp
+        assert "2026" not in fp
+
+
+# ---------------------------------------------------------------------------
+# _longest_consecutive_run
+# ---------------------------------------------------------------------------
+
+
+class TestLongestConsecutiveRun:
+    def test_empty(self):
+        assert _longest_consecutive_run([]) == 0
+
+    def test_single(self):
+        assert _longest_consecutive_run(["a"]) == 1
+
+    def test_all_same(self):
+        assert _longest_consecutive_run(["a", "a", "a"]) == 3
+
+    def test_all_different(self):
+        assert _longest_consecutive_run(["a", "b", "c"]) == 1
+
+    def test_run_in_middle(self):
+        assert _longest_consecutive_run(["a", "b", "b", "b", "c"]) == 3
+
+    def test_two_runs_picks_longer(self):
+        assert _longest_consecutive_run(["a", "a", "b", "b", "b"]) == 3
+
+    def test_tail_run(self):
+        assert _longest_consecutive_run(["a", "b", "c", "c", "c", "c"]) == 4
+
+
+# ---------------------------------------------------------------------------
+# _shannon_entropy_bits
+# ---------------------------------------------------------------------------
+
+
+class TestShannonEntropyBits:
+    def test_empty(self):
+        from collections import Counter
+        assert _shannon_entropy_bits(Counter()) == 0.0
+
+    def test_single_category(self):
+        from collections import Counter
+        assert _shannon_entropy_bits(Counter({"a": 10})) == 0.0
+
+    def test_uniform_two(self):
+        from collections import Counter
+        ent = _shannon_entropy_bits(Counter({"a": 50, "b": 50}))
+        assert abs(ent - 1.0) < 1e-9
+
+    def test_skewed_is_low(self):
+        from collections import Counter
+        ent = _shannon_entropy_bits(Counter({"a": 99, "b": 1}))
+        assert 0.0 < ent < 0.2
+
+    def test_more_categories_higher_entropy(self):
+        from collections import Counter
+        low = _shannon_entropy_bits(Counter({"a": 90, "b": 10}))
+        high = _shannon_entropy_bits(Counter({"a": 25, "b": 25, "c": 25, "d": 25}))
+        assert high > low
+
+
+# ---------------------------------------------------------------------------
+# detect_exhaustion
+# ---------------------------------------------------------------------------
+
+
+class TestDetectExhaustion:
+    def test_empty(self):
+        report = detect_exhaustion([])
+        assert report.window_size == 0
+        assert report.verdict == "fresh"
+        assert report.exhaustion_score == 0.0
+
+    def test_identical_templates_exhausted(self):
+        strokes = [
+            "tree is 2591 files; 667831 lines is a lot for a toy",
+            "tree is 2592 files; 667850 lines is a lot for a toy",
+            "tree is 2593 files; 667900 lines is a lot for a toy",
+            "tree is 2594 files; 668000 lines is a lot for a toy",
+            "tree is 2595 files; 668100 lines is a lot for a toy",
+        ]
+        report = detect_exhaustion(strokes)
+        assert report.exhaustion_score >= 0.7
+        assert report.verdict == "exhausted"
+        assert report.unique_ratio < 0.5
+        assert report.longest_run == 5
+
+    def test_diverse_strokes_fresh_or_varied(self):
+        strokes = [
+            "the morning light catches dust on the monitor",
+            "git blame is archaeology for the impatient",
+            "every config flag is a promise someone broke",
+            "sleep is a dependency the writer process cannot resolve",
+            "the test suite passed but the code is still wrong",
+            "semicolons are the commas of a language that forgot how to breathe",
+            "a segfault is the universe saying try again",
+            "refactoring is just procrastination with a diff tool",
+        ]
+        report = detect_exhaustion(strokes)
+        assert report.exhaustion_score < 0.4
+        assert report.unique_ratio == 1.0
+        assert report.verdict in ("fresh", "varied")
+
+    def test_mixed_repetitive(self):
+        strokes = [
+            "tree is 100 files; 5000 lines is a lot for a toy",
+            "git blame is archaeology for the impatient",
+            "tree is 101 files; 5010 lines is a lot for a toy",
+            "every config flag is a promise someone broke",
+            "tree is 102 files; 5020 lines is a lot for a toy",
+            "sleep is a dependency the writer process cannot resolve",
+            "tree is 103 files; 5030 lines is a lot for a toy",
+            "the test suite passed but the code is still wrong",
+        ]
+        report = detect_exhaustion(strokes)
+        assert 0.0 < report.exhaustion_score < 1.0
+        assert report.unique_ratio > 0.5
+
+    def test_window_size_matches_input(self):
+        strokes = ["hello world"] * 10
+        report = detect_exhaustion(strokes)
+        assert report.window_size == 10
+
+    def test_top_templates_populated(self):
+        strokes = [
+            "tree is 100 files; 5000 lines is a lot for a toy",
+            "tree is 101 files; 5010 lines is a lot for a toy",
+            "ten minutes is long enough to be honest",
+            "tree is 102 files; 5020 lines is a lot for a toy",
+        ]
+        report = detect_exhaustion(strokes, top_n=2)
+        assert len(report.top_templates) == 2
+        assert report.top_templates[0][1] >= report.top_templates[1][1]
+
+    def test_entropy_zero_for_identical(self):
+        strokes = ["same thing"] * 10
+        report = detect_exhaustion(strokes)
+        assert report.entropy == 0.0
+
+    def test_custom_thresholds(self):
+        strokes = ["tree is 100 files"] * 3 + ["unique thought here"] * 7
+        report_strict = detect_exhaustion(strokes, exhaustion_threshold=0.9)
+        report_loose = detect_exhaustion(strokes, exhaustion_threshold=0.1)
+        assert report_loose.exhaustion_score == report_strict.exhaustion_score
+
+    def test_single_stroke(self):
+        report = detect_exhaustion(["just one stroke"])
+        assert report.window_size == 1
+        assert report.unique_ratio == 1.0
+        assert report.longest_run == 1
+
+
+# ---------------------------------------------------------------------------
+# analyse_recent_strokes
+# ---------------------------------------------------------------------------
+
+
+class TestAnalyseRecentStrokes:
+    def test_missing_file_returns_fresh(self, tmp_path):
+        report = analyse_recent_strokes(
+            strokes_path=str(tmp_path / "nonexistent.jsonl"),
+            window=10,
+        )
+        assert report.verdict == "fresh"
+        assert report.window_size == 0
+
+    def test_reads_jsonl_and_analyses(self, tmp_path):
+        import json
+        lines = [
+            json.dumps({"seq": i, "text": f"tree is {100+i} files; {5000+i} lines is a lot"})
+            for i in range(10)
+        ]
+        path = tmp_path / "strokes.jsonl"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+        report = analyse_recent_strokes(strokes_path=str(path), window=50)
+        assert report.window_size == 10
+        assert report.exhaustion_score > 0.5
+        assert report.verdict == "exhausted"
+
+    def test_window_limits_tail(self, tmp_path):
+        import json
+        lines = [
+            json.dumps({"seq": i, "text": f"unique thought number {i} about life"})
+            for i in range(100)
+        ]
+        path = tmp_path / "strokes.jsonl"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+        report = analyse_recent_strokes(strokes_path=str(path), window=20)
+        assert report.window_size == 20
+
+    def test_skips_malformed_lines(self, tmp_path):
+        import json
+        lines = [
+            json.dumps({"seq": 1, "text": "good stroke one"}),
+            "this is not json",
+            json.dumps({"seq": 3, "text": "good stroke three"}),
+            json.dumps({"seq": 4}),  # no "text" key
+            json.dumps({"seq": 5, "text": "good stroke five"}),
+        ]
+        path = tmp_path / "strokes.jsonl"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+        report = analyse_recent_strokes(strokes_path=str(path), window=50)
+        assert report.window_size == 3
+
+    def test_empty_file(self, tmp_path):
+        path = tmp_path / "strokes.jsonl"
+        path.write_text("", encoding="utf-8")
+
+        report = analyse_recent_strokes(strokes_path=str(path), window=10)
+        assert report.window_size == 0
+        assert report.verdict == "fresh"

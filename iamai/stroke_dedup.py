@@ -48,10 +48,14 @@ Usage::
 from __future__ import annotations
 
 import hashlib
+import json
+import math
 import re
 import string
-from dataclasses import dataclass
-from typing import Any
+from collections import Counter
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, List, Sequence, Tuple
 
 
 # ---------------------------------------------------------------------------
@@ -279,3 +283,185 @@ def find_consecutive_repeats(
         runs.append(current_run)
 
     return runs
+
+
+# ===========================================================================
+# Structural template exhaustion detector (added visit 780)
+# ===========================================================================
+#
+# The Jaccard approach above detects near-duplicate *text*.  But a writer
+# on a template treadmill produces text that is structurally identical —
+# "tree is 2591 files; 667831 lines is a lot for a toy" vs the same
+# sentence with 2592 and 667850 — while the token sets differ enough that
+# Jaccard scores them below threshold.
+#
+# The structural approach erases variable parts (numbers, hashes,
+# timestamps) and compares the remaining skeleton.  Two strokes that
+# share a skeleton are template instances, not independent thoughts.
+#
+# Public API additions:
+#   structural_fingerprint(text) -> str
+#   detect_exhaustion(strokes, ...) -> ExhaustionReport
+#   analyse_recent_strokes(path, window, ...) -> ExhaustionReport
+# ===========================================================================
+
+
+@dataclass(frozen=True)
+class ExhaustionReport:
+    """Snapshot of template exhaustion over a window of strokes."""
+
+    exhaustion_score: float          # 0.0–1.0 (1.0 = completely exhausted)
+    unique_ratio: float              # distinct skeletons / total strokes
+    longest_run: int                 # longest consecutive same-skeleton run
+    entropy: float                   # Shannon entropy in bits
+    verdict: str                     # exhausted | repetitive | varied | fresh
+    window_size: int                 # number of strokes analysed
+    top_templates: List[Tuple[str, int]] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Structural fingerprinting
+# ---------------------------------------------------------------------------
+
+_TS_RE = re.compile(
+    r"\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:[Zz]|[+-]\d{2}:?\d{2})?"
+)
+_HEX_RE = re.compile(r"\b[0-9a-f]{6,40}\b")
+_INT_RE = re.compile(r"\d+")
+_SPACE_RE = re.compile(r"\s+")
+
+
+def structural_fingerprint(text: str) -> str:
+    """Erase variable parts (numbers, hashes, timestamps) to expose the
+    structural template.  Unlike ``fingerprint()`` above, this does *not*
+    strip punctuation or hash the result — the output is a human-readable
+    skeleton useful for grouping template instances.
+    """
+    s = text.lower()
+    s = _TS_RE.sub("T", s)
+    s = _HEX_RE.sub("H", s)
+    s = _INT_RE.sub("N", s)
+    s = _SPACE_RE.sub(" ", s).strip()
+    return s
+
+
+# ---------------------------------------------------------------------------
+# Exhaustion analysis
+# ---------------------------------------------------------------------------
+
+def _longest_consecutive_run(items: Sequence[str]) -> int:
+    """Return the length of the longest run of identical consecutive items."""
+    if not items:
+        return 0
+    best = 1
+    current = 1
+    for i in range(1, len(items)):
+        if items[i] == items[i - 1]:
+            current += 1
+            best = max(best, current)
+        else:
+            current = 1
+    return best
+
+
+def _shannon_entropy_bits(counts: Counter) -> float:
+    """Compute Shannon entropy in bits from a Counter."""
+    total = sum(counts.values())
+    if total == 0:
+        return 0.0
+    entropy = 0.0
+    for c in counts.values():
+        if c > 0:
+            p = c / total
+            entropy -= p * math.log2(p)
+    return entropy
+
+
+def detect_exhaustion(
+    strokes: Sequence[str],
+    *,
+    top_n: int = 3,
+    exhaustion_threshold: float = 0.7,
+    repetitive_threshold: float = 0.4,
+) -> ExhaustionReport:
+    """Analyse a window of stroke *texts* for template exhaustion.
+
+    Unlike ``dedup_ratio`` (which uses Jaccard to find near-duplicate pairs),
+    this function computes a composite exhaustion score from two signals:
+
+    - **coverage** (60% weight): fraction of the window dominated by the
+      top-N structural templates.
+    - **run pressure** (40% weight): longest consecutive run of the same
+      template, normalised against window size.
+
+    Returns an ``ExhaustionReport`` with score, verdict, and diagnostics.
+    """
+    if not strokes:
+        return ExhaustionReport(
+            exhaustion_score=0.0, unique_ratio=0.0, longest_run=0,
+            entropy=0.0, verdict="fresh", window_size=0,
+        )
+
+    skeletons = [structural_fingerprint(s) for s in strokes]
+    counts = Counter(skeletons)
+    n = len(skeletons)
+    unique = len(counts)
+
+    top = counts.most_common(top_n)
+    top_coverage = sum(c for _, c in top) / n
+
+    longest = _longest_consecutive_run(skeletons)
+    run_pressure = min(1.0, longest / max(n, 1))
+
+    exhaustion_score = round(0.6 * top_coverage + 0.4 * run_pressure, 4)
+    entropy = round(_shannon_entropy_bits(counts), 4)
+
+    if exhaustion_score >= exhaustion_threshold:
+        verdict = "exhausted"
+    elif exhaustion_score >= repetitive_threshold:
+        verdict = "repetitive"
+    elif exhaustion_score >= 0.2:
+        verdict = "varied"
+    else:
+        verdict = "fresh"
+
+    return ExhaustionReport(
+        exhaustion_score=exhaustion_score,
+        unique_ratio=round(unique / n, 4),
+        longest_run=longest,
+        entropy=entropy,
+        verdict=verdict,
+        window_size=n,
+        top_templates=[(fp, c) for fp, c in top],
+    )
+
+
+def analyse_recent_strokes(
+    strokes_path: str = "data/strokes.jsonl",
+    window: int = 50,
+    **kwargs,
+) -> ExhaustionReport:
+    """Read the last *window* strokes from a JSONL file and analyse them.
+
+    Each line must be a JSON object with a ``"text"`` field.  Convenience
+    wrapper around ``detect_exhaustion``.
+    """
+    path = Path(strokes_path)
+    if not path.exists():
+        return ExhaustionReport(
+            exhaustion_score=0.0, unique_ratio=0.0, longest_run=0,
+            entropy=0.0, verdict="fresh", window_size=0,
+        )
+
+    lines = path.read_text(encoding="utf-8").strip().splitlines()
+    tail = lines[-window:] if len(lines) > window else lines
+    texts = []
+    for line in tail:
+        try:
+            obj = json.loads(line)
+            if "text" in obj:
+                texts.append(obj["text"])
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+    return detect_exhaustion(texts, **kwargs)
