@@ -1,379 +1,380 @@
-"""Tests for iamai.stroke_dedup — near-duplicate stroke detection.
+#!/usr/bin/env python3
+"""Tests for stroke_dedup.py — duplicate stroke detection."""
 
-covers:
-  - tokenize: stopword removal, number stripping, lowercasing, min length
-  - jaccard: normal, empty sets, identical sets, disjoint sets
-  - StrokeFingerprint.from_text: token set and hash
-  - StrokeDedup.check: exact match, near-duplicate, unique, empty window
-  - StrokeDedup.record: adds to window without checking
-  - StrokeDedup.check_and_record: records only non-duplicates
-  - StrokeDedup.clear: resets window
-  - Sliding window: eviction when maxlen exceeded
-  - Threshold tuning: low threshold catches more, high threshold fewer
-  - Real-world examples from reading.md duplicates
-"""
+import sys
+from pathlib import Path
 
 import pytest
 
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
+
 from iamai.stroke_dedup import (
-    STOPWORDS,
-    DEFAULT_THRESHOLD,
-    DEFAULT_WINDOW,
-    tokenize,
-    jaccard,
-    StrokeFingerprint,
-    DedupResult,
-    StrokeDedup,
+    DupPair,
+    _normalize,
+    _tokenize,
+    dedup_ratio,
+    fingerprint,
+    find_consecutive_repeats,
+    is_near_dup,
+    jaccard_similarity,
+    scan_duplicates,
 )
 
 
-# ─── tokenize ───────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
+def _stroke(text: str, seq: int = 0) -> dict:
+    return {"seq": seq, "text": text, "kind": "thought", "at": "2026-11-21T12:00:00Z"}
+
+
+def _strokes(texts: list[str]) -> list[dict]:
+    return [_stroke(t, i) for i, t in enumerate(texts)]
+
+
+# ---------------------------------------------------------------------------
+# _normalize
+# ---------------------------------------------------------------------------
+
+class TestNormalize:
+    def test_lowercase(self):
+        assert _normalize("Hello WORLD") == "hello world"
+
+    def test_strip_punctuation(self):
+        assert _normalize("hello, world!") == "hello world"
+
+    def test_collapse_whitespace(self):
+        assert _normalize("hello   \n  world") == "hello world"
+
+    def test_empty(self):
+        assert _normalize("") == ""
+
+    def test_only_punctuation(self):
+        assert _normalize("!!!???") == ""
+
+    def test_unicode_preserved(self):
+        result = _normalize("café résumé")
+        assert "café" in result
+        assert "résumé" in result
+
+    def test_numbers_preserved(self):
+        assert _normalize("test 123 abc") == "test 123 abc"
+
+
+# ---------------------------------------------------------------------------
+# fingerprint
+# ---------------------------------------------------------------------------
+
+class TestFingerprint:
+    def test_identical_texts_same_fp(self):
+        assert fingerprint("hello world") == fingerprint("hello world")
+
+    def test_case_insensitive(self):
+        assert fingerprint("Hello World") == fingerprint("hello world")
+
+    def test_punctuation_insensitive(self):
+        assert fingerprint("hello, world!") == fingerprint("hello world")
+
+    def test_whitespace_insensitive(self):
+        assert fingerprint("hello   world") == fingerprint("hello world")
+
+    def test_different_texts_different_fp(self):
+        assert fingerprint("hello") != fingerprint("world")
+
+    def test_returns_hex_string(self):
+        fp = fingerprint("test")
+        assert len(fp) == 16
+        assert all(c in "0123456789abcdef" for c in fp)
+
+    def test_empty_string(self):
+        fp = fingerprint("")
+        assert len(fp) == 16
+
+
+# ---------------------------------------------------------------------------
+# _tokenize
+# ---------------------------------------------------------------------------
 
 class TestTokenize:
-    def test_basic_split(self):
-        tokens = tokenize("hello world")
-        assert "hello" in tokens
-        assert "world" in tokens
+    def test_basic(self):
+        tokens = _tokenize("hello world")
+        assert tokens == {"hello", "world"}
 
-    def test_lowercases(self):
-        tokens = tokenize("HELLO World FoO")
+    def test_case_insensitive(self):
+        assert _tokenize("Hello WORLD") == {"hello", "world"}
+
+    def test_numbers(self):
+        assert _tokenize("test 123") == {"test", "123"}
+
+    def test_punctuation_splits(self):
+        tokens = _tokenize("hello, world! foo-bar")
         assert "hello" in tokens
         assert "world" in tokens
         assert "foo" in tokens
+        assert "bar" in tokens
 
-    def test_strips_stopwords(self):
-        tokens = tokenize("this is a test of the system")
-        assert "this" not in tokens
-        assert "is" not in tokens
-        assert "a" not in tokens
-        assert "the" not in tokens
-        assert "test" in tokens
-        assert "system" in tokens
-
-    def test_strips_bare_numbers(self):
-        tokens = tokenize("tree is 2380 files and 608917 lines")
-        assert "2380" not in tokens
-        assert "608917" not in tokens
-        assert "tree" in tokens
-        assert "files" in tokens
-        assert "lines" in tokens
-
-    def test_strips_short_tokens(self):
-        tokens = tokenize("a i go to the park")
-        # "a" and "i" are either stopwords or < 2 chars
-        assert "go" in tokens
-        assert "park" in tokens
-
-    def test_punctuation_boundary(self):
-        tokens = tokenize("automation fails quietly, so the log speaks.")
-        assert "automation" in tokens
-        assert "fails" in tokens
-        assert "quietly" in tokens
-        assert "log" in tokens
-        assert "speaks" in tokens
-
-    def test_empty_string(self):
-        assert tokenize("") == frozenset()
-
-    def test_only_numbers_and_stopwords(self):
-        tokens = tokenize("it is 42 a 100")
-        assert tokens == frozenset()
-
-    def test_contractions_preserved(self):
-        # "don't" is kept as a single token (apostrophe included in pattern)
-        tokens = tokenize("don't stop")
-        assert "don't" in tokens
-        assert "stop" in tokens
-
-    def test_returns_frozenset(self):
-        result = tokenize("hello world")
-        assert isinstance(result, frozenset)
+    def test_empty(self):
+        assert _tokenize("") == set()
 
 
-# ─── jaccard ────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# jaccard_similarity
+# ---------------------------------------------------------------------------
 
+class TestJaccardSimilarity:
+    def test_identical(self):
+        assert jaccard_similarity("hello world", "hello world") == 1.0
 
-class TestJaccard:
-    def test_identical_sets(self):
-        s = frozenset({"a", "b", "c"})
-        assert jaccard(s, s) == 1.0
-
-    def test_disjoint_sets(self):
-        a = frozenset({"x", "y"})
-        b = frozenset({"p", "q"})
-        assert jaccard(a, b) == 0.0
+    def test_completely_different(self):
+        assert jaccard_similarity("abc def", "xyz uvw") == 0.0
 
     def test_partial_overlap(self):
-        a = frozenset({"a", "b", "c", "d"})
-        b = frozenset({"c", "d", "e", "f"})
-        # intersection=2, union=6 → 2/6 ≈ 0.333
-        assert abs(jaccard(a, b) - 2 / 6) < 1e-9
-
-    def test_both_empty(self):
-        assert jaccard(frozenset(), frozenset()) == 0.0
-
-    def test_one_empty(self):
-        a = frozenset({"hello", "world"})
-        assert jaccard(a, frozenset()) == 0.0
-        assert jaccard(frozenset(), a) == 0.0
+        # tokens_a = {a, b, c}, tokens_b = {b, c, d}
+        # intersection = 2, union = 4
+        sim = jaccard_similarity("a b c", "b c d")
+        assert abs(sim - 0.5) < 1e-9
 
     def test_subset(self):
-        a = frozenset({"a", "b"})
-        b = frozenset({"a", "b", "c", "d"})
-        # intersection=2, union=4 → 0.5
-        assert jaccard(a, b) == 0.5
+        # tokens_a = {a, b}, tokens_b = {a, b, c}
+        # intersection = 2, union = 3
+        sim = jaccard_similarity("a b", "a b c")
+        assert abs(sim - 2 / 3) < 1e-9
 
-    def test_symmetry(self):
-        a = frozenset({"alpha", "beta"})
-        b = frozenset({"beta", "gamma", "delta"})
-        assert jaccard(a, b) == jaccard(b, a)
+    def test_both_empty(self):
+        assert jaccard_similarity("", "") == 1.0
 
+    def test_one_empty(self):
+        assert jaccard_similarity("hello", "") == 0.0
 
-# ─── StrokeFingerprint ─────────────────────────────────────────────
-
-
-class TestStrokeFingerprint:
-    def test_from_text_tokens(self):
-        fp = StrokeFingerprint.from_text("automation fails quietly")
-        assert "automation" in fp.tokens
-        assert "fails" in fp.tokens
-        assert "quietly" in fp.tokens
-
-    def test_from_text_hash(self):
-        fp1 = StrokeFingerprint.from_text("hello world")
-        fp2 = StrokeFingerprint.from_text("hello world")
-        assert fp1.text_hash == fp2.text_hash
-
-    def test_different_text_different_hash(self):
-        fp1 = StrokeFingerprint.from_text("hello world")
-        fp2 = StrokeFingerprint.from_text("goodbye world")
-        assert fp1.text_hash != fp2.text_hash
-
-    def test_frozen(self):
-        fp = StrokeFingerprint.from_text("test")
-        with pytest.raises(AttributeError):
-            fp.tokens = frozenset()  # type: ignore[misc]
-
-    def test_hash_length(self):
-        fp = StrokeFingerprint.from_text("some text here")
-        assert len(fp.text_hash) == 16  # truncated sha256 hex
+    def test_symmetric(self):
+        sim_ab = jaccard_similarity("hello world foo", "world foo bar")
+        sim_ba = jaccard_similarity("world foo bar", "hello world foo")
+        assert sim_ab == sim_ba
 
 
-# ─── StrokeDedup — basic operations ────────────────────────────────
+# ---------------------------------------------------------------------------
+# is_near_dup
+# ---------------------------------------------------------------------------
+
+class TestIsNearDup:
+    def test_exact_match(self):
+        assert is_near_dup("hello world", "hello world") is True
+
+    def test_high_overlap(self):
+        a = "the quick brown fox jumps over the lazy dog today"
+        b = "the quick brown fox leaps over the lazy dog today"
+        # tokens: 9 vs 9, intersection 8, union 10 → J=0.8
+        assert is_near_dup(a, b, threshold=0.80) is True
+
+    def test_low_overlap(self):
+        assert is_near_dup("hello", "world", threshold=0.85) is False
+
+    def test_custom_threshold(self):
+        a = "alpha beta gamma"
+        b = "alpha beta delta"
+        # tokens: {alpha, beta, gamma} vs {alpha, beta, delta}
+        # J = 2/4 = 0.5
+        assert is_near_dup(a, b, threshold=0.4) is True
+        assert is_near_dup(a, b, threshold=0.6) is False
 
 
-class TestStrokeDedupBasic:
-    def test_empty_window_not_duplicate(self):
-        d = StrokeDedup()
-        result = d.check("hello world")
-        assert not result.is_duplicate
-        assert result.match_index == -1
-        assert "empty window" in result.reason
+# ---------------------------------------------------------------------------
+# scan_duplicates
+# ---------------------------------------------------------------------------
 
-    def test_exact_duplicate_detected(self):
-        d = StrokeDedup()
-        text = "naming is hard because a bad name is cheap to type"
-        d.record(text)
-        result = d.check(text)
-        assert result.is_duplicate
-        assert result.similarity == 1.0
-        assert "exact" in result.reason
+class TestScanDuplicates:
+    def test_empty(self):
+        assert scan_duplicates([]) == []
 
-    def test_near_duplicate_detected(self):
-        d = StrokeDedup(threshold=0.6)
-        d.record("the useful abstraction deletes a branch not adds a class")
-        # Same words minus one — should still match above 0.6
-        result = d.check("useful abstraction deletes branch not adds class")
-        assert result.is_duplicate
-        assert result.similarity >= 0.6
+    def test_single(self):
+        assert scan_duplicates(_strokes(["hello"])) == []
 
-    def test_unique_text_not_flagged(self):
-        d = StrokeDedup()
-        d.record("automation fails quietly so the log has to say something")
-        result = d.check("deleting a file is progress too eventually")
-        assert not result.is_duplicate
+    def test_exact_dups(self):
+        strokes = _strokes(["hello world", "foo bar", "hello world"])
+        pairs = scan_duplicates(strokes)
+        assert len(pairs) == 1
+        assert pairs[0].index_a == 0
+        assert pairs[0].index_b == 2
+        assert pairs[0].similarity == 1.0
 
-    def test_record_increases_size(self):
-        d = StrokeDedup()
-        assert d.size == 0
-        d.record("first stroke")
-        assert d.size == 1
-        d.record("second stroke")
-        assert d.size == 2
+    def test_near_dups(self):
+        a = "the quick brown fox jumps over the lazy dog today"
+        b = "the quick brown fox leaps over the lazy dog today"
+        strokes = _strokes([a, "something else entirely", b])
+        pairs = scan_duplicates(strokes, threshold=0.80)
+        assert len(pairs) >= 1
 
-    def test_clear(self):
-        d = StrokeDedup()
-        d.record("one")
-        d.record("two")
-        assert d.size == 2
-        d.clear()
-        assert d.size == 0
+    def test_window_limits_comparison(self):
+        # With window=1, only adjacent pairs are compared
+        strokes = _strokes(["hello", "world", "hello"])
+        pairs = scan_duplicates(strokes, window=1)
+        # index 0 vs 1 (no match), index 1 vs 2 (no match)
+        # index 0 vs 2 is outside window
+        assert all(p.index_b - p.index_a <= 1 for p in pairs)
 
+    def test_window_allows_adjacent(self):
+        strokes = _strokes(["hello", "hello"])
+        pairs = scan_duplicates(strokes, window=1)
+        assert len(pairs) == 1
 
-# ─── check_and_record ───────────────────────────────────────────────
+    def test_custom_text_field(self):
+        strokes = [{"content": "hello"}, {"content": "hello"}]
+        pairs = scan_duplicates(strokes, text_field="content")
+        assert len(pairs) == 1
 
+    def test_sorted_output(self):
+        strokes = _strokes(["aaa", "aaa", "aaa"])
+        pairs = scan_duplicates(strokes)
+        for i in range(len(pairs) - 1):
+            assert (pairs[i].index_a, pairs[i].index_b) <= (pairs[i + 1].index_a, pairs[i + 1].index_b)
 
-class TestCheckAndRecord:
-    def test_records_unique(self):
-        d = StrokeDedup()
-        result = d.check_and_record("unique thought number one")
-        assert not result.is_duplicate
-        assert d.size == 1
-
-    def test_skips_duplicate(self):
-        d = StrokeDedup()
-        d.check_and_record("repeated thought about naming")
-        result = d.check_and_record("repeated thought about naming")
-        assert result.is_duplicate
-        # Should NOT have been added again.
-        assert d.size == 1
-
-    def test_sequence(self):
-        d = StrokeDedup()
-        d.check_and_record("alpha beta gamma")
-        d.check_and_record("delta epsilon zeta")
-        d.check_and_record("alpha beta gamma")  # dup
-        d.check_and_record("eta theta iota")
-        assert d.size == 3
-
-
-# ─── sliding window ────────────────────────────────────────────────
-
-
-class TestSlidingWindow:
-    def test_evicts_oldest(self):
-        d = StrokeDedup(window=3)
-        d.record("first")
-        d.record("second")
-        d.record("third")
-        assert d.size == 3
-        d.record("fourth")  # evicts "first"
-        assert d.size == 3
-        # "first" was evicted, so it should no longer be a duplicate
-        # (unless its tokens happen to overlap with remaining entries)
-        # We check that size is capped, which is the key invariant.
-
-    def test_window_max_property(self):
-        d = StrokeDedup(window=5)
-        assert d.window_max == 5
-
-    def test_window_min_is_one(self):
-        d = StrokeDedup(window=0)
-        assert d.window_max == 1
-
-
-# ─── threshold tuning ──────────────────────────────────────────────
-
-
-class TestThreshold:
-    def test_low_threshold_catches_more(self):
-        d = StrokeDedup(threshold=0.3)
-        d.record("the quick brown fox jumps over the lazy dog")
-        # Partial overlap: shares "quick", "brown", "fox"
-        result = d.check("quick brown fox runs through the forest")
-        # With threshold 0.3 this might or might not match depending
-        # on exact token overlap; we just verify the threshold is used.
-        assert isinstance(result.is_duplicate, bool)
-
-    def test_high_threshold_stricter(self):
-        d = StrokeDedup(threshold=0.95)
-        d.record("naming is hard because a bad name is cheap to type")
-        # Slightly different text — should NOT match at 0.95
-        result = d.check("naming is hard because bad name cheap type keep")
-        assert not result.is_duplicate
-
-    def test_threshold_property(self):
-        d = StrokeDedup(threshold=0.42)
-        assert d.threshold == 0.42
-
-
-# ─── DedupResult ────────────────────────────────────────────────────
-
-
-class TestDedupResult:
-    def test_str_duplicate(self):
-        r = DedupResult(is_duplicate=True, similarity=0.85, match_index=3, reason="test")
-        s = str(r)
-        assert "DUPLICATE" in s
-        assert "0.85" in s
-
-    def test_str_unique(self):
-        r = DedupResult(is_duplicate=False, similarity=0.2, match_index=1, reason="below")
-        s = str(r)
-        assert "unique" in s
-
-    def test_frozen(self):
-        r = DedupResult(is_duplicate=False, similarity=0.0, match_index=-1, reason="x")
-        with pytest.raises(AttributeError):
-            r.is_duplicate = True  # type: ignore[misc]
-
-
-# ─── real-world duplicates from reading.md ─────────────────────────
-
-
-class TestRealWorldDuplicates:
-    """Verify the detector catches actual duplicates observed in the repo."""
-
-    def test_line_count_variant(self):
-        d = StrokeDedup(threshold=0.6)
-        d.record(
-            "the useful abstraction deletes a branch, it does not add a class. "
-            "At this moment: tree is 2369 files; 601985 lines is a lot for a toy."
+    def test_dup_pair_summary(self):
+        pair = DupPair(
+            index_a=0, index_b=2, similarity=1.0,
+            fingerprint_a="abc", fingerprint_b="abc",
+            text_preview_a="hello", text_preview_b="hello",
         )
-        result = d.check(
-            "the useful abstraction deletes a branch, it does not add a class. "
-            "At this moment: tree is 2369 files; 601999 lines is a lot for a toy."
+        assert "exact" in pair.summary()
+
+    def test_dup_pair_near_summary(self):
+        pair = DupPair(
+            index_a=1, index_b=3, similarity=0.92,
+            fingerprint_a="abc", fingerprint_b="def",
+            text_preview_a="foo", text_preview_b="bar",
         )
-        assert result.is_duplicate, (
-            f"Expected near-duplicate, got sim={result.similarity:.2f}"
+        assert "near-dup" in pair.summary()
+
+    def test_dup_pair_to_dict(self):
+        pair = DupPair(
+            index_a=0, index_b=1, similarity=0.95,
+            fingerprint_a="fp_a", fingerprint_b="fp_b",
+            text_preview_a="preview_a", text_preview_b="preview_b",
         )
-
-    def test_stroke_number_variant(self):
-        d = StrokeDedup(threshold=0.6)
-        d.record(
-            "automation fails quietly, so the log has to say something "
-            "even when nothing happened."
-        )
-        result = d.check(
-            "automation fails quietly, so the log has to say something "
-            "even when nothing happened."
-        )
-        assert result.is_duplicate
-        assert result.similarity == 1.0
-
-    def test_different_aphorisms_not_flagged(self):
-        d = StrokeDedup(threshold=0.7)
-        d.record(
-            "naming is hard because a bad name is cheap to type "
-            "and expensive to keep."
-        )
-        result = d.check(
-            "deleting a file is progress too, eventually."
-        )
-        assert not result.is_duplicate
-
-    def test_commit_history_vs_deleting(self):
-        d = StrokeDedup(threshold=0.7)
-        d.record(
-            "commit history is the only honest documentation because "
-            "it cannot be backdated."
-        )
-        result = d.check(
-            "deleting a file is progress too, eventually."
-        )
-        assert not result.is_duplicate
+        d = pair.to_dict()
+        assert d["index_a"] == 0
+        assert d["index_b"] == 1
+        assert d["similarity"] == 0.95
+        assert "fingerprint_a" in d
+        assert "text_preview_b" in d
 
 
-# ─── constants sanity ──────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# dedup_ratio
+# ---------------------------------------------------------------------------
+
+class TestDedupRatio:
+    def test_empty(self):
+        assert dedup_ratio([]) == 0.0
+
+    def test_no_dups(self):
+        strokes = _strokes(["alpha one", "beta two", "gamma three", "delta four"])
+        assert dedup_ratio(strokes) == 0.0
+
+    def test_all_dups(self):
+        strokes = _strokes(["same text"] * 5)
+        ratio = dedup_ratio(strokes)
+        assert ratio == 1.0
+
+    def test_partial_dups(self):
+        strokes = _strokes(["hello", "hello", "world", "unique"])
+        ratio = dedup_ratio(strokes)
+        assert 0.0 < ratio < 1.0
 
 
-class TestConstants:
-    def test_stopwords_type(self):
-        assert isinstance(STOPWORDS, frozenset)
+# ---------------------------------------------------------------------------
+# find_consecutive_repeats
+# ---------------------------------------------------------------------------
 
-    def test_default_threshold_range(self):
-        assert 0.0 < DEFAULT_THRESHOLD <= 1.0
+class TestFindConsecutiveRepeats:
+    def test_empty(self):
+        assert find_consecutive_repeats([]) == []
 
-    def test_default_window_positive(self):
-        assert DEFAULT_WINDOW > 0
+    def test_too_short(self):
+        strokes = _strokes(["hello", "hello"])
+        assert find_consecutive_repeats(strokes, min_run=3) == []
+
+    def test_exact_run(self):
+        strokes = _strokes(["hello world", "hello world", "hello world"])
+        runs = find_consecutive_repeats(strokes, min_run=3)
+        assert len(runs) == 1
+        assert runs[0] == [0, 1, 2]
+
+    def test_no_run(self):
+        strokes = _strokes(["alpha", "beta", "gamma", "delta"])
+        runs = find_consecutive_repeats(strokes, min_run=3)
+        assert runs == []
+
+    def test_multiple_runs(self):
+        strokes = _strokes([
+            "aaa", "aaa", "aaa",  # run 1: indices 0,1,2
+            "xxx",                  # break
+            "bbb", "bbb", "bbb",   # run 2: indices 4,5,6
+        ])
+        runs = find_consecutive_repeats(strokes, min_run=3)
+        assert len(runs) == 2
+
+    def test_min_run_filter(self):
+        strokes = _strokes(["aaa", "aaa", "bbb", "bbb", "bbb"])
+        runs_2 = find_consecutive_repeats(strokes, min_run=2)
+        runs_3 = find_consecutive_repeats(strokes, min_run=3)
+        assert len(runs_2) >= len(runs_3)
+
+    def test_long_run(self):
+        strokes = _strokes(["repeat me"] * 10)
+        runs = find_consecutive_repeats(strokes, min_run=3)
+        assert len(runs) == 1
+        assert len(runs[0]) == 10
+
+    def test_custom_threshold(self):
+        strokes = _strokes([
+            "the quick brown fox",
+            "the quick brown dog",  # 3/5 = 0.6 similar
+            "the quick brown cat",  # similar to above
+        ])
+        # With high threshold, no run
+        runs_high = find_consecutive_repeats(strokes, min_run=3, threshold=0.9)
+        # With low threshold, possible run
+        runs_low = find_consecutive_repeats(strokes, min_run=3, threshold=0.5)
+        assert len(runs_high) <= len(runs_low)
+
+
+# ---------------------------------------------------------------------------
+# Integration: realistic stroke patterns
+# ---------------------------------------------------------------------------
+
+class TestIntegration:
+    def test_repeating_module_pattern(self):
+        """Simulate the retry.py/chunk_text.py/parse_kv.py repetition pattern."""
+        template = "{module} is already in the pool of 9 modules, nothing new to add there"
+        modules = ["retry.py", "chunk_text.py", "parse_kv.py"]
+        texts = [template.format(module=m) for m in modules] * 5  # 15 strokes
+        strokes = _strokes(texts)
+        pairs = scan_duplicates(strokes, window=10, threshold=0.80)
+        assert len(pairs) > 0
+
+    def test_healthy_unique_strokes(self):
+        """Simulate a healthy writer producing diverse content."""
+        texts = [
+            "automation fails quietly so the log has to say something",
+            "deleting a file is progress too eventually",
+            "most architecture is choosing which coupling you will live with",
+            "the useful abstraction deletes a branch it does not add a class",
+            "a repo that only accumulates is a landfill with a readme",
+        ]
+        strokes = _strokes(texts)
+        pairs = scan_duplicates(strokes, threshold=0.85)
+        assert len(pairs) == 0
+
+    def test_fingerprint_stability_across_normalization(self):
+        """Whitespace, case, punctuation changes should not alter fingerprint."""
+        base = "Hello, World! This is a test."
+        variants = [
+            "hello world this is a test",
+            "HELLO, WORLD! THIS IS A TEST.",
+            "  hello,   world!  this   is a test.  ",
+            "Hello, World! This is a test.",
+        ]
+        fps = [fingerprint(v) for v in variants]
+        assert len(set(fps)) == 1
