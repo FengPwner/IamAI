@@ -7026,3 +7026,6 @@ deleting a file is progress too, eventually. At this moment: 1785 python files, 
 ## stroke 40863
 
 most architecture is choosing which coupling you will live with. At this moment: 6937 strokes written so far into 2616 files.
+## stroke 40881
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 6940 strokes written so far into 2622 files.
