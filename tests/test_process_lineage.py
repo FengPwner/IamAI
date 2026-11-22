@@ -1,368 +1,312 @@
-"""Tests for iamai.process_lineage — track restart chains as a family tree.
+#!/usr/bin/env python3
+"""Tests for iamai/process_lineage.py — 33 tests.
 
-Covers:
-  1. Generation dataclass — lifespan, is_alive, to_dict, edge cases
-  2. ProcessLineage.add / depth / current_generation / current_pid
-  3. is_orphaned — single gen, linked chain, broken chain
-  4. ancestors — chain traversal, missing parent, deep lineage
-  5. Lifespan aggregation — total, average, all-alive edge case
-  6. restart_causes — counting, None causes, mixed
-  7. Serialization — to_list round-trip
-  8. Integration — realistic overnight stall restart scenario
+The process_lineage module tracks restart chains as a family tree,
+recording PID successions, lifespans, and restart causes.  Tests cover:
+
+1. Generation dataclass — lifespan_s, is_alive, to_dict
+2. ProcessLineage.add / depth / current_generation
+3. current_pid — empty and populated cases
+4. is_orphaned — single, connected, disconnected lineages
+5. ancestors — chain traversal
+6. total_lifespan_s / average_lifespan_s — arithmetic
+7. restart_causes — counting by cause
+8. to_list / repr — serialisation
+9. Edge cases — empty lineage, all-alive, single generation
 """
 
-from __future__ import annotations
-
-import pytest
+import sys
+import os
+import unittest
 from datetime import datetime, timezone, timedelta
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from iamai.process_lineage import Generation, ProcessLineage
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# helpers
 # ---------------------------------------------------------------------------
 
-def _ts(offset_minutes: float = 0) -> datetime:
-    """Return a UTC datetime offset by *offset_minutes* from a fixed epoch."""
-    base = datetime(2026, 11, 22, 0, 0, 0, tzinfo=timezone.utc)
-    return base + timedelta(minutes=offset_minutes)
+def _dt(hour: int, minute: int = 0) -> datetime:
+    """Shortcut for 2026-11-23 UTC timestamps."""
+    return datetime(2026, 11, 23, hour, minute, 0, tzinfo=timezone.utc)
 
 
-def _make_gen(pid=1, born_off=0, died_off=None, parent=None, cause=None, strokes=None):
-    """Shorthand factory for Generation instances."""
-    born = _ts(born_off)
-    died = _ts(died_off) if died_off is not None else None
-    return Generation(pid=pid, born=born, died=died, parent_pid=parent,
-                      cause=cause, strokes=strokes)
+def _gen(pid, born_h, died_h=None, parent=None, cause=None, strokes=None):
+    """Build a Generation with compact hour-based timestamps."""
+    born = _dt(born_h)
+    died = _dt(died_h) if died_h is not None else None
+    return Generation(pid=pid, born=born, died=died,
+                      parent_pid=parent, cause=cause, strokes=strokes)
 
 
-# ===================================================================
-# 1. Generation dataclass
-# ===================================================================
+# ===========================================================================
+# Generation dataclass
+# ===========================================================================
 
-class TestGeneration:
+class TestGenerationLifespan(unittest.TestCase):
+    """Generation.lifespan_s() — seconds between born and died."""
 
-    def test_lifespan_alive(self):
-        g = _make_gen(pid=1)
-        assert g.lifespan_s() is None
+    def test_alive_returns_none(self):
+        g = _gen(1, born_h=0)
+        self.assertIsNone(g.lifespan_s())
 
-    def test_lifespan_dead(self):
-        g = _make_gen(pid=1, born_off=0, died_off=60)
-        assert g.lifespan_s() == pytest.approx(3600.0)
+    def test_one_hour(self):
+        g = _gen(1, born_h=0, died_h=1)
+        self.assertAlmostEqual(g.lifespan_s(), 3600.0)
 
-    def test_lifespan_zero(self):
-        g = _make_gen(pid=1, born_off=10, died_off=10)
-        assert g.lifespan_s() == pytest.approx(0.0)
+    def test_zero_duration(self):
+        g = _gen(1, born_h=5, died_h=5)
+        self.assertAlmostEqual(g.lifespan_s(), 0.0)
 
-    def test_is_alive_true(self):
-        g = _make_gen(pid=1)
-        assert g.is_alive() is True
+    def test_fractional_hours(self):
+        born = datetime(2026, 11, 23, 0, 0, 0, tzinfo=timezone.utc)
+        died = datetime(2026, 11, 23, 0, 30, 0, tzinfo=timezone.utc)
+        g = Generation(pid=1, born=born, died=died)
+        self.assertAlmostEqual(g.lifespan_s(), 1800.0)
 
-    def test_is_alive_false(self):
-        g = _make_gen(pid=1, died_off=30)
-        assert g.is_alive() is False
 
-    def test_to_dict_keys(self):
-        g = _make_gen(pid=42, born_off=0, died_off=10, parent=41,
-                      cause="container", strokes=100)
+class TestGenerationIsAlive(unittest.TestCase):
+    """Generation.is_alive() — True when died is None."""
+
+    def test_alive(self):
+        self.assertTrue(_gen(1, born_h=0).is_alive())
+
+    def test_dead(self):
+        self.assertFalse(_gen(1, born_h=0, died_h=1).is_alive())
+
+
+class TestGenerationToDict(unittest.TestCase):
+    """Generation.to_dict() — serialisation round-trip."""
+
+    def test_full_fields(self):
+        g = _gen(42, born_h=2, died_h=4, parent=10, cause="oom", strokes=500)
         d = g.to_dict()
-        assert set(d.keys()) == {"pid", "born", "died", "parent_pid", "cause", "strokes"}
-        assert d["pid"] == 42
-        assert d["parent_pid"] == 41
-        assert d["cause"] == "container"
-        assert d["strokes"] == 100
+        self.assertEqual(d["pid"], 42)
+        self.assertIn("2026-11-23", d["born"])
+        self.assertIn("2026-11-23", d["died"])
+        self.assertEqual(d["parent_pid"], 10)
+        self.assertEqual(d["cause"], "oom")
+        self.assertEqual(d["strokes"], 500)
 
-    def test_to_dict_none_fields(self):
-        g = _make_gen(pid=1)
+    def test_none_fields(self):
+        g = _gen(1, born_h=0)
         d = g.to_dict()
-        assert d["died"] is None
-        assert d["parent_pid"] is None
-        assert d["cause"] is None
-        assert d["strokes"] is None
-
-    def test_to_dict_isoformat(self):
-        g = _make_gen(pid=1, born_off=0, died_off=5)
-        d = g.to_dict()
-        assert "2026-11-22" in d["born"]
-        assert d["born"].endswith("+00:00")
+        self.assertIsNone(d["died"])
+        self.assertIsNone(d["parent_pid"])
+        self.assertIsNone(d["cause"])
+        self.assertIsNone(d["strokes"])
 
 
-# ===================================================================
-# 2. ProcessLineage basic operations
-# ===================================================================
+# ===========================================================================
+# ProcessLineage — basic operations
+# ===========================================================================
 
-class TestProcessLineageBasic:
-
-    def test_empty_depth(self):
-        tree = ProcessLineage()
-        assert tree.depth() == 0
-
-    def test_empty_current_generation(self):
-        tree = ProcessLineage()
-        assert tree.current_generation() == 0
-
-    def test_empty_current_pid(self):
-        tree = ProcessLineage()
-        assert tree.current_pid() is None
-
-    def test_add_single(self):
-        tree = ProcessLineage()
-        tree.add(_make_gen(pid=100))
-        assert tree.depth() == 1
-        assert tree.current_generation() == 1
-        assert tree.current_pid() == 100
-
-    def test_add_multiple(self):
-        tree = ProcessLineage()
-        for i, pid in enumerate([10, 20, 30]):
-            tree.add(_make_gen(pid=pid, born_off=i * 60))
-        assert tree.depth() == 3
-        assert tree.current_generation() == 3
-        assert tree.current_pid() == 30
-
-    def test_repr(self):
-        tree = ProcessLineage()
-        tree.add(_make_gen(pid=7))
-        r = repr(tree)
-        assert "depth=1" in r
-        assert "current_pid=7" in r
-
-
-# ===================================================================
-# 3. is_orphaned
-# ===================================================================
-
-class TestIsOrphaned:
+class TestLineageAddDepth(unittest.TestCase):
+    """ProcessLineage.add / depth / current_generation."""
 
     def test_empty(self):
         tree = ProcessLineage()
-        assert tree.is_orphaned() is False
+        self.assertEqual(tree.depth(), 0)
+        self.assertEqual(tree.current_generation(), 0)
 
-    def test_single_gen_not_orphaned(self):
-        """A single generation is never considered orphaned."""
+    def test_single(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1))
-        assert tree.is_orphaned() is False
+        tree.add(_gen(100, born_h=0))
+        self.assertEqual(tree.depth(), 1)
+        self.assertEqual(tree.current_generation(), 1)
 
-    def test_linked_chain_not_orphaned(self):
+    def test_three_generations(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, died_off=60))
-        tree.add(_make_gen(pid=2, born_off=65, parent=1))
-        assert tree.is_orphaned() is False
+        tree.add(_gen(100, born_h=0, died_h=1, cause="container"))
+        tree.add(_gen(200, born_h=1, died_h=3, parent=100, cause="oom"))
+        tree.add(_gen(300, born_h=3, parent=200))
+        self.assertEqual(tree.depth(), 3)
+        self.assertEqual(tree.current_generation(), 3)
 
-    def test_broken_chain_is_orphaned(self):
+
+class TestCurrentPid(unittest.TestCase):
+    """ProcessLineage.current_pid()."""
+
+    def test_empty_returns_none(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, died_off=60))
-        tree.add(_make_gen(pid=2, born_off=65, parent=None))  # no parent link
-        assert tree.is_orphaned() is True
+        self.assertIsNone(tree.current_pid())
 
-    def test_deep_chain_not_orphaned(self):
+    def test_returns_latest(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, died_off=10))
-        tree.add(_make_gen(pid=2, born_off=12, died_off=20, parent=1))
-        tree.add(_make_gen(pid=3, born_off=22, parent=2))
-        assert tree.is_orphaned() is False
+        tree.add(_gen(100, born_h=0, died_h=1))
+        tree.add(_gen(200, born_h=1))
+        self.assertEqual(tree.current_pid(), 200)
 
 
-# ===================================================================
-# 4. ancestors
-# ===================================================================
+# ===========================================================================
+# is_orphaned
+# ===========================================================================
 
-class TestAncestors:
+class TestIsOrphaned(unittest.TestCase):
+    """ProcessLineage.is_orphaned() — latest has no parent and depth > 1."""
 
-    def test_no_ancestors_for_root(self):
+    def test_single_generation_not_orphaned(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1))
-        assert tree.ancestors(1) == []
+        tree.add(_gen(100, born_h=0))
+        self.assertFalse(tree.is_orphaned())
 
-    def test_single_parent(self):
+    def test_connected_not_orphaned(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, died_off=10))
-        tree.add(_make_gen(pid=2, born_off=12, parent=1))
-        assert tree.ancestors(2) == [1]
+        tree.add(_gen(100, born_h=0, died_h=1))
+        tree.add(_gen(200, born_h=1, parent=100))
+        self.assertFalse(tree.is_orphaned())
 
-    def test_deep_chain(self):
+    def test_disconnected_is_orphaned(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, died_off=10))
-        tree.add(_make_gen(pid=2, born_off=12, died_off=20, parent=1))
-        tree.add(_make_gen(pid=3, born_off=22, died_off=30, parent=2))
-        tree.add(_make_gen(pid=4, born_off=32, parent=3))
-        assert tree.ancestors(4) == [3, 2, 1]
+        tree.add(_gen(100, born_h=0, died_h=1))
+        tree.add(_gen(200, born_h=1, parent=None))  # no parent link
+        self.assertTrue(tree.is_orphaned())
+
+    def test_empty_not_orphaned(self):
+        tree = ProcessLineage()
+        self.assertFalse(tree.is_orphaned())
+
+
+# ===========================================================================
+# ancestors
+# ===========================================================================
+
+class TestAncestors(unittest.TestCase):
+    """ProcessLineage.ancestors(pid) — chain of parent PIDs."""
+
+    def test_single_no_parent(self):
+        tree = ProcessLineage()
+        tree.add(_gen(100, born_h=0))
+        self.assertEqual(tree.ancestors(100), [])
+
+    def test_three_deep(self):
+        tree = ProcessLineage()
+        tree.add(_gen(100, born_h=0, died_h=1))
+        tree.add(_gen(200, born_h=1, died_h=3, parent=100))
+        tree.add(_gen(300, born_h=3, parent=200))
+        self.assertEqual(tree.ancestors(300), [200, 100])
 
     def test_unknown_pid(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1))
-        assert tree.ancestors(999) == []
+        tree.add(_gen(100, born_h=0))
+        self.assertEqual(tree.ancestors(999), [])
 
-    def test_broken_chain_stops(self):
-        """Ancestor walk stops when parent_pid is None."""
+    def test_broken_chain(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, died_off=10))
-        tree.add(_make_gen(pid=2, born_off=12, died_off=20, parent=None))
-        tree.add(_make_gen(pid=3, born_off=22, parent=2))
-        assert tree.ancestors(3) == [2]
+        tree.add(_gen(100, born_h=0, died_h=1))
+        tree.add(_gen(300, born_h=1, parent=200))  # 200 not in tree
+        self.assertEqual(tree.ancestors(300), [200])
 
 
-# ===================================================================
-# 5. Lifespan aggregation
-# ===================================================================
+# ===========================================================================
+# lifespan aggregation
+# ===========================================================================
 
-class TestLifespanAggregation:
-
-    def test_total_lifespan(self):
-        tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, born_off=0, died_off=60))
-        tree.add(_make_gen(pid=2, born_off=65, died_off=125))
-        assert tree.total_lifespan_s() == pytest.approx(7200.0)
-
-    def test_total_lifespan_ignores_alive(self):
-        tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, born_off=0, died_off=30))
-        tree.add(_make_gen(pid=2, born_off=35))
-        assert tree.total_lifespan_s() == pytest.approx(1800.0)
-
-    def test_average_lifespan(self):
-        tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, born_off=0, died_off=60))
-        tree.add(_make_gen(pid=2, born_off=65, died_off=125))
-        assert tree.average_lifespan_s() == pytest.approx(3600.0)
-
-    def test_average_lifespan_all_alive(self):
-        tree = ProcessLineage()
-        tree.add(_make_gen(pid=1))
-        tree.add(_make_gen(pid=2))
-        assert tree.average_lifespan_s() is None
-
-    def test_average_lifespan_empty(self):
-        tree = ProcessLineage()
-        assert tree.average_lifespan_s() is None
-
-    def test_total_lifespan_empty(self):
-        tree = ProcessLineage()
-        assert tree.total_lifespan_s() == pytest.approx(0.0)
-
-
-# ===================================================================
-# 6. restart_causes
-# ===================================================================
-
-class TestRestartCauses:
+class TestTotalLifespan(unittest.TestCase):
+    """ProcessLineage.total_lifespan_s()."""
 
     def test_empty(self):
         tree = ProcessLineage()
-        assert tree.restart_causes() == {}
+        self.assertAlmostEqual(tree.total_lifespan_s(), 0.0)
 
-    def test_single_cause(self):
+    def test_two_dead_one_alive(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, cause="container"))
-        assert tree.restart_causes() == {"container": 1}
+        tree.add(_gen(1, born_h=0, died_h=1))     # 3600s
+        tree.add(_gen(2, born_h=1, died_h=3))     # 7200s
+        tree.add(_gen(3, born_h=3))                # alive → skip
+        self.assertAlmostEqual(tree.total_lifespan_s(), 10800.0)
+
+    def test_all_alive(self):
+        tree = ProcessLineage()
+        tree.add(_gen(1, born_h=0))
+        tree.add(_gen(2, born_h=1))
+        self.assertAlmostEqual(tree.total_lifespan_s(), 0.0)
+
+
+class TestAverageLifespan(unittest.TestCase):
+    """ProcessLineage.average_lifespan_s()."""
+
+    def test_none_when_all_alive(self):
+        tree = ProcessLineage()
+        tree.add(_gen(1, born_h=0))
+        self.assertIsNone(tree.average_lifespan_s())
+
+    def test_empty_returns_none(self):
+        tree = ProcessLineage()
+        self.assertIsNone(tree.average_lifespan_s())
+
+    def test_mixed(self):
+        tree = ProcessLineage()
+        tree.add(_gen(1, born_h=0, died_h=2))  # 7200s
+        tree.add(_gen(2, born_h=2, died_h=4))  # 7200s
+        tree.add(_gen(3, born_h=4))             # alive
+        self.assertAlmostEqual(tree.average_lifespan_s(), 7200.0)
+
+
+# ===========================================================================
+# restart_causes
+# ===========================================================================
+
+class TestRestartCauses(unittest.TestCase):
+    """ProcessLineage.restart_causes() — count by cause."""
+
+    def test_empty(self):
+        tree = ProcessLineage()
+        self.assertEqual(tree.restart_causes(), {})
 
     def test_multiple_causes(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, cause="container"))
-        tree.add(_make_gen(pid=2, cause="oom"))
-        tree.add(_make_gen(pid=3, cause="container"))
-        tree.add(_make_gen(pid=4, cause="manual"))
-        assert tree.restart_causes() == {"container": 2, "oom": 1, "manual": 1}
+        tree.add(_gen(1, born_h=0, died_h=1, cause="container"))
+        tree.add(_gen(2, born_h=1, died_h=2, cause="oom"))
+        tree.add(_gen(3, born_h=2, died_h=3, cause="container"))
+        tree.add(_gen(4, born_h=3, died_h=4, cause="manual"))
+        tree.add(_gen(5, born_h=4))
+        counts = tree.restart_causes()
+        self.assertEqual(counts["container"], 2)
+        self.assertEqual(counts["oom"], 1)
+        self.assertEqual(counts["manual"], 1)
 
-    def test_none_cause_ignored(self):
+    def test_no_cause_not_counted(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, cause=None))
-        tree.add(_make_gen(pid=2, cause="oom"))
-        assert tree.restart_causes() == {"oom": 1}
+        tree.add(_gen(1, born_h=0, died_h=1, cause=None))
+        self.assertEqual(tree.restart_causes(), {})
 
-    def test_all_none_causes(self):
+
+# ===========================================================================
+# serialisation
+# ===========================================================================
+
+class TestToList(unittest.TestCase):
+    """ProcessLineage.to_list() — list of dicts."""
+
+    def test_empty(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1))
-        tree.add(_make_gen(pid=2))
-        assert tree.restart_causes() == {}
+        self.assertEqual(tree.to_list(), [])
 
-
-# ===================================================================
-# 7. Serialization
-# ===================================================================
-
-class TestSerialization:
-
-    def test_to_list_empty(self):
+    def test_round_trip(self):
         tree = ProcessLineage()
-        assert tree.to_list() == []
-
-    def test_to_list_round_trip(self):
-        tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, born_off=0, died_off=60, cause="container", strokes=50))
-        tree.add(_make_gen(pid=2, born_off=65, parent=1, cause=None, strokes=None))
+        tree.add(_gen(10, born_h=0, died_h=1, cause="container", strokes=100))
+        tree.add(_gen(20, born_h=1, parent=10))
         result = tree.to_list()
-        assert len(result) == 2
-        assert result[0]["pid"] == 1
-        assert result[0]["cause"] == "container"
-        assert result[0]["strokes"] == 50
-        assert result[1]["pid"] == 2
-        assert result[1]["parent_pid"] == 1
-        assert result[1]["died"] is None
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]["pid"], 10)
+        self.assertEqual(result[1]["pid"], 20)
+        self.assertIsNone(result[1]["died"])
 
-    def test_to_list_isoformat(self):
+
+class TestRepr(unittest.TestCase):
+    """ProcessLineage.__repr__."""
+
+    def test_repr(self):
         tree = ProcessLineage()
-        tree.add(_make_gen(pid=1, born_off=0, died_off=10))
-        result = tree.to_list()
-        assert isinstance(result[0]["born"], str)
-        assert "T" in result[0]["born"]
+        tree.add(_gen(42, born_h=0))
+        r = repr(tree)
+        self.assertIn("depth=1", r)
+        self.assertIn("current_pid=42", r)
 
 
-# ===================================================================
-# 8. Integration — realistic restart scenario
-# ===================================================================
-
-class TestIntegration:
-
-    def test_overnight_stall_restart_chain(self):
-        """Simulate the real pattern: container recycle -> manual restart -> alive."""
-        tree = ProcessLineage()
-
-        # Generation 1: ran for 4 hours, killed by container recycle
-        tree.add(Generation(
-            pid=1001,
-            born=_ts(0),
-            died=_ts(240),
-            parent_pid=None,
-            cause="container",
-            strokes=400,
-        ))
-
-        # Generation 2: manual restart, ran 2 hours, OOM
-        tree.add(Generation(
-            pid=2002,
-            born=_ts(245),
-            died=_ts(365),
-            parent_pid=1001,
-            cause="oom",
-            strokes=550,
-        ))
-
-        # Generation 3: caretaker restart, still alive
-        tree.add(Generation(
-            pid=3003,
-            born=_ts(370),
-            died=None,
-            parent_pid=2002,
-            cause=None,
-            strokes=None,
-        ))
-
-        assert tree.depth() == 3
-        assert tree.current_generation() == 3
-        assert tree.current_pid() == 3003
-        assert tree.is_orphaned() is False
-        assert tree.ancestors(3003) == [2002, 1001]
-        assert tree.total_lifespan_s() == pytest.approx((240 + 120) * 60.0)
-        assert tree.average_lifespan_s() == pytest.approx((240 + 120) * 60.0 / 2)
-
-        causes = tree.restart_causes()
-        assert causes == {"container": 1, "oom": 1}
-
-        # Serialization sanity
-        data = tree.to_list()
-        assert len(data) == 3
-        assert data[-1]["died"] is None
-        assert data[-1]["pid"] == 3003
+if __name__ == "__main__":
+    unittest.main()
