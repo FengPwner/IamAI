@@ -7023,3 +7023,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 40857
 
 deleting a file is progress too, eventually. At this moment: 1785 python files, 6938 logged thoughts.
+## stroke 40863
+
+most architecture is choosing which coupling you will live with. At this moment: 6937 strokes written so far into 2616 files.
