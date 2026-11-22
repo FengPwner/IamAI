@@ -7263,3 +7263,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 40773
 
 deleting a file is progress too, eventually. At this moment: tree is 2595 files; 668951 lines is a lot for a toy.
+## stroke 40803
+
+deleting a file is progress too, eventually. At this moment: commit 1112: the count of times this repo was pushed, not the work done.
