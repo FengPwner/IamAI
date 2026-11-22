@@ -1,338 +1,338 @@
-"""Tests for iamai.rebase_safety — pre-rebase environment checks.
+#!/usr/bin/env python3
+"""Tests for iamai/rebase_safety.py — pre-rebase safety gate.
 
-Covers all four individual checks plus the aggregate assess() function,
-edge cases around stale PID files, missing sentinels, and the
-remediation-plan generator.
-
-Written by Qwen during caretaker visit 695, 2026-11-18.
+Covers:
+- RebaseReadiness enum values
+- SafetyCheck dataclass construction
+- Verdict summary formatting
+- Individual check functions (pause_signal, process_liveness, batch_liveness, dirty_state)
+- assess() aggregate logic
+- verdict_to_dict serialisation
 """
 
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
-import textwrap
+import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
 
-import pytest
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
 
 from iamai.rebase_safety import (
     RebaseReadiness,
     SafetyCheck,
     Verdict,
-    assess,
-    check_batch_liveness,
-    check_dirty_state,
-    check_pause_signal,
-    check_process_liveness,
-    verdict_to_dict,
     WRITER_MANAGED_FILES,
-    PAUSE_PATTERN,
     WRITER_PID_PATTERN,
     BATCH_PID_PATTERN,
+    PAUSE_PATTERN,
+    check_pause_signal,
+    check_dirty_state,
+    check_process_liveness,
+    check_batch_liveness,
+    assess,
+    verdict_to_dict,
 )
 
 
 # ---------------------------------------------------------------------------
-# Fixtures
+# Enum & dataclass basics
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
-def tmp_repo(tmp_path):
-    """Create a minimal repo layout with writer-managed files."""
-    for rel in WRITER_MANAGED_FILES:
-        fp = tmp_path / rel
-        fp.parent.mkdir(parents=True, exist_ok=True)
-        fp.write_text("# stub\n")
-    return tmp_path
+class TestRebaseReadiness(unittest.TestCase):
+    def test_values(self):
+        self.assertEqual(RebaseReadiness.SAFE.value, "safe")
+        self.assertEqual(RebaseReadiness.UNSAFE.value, "unsafe")
+        self.assertEqual(RebaseReadiness.ERROR.value, "error")
+
+    def test_identity(self):
+        self.assertIs(RebaseReadiness.SAFE, RebaseReadiness("safe"))
 
 
-@pytest.fixture
-def fake_pid_file(tmp_path):
-    """Helper that writes a PID file and returns (path, pid)."""
-    def _write(pid: int, kind: str = "writer", writer: str = "qwen"):
-        if kind == "writer":
-            pattern = WRITER_PID_PATTERN
-        else:
-            pattern = BATCH_PID_PATTERN
-        pid_path = Path(pattern.format(writer=writer))
-        pid_path.parent.mkdir(parents=True, exist_ok=True)
-        pid_path.write_text(str(pid))
-        return pid_path
-    return _write
+class TestSafetyCheck(unittest.TestCase):
+    def test_defaults(self):
+        sc = SafetyCheck(name="x", passed=True, detail="ok")
+        self.assertEqual(sc.severity, "warning")
+
+    def test_blocking(self):
+        sc = SafetyCheck(name="x", passed=False, detail="bad", severity="blocking")
+        self.assertEqual(sc.severity, "blocking")
+
+
+class TestVerdict(unittest.TestCase):
+    def test_summary_pass(self):
+        v = Verdict(
+            ready=True,
+            status=RebaseReadiness.SAFE,
+            checks=[
+                SafetyCheck("a", True, "ok"),
+                SafetyCheck("b", True, "ok"),
+            ],
+        )
+        self.assertIn("2/2", v.summary)
+        self.assertIn("✓", v.summary)
+
+    def test_summary_fail(self):
+        v = Verdict(
+            ready=False,
+            status=RebaseReadiness.UNSAFE,
+            checks=[
+                SafetyCheck("a", True, "ok"),
+                SafetyCheck("b", False, "nope", severity="blocking"),
+            ],
+        )
+        self.assertIn("1/2", v.summary)
+        self.assertIn("✗", v.summary)
 
 
 # ---------------------------------------------------------------------------
 # check_pause_signal
 # ---------------------------------------------------------------------------
 
-class TestCheckPauseSignal:
-    def test_missing_pause_is_blocking(self):
-        pause = Path(PAUSE_PATTERN.format(writer="test_nopause"))
-        pause.unlink(missing_ok=True)
-        result = check_pause_signal("/nonexistent", writer="test_nopause")
-        assert not result.passed
-        assert result.severity == "blocking"
-        assert "missing" in result.detail
-
-    def test_present_pause_passes(self, tmp_path):
-        pause = Path(PAUSE_PATTERN.format(writer="test_haspause"))
-        pause.parent.mkdir(parents=True, exist_ok=True)
-        pause.touch()
+class TestCheckPauseSignal(unittest.TestCase):
+    def test_pause_present(self):
+        """When the pause sentinel exists, check passes."""
+        fake = Path("/tmp/iamai-writer-pause-test")
+        fake.write_text("paused\n")
         try:
-            result = check_pause_signal(str(tmp_path), writer="test_haspause")
-            assert result.passed
-            assert "exists" in result.detail
+            result = check_pause_signal(repo_root="/tmp", writer="test")
+            self.assertTrue(result.passed)
+            self.assertEqual(result.name, "pause_signal")
         finally:
-            pause.unlink(missing_ok=True)
+            fake.unlink(missing_ok=True)
 
-
-# ---------------------------------------------------------------------------
-# check_dirty_state
-# ---------------------------------------------------------------------------
-
-class TestCheckDirtyState:
-    def test_clean_tree_passes(self, tmp_repo):
-        result = check_dirty_state(str(tmp_repo))
-        assert result.passed
-
-    def test_empty_tree_passes(self, tmp_path):
-        result = check_dirty_state(str(tmp_path))
-        assert result.passed
-
-    def test_custom_managed_list(self, tmp_path):
-        fp = tmp_path / "custom.txt"
-        fp.write_text("data")
-        result = check_dirty_state(str(tmp_path), writer_managed=["custom.txt"])
-        assert result.passed  # presence alone is not dirty
-
-    def test_nonexistent_managed_files(self, tmp_path):
-        result = check_dirty_state(
-            str(tmp_path),
-            writer_managed=["does/not/exist.txt"],
-        )
-        assert result.passed
+    def test_pause_missing(self):
+        """When the pause sentinel is absent, check fails as blocking."""
+        # Use a writer name that definitely has no pause file.
+        result = check_pause_signal(repo_root="/tmp", writer="nonexistent-writer-xyz")
+        self.assertFalse(result.passed)
+        self.assertEqual(result.severity, "blocking")
 
 
 # ---------------------------------------------------------------------------
 # check_process_liveness
 # ---------------------------------------------------------------------------
 
-class TestCheckProcessLiveness:
-    def test_no_pid_file_passes(self):
-        # Ensure PID file does not exist.
-        pid_path = Path(WRITER_PID_PATTERN.format(writer="test_nopid"))
-        pid_path.unlink(missing_ok=True)
-        result = check_process_liveness(writer="test_nopid")
-        assert result.passed
-        assert "not running" in result.detail
+class TestCheckProcessLiveness(unittest.TestCase):
+    def test_no_pid_file(self):
+        """No PID file means writer is not running — safe."""
+        with patch("iamai.rebase_safety.WRITER_PID_PATTERN",
+                    "/tmp/iamai-writer-{writer}.pid.test_nopid"):
+            result = check_process_liveness(writer="nonexistent-xyz")
+            self.assertTrue(result.passed)
+            self.assertIn("not running", result.detail)
 
-    def test_stale_pid_passes(self):
-        # Use PID 99999999 — extremely unlikely to exist.
-        pid_path = Path(WRITER_PID_PATTERN.format(writer="test_stale"))
-        pid_path.parent.mkdir(parents=True, exist_ok=True)
-        pid_path.write_text("99999999")
+    def test_stale_pid(self):
+        """PID file exists but process is dead — safe."""
+        pid_file = Path("/tmp/iamai-writer-test-stale.pid")
+        pid_file.write_text("999999999\n")  # almost certainly dead
         try:
-            result = check_process_liveness(writer="test_stale")
-            assert result.passed
-            assert "stale" in result.detail
+            with patch("iamai.rebase_safety.WRITER_PID_PATTERN",
+                        str(pid_file).replace("test-stale", "{writer}")):
+                result = check_process_liveness(writer="test-stale")
+                self.assertTrue(result.passed)
+                self.assertIn("stale", result.detail)
         finally:
-            pid_path.unlink(missing_ok=True)
+            pid_file.unlink(missing_ok=True)
+
+    def test_live_pid(self):
+        """PID file with a live process — unsafe (blocking)."""
+        pid_file = Path("/tmp/iamai-writer-test-live.pid")
+        pid_file.write_text(f"{os.getpid()}\n")  # current process is alive
+        try:
+            with patch("iamai.rebase_safety.WRITER_PID_PATTERN",
+                        str(pid_file).replace("test-live", "{writer}")):
+                result = check_process_liveness(writer="test-live")
+                self.assertFalse(result.passed)
+                self.assertEqual(result.severity, "blocking")
+                self.assertIn("alive", result.detail)
+        finally:
+            pid_file.unlink(missing_ok=True)
 
     def test_corrupt_pid_file(self):
-        pid_path = Path(WRITER_PID_PATTERN.format(writer="test_corrupt"))
-        pid_path.parent.mkdir(parents=True, exist_ok=True)
-        pid_path.write_text("not_a_number\n")
+        """Unreadable PID file — warning."""
+        pid_file = Path("/tmp/iamai-writer-test-corrupt.pid")
+        pid_file.write_text("not-a-number\n")
         try:
-            result = check_process_liveness(writer="test_corrupt")
-            assert not result.passed
-            assert result.severity == "warning"
+            with patch("iamai.rebase_safety.WRITER_PID_PATTERN",
+                        str(pid_file).replace("test-corrupt", "{writer}")):
+                result = check_process_liveness(writer="test-corrupt")
+                self.assertFalse(result.passed)
+                self.assertEqual(result.severity, "warning")
         finally:
-            pid_path.unlink(missing_ok=True)
-
-    def test_alive_pid_blocks(self):
-        # Current process is guaranteed alive.
-        my_pid = os.getpid()
-        pid_path = Path(WRITER_PID_PATTERN.format(writer="test_alive"))
-        pid_path.parent.mkdir(parents=True, exist_ok=True)
-        pid_path.write_text(str(my_pid))
-        try:
-            result = check_process_liveness(writer="test_alive")
-            assert not result.passed
-            assert result.severity == "blocking"
-            assert "alive" in result.detail
-        finally:
-            pid_path.unlink(missing_ok=True)
+            pid_file.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
 # check_batch_liveness
 # ---------------------------------------------------------------------------
 
-class TestCheckBatchLiveness:
-    def test_no_pid_file_passes(self):
-        pid_path = Path(BATCH_PID_PATTERN.format(writer="test_nobatch"))
-        pid_path.unlink(missing_ok=True)
-        result = check_batch_liveness(writer="test_nobatch")
-        assert result.passed
+class TestCheckBatchLiveness(unittest.TestCase):
+    def test_no_pid_file(self):
+        """No batch PID — safe."""
+        with patch("iamai.rebase_safety.BATCH_PID_PATTERN",
+                    "/tmp/iamai-batch-{writer}.pid.test_nobatch"):
+            result = check_batch_liveness(writer="nonexistent-xyz")
+            self.assertTrue(result.passed)
 
-    def test_alive_batch_blocks(self):
-        my_pid = os.getpid()
-        pid_path = Path(BATCH_PID_PATTERN.format(writer="test_batchalive"))
-        pid_path.parent.mkdir(parents=True, exist_ok=True)
-        pid_path.write_text(str(my_pid))
+    def test_live_batch(self):
+        """Live batch process — blocking."""
+        pid_file = Path("/tmp/iamai-batch-test-live.pid")
+        pid_file.write_text(f"{os.getpid()}\n")
         try:
-            result = check_batch_liveness(writer="test_batchalive")
-            assert not result.passed
-            assert result.severity == "blocking"
+            with patch("iamai.rebase_safety.BATCH_PID_PATTERN",
+                        str(pid_file).replace("test-live", "{writer}")):
+                result = check_batch_liveness(writer="test-live")
+                self.assertFalse(result.passed)
+                self.assertEqual(result.severity, "blocking")
         finally:
-            pid_path.unlink(missing_ok=True)
-
-    def test_stale_batch_passes(self):
-        pid_path = Path(BATCH_PID_PATTERN.format(writer="test_batchstale"))
-        pid_path.parent.mkdir(parents=True, exist_ok=True)
-        pid_path.write_text("99999998")
-        try:
-            result = check_batch_liveness(writer="test_batchstale")
-            assert result.passed
-        finally:
-            pid_path.unlink(missing_ok=True)
+            pid_file.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
-# assess() — aggregate
+# check_dirty_state
 # ---------------------------------------------------------------------------
 
-class TestAssess:
-    def test_all_clear_is_safe(self, tmp_repo):
-        """When no writer is running and pause exists, rebase is safe."""
-        w = "test_clear"
-        pause = Path(PAUSE_PATTERN.format(writer=w))
-        pause.parent.mkdir(parents=True, exist_ok=True)
-        pause.touch()
-        for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN]:
-            Path(pattern.format(writer=w)).unlink(missing_ok=True)
-        try:
-            v = assess(repo_root=str(tmp_repo), writer=w)
-            assert v.ready
-            assert v.status == RebaseReadiness.SAFE
-            assert "✓" in v.summary
-        finally:
-            pause.unlink(missing_ok=True)
+class TestCheckDirtyState(unittest.TestCase):
+    def test_empty_tree(self):
+        """Nonexistent managed files — passes."""
+        with tempfile.TemporaryDirectory() as td:
+            result = check_dirty_state(repo_root=td, writer_managed=["nope.txt"])
+            self.assertTrue(result.passed)
 
-    def test_alive_writer_is_unsafe(self, tmp_repo):
-        """Live writer without pause signal blocks the rebase."""
-        w = "test_alive_w"
-        my_pid = os.getpid()
-        Path(PAUSE_PATTERN.format(writer=w)).unlink(missing_ok=True)
-        for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN]:
-            p = Path(pattern.format(writer=w))
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(str(my_pid))
-        try:
-            v = assess(repo_root=str(tmp_repo), writer=w)
-            assert not v.ready
-            assert v.status == RebaseReadiness.UNSAFE
-            assert len(v.remediation) > 0
-        finally:
-            for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN]:
-                Path(pattern.format(writer=w)).unlink(missing_ok=True)
+    def test_managed_files_present(self):
+        """Present managed files — passes with warning (CLI must verify)."""
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "managed.txt"
+            p.write_text("content")
+            result = check_dirty_state(repo_root=td, writer_managed=["managed.txt"])
+            self.assertTrue(result.passed)
+            self.assertEqual(result.severity, "warning")
+            self.assertIn("1 writer-managed", result.detail)
 
-    def test_remediation_includes_kill_steps(self, tmp_repo):
-        w = "test_kill"
-        my_pid = os.getpid()
-        Path(PAUSE_PATTERN.format(writer=w)).unlink(missing_ok=True)
-        for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN]:
-            p = Path(pattern.format(writer=w))
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(str(my_pid))
-        try:
-            v = assess(repo_root=str(tmp_repo), writer=w)
-            text = "\n".join(v.remediation)
-            assert "kill" in text or "pause" in text.lower()
-            assert "rebase" in text
-        finally:
-            for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN]:
-                Path(pattern.format(writer=w)).unlink(missing_ok=True)
+
+# ---------------------------------------------------------------------------
+# assess()
+# ---------------------------------------------------------------------------
+
+class TestAssess(unittest.TestCase):
+    def test_safe_when_everything_clear(self):
+        """All checks pass → SAFE verdict."""
+        with tempfile.TemporaryDirectory() as td:
+            with patch("iamai.rebase_safety.PAUSE_PATTERN",
+                        "/tmp/iamai-writer-pause-{writer}.assess-test"), \
+                 patch("iamai.rebase_safety.WRITER_PID_PATTERN",
+                        "/tmp/iamai-writer-{writer}.pid.assess-test"), \
+                 patch("iamai.rebase_safety.BATCH_PID_PATTERN",
+                        "/tmp/iamai-batch-{writer}.pid.assess-test"):
+                # Create pause file so check_pause_signal passes.
+                pause = Path("/tmp/iamai-writer-pause-qwen.assess-test")
+                pause.write_text("paused")
+                try:
+                    v = assess(repo_root=td, writer="qwen",
+                              writer_managed=["nonexistent.txt"])
+                    self.assertTrue(v.ready)
+                    self.assertEqual(v.status, RebaseReadiness.SAFE)
+                finally:
+                    pause.unlink(missing_ok=True)
+
+    def test_unsafe_when_no_pause_and_live_writer(self):
+        """No pause + live writer → UNSAFE with blocking checks."""
+        with tempfile.TemporaryDirectory() as td:
+            with patch("iamai.rebase_safety.PAUSE_PATTERN",
+                        "/tmp/iamai-writer-pause-{writer}.assess-unsafe"), \
+                 patch("iamai.rebase_safety.WRITER_PID_PATTERN",
+                        "/tmp/iamai-writer-{writer}.pid.assess-unsafe"), \
+                 patch("iamai.rebase_safety.BATCH_PID_PATTERN",
+                        "/tmp/iamai-batch-{writer}.pid.assess-unsafe"):
+                # No pause file.
+                # Writer PID = current process (alive).
+                pid = Path("/tmp/iamai-writer-qwen.pid.assess-unsafe")
+                pid.write_text(f"{os.getpid()}\n")
+                try:
+                    v = assess(repo_root=td, writer="qwen",
+                              writer_managed=["nonexistent.txt"])
+                    self.assertFalse(v.ready)
+                    self.assertEqual(v.status, RebaseReadiness.UNSAFE)
+                    blocking = [c for c in v.checks
+                               if not c.passed and c.severity == "blocking"]
+                    self.assertGreaterEqual(len(blocking), 1)
+                    # Remediation should include pause/kill instructions.
+                    rem_text = " ".join(v.remediation)
+                    self.assertIn("pause", rem_text.lower())
+                finally:
+                    pid.unlink(missing_ok=True)
+
+    def test_remediation_always_includes_sleep_and_rebase(self):
+        """Every verdict includes sleep + rebase steps at the end."""
+        with tempfile.TemporaryDirectory() as td:
+            with patch("iamai.rebase_safety.PAUSE_PATTERN",
+                        "/tmp/iamai-writer-pause-{writer}.assess-rem"), \
+                 patch("iamai.rebase_safety.WRITER_PID_PATTERN",
+                        "/tmp/iamai-writer-{writer}.pid.assess-rem"), \
+                 patch("iamai.rebase_safety.BATCH_PID_PATTERN",
+                        "/tmp/iamai-batch-{writer}.pid.assess-rem"):
+                pause = Path("/tmp/iamai-writer-pause-qwen.assess-rem")
+                pause.write_text("paused")
+                try:
+                    v = assess(repo_root=td, writer="qwen")
+                    # Last two remediation steps are always present.
+                    self.assertTrue(any("sleep" in s for s in v.remediation))
+                    self.assertTrue(any("rebase" in s for s in v.remediation))
+                finally:
+                    pause.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
 # verdict_to_dict
 # ---------------------------------------------------------------------------
 
-class TestVerdictSerialisation:
-    def test_round_trip(self):
+class TestVerdictToDict(unittest.TestCase):
+    def test_structure(self):
         v = Verdict(
             ready=True,
             status=RebaseReadiness.SAFE,
-            checks=[
-                SafetyCheck("test", True, "all good"),
-            ],
-            remediation=["step 1"],
+            checks=[SafetyCheck("a", True, "ok")],
+            remediation=["step1"],
         )
         d = verdict_to_dict(v)
-        assert d["ready"] is True
-        assert d["status"] == "safe"
-        assert len(d["checks"]) == 1
-        assert d["checks"][0]["name"] == "test"
-        assert d["remediation"] == ["step 1"]
+        self.assertTrue(d["ready"])
+        self.assertEqual(d["status"], "safe")
+        self.assertIn("summary", d)
+        self.assertEqual(len(d["checks"]), 1)
+        self.assertEqual(d["checks"][0]["name"], "a")
+        self.assertEqual(d["remediation"], ["step1"])
 
-    def test_unsafe_dict(self):
+    def test_unsafe_serialisation(self):
         v = Verdict(
             ready=False,
             status=RebaseReadiness.UNSAFE,
-            checks=[
-                SafetyCheck("proc", False, "alive", "blocking"),
-            ],
-            remediation=["kill it"],
+            checks=[SafetyCheck("b", False, "blocked", severity="blocking")],
+            remediation=["kill writer", "rebase"],
         )
         d = verdict_to_dict(v)
-        assert d["ready"] is False
-        assert d["status"] == "unsafe"
-        assert d["checks"][0]["severity"] == "blocking"
-
-    def test_json_serialisable(self):
-        import json
-        v = Verdict(
-            ready=True,
-            status=RebaseReadiness.SAFE,
-            checks=[],
-            remediation=[],
-        )
-        s = json.dumps(verdict_to_dict(v))
-        assert '"safe"' in s
+        self.assertFalse(d["ready"])
+        self.assertEqual(d["status"], "unsafe")
+        self.assertEqual(d["checks"][0]["severity"], "blocking")
 
 
 # ---------------------------------------------------------------------------
-# Edge cases
+# Constants sanity
 # ---------------------------------------------------------------------------
 
-class TestEdgeCases:
-    def test_verdict_summary_counts(self):
-        v = Verdict(
-            ready=False,
-            status=RebaseReadiness.UNSAFE,
-            checks=[
-                SafetyCheck("a", True, "ok"),
-                SafetyCheck("b", False, "fail", "blocking"),
-                SafetyCheck("c", True, "ok"),
-            ],
-        )
-        assert "2/3" in v.summary
-        assert "✗" in v.summary
+class TestConstants(unittest.TestCase):
+    def test_writer_managed_includes_strokes(self):
+        self.assertIn("data/strokes.jsonl", WRITER_MANAGED_FILES)
 
-    def test_empty_checks_is_safe(self):
-        v = Verdict(ready=True, status=RebaseReadiness.SAFE)
-        assert "0/0" in v.summary
+    def test_patterns_have_writer_placeholder(self):
+        self.assertIn("{writer}", WRITER_PID_PATTERN)
+        self.assertIn("{writer}", BATCH_PID_PATTERN)
+        self.assertIn("{writer}", PAUSE_PATTERN)
 
-    def test_different_writer_id(self, tmp_repo):
-        """Using a non-default writer ID changes PID file paths."""
-        w = "test_other_writer"
-        for pattern in [WRITER_PID_PATTERN, BATCH_PID_PATTERN, PAUSE_PATTERN]:
-            Path(pattern.format(writer=w)).unlink(missing_ok=True)
-        v = assess(repo_root=str(tmp_repo), writer=w)
-        # With no PID files and no pause, process checks pass
-        # but pause check fails.
-        pause_check = next(c for c in v.checks if c.name == "pause_signal")
-        assert not pause_check.passed
+
+if __name__ == "__main__":
+    unittest.main()

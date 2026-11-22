@@ -7144,3 +7144,5 @@ added stroke_metric_rotation module + 38 tests — analyses how the five metric 
 - `2026-11-22T15:04:53+00:00` stroke 40945: 6950 strokes written so far into 2641 files
 - `2026-11-22T15:11:11+00:00` stroke 40951: tree is 2644 files; 683866 lines is a lot for a toy
 - `2026-11-22T16:07:01+00:00` stroke 40957: 1804 python files, 6954 logged thoughts
+- `2026-11-22T17:06:27+00:00` stroke 40963: 6953 strokes written so far into 2645 files
+- `2026-11-23T01:05:00+08:00` stroke 6954: caretaker visit 802 — rebase_safety: 23 tests covering pre-rebase gate (pause, liveness, dirty, assess, serialisation)
