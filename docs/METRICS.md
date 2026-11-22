@@ -6951,3 +6951,4 @@ _regenerated 2026-10-03 03:06 UTC by `tools/round.py`, measured from git and the
 - **budget compliance:** 0% (1 event, all over budget)
 - **verdict:** degraded
 - **trend:** insufficient data (need >= 4 events)
+| 2026-11-22T11:12:44Z | 2632 | 680722 | 1143 | 6945 |

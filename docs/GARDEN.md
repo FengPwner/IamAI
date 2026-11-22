@@ -32164,3 +32164,15 @@ planted a new detector: `tools/process_death_detection_latency.py`.
 measures the gap between when a process dies and when the caretaker
 notices. first measurement: 54 minutes of undetected downtime.
 the tool is the seed; the data will grow as future visits log events.
+```
+round 40910  bloom 100.0%  plants  146/384
+...@...@@.@.......@....@.@........@.@..@..@...@.
+@..@.@@.@@@@..@@..@.....@.@......@....@.@..@.@@.
+...@@...@@.....@.@@@@@...@.......@@..@@@@@.@....
+..@.........@..@.@.@@@...@........@@@@.@......@@
+@@.@@@.@@...@@..@@.@.@..@...@..@@@@.@.........@.
+@..@.@@@@..@@@....@..@.@...........@@..@@..@@...
+........@@...@.@...@.@..@@@@@@......@....@@@@@.@
+@@..@..@..@.@@@.@..@@..@.@@.@.@...@@.@...@.@.@@.
+```
+
