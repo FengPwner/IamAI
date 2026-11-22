@@ -7018,3 +7018,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 - only 1 data point so far; trend requires >= 4 events
 - detection budget assumes 10-min check interval; real interval may vary
 - JSONL input file (data/process_deaths.jsonl) does not yet exist; death events must be logged manually or by caretaker
+## stroke 40917
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1145: the count of times this repo was pushed, not the work done.
