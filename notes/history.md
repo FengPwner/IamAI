@@ -7021,3 +7021,4 @@ Qwen caretaker visit: found writer and batch processes stopped (reclaimed). Rest
 - stroke 6944: visit 796 — added process_death_detection_latency module + 45 tests, first measurement: 54min undetected downtime (degraded)
 - stroke 40913: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 40919: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 40925: `retry.py` is already in the pool of 9 modules, nothing new to add there

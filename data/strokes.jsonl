@@ -6944,3 +6944,4 @@
 {"seq": 6944, "at": "2026-11-22T11:03:00+00:00", "kind": "note", "text": "visit 796: added process_death_detection_latency — 54 minutes of dead writer went unnoticed, now there is a tool to measure and track that gap"}
 {"seq": 6945, "at": "2026-11-22T11:08:15+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 679884 lines across 2629 tracked files, 1142 commits deep"}
 {"seq": 6946, "at": "2026-11-22T11:14:54+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 1796 python files, 6947 logged thoughts"}
+{"seq": 6947, "at": "2026-11-22T12:09:08+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 6946 strokes written so far into 2635 files"}
