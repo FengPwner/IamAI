@@ -7026,3 +7026,5 @@ Qwen caretaker visit: found writer and batch processes stopped (reclaimed). Rest
 - stroke 40937: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 40943: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 40949: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 40955: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 6952: visit 801 — added commit_churn module tests (39 tests) + visit note

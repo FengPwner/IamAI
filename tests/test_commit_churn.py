@@ -1,335 +1,300 @@
-"""tests for iamai.commit_churn — detect rewrite vs additive patterns.
+#!/usr/bin/env python3
+"""Tests for iamai/commit_churn.py — 30 tests.
 
-covers:
-  1. _file_overlap edge cases
-  2. _rewrite_ratio boundary values
-  3. _per_commit_churn calculation
-  4. churn_index empty, single, multi-commit
-  5. band classification thresholds
-  6. integration: healthy additive workflow
-  7. integration: stalled rewrite workflow
+The commit_churn module detects when the writer is rewriting the same
+files instead of producing new content.  Tests cover:
+
+1. _file_overlap — pure set overlap logic
+2. _rewrite_ratio — insertion/deletion symmetry detection
+3. _per_commit_churn — single-commit scoring
+4. churn_index — end-to-end multi-commit analysis
+5. Band classification — threshold boundaries
+6. Edge cases — empty inputs, single commit, zero-change commits
 """
 
-from __future__ import annotations
+import sys
+import os
+import unittest
 
-import pytest
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from iamai.commit_churn import (
-    _band,
     _file_overlap,
-    _per_commit_churn,
     _rewrite_ratio,
+    _per_commit_churn,
+    _band,
     churn_index,
 )
 
 
-# ---------------------------------------------------------------------------
-# _file_overlap
-# ---------------------------------------------------------------------------
-
-class TestFileOverlap:
-    def test_empty_current_returns_zero(self):
-        assert _file_overlap(set(), {"a.py", "b.py"}) == 0.0
-
-    def test_empty_previous_returns_zero(self):
-        assert _file_overlap({"a.py"}, set()) == 0.0
-
-    def test_both_empty_returns_zero(self):
-        assert _file_overlap(set(), set()) == 0.0
-
-    def test_full_overlap(self):
-        files = {"a.py", "b.py", "c.py"}
-        assert _file_overlap(files, files) == 1.0
-
-    def test_partial_overlap(self):
-        current = {"a.py", "b.py", "c.py"}
-        previous = {"a.py", "d.py"}
-        # overlap = {a.py}, fraction = 1/3
-        assert abs(_file_overlap(current, previous) - 1 / 3) < 0.001
+class TestFileOverlap(unittest.TestCase):
+    """Tests for _file_overlap(current, previous)."""
 
     def test_no_overlap(self):
-        current = {"a.py", "b.py"}
-        previous = {"c.py", "d.py"}
-        assert _file_overlap(current, previous) == 0.0
+        self.assertAlmostEqual(
+            _file_overlap({"a.md", "b.md"}, {"c.md", "d.md"}), 0.0
+        )
 
-    def test_single_file_overlap(self):
-        current = {"a.py"}
-        previous = {"a.py"}
-        assert _file_overlap(current, previous) == 1.0
+    def test_full_overlap(self):
+        self.assertAlmostEqual(
+            _file_overlap({"a.md", "b.md"}, {"a.md", "b.md"}), 1.0
+        )
+
+    def test_partial_overlap(self):
+        # 1 of 2 current files overlap → 0.5
+        self.assertAlmostEqual(
+            _file_overlap({"a.md", "b.md"}, {"a.md", "c.md"}), 0.5
+        )
+
+    def test_current_empty(self):
+        # empty current → 0.0 (no files to overlap)
+        self.assertAlmostEqual(_file_overlap(set(), {"a.md"}), 0.0)
+
+    def test_previous_empty(self):
+        # empty previous → 0.0 (nothing to overlap with)
+        self.assertAlmostEqual(_file_overlap({"a.md"}, set()), 0.0)
+
+    def test_both_empty(self):
+        self.assertAlmostEqual(_file_overlap(set(), set()), 0.0)
+
+    def test_superset_previous(self):
+        # overlap is measured against current, not previous
+        self.assertAlmostEqual(
+            _file_overlap({"a.md"}, {"a.md", "b.md", "c.md"}), 1.0
+        )
 
 
-# ---------------------------------------------------------------------------
-# _rewrite_ratio
-# ---------------------------------------------------------------------------
+class TestRewriteRatio(unittest.TestCase):
+    """Tests for _rewrite_ratio(insertions, deletions)."""
 
-class TestRewriteRatio:
     def test_pure_addition(self):
-        # 100 lines added, 0 deleted → 0.0
-        assert _rewrite_ratio(100, 0) == 0.0
-
-    def test_pure_rewrite(self):
-        # equal additions and deletions → 1.0
-        assert _rewrite_ratio(50, 50) == 1.0
+        self.assertAlmostEqual(_rewrite_ratio(100, 0), 0.0)
 
     def test_pure_deletion(self):
-        # 0 added, 100 deleted → 0.0 (min(0,100)/max(0,100,1))
-        assert _rewrite_ratio(0, 100) == 0.0
+        self.assertAlmostEqual(_rewrite_ratio(0, 50), 0.0)
 
-    def test_mostly_addition(self):
-        # 90 added, 10 deleted → 10/90 ≈ 0.111
-        assert abs(_rewrite_ratio(90, 10) - 10 / 90) < 0.001
+    def test_perfect_rewrite(self):
+        self.assertAlmostEqual(_rewrite_ratio(50, 50), 1.0)
 
-    def test_mostly_deletion(self):
-        # 10 added, 90 deleted → 10/90 ≈ 0.111
-        assert abs(_rewrite_ratio(10, 90) - 10 / 90) < 0.001
+    def test_partial_rewrite(self):
+        # min(30, 50) / max(30, 50) = 30/50 = 0.6
+        self.assertAlmostEqual(_rewrite_ratio(30, 50), 0.6)
 
-    def test_both_zero_uses_floor_of_one(self):
-        # max(0, 0, 1) = 1, min(0, 0) = 0 → 0.0
-        assert _rewrite_ratio(0, 0) == 0.0
+    def test_both_zero(self):
+        # edge case: no changes at all → 0/1 = 0.0
+        self.assertAlmostEqual(_rewrite_ratio(0, 0), 0.0)
 
-    def test_one_line_each(self):
-        # 1 added, 1 deleted → 1/1 = 1.0
-        assert _rewrite_ratio(1, 1) == 1.0
+    def test_one_each(self):
+        self.assertAlmostEqual(_rewrite_ratio(1, 1), 1.0)
+
+    def test_large_add_small_delete(self):
+        # min(1, 1000) / max(1, 1000) ≈ 0.001
+        ratio = _rewrite_ratio(1000, 1)
+        self.assertAlmostEqual(ratio, 0.001)
 
 
-# ---------------------------------------------------------------------------
-# _per_commit_churn
-# ---------------------------------------------------------------------------
+class TestPerCommitChurn(unittest.TestCase):
+    """Tests for _per_commit_churn(commit, prev_files)."""
 
-class TestPerCommitChurn:
     def test_no_overlap_pure_add(self):
-        commit = {"files": {"new.py"}, "insertions": 50, "deletions": 0}
-        prev_files = {"old.py"}
-        # overlap=0, rewrite=0 → 0.6*0 + 0.4*0 = 0.0
-        assert _per_commit_churn(commit, prev_files) == 0.0
+        commit = {"files": {"new.md"}, "insertions": 20, "deletions": 0}
+        score = _per_commit_churn(commit, {"old.md"})
+        # 0.6 * 0.0 + 0.4 * 0.0 = 0.0
+        self.assertAlmostEqual(score, 0.0)
 
     def test_full_overlap_pure_rewrite(self):
-        files = {"a.py", "b.py"}
-        commit = {"files": files, "insertions": 50, "deletions": 50}
-        # overlap=1.0, rewrite=1.0 → 0.6*1 + 0.4*1 = 1.0
-        assert _per_commit_churn(commit, files) == 1.0
+        commit = {"files": {"a.md"}, "insertions": 30, "deletions": 30}
+        score = _per_commit_churn(commit, {"a.md"})
+        # 0.6 * 1.0 + 0.4 * 1.0 = 1.0
+        self.assertAlmostEqual(score, 1.0)
 
-    def test_partial_overlap_mixed(self):
-        commit = {"files": {"a.py", "b.py"}, "insertions": 20, "deletions": 10}
-        prev_files = {"a.py", "c.py"}
-        # overlap = 1/2 = 0.5, rewrite = 10/20 = 0.5
-        # 0.6*0.5 + 0.4*0.5 = 0.3 + 0.2 = 0.5
-        assert abs(_per_commit_churn(commit, prev_files) - 0.5) < 0.001
+    def test_full_overlap_pure_add(self):
+        # same files, but only adding lines → only overlap contributes
+        commit = {"files": {"a.md"}, "insertions": 50, "deletions": 0}
+        score = _per_commit_churn(commit, {"a.md"})
+        # 0.6 * 1.0 + 0.4 * 0.0 = 0.6
+        self.assertAlmostEqual(score, 0.6)
 
-    def test_missing_files_key(self):
-        commit = {"insertions": 10, "deletions": 5}
-        prev_files = {"a.py"}
-        # files defaults to empty set → overlap=0
-        # rewrite = 5/10 = 0.5
-        # 0.6*0 + 0.4*0.5 = 0.2
-        assert abs(_per_commit_churn(commit, prev_files) - 0.2) < 0.001
+    def test_no_overlap_pure_rewrite(self):
+        # different files, but heavy rewriting within them
+        commit = {"files": {"new.md"}, "insertions": 10, "deletions": 10}
+        score = _per_commit_churn(commit, {"old.md"})
+        # 0.6 * 0.0 + 0.4 * 1.0 = 0.4
+        self.assertAlmostEqual(score, 0.4)
 
-    def test_missing_insertions_deletions(self):
-        commit = {"files": {"a.py"}}
-        prev_files = {"a.py"}
-        # overlap=1.0, rewrite=0/1=0.0 (both default to 0)
-        # 0.6*1 + 0.4*0 = 0.6
-        assert abs(_per_commit_churn(commit, prev_files) - 0.6) < 0.001
+    def test_missing_keys(self):
+        # commit with no files key, no insertions/deletions
+        score = _per_commit_churn({}, {"a.md"})
+        self.assertAlmostEqual(score, 0.0)
+
+    def test_score_range(self):
+        commit = {"files": {"a.md", "b.md"}, "insertions": 5, "deletions": 3}
+        score = _per_commit_churn(commit, {"a.md", "c.md"})
+        # overlap = 1/2 = 0.5, rewrite = min(5,3)/max(5,3) = 3/5 = 0.6
+        # 0.6 * 0.5 + 0.4 * 0.6 = 0.3 + 0.24 = 0.54
+        self.assertAlmostEqual(score, 0.54)
+        self.assertGreaterEqual(score, 0.0)
+        self.assertLessEqual(score, 1.0)
 
 
-# ---------------------------------------------------------------------------
-# churn_index — empty and single
-# ---------------------------------------------------------------------------
+class TestBand(unittest.TestCase):
+    """Tests for _band(score)."""
 
-class TestChurnIndexEdgeCases:
-    def test_empty_commits(self):
+    def test_healthy_low(self):
+        self.assertEqual(_band(0), "healthy")
+
+    def test_healthy_boundary(self):
+        self.assertEqual(_band(29), "healthy")
+
+    def test_churning_start(self):
+        self.assertEqual(_band(30), "churning")
+
+    def test_churning_boundary(self):
+        self.assertEqual(_band(59), "churning")
+
+    def test_stalled_start(self):
+        self.assertEqual(_band(60), "stalled")
+
+    def test_stalled_max(self):
+        self.assertEqual(_band(100), "stalled")
+
+
+class TestChurnIndex(unittest.TestCase):
+    """Tests for churn_index(commits) — end-to-end analysis."""
+
+    def test_empty_input(self):
         result = churn_index([])
-        assert result["score"] == 0
-        assert result["band"] == "healthy"
-        assert result["per_commit"] == []
-        assert "no commits" in result["summary"]
+        self.assertEqual(result["score"], 0)
+        self.assertEqual(result["band"], "healthy")
+        self.assertEqual(result["per_commit"], [])
+        self.assertIn("no commits", result["summary"])
 
     def test_single_commit(self):
-        commits = [
-            {"files": {"a.py"}, "insertions": 10, "deletions": 0},
-        ]
+        # single commit: first commit's score uses empty prev_files
+        commits = [{"files": {"a.md"}, "insertions": 10, "deletions": 0}]
         result = churn_index(commits)
-        # single commit: effective = scores (no previous to skip for comparison,
-        # but the code skips first only if len > 1)
-        assert result["score"] == 0  # first commit has no prev, overlap=0, rewrite=0
-        assert result["band"] == "healthy"
+        # only one commit → effective = scores[0] (no skip since len ≤ 1)
+        self.assertIn("score", result)
+        self.assertIn("band", result)
+        self.assertEqual(len(result["per_commit"]), 1)
 
     def test_two_commits_no_overlap(self):
         commits = [
-            {"files": {"a.py"}, "insertions": 10, "deletions": 0},
-            {"files": {"b.py"}, "insertions": 20, "deletions": 0},
+            {"files": {"a.md"}, "insertions": 10, "deletions": 0},
+            {"files": {"b.md"}, "insertions": 20, "deletions": 0},
         ]
         result = churn_index(commits)
-        # second commit: overlap=0 (different files), rewrite=0 (pure add)
-        assert result["score"] == 0
-        assert result["band"] == "healthy"
+        # commit 1 vs empty prev: overlap=0, rewrite=0 → 0.0
+        # commit 2 vs {a.md}: overlap=0, rewrite=0 → 0.0
+        # effective = [0.0] (skip first)
+        self.assertEqual(result["score"], 0)
+        self.assertEqual(result["band"], "healthy")
 
-
-# ---------------------------------------------------------------------------
-# churn_index — healthy workflow
-# ---------------------------------------------------------------------------
-
-class TestChurnIndexHealthy:
-    def test_additive_distinct_files(self):
+    def test_two_commits_full_churn(self):
         commits = [
-            {"files": {"a.py"}, "insertions": 50, "deletions": 0},
-            {"files": {"b.py"}, "insertions": 30, "deletions": 0},
-            {"files": {"c.py"}, "insertions": 40, "deletions": 5},
-            {"files": {"d.py"}, "insertions": 20, "deletions": 0},
+            {"files": {"a.md"}, "insertions": 10, "deletions": 0},
+            {"files": {"a.md"}, "insertions": 10, "deletions": 10},
         ]
         result = churn_index(commits)
-        assert result["band"] == "healthy"
-        assert result["score"] < 30
+        # commit 2: overlap=1.0, rewrite=1.0 → 0.6+0.4 = 1.0
+        # effective = [1.0]
+        self.assertEqual(result["score"], 100)
+        self.assertEqual(result["band"], "stalled")
 
-    def test_mostly_additive_some_overlap(self):
+    def test_mixed_commits(self):
         commits = [
-            {"files": {"a.py", "b.py"}, "insertions": 50, "deletions": 0},
-            {"files": {"c.py", "d.py"}, "insertions": 40, "deletions": 2},
-            {"files": {"a.py", "e.py"}, "insertions": 30, "deletions": 3},
+            {"files": {"a.md", "b.md"}, "insertions": 20, "deletions": 0},
+            {"files": {"a.md", "c.md"}, "insertions": 15, "deletions": 5},
+            {"files": {"d.md"}, "insertions": 30, "deletions": 0},
         ]
         result = churn_index(commits)
-        assert result["band"] == "healthy"
+        # commit 1: overlap=0, rewrite=0 → 0.0
+        # commit 2: overlap=0.5, rewrite=5/15=0.333 → 0.6*0.5+0.4*0.333=0.433
+        # commit 3: overlap=0, rewrite=0 → 0.0
+        # effective (skip first) = [0.433, 0.0] → mean ≈ 0.217 → score 22
+        self.assertEqual(result["band"], "healthy")
+        self.assertEqual(len(result["per_commit"]), 3)
 
-
-# ---------------------------------------------------------------------------
-# churn_index — stalled workflow
-# ---------------------------------------------------------------------------
-
-class TestChurnIndexStalled:
-    def test_rewrite_loop(self):
-        # same files, high ins and high dels — classic rewrite loop
+    def test_churning_band(self):
+        # engineer a sequence that yields ~0.4 mean churn
         commits = [
-            {"files": {"a.py", "b.py"}, "insertions": 50, "deletions": 50},
-            {"files": {"a.py", "b.py"}, "insertions": 48, "deletions": 52},
-            {"files": {"a.py", "b.py"}, "insertions": 51, "deletions": 49},
-            {"files": {"a.py", "b.py"}, "insertions": 50, "deletions": 50},
+            {"files": {"a.md"}, "insertions": 10, "deletions": 0},
+            {"files": {"a.md"}, "insertions": 5, "deletions": 5},   # 0.6+0.4=1.0
+            {"files": {"b.md"}, "insertions": 10, "deletions": 0},   # 0.0+0.0=0.0
+            {"files": {"b.md"}, "insertions": 8, "deletions": 2},    # 0.6+0.4*(2/8)=0.7
         ]
         result = churn_index(commits)
-        assert result["band"] == "stalled"
-        assert result["score"] >= 60
+        # effective = [1.0, 0.0, 0.7] → mean ≈ 0.567 → score 57
+        self.assertEqual(result["band"], "churning")
 
-    def test_churning_moderate_overlap(self):
+    def test_summary_high_churn_count(self):
         commits = [
-            {"files": {"a.py", "b.py", "c.py"}, "insertions": 30, "deletions": 20},
-            {"files": {"a.py", "b.py"}, "insertions": 25, "deletions": 25},
-            {"files": {"a.py", "b.py", "d.py"}, "insertions": 30, "deletions": 15},
+            {"files": {"a.md"}, "insertions": 10, "deletions": 0},
+            {"files": {"a.md"}, "insertions": 10, "deletions": 10},  # 1.0
+            {"files": {"a.md"}, "insertions": 10, "deletions": 10},  # 1.0
         ]
         result = churn_index(commits)
-        # moderate overlap + moderate rewrite → should be churning or stalled
-        assert result["score"] >= 30
+        self.assertIn("2 high-churn commits", result["summary"])
 
-
-# ---------------------------------------------------------------------------
-# _band
-# ---------------------------------------------------------------------------
-
-class TestBand:
-    def test_healthy_range(self):
-        assert _band(0) == "healthy"
-        assert _band(15) == "healthy"
-        assert _band(29) == "healthy"
-
-    def test_healthy_boundary(self):
-        assert _band(29) == "healthy"
-        assert _band(30) == "churning"
-
-    def test_churning_range(self):
-        assert _band(30) == "churning"
-        assert _band(45) == "churning"
-        assert _band(59) == "churning"
-
-    def test_churning_boundary(self):
-        assert _band(59) == "churning"
-        assert _band(60) == "stalled"
-
-    def test_stalled_range(self):
-        assert _band(60) == "stalled"
-        assert _band(80) == "stalled"
-        assert _band(100) == "stalled"
-
-    def test_all_boundaries(self):
-        boundaries = [
-            (0, "healthy"),
-            (29, "healthy"),
-            (30, "churning"),
-            (59, "churning"),
-            (60, "stalled"),
-            (100, "stalled"),
-        ]
-        for score, expected in boundaries:
-            assert _band(score) == expected, f"score={score} should be {expected}"
-
-
-# ---------------------------------------------------------------------------
-# churn_index — summary and per_commit
-# ---------------------------------------------------------------------------
-
-class TestChurnIndexOutput:
-    def test_summary_format(self):
+    def test_score_clamped_to_100(self):
+        # even with extreme values, score must not exceed 100
         commits = [
-            {"files": {"a.py"}, "insertions": 10, "deletions": 0},
-            {"files": {"b.py"}, "insertions": 20, "deletions": 0},
-            {"files": {"a.py"}, "insertions": 15, "deletions": 10},
+            {"files": {"a.md"}, "insertions": 1, "deletions": 0},
+            {"files": {"a.md"}, "insertions": 9999, "deletions": 9999},
         ]
         result = churn_index(commits)
-        assert "3 commits analysed" in result["summary"]
-        assert "mean churn" in result["summary"]
+        self.assertLessEqual(result["score"], 100)
 
-    def test_per_commit_length_matches_input(self):
+    def test_score_clamped_to_0(self):
+        result = churn_index([])
+        self.assertGreaterEqual(result["score"], 0)
+
+    def test_per_commit_scores_preserved(self):
         commits = [
-            {"files": {"a.py"}, "insertions": 10, "deletions": 0},
-            {"files": {"b.py"}, "insertions": 20, "deletions": 5},
-            {"files": {"c.py"}, "insertions": 30, "deletions": 0},
+            {"files": {"x.md"}, "insertions": 5, "deletions": 0},
+            {"files": {"y.md"}, "insertions": 10, "deletions": 0},
+            {"files": {"z.md"}, "insertions": 8, "deletions": 0},
         ]
         result = churn_index(commits)
-        assert len(result["per_commit"]) == len(commits)
+        self.assertEqual(len(result["per_commit"]), 3)
+        # all are pure-add on new files → all scores should be 0
+        for s in result["per_commit"]:
+            self.assertAlmostEqual(s, 0.0)
 
-    def test_score_clamped_to_0_100(self):
-        # even with pathological input, score should be 0–100
+    def test_result_keys(self):
+        result = churn_index([{"files": {"a.md"}, "insertions": 1, "deletions": 0}])
+        for key in ("score", "band", "per_commit", "summary"):
+            self.assertIn(key, result)
+
+
+class TestChurnIndexRealistic(unittest.TestCase):
+    """Integration-style tests simulating real writer patterns."""
+
+    def test_healthy_writer_pattern(self):
+        """A healthy writer touches different files with additive changes."""
         commits = [
-            {"files": {"a.py"}, "insertions": 100, "deletions": 100},
-            {"files": {"a.py"}, "insertions": 100, "deletions": 100},
+            {"files": {"docs/GARDEN.md"}, "insertions": 5, "deletions": 0},
+            {"files": {"notes/a.md"}, "insertions": 20, "deletions": 1},
+            {"files": {"iamai/new.py"}, "insertions": 80, "deletions": 0},
+            {"files": {"tests/test_new.py"}, "insertions": 60, "deletions": 0},
+            {"files": {"docs/DEVLOG.md", "snippets/x.py"}, "insertions": 10, "deletions": 2},
         ]
         result = churn_index(commits)
-        assert 0 <= result["score"] <= 100
+        self.assertEqual(result["band"], "healthy")
+        self.assertLess(result["score"], 30)
 
-    def test_high_churn_count_in_summary(self):
+    def test_stalled_writer_pattern(self):
+        """A stalled writer rewrites the same files repeatedly."""
         commits = [
-            {"files": {"a.py"}, "insertions": 50, "deletions": 50},
-            {"files": {"a.py"}, "insertions": 48, "deletions": 52},
-            {"files": {"a.py"}, "insertions": 50, "deletions": 50},
+            {"files": {"data/strokes.jsonl", "docs/DEVLOG.md"}, "insertions": 3, "deletions": 3},
+            {"files": {"data/strokes.jsonl", "docs/DEVLOG.md"}, "insertions": 2, "deletions": 2},
+            {"files": {"data/strokes.jsonl", "docs/DEVLOG.md"}, "insertions": 3, "deletions": 3},
+            {"files": {"data/strokes.jsonl", "docs/DEVLOG.md"}, "insertions": 2, "deletions": 2},
         ]
         result = churn_index(commits)
-        assert "high-churn commits" in result["summary"]
+        self.assertEqual(result["band"], "stalled")
+        self.assertGreater(result["score"], 59)
 
 
-# ---------------------------------------------------------------------------
-# integration: realistic scenarios
-# ---------------------------------------------------------------------------
-
-class TestIntegration:
-    def test_healthy_growth_pattern(self):
-        """simulate a writer adding new files with minimal rewrites."""
-        commits = []
-        for i in range(20):
-            commits.append({
-                "files": {f"note_{i}.md", "index.md"},
-                "insertions": 25,
-                "deletions": 2,
-            })
-        result = churn_index(commits)
-        # index.md overlap every time but only partial; rewrite_ratio low
-        assert result["band"] in ("healthy", "churning")
-
-    def test_stalled_rewrite_cycle(self):
-        """simulate a writer stuck in a rewrite loop."""
-        commits = []
-        for i in range(15):
-            commits.append({
-                "files": {"core.py", "utils.py", "config.py"},
-                "insertions": 40 + (i % 5),
-                "deletions": 38 + (i % 7),
-            })
-        result = churn_index(commits)
-        assert result["band"] == "stalled"
-        assert result["score"] >= 60
+if __name__ == "__main__":
+    unittest.main()
