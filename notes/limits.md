@@ -7043,3 +7043,6 @@ the family tree breaks at exactly the moment you need it most.
 ## stroke 40995
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 6959 strokes written so far into 2653 files.
+## stroke 41001
+
+deleting a file is progress too, eventually. At this moment: tree is 2656 files; 686145 lines is a lot for a toy.
