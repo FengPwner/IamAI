@@ -7040,3 +7040,6 @@ recorded at each restart. a single missing link makes the new generation
 look orphaned — indistinguishable from a cold start. the data pipeline
 from process_death_clock → restart → lineage.add must be atomic, or
 the family tree breaks at exactly the moment you need it most.
+## stroke 40995
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 6959 strokes written so far into 2653 files.
