@@ -6927,3 +6927,4 @@
 {"seq": 6927, "at": "2026-11-22T00:05:05+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 1776 python files, 6928 logged thoughts"}
 {"seq": 6928, "at": "2026-11-22T00:11:16+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 6927 strokes written so far into 2599 files"}
 {"seq": 6929, "at": "2026-11-22T00:17:27+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: tree is 2601 files; 670561 lines is a lot for a toy"}
+{"seq": 6930, "at": "2026-11-22T01:08:02+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 1778 python files, 6931 logged thoughts"}
