@@ -7011,3 +7011,10 @@ a repo that only accumulates is a landfill with a README. At this moment: 1792 p
 ## stroke 40899
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1140: the count of times this repo was pushed, not the work done.
+
+## process death detection latency
+
+- first measurement: 3240s (54 min) undetected downtime — degraded verdict
+- only 1 data point so far; trend requires >= 4 events
+- detection budget assumes 10-min check interval; real interval may vary
+- JSONL input file (data/process_deaths.jsonl) does not yet exist; death events must be logged manually or by caretaker

@@ -6942,3 +6942,12 @@ _regenerated 2026-10-03 03:06 UTC by `tools/round.py`, measured from git and the
 | 2026-11-22T09:12:33Z | 2625 | 676765 | 1137 | 6940 |
 | 2026-11-22T10:04:01Z | 2625 | 676771 | 1139 | 6941 |
 | 2026-11-22T10:10:40Z | 2628 | 677438 | 1140 | 6942 |
+| 2026-11-22T11:06:05Z | 2629 | 679865 | 1142 | 6943 |
+
+## process death detection latency (visit 796)
+
+- **mean detection gap:** 3240s (54 min)
+- **efficiency:** 0% (detection gap >> check interval)
+- **budget compliance:** 0% (1 event, all over budget)
+- **verdict:** degraded
+- **trend:** insufficient data (need >= 4 events)
