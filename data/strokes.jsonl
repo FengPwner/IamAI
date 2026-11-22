@@ -6949,3 +6949,4 @@
 {"seq": 6949, "at": "2026-11-22T14:09:26+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 6948 strokes written so far into 2641 files"}
 {"seq": 6950, "at": "2026-11-22T15:03:49+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: tree is 2641 files; 683073 lines is a lot for a toy"}
 {"seq": 6951, "at": "2026-11-22T15:10:08+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: 1804 python files, 6952 logged thoughts"}
+{"seq": 6952, "at": "2026-11-22T16:05:58+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: commit 1159: the count of times this repo was pushed, not the work done"}
