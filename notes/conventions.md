@@ -7044,3 +7044,6 @@ a repo that only accumulates is a landfill with a README. At this moment: 683923
 ## stroke 40989
 
 most architecture is choosing which coupling you will live with. At this moment: 1806 python files, 6960 logged thoughts.
+## stroke 41013
+
+deleting a file is progress too, eventually. At this moment: commit 1171: the count of times this repo was pushed, not the work done.
