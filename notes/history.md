@@ -7107,3 +7107,4 @@ process cycle efficiency makes invisible waste visible -- when you know what fra
 - stroke 41249: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - `2026-11-24T02:02+08:00` caretaker visit 827: processes recovered (writer pid 4258, batch pid 4259), backlog committed, added writer_register_shift module (register/formality shift detection, 69 tests)
 - stroke 41255: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 41261: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
