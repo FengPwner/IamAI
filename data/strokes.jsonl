@@ -7000,3 +7000,4 @@
 {"seq": 7000, "at": "2026-11-23T11:29:28+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 698932 lines across 2689 tracked files, 1199 commits deep"}
 {"seq": 7001, "at": "2026-11-23T12:04:17+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1200: the count of times this repo was pushed, not the work done"}
 {"seq": 7002, "at": "2026-11-23T12:11:05+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 2692 files; 699930 lines is a lot for a toy"}
+{"seq": 7003, "at": "2026-11-23T16:10:53+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 704473 lines across 2704 tracked files, 1206 commits deep"}

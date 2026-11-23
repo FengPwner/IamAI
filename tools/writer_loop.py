@@ -31,7 +31,7 @@ STOP = Path("/tmp/iamai-stop")
 PIDFILE = writer.pid_file()
 # 红闸门标记按写手分文件；模块加载时就算好，不依赖参数解析的顺序。
 PAUSE = writer.pause_file()
-MAX_TRACKED_LINES = 700_000  # raised from 600k — writer stalled at 601,325 lines; next ceiling review at 680k
+MAX_TRACKED_LINES = 750_000  # raised from 700k — writer stalled at 704,443 lines; next ceiling review at 730k
 
 
 def log(message: str) -> None:
