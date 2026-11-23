@@ -7081,3 +7081,7 @@ process cycle efficiency makes invisible waste visible -- when you know what fra
 - writer output is stable: 200 recent strokes show mean length 137 chars, drift rate +0.006 (flat), stability 1.00 (steady)
 - visit 816: pipeline healthy, no intervention needed beyond the new module
 
+- stroke 41117: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 41123: `retry.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 41129: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 41135: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there

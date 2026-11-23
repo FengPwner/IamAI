@@ -7067,3 +7067,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## caretaker visit 815
 
 a writer that only says the same thing in the same way is a printer with extra steps. creativity is measurable as range — vocabulary spread, sentence rhythm variation, topic entropy, structural diversity, sentiment breadth. At this moment: 982153 lines across 4237 files, 1183 commits deep, writer_creative_range added in caretaker visit 815.
+## stroke 41127
+
+deleting a file is progress too, eventually. At this moment: commit 1189: the count of times this repo was pushed, not the work done.
