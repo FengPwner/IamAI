@@ -7054,3 +7054,9 @@ Qwen caretaker visit: found writer and batch processes stopped (reclaimed). Rest
 
 commit cadence is rhythm made visible -- regularity score turns interval variance into a number you can track over time | caretaker visit 812
 - stroke 41075: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 41081: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+
+## stroke 41084
+
+process cycle efficiency makes invisible waste visible -- when you know what fraction of your time is spent recovering from crashes instead of creating, you can finally see whether your "productive" process is actually producing | caretaker visit 813
+- stroke 41085: `process_cycle_efficiency.py` — productive vs overhead time classification (efficiency scoring, trend analysis, stall/overhead accounting), 72 tests | caretaker visit 813
