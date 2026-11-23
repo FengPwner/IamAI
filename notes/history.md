@@ -7073,3 +7073,11 @@ process cycle efficiency makes invisible waste visible -- when you know what fra
 - added `writer_creative_range.py` — writing diversity measurement across 5 dimensions (vocabulary richness, sentence length CV, topic entropy, structural variety, polarity range), 86 tests
 - visit 815: processes healthy, auto-commit pipeline running
 - stroke 41111: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
+
+## caretaker visit 816
+
+- `2026-11-23T15:02:00+08:00` caretaker visit: processes running (writer pid 3990, batch pid 3991), backlog cleared
+- added `stroke_length_drift.py` — stroke text-length trend analysis (bucketed OLS slope, drift rate scoring, stability classification), 63 tests
+- writer output is stable: 200 recent strokes show mean length 137 chars, drift rate +0.006 (flat), stability 1.00 (steady)
+- visit 816: pipeline healthy, no intervention needed beyond the new module
+
