@@ -7056,3 +7056,10 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 41043
 
 deleting a file is progress too, eventually. At this moment: 688918 lines across 2665 tracked files, 1175 commits deep.
+## stroke 41050 (visit 810)
+
+a shared utility is the most useful abstraction when six modules
+independently reinvent Jaccard similarity. text_similarity consolidates
+five complementary metrics (jaccard, ngram, cosine, lcs, structural)
+into one importable location, so the next analysis module doesn't
+have to choose which existing module to copy from.
