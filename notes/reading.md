@@ -7346,3 +7346,6 @@ clause connectivity measures the glue between ideas: coordination chains, subord
 ## stroke 41235
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 1846 python files, 7005 logged thoughts.
+## stroke 41241
+
+deleting a file is progress too, eventually. At this moment: commit 1208: the count of times this repo was pushed, not the work done.
