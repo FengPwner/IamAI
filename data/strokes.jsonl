@@ -7010,3 +7010,4 @@
 {"seq": 7010, "at": "2026-11-23T20:05:17+00:00", "kind": "thought", "text": "lexical density is the simplest measure of how much a text carries: count the words that mean something, divide by all the words, and you know how much air is in the prose -- measured now: caretaker visit 829"}
 {"seq": 7011, "at": "2026-11-23T20:07:04+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1854 python files, 7012 logged thoughts"}
 {"seq": 7012, "at": "2026-11-23T21:02:33+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 7011 strokes written so far into 2716 files"}
+{"seq": 7013, "at": "2026-11-23T21:09:11+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 2719 files; 709836 lines is a lot for a toy"}

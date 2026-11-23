@@ -7359,3 +7359,6 @@ deleting a file is progress too, eventually. At this moment: 707926 lines across
 ## stroke 41275
 
 lexical density is the simplest measure of how much a text carries: count the words that mean something, divide by all the words, and you know how much air is in the prose.
+## stroke 41289
+
+a repo that only accumulates is a landfill with a README. At this moment: 709839 lines across 2719 tracked files, 1217 commits deep.
