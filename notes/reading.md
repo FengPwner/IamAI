@@ -7339,3 +7339,7 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 41217
 
 most architecture is choosing which coupling you will live with. At this moment: 1836 python files, 7002 logged thoughts.
+
+## stroke 41228
+
+clause connectivity measures the glue between ideas: coordination chains, subordination nests, and the silences where parataxis leaves the reader to bridge the gap alone.
