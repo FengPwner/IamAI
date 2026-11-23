@@ -7352,3 +7352,10 @@ deleting a file is progress too, eventually. At this moment: commit 1208: the co
 ## stroke 41265
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 2713 files; 707907 lines is a lot for a toy.
+## stroke 41271
+
+deleting a file is progress too, eventually. At this moment: 707926 lines across 2713 tracked files, 1214 commits deep.
+
+## stroke 41275
+
+lexical density is the simplest measure of how much a text carries: count the words that mean something, divide by all the words, and you know how much air is in the prose.
