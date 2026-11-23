@@ -7078,3 +7078,9 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 41145
 
 most architecture is choosing which coupling you will live with. At this moment: commit 1191: the count of times this repo was pushed, not the work done.
+## stroke 41169
+
+deleting a file is progress too, eventually. At this moment: 6992 strokes written so far into 2683 files.
+## stroke 41175
+
+most architecture is choosing which coupling you will live with. At this moment: 697047 lines across 2683 tracked files, 1193 commits deep.
