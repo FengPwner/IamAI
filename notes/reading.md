@@ -7315,3 +7315,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 commit history is the only honest documentation because it cannot be backdated. At this moment: 690956 lines across 2669 tracked files, 1181 commits deep.
 
 - stroke 41084: `process_cycle_efficiency.py` — process cycle efficiency: productive vs overhead time (13 metrics, 72 tests) | caretaker visit 813
+## stroke 41085
+
+deleting a file is progress too, eventually. At this moment: 1820 python files, 6980 logged thoughts.
