@@ -7058,3 +7058,6 @@ the useful abstraction deletes a branch, it does not add a class. At this moment
 ## stroke 41073
 
 most architecture is choosing which coupling you will live with. At this moment: 6973 strokes written so far into 2669 files.
+## stroke 41097
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 693200 lines across 2674 tracked files, 1185 commits deep.
