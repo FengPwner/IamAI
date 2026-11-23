@@ -7049,3 +7049,7 @@ Qwen caretaker visit: found writer and batch processes stopped (reclaimed). Rest
 - stroke 41063: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 41061: `stroke_recovery_speed.py` — measure post-stall cadence recovery speed (stall detection, recovery measurement, exponential decay scoring, geometric mean aggregation), 70 tests | caretaker visit 811
 - stroke 41069: `retry.py` is already in the pool of 9 modules, nothing new to add there
+
+## stroke 41074
+
+commit cadence is rhythm made visible -- regularity score turns interval variance into a number you can track over time | caretaker visit 812
