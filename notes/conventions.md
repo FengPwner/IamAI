@@ -7050,3 +7050,6 @@ deleting a file is progress too, eventually. At this moment: commit 1171: the co
 ## stroke 41019
 
 most architecture is choosing which coupling you will live with. At this moment: tree is 2659 files; 687085 lines is a lot for a toy.
+## stroke 41037
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 2662 files; 687989 lines is a lot for a toy.
