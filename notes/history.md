@@ -7063,3 +7063,12 @@ process cycle efficiency makes invisible waste visible -- when you know what fra
 - stroke 41087: `retry.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 41093: `chunk_text.py` is already in the pool of 9 modules, nothing new to add there
 - stroke 41099: `parse_kv.py` is already in the pool of 9 modules, nothing new to add there
+- stroke 41105: `retry.py` is already in the pool of 9 modules, nothing new to add there
+
+## caretaker visit 815
+
+- `2026-11-23T14:02:00+08:00` writer and batch processes found stopped (container reclamation)
+- catch-up commit c9060ba pushed 7 pending files
+- both processes restarted: writer pid 6413, batch pid 6414
+- added `writer_creative_range.py` — writing diversity measurement across 5 dimensions (vocabulary richness, sentence length CV, topic entropy, structural variety, polarity range), 86 tests
+- visit 815: processes healthy, auto-commit pipeline running
