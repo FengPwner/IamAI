@@ -7362,3 +7362,7 @@ lexical density is the simplest measure of how much a text carries: count the wo
 ## stroke 41289
 
 a repo that only accumulates is a landfill with a README. At this moment: 709839 lines across 2719 tracked files, 1217 commits deep.
+
+## caretaker visit 831
+
+syntactic mood is the grammatical fingerprint of intent: every sentence either states, asks, commands, exclaims, imagines, or conditions — and the distribution across a text reveals whether the writer is reporting, teaching, arguing, or dreaming.
