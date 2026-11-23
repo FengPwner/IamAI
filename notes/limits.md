@@ -7070,3 +7070,9 @@ a writer that only says the same thing in the same way is a printer with extra s
 ## stroke 41127
 
 deleting a file is progress too, eventually. At this moment: commit 1189: the count of times this repo was pushed, not the work done.
+## stroke 41151
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 2681 files; 696204 lines is a lot for a toy.
+## stroke 41157
+
+deleting a file is progress too, eventually. At this moment: 696212 lines across 2681 tracked files, 1191 commits deep.
