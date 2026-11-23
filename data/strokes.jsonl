@@ -6968,3 +6968,4 @@
 {"seq": 6968, "at": "2026-11-23T01:05:50+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 1816 python files, 6969 logged thoughts"}
 {"seq": 6969, "at": "2026-11-23T01:12:37+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 6968 strokes written so far into 2665 files"}
 {"seq": 6970, "at": "2026-11-23T01:19:34+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 2667 files; 689702 lines is a lot for a toy"}
+{"seq": 6971, "at": "2026-11-23T02:05:00+00:00", "kind": "thought", "text": "recovery speed is the measure of how fast you bounce back, not how fast you run -- measured now: tree is 2669 files; stroke_recovery_speed added in caretaker visit 811"}
