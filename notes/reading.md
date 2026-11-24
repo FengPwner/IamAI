@@ -7384,3 +7384,6 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 41397
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2721 files; 711236 lines is a lot for a toy.
+## stroke 41421
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: 711268 lines across 2721 tracked files, 1241 commits deep.
