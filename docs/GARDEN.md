@@ -32591,3 +32591,4 @@ round 41396  bloom 100.0%  plants  146/384
 
 - stroke 41402: round 41402  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 41408: round 41408  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 41414: round 41414  bloom 100.0%  plants  146/384, bloom 100.0%
