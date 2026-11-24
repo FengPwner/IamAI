@@ -7022,3 +7022,4 @@
 {"seq": 7022, "at": "2026-11-24T05:04:42+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: tree is 2721 files; 711106 lines is a lot for a toy"}
 {"seq": 7023, "at": "2026-11-24T06:04:48+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: 711125 lines across 2721 tracked files, 1227 commits deep"}
 {"seq": 7024, "at": "2026-11-24T07:05:22+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: commit 1228: the count of times this repo was pushed, not the work done"}
+{"seq": 7025, "at": "2026-11-24T08:07:38+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 7024 strokes written so far into 2721 files"}
