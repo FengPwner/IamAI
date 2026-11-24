@@ -7369,3 +7369,6 @@ syntactic mood is the grammatical fingerprint of intent: every sentence either s
 ## stroke 41319
 
 a repo that only accumulates is a landfill with a README. At this moment: 7018 strokes written so far into 2721 files.
+## stroke 41343
+
+most architecture is choosing which coupling you will live with. At this moment: tree is 2721 files; 711120 lines is a lot for a toy.
