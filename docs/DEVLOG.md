@@ -7210,3 +7210,4 @@ added stroke_metric_rotation module + 38 tests — analyses how the five metric 
 - `2026-11-23T22:02:00+00:00` stroke 41299: caretaker visit 831: add writer_syntactic_mood module (grammatical mood profiling — declarative/interrogative/imperative/exclamatory/subjunctive/conditional, mood diversity, 6 labels, 96 tests) + visit note
 - `2026-11-23T22:10:53+00:00` stroke 41299: 1858 python files, 7017 logged thoughts
 - `2026-11-23T23:05:37+00:00` stroke 41305: 7016 strokes written so far into 2721 files
+- `2026-11-24T00:05:55+00:00` stroke 41311: tree is 2721 files; 711056 lines is a lot for a toy

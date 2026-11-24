@@ -7097,3 +7097,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 41307
 
 commit history is the only honest documentation because it cannot be backdated. At this moment: 711050 lines across 2721 tracked files, 1220 commits deep.
+## stroke 41313
+
+deleting a file is progress too, eventually. At this moment: 1858 python files, 7019 logged thoughts.
