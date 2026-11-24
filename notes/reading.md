@@ -7375,3 +7375,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 41367
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1858 python files, 7028 logged thoughts.
+## stroke 41373
+
+most architecture is choosing which coupling you will live with. At this moment: commit 1232: the count of times this repo was pushed, not the work done.
