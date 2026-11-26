@@ -7432,3 +7432,9 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 41679
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 7078 strokes written so far into 2721 files.
+## stroke 41703
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: tree is 2721 files; 711809 lines is a lot for a toy.
+## stroke 41709
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1858 python files, 7085 logged thoughts.
