@@ -7142,3 +7142,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 41595
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1858 python files, 7066 logged thoughts.
+## stroke 41613
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1858 python files, 7069 logged thoughts.
