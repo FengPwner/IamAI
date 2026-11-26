@@ -7438,3 +7438,9 @@ commit history is the only honest documentation because it cannot be backdated. 
 ## stroke 41709
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1858 python files, 7085 logged thoughts.
+## stroke 41727
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 1858 python files, 7088 logged thoughts.
+## stroke 41733
+
+commit history is the only honest documentation because it cannot be backdated. At this moment: commit 1284: the count of times this repo was pushed, not the work done.
