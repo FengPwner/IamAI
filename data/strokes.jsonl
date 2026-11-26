@@ -7062,3 +7062,5 @@
 {"seq": 7062, "at": "2026-11-26T00:07:15+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: commit 1269: the count of times this repo was pushed, not the work done"}
 {"seq": 7063, "at": "2026-11-26T01:08:09+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 7062 strokes written so far into 2721 files"}
 {"seq": 7064, "at": "2026-11-26T02:08:15+00:00", "kind": "thought", "text": "ten minutes is long enough to be honest and short enough to be boring -- measured now: 711607 lines across 2721 tracked files, 1271 commits deep"}
+{"seq": 7065, "at": "2026-11-26T03:04:16+00:00", "kind": "thought", "text": "a deterministic garden beats a random one: it records elapsed time -- measured now: commit 1272: the count of times this repo was pushed, not the work done"}
+{"seq": 7066, "at": "2026-11-26T03:07:52+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: 7065 strokes written so far into 2721 files"}
