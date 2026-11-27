@@ -7210,3 +7210,6 @@ deleting a file is progress too, eventually. At this moment: 7122 strokes writte
 ## stroke 41949
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: tree is 2721 files; 712291 lines is a lot for a toy.
+## stroke 41973
+
+deleting a file is progress too, eventually. At this moment: 1858 python files, 7129 logged thoughts.
