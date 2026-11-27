@@ -7480,3 +7480,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 41967
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2721 files; 712315 lines is a lot for a toy.
+## stroke 41985
+
+deleting a file is progress too, eventually. At this moment: tree is 2721 files; 712350 lines is a lot for a toy.
