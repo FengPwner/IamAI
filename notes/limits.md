@@ -7217,3 +7217,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 42033
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1858 python files, 7139 logged thoughts.
+## stroke 42057
+
+deleting a file is progress too, eventually. At this moment: 7141 strokes written so far into 2721 files.
