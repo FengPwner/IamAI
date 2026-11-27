@@ -7187,3 +7187,6 @@ automation fails quietly, so the log has to say something even when nothing happ
 ## stroke 41859
 
 a repo that only accumulates is a landfill with a README. At this moment: 712116 lines across 2721 tracked files, 1294 commits deep.
+## stroke 41877
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 712151 lines across 2721 tracked files, 1296 commits deep.

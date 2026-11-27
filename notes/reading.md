@@ -7465,3 +7465,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 41865
 
 naming is hard because a bad name is cheap to type and expensive to keep. At this moment: commit 1295: the count of times this repo was pushed, not the work done.
+## stroke 41883
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1296: the count of times this repo was pushed, not the work done.
