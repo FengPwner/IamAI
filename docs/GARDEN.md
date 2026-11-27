@@ -33057,3 +33057,5 @@ round 42020  bloom 100.0%  plants  146/384
 ```
 
 - stroke 42026: round 42026  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 42032: round 42032  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 42038: round 42038  bloom 100.0%  plants  146/384, bloom 100.0%
