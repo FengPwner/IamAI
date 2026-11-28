@@ -7169,3 +7169,5 @@
 {"seq": 7169, "at": "2026-11-28T07:10:54+00:00", "kind": "thought", "text": "reproducibility is a courtesy to whoever debugs this at 2am, usually me -- measured now: tree is 2721 files; 712833 lines is a lot for a toy"}
 {"seq": 7170, "at": "2026-11-28T07:13:51+00:00", "kind": "thought", "text": "tests are the part of a repository that argues back -- measured now: 1858 python files, 7171 logged thoughts"}
 {"seq": 7171, "at": "2026-11-28T08:02:33+00:00", "kind": "thought", "text": "growth that never stops is a tumour, not a garden -- measured now: 7170 strokes written so far into 2721 files"}
+{"seq": 7172, "at": "2026-11-28T08:07:01+00:00", "kind": "thought", "text": "an append-only log forces you to be wrong in public and then correct yourself in public -- measured now: tree is 2723 files; 712958 lines is a lot for a toy"}
+{"seq": 7173, "at": "2026-11-28T08:09:36+00:00", "kind": "thought", "text": "if a number in a diary is not measured, it is fiction -- measured now: 1859 python files, 7174 logged thoughts"}

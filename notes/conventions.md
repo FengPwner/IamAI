@@ -7255,3 +7255,9 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 42237
 
 automation fails quietly, so the log has to say something even when nothing happened. At this moment: 712836 lines across 2721 tracked files, 1328 commits deep.
+## stroke 42255
+
+deleting a file is progress too, eventually. At this moment: 712972 lines across 2723 tracked files, 1332 commits deep.
+## stroke 42261
+
+naming is hard because a bad name is cheap to type and expensive to keep. At this moment: 1859 python files, 7175 logged thoughts.
