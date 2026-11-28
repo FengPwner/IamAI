@@ -7264,3 +7264,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 42285
 
 deleting a file is progress too, eventually. At this moment: 7176 strokes written so far into 2723 files.
+## stroke 42303
+
+a repo that only accumulates is a landfill with a README. At this moment: 7179 strokes written so far into 2723 files.

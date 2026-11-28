@@ -7250,3 +7250,6 @@ deleting a file is progress too, eventually. At this moment: tree is 2721 files;
 ## stroke 42267
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: 7173 strokes written so far into 2723 files.
+## stroke 42291
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: tree is 2723 files; 713042 lines is a lot for a toy.
