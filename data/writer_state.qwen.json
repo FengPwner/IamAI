@@ -1,12 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-11-27T02:06:12+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 41871
-    },
-    {
       "at": "2026-11-27T02:07:06+00:00",
       "kind": "note",
       "path": "notes/conventions.md",
@@ -2399,15 +2393,21 @@
       "kind": "snippet",
       "path": "notes/history.md",
       "seq": 42270
+    },
+    {
+      "at": "2026-11-28T09:03:44+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 42271
     }
   ],
-  "seq": 42271,
+  "seq": 42272,
   "tally": {
     "devlog": 6990,
     "garden": 6990,
     "metrics": 6990,
     "note": 6990,
     "snippet": 6990,
-    "thought": 6989
+    "thought": 6990
   }
 }
