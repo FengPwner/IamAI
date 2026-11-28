@@ -7265,3 +7265,6 @@ most architecture is choosing which coupling you will live with. At this moment:
 ## stroke 42369
 
 deleting a file is progress too, eventually. At this moment: 713276 lines across 2725 tracked files, 1349 commits deep.
+## stroke 42423
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: tree is 2725 files; 710961 lines is a lot for a toy.
