@@ -7346,3 +7346,5 @@ added stroke_metric_rotation module + 38 tests — analyses how the five metric 
 - `2026-11-27T22:06:27+00:00` stroke 42109: 712604 lines across 2721 tracked files, 1315 commits deep
 - `2026-11-27T23:02:29+00:00` stroke 42115: 1858 python files, 7153 logged thoughts
 - `2026-11-27T23:06:51+00:00` stroke 42121: 7152 strokes written so far into 2721 files
+- `2026-11-28T00:03:12+00:00` stroke 42127: tree is 2721 files; 712628 lines is a lot for a toy
+- `2026-11-28T00:06:22+00:00` stroke 42133: 1858 python files, 7156 logged thoughts

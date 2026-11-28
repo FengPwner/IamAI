@@ -7232,3 +7232,6 @@ deleting a file is progress too, eventually. At this moment: 1858 python files, 
 ## stroke 42111
 
 the useful abstraction deletes a branch, it does not add a class. At this moment: commit 1315: the count of times this repo was pushed, not the work done.
+## stroke 42135
+
+automation fails quietly, so the log has to say something even when nothing happened. At this moment: 7154 strokes written so far into 2721 files.
