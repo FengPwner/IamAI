@@ -33126,3 +33126,5 @@ round 42098  bloom 100.0%  plants  146/384
 
 - stroke 42104: round 42104  bloom 100.0%  plants  146/384, bloom 100.0%
 - stroke 42110: round 42110  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 42116: round 42116  bloom 100.0%  plants  146/384, bloom 100.0%
+- stroke 42122: round 42122  bloom 100.0%  plants  146/384, bloom 100.0%
