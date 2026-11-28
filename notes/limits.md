@@ -7247,3 +7247,6 @@ naming is hard because a bad name is cheap to type and expensive to keep. At thi
 ## stroke 42213
 
 deleting a file is progress too, eventually. At this moment: tree is 2721 files; 712796 lines is a lot for a toy.
+## stroke 42267
+
+the useful abstraction deletes a branch, it does not add a class. At this moment: 7173 strokes written so far into 2723 files.
