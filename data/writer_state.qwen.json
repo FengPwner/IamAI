@@ -1,84 +1,6 @@
 {
   "history": [
     {
-      "at": "2026-11-26T18:02:22+00:00",
-      "kind": "note",
-      "path": "notes/conventions.md",
-      "seq": 41764
-    },
-    {
-      "at": "2026-11-26T18:03:08+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 41765
-    },
-    {
-      "at": "2026-11-26T18:03:26+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 41766
-    },
-    {
-      "at": "2026-11-26T18:04:13+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 41767
-    },
-    {
-      "at": "2026-11-26T18:04:35+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 41768
-    },
-    {
-      "at": "2026-11-26T18:05:26+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 41769
-    },
-    {
-      "at": "2026-11-26T18:05:44+00:00",
-      "kind": "note",
-      "path": "notes/limits.md",
-      "seq": 41770
-    },
-    {
-      "at": "2026-11-26T18:06:38+00:00",
-      "kind": "metrics",
-      "path": "docs/METRICS.md",
-      "seq": 41771
-    },
-    {
-      "at": "2026-11-26T18:06:53+00:00",
-      "kind": "snippet",
-      "path": "notes/history.md",
-      "seq": 41772
-    },
-    {
-      "at": "2026-11-26T18:07:47+00:00",
-      "kind": "thought",
-      "path": "data/strokes.jsonl",
-      "seq": 41773
-    },
-    {
-      "at": "2026-11-26T19:01:36+00:00",
-      "kind": "devlog",
-      "path": "docs/DEVLOG.md",
-      "seq": 41774
-    },
-    {
-      "at": "2026-11-26T19:01:51+00:00",
-      "kind": "garden",
-      "path": "docs/GARDEN.md",
-      "seq": 41775
-    },
-    {
-      "at": "2026-11-26T19:02:10+00:00",
-      "kind": "note",
-      "path": "notes/limits.md",
-      "seq": 41776
-    },
-    {
       "at": "2026-11-26T19:02:52+00:00",
       "kind": "metrics",
       "path": "docs/METRICS.md",
@@ -2399,15 +2321,93 @@
       "kind": "thought",
       "path": "data/strokes.jsonl",
       "seq": 42163
+    },
+    {
+      "at": "2026-11-28T03:01:45+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 42164
+    },
+    {
+      "at": "2026-11-28T03:02:00+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 42165
+    },
+    {
+      "at": "2026-11-28T03:02:19+00:00",
+      "kind": "note",
+      "path": "notes/limits.md",
+      "seq": 42166
+    },
+    {
+      "at": "2026-11-28T03:03:07+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 42167
+    },
+    {
+      "at": "2026-11-28T03:03:24+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 42168
+    },
+    {
+      "at": "2026-11-28T03:04:12+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 42169
+    },
+    {
+      "at": "2026-11-28T03:04:33+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 42170
+    },
+    {
+      "at": "2026-11-28T03:05:21+00:00",
+      "kind": "garden",
+      "path": "docs/GARDEN.md",
+      "seq": 42171
+    },
+    {
+      "at": "2026-11-28T03:05:38+00:00",
+      "kind": "note",
+      "path": "notes/reading.md",
+      "seq": 42172
+    },
+    {
+      "at": "2026-11-28T03:06:29+00:00",
+      "kind": "metrics",
+      "path": "docs/METRICS.md",
+      "seq": 42173
+    },
+    {
+      "at": "2026-11-28T03:06:44+00:00",
+      "kind": "snippet",
+      "path": "notes/history.md",
+      "seq": 42174
+    },
+    {
+      "at": "2026-11-28T03:07:36+00:00",
+      "kind": "thought",
+      "path": "data/strokes.jsonl",
+      "seq": 42175
+    },
+    {
+      "at": "2026-11-28T03:07:54+00:00",
+      "kind": "devlog",
+      "path": "docs/DEVLOG.md",
+      "seq": 42176
     }
   ],
-  "seq": 42164,
+  "seq": 42177,
   "tally": {
-    "devlog": 6972,
-    "garden": 6972,
-    "metrics": 6972,
-    "note": 6972,
-    "snippet": 6972,
-    "thought": 6972
+    "devlog": 6975,
+    "garden": 6974,
+    "metrics": 6974,
+    "note": 6974,
+    "snippet": 6974,
+    "thought": 6974
   }
 }
